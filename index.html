@@ -23,7 +23,7 @@ button.secondary{background:#e2e8f0;color:#0f172a}button:disabled{opacity:.5;cur
 <div id="status" class="status" aria-live="polite">Checking your session…</div></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
 const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8JjQva55w_hJaL44rb';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const loginPanel=document.getElementById('login-panel'),appPanel=document.getElementById('app-panel'),loginButton=document.getElementById('login-button'),statusBox=document.getElementById('status');
 let verificationSequence=0;
@@ -48,6 +48,6 @@ document.getElementById('login-form').addEventListener('submit',async event=>{
  finally{loginButton.disabled=false}
 });
 document.getElementById('logout-button').addEventListener('click',async()=>{const {error}=await supabaseClient.auth.signOut();showLoggedOut();setStatus(error?'Sign-out error: '+error.message:'You are signed out.',error?'error':'')});
-supabaseClient.auth.onAuthStateChange((_event,session)=>{Promise.resolve().then(()=>verifyAccess(session?session.user:null))});
+supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){showLoggedOut();setStatus('You are signed out.')}else if(event==='TOKEN_REFRESHED'&&session){Promise.resolve().then(()=>verifyAccess(session.user))}});
 supabaseClient.auth.getSession().then(({data,error})=>{if(error){showLoggedOut();setStatus(error.message,'error');return}return verifyAccess(data.session?data.session.user:null)});
 </script></body></html>

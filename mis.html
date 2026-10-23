@@ -40,13 +40,12 @@
 
     <section class="auth-box" aria-labelledby="auth-heading">
       <h2 id="auth-heading">Authorized sign-in</h2>
-      <p class="hint">Only a Supabase account with the project-admin role can import. There is no public sign-up on this page.</p>
+      <p class="hint">Only the verified email enga018@gmail.com is authorized to import. Sign in with a secure email link; the main app remains public.</p>
       <div id="signed-out">
-        <label class="file-label" for="email">Email</label>
-        <input id="email" type="email" autocomplete="username" required>
-        <label class="file-label" for="password">Password</label>
-        <input id="password" type="password" autocomplete="current-password" required>
-        <button type="button" id="sign-in-button">Sign in</button>
+        <label class="file-label" for="email">Admin email</label>
+        <input id="email" type="email" autocomplete="email" value="enga018@gmail.com" readonly required>
+        <button type="button" id="sign-in-button">Send sign-in link</button>
+        <p class="hint">We will email a one-time sign-in link to enga018@gmail.com. No password is needed.</p>
       </div>
       <div id="signed-in" class="hidden">
         <p id="account-label" class="signed-in"></p>
@@ -133,12 +132,10 @@
       signInButton.disabled = true;
       try {
         const email = document.getElementById('email').value.trim();
-        const password = document.getElementById('password').value;
-        if (!email || !password) throw new Error('Enter your email and password.');
-        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (email.toLowerCase() !== 'enga018@gmail.com') throw new Error('Only enga018@gmail.com is authorized.');
+        const { error } = await supabaseClient.auth.signInWithOtp({ email, options: { emailRedirectTo: 'https://enga018.github.io/vb-gramg/mis.html', shouldCreateUser: true } });
         if (error) throw error;
-        updateAuthUI(data.user);
-        setStatus('Signed in. If this account has the MIS admin role, you can import.', 'success');
+        setStatus('If Supabase Auth is configured for this site, a sign-in link has been sent to enga018@gmail.com. Open it on this device to finish signing in.', 'success');
       } catch (error) {
         setStatus('Sign-in failed: ' + (error && error.message ? error.message : String(error)), 'error');
       } finally {

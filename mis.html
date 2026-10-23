@@ -14,8 +14,7 @@
     p { color: #475569; line-height: 1.5; margin: 0 0 20px; }
     .file-box { padding: 16px; border: 1px solid #cbd5e1; border-radius: 12px; margin: 18px 0 14px; }
     .file-label { display: block; margin-bottom: 10px; font-weight: 650; }
-    .sheet-option { display: flex; align-items: center; gap: 10px; margin: 10px 0; font-weight: 500; }
-    .sheet-option input { width: 18px; height: 18px; }
+    .hint { margin-top: 8px; font-size: .85rem; color: #64748b; }
     input[type=file] { display: block; width: 100%; max-width: 100%; font: inherit; font-size: .9rem; }
     button { width: 100%; min-height: 50px; padding: 13px 18px; border: 0; border-radius: 12px; background: #0f172a; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
     button:disabled { opacity: .45; cursor: not-allowed; }
@@ -37,12 +36,8 @@
       <label class="file-label" for="source-file">Choose Excel or CSV file</label>
       <input type="file" id="source-file" accept=".xlsx,.xls,.xlsm,.csv">
     </div>
-    <div id="sheet-picker" class="file-box hidden">
-      <div class="file-label">Choose worksheet tabs to import</div>
-      <div id="sheet-list"></div>
-      <p class="hint">Select one or more tabs. Each selected tab will be imported separately, in the order shown in the workbook.</p>
-    </div>
-    <button type="button" id="import-button" disabled>Import selected tabs</button>
+    <p class="hint">Only the worksheet named <strong>MIS</strong> will be imported. Other tabs are ignored.</p>
+    <button type="button" id="import-button" disabled>Import MIS tab</button>
     <div id="status" class="status" aria-live="polite">Choose a file to begin.</div>
     <div id="preview-wrap" class="table-wrap hidden">
       <table id="preview"><thead></thead><tbody></tbody></table>
@@ -55,11 +50,9 @@
     const statusBox = document.getElementById('status');
     const previewWrap = document.getElementById('preview-wrap');
     const preview = document.getElementById('preview');
-    const sheetPicker = document.getElementById('sheet-picker');
-    const sheetList = document.getElementById('sheet-list');
     let importedWorkbook = null;
     let importedFileName = '';
-    let selectedSheetNames = [];
+    let importedRows = [];
 
     function setStatus(message, error) {
       statusBox.textContent = message;
@@ -94,81 +87,52 @@
 
     sourceInput.addEventListener('change', async function () {
       const file = sourceInput.files[0];
-      sheetPicker.classList.add('hidden');
       importButton.disabled = true;
       previewWrap.classList.add('hidden');
       importedWorkbook = null;
-      selectedSheetNames = [];
+      importedRows = [];
       if (!file) return;
       if (typeof XLSX === 'undefined') {
         setStatus('Excel reader failed to load. Check your internet connection, refresh the page, and try again.', true);
         return;
       }
       try {
-        setStatus('Reading workbook tabs…', false);
+        setStatus('Reading workbook and looking for the MIS tab…', false);
         importedWorkbook = XLSX.read(await file.arrayBuffer(), { type: 'array', raw: false, cellDates: false });
         importedFileName = file.name.replace(/\.[^.]+$/, '') || 'Imported';
-        if (!importedWorkbook.SheetNames.length) throw new Error('The selected workbook has no worksheets.');
-        sheetList.replaceChildren();
-        importedWorkbook.SheetNames.forEach(function (name, index) {
-          const label = document.createElement('label');
-          label.className = 'sheet-option';
-          const checkbox = document.createElement('input');
-          checkbox.type = 'checkbox';
-          checkbox.value = name;
-          checkbox.checked = index === 0;
-          checkbox.addEventListener('change', function () {
-            selectedSheetNames = Array.from(sheetList.querySelectorAll('input:checked')).map(input => input.value);
-            importButton.disabled = selectedSheetNames.length === 0;
-          });
-          const span = document.createElement('span');
-          span.textContent = name;
-          label.append(checkbox, span);
-          sheetList.appendChild(label);
-          if (checkbox.checked) selectedSheetNames.push(name);
-        });
-        sheetPicker.classList.remove('hidden');
-        importButton.disabled = selectedSheetNames.length === 0;
-        setStatus('Workbook loaded: ' + importedWorkbook.SheetNames.length + ' tab(s). Select the tabs you want to import.', false);
+        const misName = importedWorkbook.SheetNames.find(name => name.trim().toLowerCase() === 'mis');
+        if (!misName) {
+          importedWorkbook = null;
+          throw new Error('This workbook does not contain a worksheet named “MIS”. Tab names must be MIS (case-insensitive).');
+        }
+        const sheet = importedWorkbook.Sheets[misName];
+        importedRows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '', blankrows: true });
+        importButton.disabled = false;
+        setStatus('Found the MIS tab in “' + file.name + '”. Click “Import MIS tab” to export only that worksheet.', false);
       } catch (error) {
         importedWorkbook = null;
-        setStatus('Could not read this workbook: ' + (error && error.message ? error.message : String(error)), true);
+        setStatus('Could not prepare import: ' + (error && error.message ? error.message : String(error)), true);
       }
     });
 
     importButton.addEventListener('click', function () {
-      if (!importedWorkbook || selectedSheetNames.length === 0) {
-        setStatus('Choose a workbook and select at least one tab.', true);
+      if (!importedWorkbook) {
+        setStatus('Choose a workbook containing a tab named MIS.', true);
         return;
       }
-      importButton.disabled = true;
-      previewWrap.classList.add('hidden');
       try {
+        const misName = importedWorkbook.SheetNames.find(name => name.trim().toLowerCase() === 'mis');
+        if (!misName) throw new Error('Worksheet “MIS” was not found.');
         const outputBook = XLSX.utils.book_new();
-        const summaries = [];
-        let previewRows = [];
-        selectedSheetNames.forEach(function (sheetName, index) {
-          const sourceSheet = importedWorkbook.Sheets[sheetName];
-          if (!sourceSheet) throw new Error('Worksheet not found: ' + sheetName);
-          // Keep the original worksheet cell map and worksheet metadata wherever supported by SheetJS.
-          const copiedSheet = JSON.parse(JSON.stringify(sourceSheet));
-          XLSX.utils.book_append_sheet(outputBook, copiedSheet, sheetName);
-          const rows = XLSX.utils.sheet_to_json(sourceSheet, { header: 1, raw: false, defval: '', blankrows: true });
-          summaries.push(sheetName + ': ' + rows.length + ' row(s)');
-          if (selectedSheetNames.length === 1) {
-            previewRows = rows;
-          } else if (previewRows.length < 500) {
-            previewRows.push(['Worksheet: ' + sheetName]);
-            previewRows.push(...rows.slice(0, Math.max(0, 500 - previewRows.length)));
-          }
-        });
-        XLSX.writeFile(outputBook, importedFileName + '_selected_tabs.xlsx');
-        renderRows(previewRows);
-        setStatus('Import complete. Downloaded a workbook containing the selected tabs. No row or column transformation rules were applied.\n' + summaries.join('\n') + (previewRows.length >= 500 ? '\nPreview is limited to 500 rows.' : ''), false);
+        // Export only the original MIS worksheet; do not alter its cell data.
+        const copiedSheet = JSON.parse(JSON.stringify(importedWorkbook.Sheets[misName]));
+        XLSX.utils.book_append_sheet(outputBook, copiedSheet, 'MIS');
+        XLSX.writeFile(outputBook, importedFileName + '_MIS.xlsx');
+        renderRows(importedRows);
+        const columnCount = importedRows.reduce((max, row) => Math.max(max, row.length), 0);
+        setStatus('Import complete. Exported only the MIS tab.\nRows read: ' + importedRows.length + '\nColumns detected: ' + columnCount + '\nNo row or column transformation rules were applied. Preview is limited to 500 rows.', false);
       } catch (error) {
-        setStatus('Could not import selected tabs: ' + (error && error.message ? error.message : String(error)), true);
-      } finally {
-        importButton.disabled = selectedSheetNames.length === 0;
+        setStatus('Could not import MIS tab: ' + (error && error.message ? error.message : String(error)), true);
       }
     });
   </script>

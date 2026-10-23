@@ -14,6 +14,8 @@
     p { color: #475569; line-height: 1.5; margin: 0 0 20px; }
     .file-box { padding: 16px; border: 1px solid #cbd5e1; border-radius: 12px; margin: 18px 0 14px; }
     .file-label { display: block; margin-bottom: 10px; font-weight: 650; }
+    .sheet-option { display: flex; align-items: center; gap: 10px; margin: 10px 0; font-weight: 500; }
+    .sheet-option input { width: 18px; height: 18px; }
     input[type=file] { display: block; width: 100%; max-width: 100%; font: inherit; font-size: .9rem; }
     button { width: 100%; min-height: 50px; padding: 13px 18px; border: 0; border-radius: 12px; background: #0f172a; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
     button:disabled { opacity: .45; cursor: not-allowed; }
@@ -35,7 +37,12 @@
       <label class="file-label" for="source-file">Choose Excel or CSV file</label>
       <input type="file" id="source-file" accept=".xlsx,.xls,.xlsm,.csv">
     </div>
-    <button type="button" id="import-button">Import data as it is</button>
+    <div id="sheet-picker" class="file-box hidden">
+      <div class="file-label">Choose worksheet tabs to import</div>
+      <div id="sheet-list"></div>
+      <p class="hint">Select one or more tabs. Each selected tab will be imported separately, in the order shown in the workbook.</p>
+    </div>
+    <button type="button" id="import-button" disabled>Import selected tabs</button>
     <div id="status" class="status" aria-live="polite">Choose a file to begin.</div>
     <div id="preview-wrap" class="table-wrap hidden">
       <table id="preview"><thead></thead><tbody></tbody></table>
@@ -48,9 +55,11 @@
     const statusBox = document.getElementById('status');
     const previewWrap = document.getElementById('preview-wrap');
     const preview = document.getElementById('preview');
-    let importedRows = [];
+    const sheetPicker = document.getElementById('sheet-picker');
+    const sheetList = document.getElementById('sheet-list');
     let importedWorkbook = null;
-    let importedSheetName = 'Sheet1';
+    let importedFileName = '';
+    let selectedSheetNames = [];
 
     function setStatus(message, error) {
       statusBox.textContent = message;

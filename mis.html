@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0f172a">
-  <title>MIS — Choose System & Import Excel</title>
+  <title>MIS — Import and Process Excel</title>
   <style>
     :root { color-scheme: light; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     * { box-sizing: border-box; }
@@ -14,13 +14,7 @@
     h2 { margin: 0 0 12px; font-size: 1.12rem; }
     p { color: #475569; line-height: 1.5; margin: 0 0 20px; }
     .section { margin-top: 28px; padding-top: 24px; border-top: 1px solid #e2e8f0; }
-    .switch-label, .file-label { display: block; margin-bottom: 10px; font-weight: 650; }
-    .switch { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; padding: 5px; border: 1px solid #cbd5e1; background: #f1f5f9; border-radius: 14px; }
-    .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-    .switch label { display: block; padding: 13px 10px; border-radius: 10px; text-align: center; font-weight: 650; cursor: pointer; color: #475569; }
-    .switch input:checked + label { background: #0f172a; color: #fff; box-shadow: 0 1px 3px rgb(15 23 42 / 18%); }
-    .switch input:focus-visible + label { outline: 3px solid #93c5fd; outline-offset: 3px; }
-    .details { margin: 16px 0 18px; padding: 13px 14px; border-radius: 10px; background: #f8fafc; color: #475569; font-size: .9rem; line-height: 1.5; }
+    .file-label { display: block; margin-bottom: 10px; font-weight: 650; }
     button { width: 100%; min-height: 50px; padding: 13px 18px; border: 0; border-radius: 12px; background: #0f172a; color: #fff; font: inherit; font-weight: 700; cursor: pointer; text-align: center; }
     button:hover { background: #1e293b; }
     button:focus-visible, input:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
@@ -45,24 +39,11 @@
 <body>
   <main>
     <h1>MIS</h1>
-    <p>Select a system to open, or import an Excel workbook and apply the same data-cleaning and Unique ID rules as the VBA macro.</p>
+    <p>Import your Excel workbook and apply the same data-cleaning, Unique ID, and MAIN comparison rules as the VBA macro.</p>
 
-    <section>
-      <h2>1. Choose system</h2>
-      <span class="switch-label">System</span>
-      <div class="switch" role="radiogroup" aria-label="Choose MIS system">
-        <input type="radio" id="nrega" name="system" value="nrega" checked>
-        <label for="nrega">NREGA</label>
-        <input type="radio" id="vbgramg" name="system" value="vbgramg">
-        <label for="vbgramg">VB-G RAM G</label>
-      </div>
-      <div class="details" id="system-details" aria-live="polite">NREGA / NREGASoft — New Serchhip North, FY 2026–2027.</div>
-      <button type="button" id="open-button">Open selected system</button>
-    </section>
-
-    <section class="section">
-      <h2>2. Import and process Excel</h2>
-      <p>Select the raw workbook downloaded/exported from the chosen system. The processing runs in this browser; the file is not uploaded to a server.</p>
+    <section class="section" style="margin-top:0;padding-top:0;border-top:0">
+      <h2>Import and process Excel</h2>
+      <p>Select the raw workbook downloaded/exported from the chosen system. Processing runs in this browser; the file is not uploaded to a server.</p>
       <div class="file-box">
         <label class="file-label" for="source-file">Raw data Excel file (.xlsx, .xls)</label>
         <input type="file" id="source-file" accept=".xlsx,.xls,.xlsm,.csv">
@@ -91,28 +72,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
-    const urls = {
-      nrega: 'https://mnregaweb2.dord.gov.in/netnrega/IndexFrame.aspx?lflag=eng&District_Code=2207&district_name=SERCHHIP&state_name=MIZORAM&state_Code=22&block_name=serchchip&block_code=2207001&fin_year=2026-2027&check=1&Panchayat_name=NEW+SERCHHIP+North&Panchayat_Code=2207001005',
-      vbgramg: 'https://vbgramgrep.dord.gov.in/VBGRAMG/IndexFrame.aspx?lflag=eng&District_Code=2207&district_name=SERCHHIP&state_name=MIZORAM&state_Code=22&block_name=serchchip&block_code=2207001&fin_year=2026-2027&check=1&Panchayat_name=NEW+SERCHHIP+North&Panchayat_Code=2207001005'
-    };
-
-    // Keep the exact URL parameters provided for New Serchhip North.
-    urls.nrega = 'https://mnregaweb2.dord.gov.in/netnrega/IndexFrame.aspx?lflag=eng&District_Code=2207&district_name=SERCHHIP&state_name=MIZORAM&state_Code=22&block_name=serchhip&block_code=2207001&fin_year=2026-2027&check=1&Panchayat_name=NEW+SERCHHIP+North&Panchayat_Code=2207001005';
-    urls.vbgramg = 'https://vbgramgrep.dord.gov.in/VBGRAMG/IndexFrame.aspx?lflag=eng&District_Code=2207&district_name=SERCHHIP&state_name=MIZORAM&state_Code=22&block_name=serchhip&block_code=2207001&fin_year=2026-2027&check=1&Panchayat_name=NEW+SERCHHIP+North&Panchayat_Code=2207001005';
-
-    const details = document.getElementById('system-details');
-    document.querySelectorAll('input[name="system"]').forEach(function (radio) {
-      radio.addEventListener('change', function () {
-        details.textContent = radio.value === 'nrega'
-          ? 'NREGA / NREGASoft — New Serchhip North, FY 2026–2027.'
-          : 'VB-G RAM G — New Serchhip North, FY 2026–2027.';
-      });
-    });
-    document.getElementById('open-button').addEventListener('click', function () {
-      const selected = document.querySelector('input[name="system"]:checked').value;
-      window.open(urls[selected], '_blank', 'noopener,noreferrer');
-    });
-
     const sourceInput = document.getElementById('source-file');
     const mainInput = document.getElementById('main-file');
     const statusBox = document.getElementById('status');

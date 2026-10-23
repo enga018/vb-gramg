@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f172a">
+  <title>MIS — Choose System</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f1f5f9; color: #0f172a; }
+    main { width: min(100%, 520px); padding: 30px; background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; box-shadow: 0 12px 32px rgb(15 23 42 / 8%); }
+    h1 { margin: 0 0 8px; font-size: clamp(1.6rem, 5vw, 2rem); }
+    p { color: #475569; line-height: 1.5; margin: 0 0 24px; }
+    .switch-label { display: block; margin-bottom: 10px; font-weight: 650; }
+    .switch { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; padding: 5px; border: 1px solid #cbd5e1; background: #f1f5f9; border-radius: 14px; }
+    .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .switch label { display: block; padding: 13px 10px; border-radius: 10px; text-align: center; font-weight: 650; cursor: pointer; color: #475569; }
+    .switch input:checked + label { background: #0f172a; color: #fff; box-shadow: 0 1px 3px rgb(15 23 42 / 18%); }
+    .switch input:focus-visible + label { outline: 3px solid #93c5fd; outline-offset: 3px; }
+    .details { margin: 16px 0 22px; padding: 13px 14px; border-radius: 10px; background: #f8fafc; color: #475569; font-size: .9rem; line-height: 1.5; }
+    button.open { width: 100%; min-height: 54px; padding: 14px 18px; border: 0; border-radius: 12px; background: #0f172a; color: #fff; font: inherit; font-weight: 700; cursor: pointer; text-align: center; }
+    button.open:hover { background: #1e293b; }
+    button.open:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
+    .note { margin: 18px 0 0; font-size: .82rem; color: #64748b; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>MIS</h1>
+    <p>Select which system you want to use, then press the single button below.</p>
+
+    <span class="switch-label">System</span>
+    <div class="switch" role="radiogroup" aria-label="Choose MIS system">
+      <input type="radio" id="nrega" name="system" value="nrega" checked>
+      <label for="nrega">NREGA</label>
+      <input type="radio" id="vbgramg" name="system" value="vbgramg">
+      <label for="vbgramg">VB-G RAM G</label>
+    </div>
+
+    <div class="details" id="system-details" aria-live="polite">
+      NREGA / NREGASoft — New Serchhip North, FY 2026–2027.
+    </div>
+
+    <button type="button" class="open" id="open-button">Open selected system</button>
+    <p class="note">The selected system opens in a new tab. Panchayat and financial-year parameters are preselected.</p>
+  </main>
+
+  <script>
+    const urls = {
+      nrega: 'https://mnregaweb2.dord.gov.in/netnrega/IndexFrame.aspx?lflag=eng&District_Code=2207&district_name=SERCHHIP&state_name=MIZORAM&state_Code=22&block_name=serchhip&block_code=2207001&fin_year=2026-2027&check=1&Panchayat_name=NEW+SERCHHIP+North&Panchayat_Code=2207001005',
+      vbgramg: 'https://vbgramgrep.dord.gov.in/VBGRAMG/IndexFrame.aspx?lflag=eng&District_Code=2207&district_name=SERCHHIP&state_name=MIZORAM&state_Code=22&block_name=serchhip&block_code=2207001&fin_year=2026-2027&check=1&Panchayat_name=NEW+SERCHHIP+North&Panchayat_Code=2207001005'
+    };
+
+    const details = document.getElementById('system-details');
+    document.querySelectorAll('input[name="system"]').forEach(function (radio) {
+      radio.addEventListener('change', function () {
+        details.textContent = radio.value === 'nrega'
+          ? 'NREGA / NREGASoft — New Serchhip North, FY 2026–2027.'
+          : 'VB-G RAM G — New Serchhip North, FY 2026–2027.';
+      });
+    });
+
+    document.getElementById('open-button').addEventListener('click', function () {
+      const selected = document.querySelector('input[name="system"]:checked').value;
+      window.open(urls[selected], '_blank', 'noopener,noreferrer');
+    });
+  </script>
+</body>
+</html>

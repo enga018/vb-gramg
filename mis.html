@@ -4,60 +4,104 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0f172a">
-  <title>MIS — Import Excel Data</title>
+  <title>MIS — Import to Supabase</title>
   <style>
     :root { color-scheme: light; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     * { box-sizing: border-box; }
     body { margin: 0; min-height: 100vh; padding: 24px; background: #f1f5f9; color: #0f172a; }
     main { width: min(100%, 1100px); margin: 0 auto; padding: clamp(20px, 4vw, 32px); background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; box-shadow: 0 12px 32px rgb(15 23 42 / 8%); }
     h1 { margin: 0 0 8px; font-size: clamp(1.6rem, 5vw, 2rem); }
+    h2 { margin: 0 0 12px; font-size: 1.1rem; }
     p { color: #475569; line-height: 1.5; margin: 0 0 20px; }
-    .file-box { padding: 16px; border: 1px solid #cbd5e1; border-radius: 12px; margin: 18px 0 14px; }
+    .file-box, .auth-box { padding: 16px; border: 1px solid #cbd5e1; border-radius: 12px; margin: 18px 0 14px; }
     .file-label { display: block; margin-bottom: 10px; font-weight: 650; }
     .hint { margin-top: 8px; font-size: .85rem; color: #64748b; }
-    input[type=file] { display: block; width: 100%; max-width: 100%; font: inherit; font-size: .9rem; }
-    button { width: 100%; min-height: 50px; padding: 13px 18px; border: 0; border-radius: 12px; background: #0f172a; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+    input[type=file], input[type=email], input[type=password] { display: block; width: 100%; max-width: 100%; font: inherit; font-size: .95rem; }
+    input[type=email], input[type=password] { min-height: 44px; margin: 8px 0 12px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; }
+    button { width: 100%; min-height: 48px; padding: 12px 16px; border: 0; border-radius: 10px; background: #0f172a; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+    button.secondary { margin-top: 8px; background: #e2e8f0; color: #0f172a; }
     button:disabled { opacity: .45; cursor: not-allowed; }
     button:focus-visible, input:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
-    .status { margin-top: 16px; padding: 12px 14px; background: #f8fafc; border-radius: 10px; font-size: .9rem; white-space: pre-wrap; }
+    .status { margin-top: 16px; padding: 12px 14px; background: #f8fafc; border-radius: 10px; font-size: .9rem; white-space: pre-wrap; overflow-wrap: anywhere; }
     .status.error { background: #fef2f2; color: #991b1b; }
+    .status.success { background: #f0fdf4; color: #166534; }
     .table-wrap { overflow: auto; max-height: 560px; margin-top: 16px; border: 1px solid #e2e8f0; border-radius: 10px; }
     table { width: 100%; border-collapse: collapse; font-size: .85rem; white-space: pre; }
     th, td { padding: 9px 11px; border: 1px solid #cbd5e1; text-align: left; }
     th { position: sticky; top: 0; background: #dbeafe; z-index: 1; }
-    .hidden { display: none; }
+    .hidden { display: none !important; }
+    .signed-in { font-size: .9rem; overflow-wrap: anywhere; margin: 0 0 12px; }
   </style>
 </head>
 <body>
   <main>
     <h1>MIS — Import Excel</h1>
-    <p>Import the worksheet exactly as provided. The importer does not remove rows, fill blanks, change columns, filter statuses, or generate values. The file is processed in your browser and is not uploaded to a server.</p>
+    <p>Upload only the worksheet named <strong>MIS</strong> to the vb-gramg Supabase database. Other tabs are ignored. Rows and columns are stored as arrays, including blank cells; no business-field mapping or filtering is applied.</p>
+
+    <section class="auth-box" aria-labelledby="auth-heading">
+      <h2 id="auth-heading">Authorized sign-in</h2>
+      <p class="hint">Only a Supabase account with the project-admin role can import. There is no public sign-up on this page.</p>
+      <div id="signed-out">
+        <label class="file-label" for="email">Email</label>
+        <input id="email" type="email" autocomplete="username" required>
+        <label class="file-label" for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password" required>
+        <button type="button" id="sign-in-button">Sign in</button>
+      </div>
+      <div id="signed-in" class="hidden">
+        <p id="account-label" class="signed-in"></p>
+        <button type="button" id="sign-out-button" class="secondary">Sign out</button>
+      </div>
+    </section>
+
     <div class="file-box">
       <label class="file-label" for="source-file">Choose Excel or CSV file</label>
       <input type="file" id="source-file" accept=".xlsx,.xls,.xlsm,.csv">
+      <p class="hint">The file is read locally in your browser. Only the MIS worksheet data is sent to Supabase, in batches.</p>
     </div>
-    <p class="hint">Only the worksheet named <strong>MIS</strong> will be imported. Other tabs are ignored.</p>
-    <button type="button" id="import-button" disabled>Import MIS tab</button>
-    <div id="status" class="status" aria-live="polite">Choose a file to begin.</div>
+    <button type="button" id="import-button" disabled>Import MIS to Supabase</button>
+    <div id="status" class="status" aria-live="polite">Sign in with an authorized account, then choose a workbook.</div>
     <div id="preview-wrap" class="table-wrap hidden">
       <table id="preview"><thead></thead><tbody></tbody></table>
     </div>
   </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
+    const SUPABASE_URL = 'https://trtzhafgvqosjwrgckty.supabase.co';
+    const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
     const sourceInput = document.getElementById('source-file');
     const importButton = document.getElementById('import-button');
     const statusBox = document.getElementById('status');
     const previewWrap = document.getElementById('preview-wrap');
     const preview = document.getElementById('preview');
+    const signedOut = document.getElementById('signed-out');
+    const signedIn = document.getElementById('signed-in');
+    const accountLabel = document.getElementById('account-label');
+    const signInButton = document.getElementById('sign-in-button');
+    const signOutButton = document.getElementById('sign-out-button');
+    let currentUser = null;
     let importedWorkbook = null;
     let importedFileName = '';
     let importedRows = [];
 
-    function setStatus(message, error) {
+    function setStatus(message, type) {
       statusBox.textContent = message;
-      statusBox.classList.toggle('error', !!error);
+      statusBox.classList.toggle('error', type === 'error');
+      statusBox.classList.toggle('success', type === 'success');
     }
+
+    function updateAuthUI(user) {
+      currentUser = user || null;
+      signedOut.classList.toggle('hidden', !!currentUser);
+      signedIn.classList.toggle('hidden', !currentUser);
+      accountLabel.textContent = currentUser ? 'Signed in as ' + currentUser.email : '';
+      importButton.disabled = !currentUser || !importedWorkbook;
+    }
+
     function renderRows(rows) {
       const thead = preview.querySelector('thead');
       const tbody = preview.querySelector('tbody');
@@ -85,6 +129,37 @@
       previewWrap.classList.remove('hidden');
     }
 
+    signInButton.addEventListener('click', async function () {
+      signInButton.disabled = true;
+      try {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        if (!email || !password) throw new Error('Enter your email and password.');
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        updateAuthUI(data.user);
+        setStatus('Signed in. If this account has the MIS admin role, you can import.', 'success');
+      } catch (error) {
+        setStatus('Sign-in failed: ' + (error && error.message ? error.message : String(error)), 'error');
+      } finally {
+        signInButton.disabled = false;
+      }
+    });
+
+    signOutButton.addEventListener('click', async function () {
+      const { error } = await supabaseClient.auth.signOut();
+      if (error) setStatus('Could not sign out: ' + error.message, 'error');
+      else {
+        updateAuthUI(null);
+        setStatus('Signed out. Sign in with an authorized account to import.', '');
+      }
+    });
+
+    supabaseClient.auth.onAuthStateChange((_event, session) => {
+      updateAuthUI(session ? session.user : null);
+    });
+    supabaseClient.auth.getSession().then(({ data }) => updateAuthUI(data.session ? data.session.user : null));
+
     sourceInput.addEventListener('change', async function () {
       const file = sourceInput.files[0];
       importButton.disabled = true;
@@ -93,12 +168,12 @@
       importedRows = [];
       if (!file) return;
       if (typeof XLSX === 'undefined') {
-        setStatus('Excel reader failed to load. Check your internet connection, refresh the page, and try again.', true);
+        setStatus('Excel reader failed to load. Check your internet connection, refresh the page, and try again.', 'error');
         return;
       }
       try {
-        setStatus('Reading workbook and looking for the MIS tab…', false);
-        importedWorkbook = XLSX.read(await file.arrayBuffer(), { type: 'array', raw: false, cellDates: false });
+        setStatus('Reading workbook and looking for the MIS tab…', '');
+        importedWorkbook = XLSX.read(await file.arrayBuffer(), { type: 'array', raw: true, cellDates: false });
         importedFileName = file.name.replace(/\.[^.]+$/, '') || 'Imported';
         const misName = importedWorkbook.SheetNames.find(name => name.trim().toLowerCase() === 'mis');
         if (!misName) {
@@ -106,33 +181,77 @@
           throw new Error('This workbook does not contain a worksheet named “MIS”. Tab names must be MIS (case-insensitive).');
         }
         const sheet = importedWorkbook.Sheets[misName];
-        importedRows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '', blankrows: true });
-        importButton.disabled = false;
-        setStatus('Found the MIS tab in “' + file.name + '”. Click “Import MIS tab” to export only that worksheet.', false);
+        importedRows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null, blankrows: true });
+        importButton.disabled = !currentUser;
+        setStatus('Found the MIS tab in “' + file.name + '”. Rows detected: ' + importedRows.length + '. Ready to send to Supabase.', '');
+        renderRows(importedRows);
       } catch (error) {
         importedWorkbook = null;
-        setStatus('Could not prepare import: ' + (error && error.message ? error.message : String(error)), true);
+        importedRows = [];
+        importButton.disabled = true;
+        setStatus('Could not prepare import: ' + (error && error.message ? error.message : String(error)), 'error');
       }
     });
 
-    importButton.addEventListener('click', function () {
-      if (!importedWorkbook) {
-        setStatus('Choose a workbook containing a tab named MIS.', true);
+    async function invokeImport(payload) {
+      const { data, error } = await supabaseClient.functions.invoke('vbgramg-mis-import', { body: payload });
+      if (error) {
+        let message = error.message || 'Supabase function request failed.';
+        try {
+          const response = error.context;
+          if (response && typeof response.json === 'function') {
+            const detail = await response.json();
+            if (detail && detail.error) message = detail.error;
+          }
+        } catch (_) {}
+        throw new Error(message);
+      }
+      if (data && data.error) throw new Error(data.error);
+      return data;
+    }
+
+    importButton.addEventListener('click', async function () {
+      if (!currentUser || !importedWorkbook || !Array.isArray(importedRows)) {
+        setStatus('Sign in and choose a workbook containing a tab named MIS.', 'error');
         return;
       }
+      if (importedRows.length > 100000) {
+        setStatus('This workbook contains more than 100,000 rows. Import limit is 100,000 rows.', 'error');
+        return;
+      }
+      importButton.disabled = true;
+      sourceInput.disabled = true;
+      let importId = null;
       try {
+        setStatus('Creating a staging import. The current active MIS data will remain unchanged until verification succeeds…', '');
+        const started = await invokeImport({ action: 'begin', filename: sourceInput.files[0]?.name || importedFileName + '.xlsx', rowCount: importedRows.length });
+        importId = started.importId;
+        const batchSize = 250;
+        for (let offset = 0; offset < importedRows.length; offset += batchSize) {
+          const batch = importedRows.slice(offset, offset + batchSize);
+          await invokeImport({ action: 'append', importId, startRow: offset + 1, rows: batch });
+          setStatus('Uploading MIS rows: ' + Math.min(offset + batch.length, importedRows.length) + ' / ' + importedRows.length, '');
+        }
+        const completed = await invokeImport({ action: 'finalize', importId });
+        if (!completed || completed.rowCount !== importedRows.length) {
+          throw new Error('Supabase did not confirm the expected saved row count.');
+        }
+
+        // Keep the previous workflow's optional local Excel export after the database import succeeds.
         const misName = importedWorkbook.SheetNames.find(name => name.trim().toLowerCase() === 'mis');
-        if (!misName) throw new Error('Worksheet “MIS” was not found.');
         const outputBook = XLSX.utils.book_new();
-        // Export only the original MIS worksheet; do not alter its cell data.
         const copiedSheet = JSON.parse(JSON.stringify(importedWorkbook.Sheets[misName]));
         XLSX.utils.book_append_sheet(outputBook, copiedSheet, 'MIS');
         XLSX.writeFile(outputBook, importedFileName + '_MIS.xlsx');
-        renderRows(importedRows);
-        const columnCount = importedRows.reduce((max, row) => Math.max(max, row.length), 0);
-        setStatus('Import complete. Exported only the MIS tab.\nRows read: ' + importedRows.length + '\nColumns detected: ' + columnCount + '\nNo row or column transformation rules were applied. Preview is limited to 500 rows.', false);
+        setStatus('Supabase import successful.\nSource: ' + (sourceInput.files[0]?.name || importedFileName) + '\nWorksheet: MIS\nRows verified in database: ' + completed.rowCount + '\nImport ID: ' + completed.importId + '\nThe new import is now active. A local MIS-only Excel copy was also downloaded.', 'success');
       } catch (error) {
-        setStatus('Could not import MIS tab: ' + (error && error.message ? error.message : String(error)), true);
+        if (importId) {
+          try { await invokeImport({ action: 'abort', importId }); } catch (_) {}
+        }
+        setStatus('Import failed: ' + (error && error.message ? error.message : String(error)) + '\nThe previous active MIS import has not intentionally been replaced.', 'error');
+      } finally {
+        sourceInput.disabled = false;
+        importButton.disabled = !currentUser || !importedWorkbook;
       }
     });
   </script>

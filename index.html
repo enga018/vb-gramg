@@ -35,8 +35,8 @@ button.secondary,.link-button.secondary{background:#e2e8f0;color:#0f172a}button:
 <div class="account"><span id="account-label" class="account-label"></span><button id="logout-button" class="secondary" type="button">Sign out</button></div></header>
 <section class="panel">
 <div class="section-head"><div><h2>MIS</h2><p>Current active MIS data from the database. Importing is an administrator tool; viewing the data is the main workspace.</p></div></div>
-<div class="meta"><div class="stat"><small>Total rows</small><strong id="total-rows">—</strong></div><div class="stat"><small>Columns</small><strong id="total-columns">—</strong></div><div class="stat"><small>Source file</small><strong id="source-file">—</strong></div><div class="stat"><small>Last updated</small><strong id="updated-at">—</strong></div></div>
-<div class="toolbar"><div class="search"><label for="search-input">Search MIS records</label><input id="search-input" type="search" placeholder="Search any column…"></div><span id="result-count" class="muted"></span></div>
+<div class="meta"><div class="stat"><small>Unique job cards</small><strong id="total-jobcards">—</strong></div><div class="stat"><small>Total applicants</small><strong id="total-applicants">—</strong></div><div class="stat"><small>Source file</small><strong id="source-file">—</strong></div><div class="stat"><small>Last updated</small><strong id="updated-at">—</strong></div></div>
+<div class="toolbar"><div class="search"><label for="search-input">Search job cards or applicants</label><input id="search-input" type="search" placeholder="Job card number, household, applicant name or number…"></div><span id="result-count" class="muted"></span></div>
 <div id="data-status" class="status" aria-live="polite">Loading MIS data…</div>
 <div id="table-wrap" class="table-wrap hidden"><table id="mis-table"><thead></thead><tbody></tbody></table></div>
 <div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="secondary" type="button">Previous</button><button id="next-button" class="secondary" type="button">Next</button></div></div>
@@ -49,7 +49,7 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let currentRole=null,allRows=[],headers=[],currentPage=0,pageSize=50,loadSequence=0;
+let currentRole=null,allRows=[],headers=[],jobCards=[],currentPage=0,pageSize=50,loadSequence=0,expandedCards=new Set();
 function status(el,msg,type){el.textContent=msg;el.classList.toggle('error',type==='error');el.classList.toggle('success',type==='success')}
 function showLoggedOut(){ $('login-panel').classList.remove('hidden');$('app-panel').classList.add('hidden');currentRole=null;allRows=[];headers=[]; }
 async function verifyAccess(user){
@@ -73,7 +73,7 @@ async function loadData(){
   $('source-file').textContent=data.sourceFilename||'—';
   $('updated-at').textContent=data.updatedAt?new Date(data.updatedAt).toLocaleString():'—';
   $('total-rows').textContent=data.totalRows??0;
-  if(!data.hasData||!data.totalRows){allRows=[];headers=[];renderTable();status($('data-status'),'No MIS data has been imported yet. An administrator can import the MIS worksheet.');return}
+  if(!data.hasData||!data.totalRows){allRows=[];headers=[];jobCards=[];renderTable();status($('data-status'),'No MIS data has been imported yet. An administrator can import the MIS worksheet.');return}
   let rows=(data.rows||[]).map(r=>({rowNumber:r.rowNumber,values:Array.isArray(r.values)?r.values:[]}));
   for(let page=1;page<Math.ceil(data.totalRows/200);page++){
    const next=await supabaseClient.functions.invoke('vbgramg-mis-data',{body:{page,pageSize:200}});
@@ -91,22 +91,60 @@ async function loadData(){
  }catch(error){if(seq===loadSequence)status($('data-status'),'Could not load MIS data: '+(error&&error.message?error.message:String(error)),'error')}
  finally{}
 }
-function getFilteredRows(){
+function normalize(value){return String(value==null?'':value).trim()}
+function buildJobCards(){
+ const jobIndex=headers.findIndex(h=>/^(job card number|jobcard number)$/i.test(h.trim()));
+ const fallbackIndex=headers.findIndex(h=>/^jc no\.?$/i.test(h.trim()));
+ const householdIndex=headers.findIndex(h=>/head of household/i.test(h));
+ const nameIndex=headers.findIndex(h=>/name of applicant|applicant name/i.test(h));
+ const applicantNoIndex=headers.findIndex(h=>/applicant no/i.test(h));
+ const keyIndex=jobIndex>=0?jobIndex:fallbackIndex;
+ const groups=new Map();
+ allRows.forEach((row,i)=>{
+  const values=row.values||[];
+  const key=normalize(keyIndex>=0?values[keyIndex]:'')||'(Job card number missing)';
+  if(!groups.has(key))groups.set(key,{key,household:normalize(householdIndex>=0?values[householdIndex]:''),applicants:[],firstRow:i});
+  const group=groups.get(key);
+  if(!group.household&&householdIndex>=0)group.household=normalize(values[householdIndex]);
+  group.applicants.push({name:normalize(nameIndex>=0?values[nameIndex]:''),number:normalize(applicantNoIndex>=0?values[applicantNoIndex]:''),values,rowNumber:row.rowNumber});
+ });
+ jobCards=Array.from(groups.values());
+ $('total-jobcards').textContent=jobCards.filter(g=>g.key!=='(Job card number missing)').length;
+ $('total-applicants').textContent=allRows.length;
+}
+function getFilteredCards(){
  const q=$('search-input').value.trim().toLocaleLowerCase();
- if(!q)return allRows;
- return allRows.filter(r=>r.values.some(v=>String(v==null?'':v).toLocaleLowerCase().includes(q)));
+ if(!q)return jobCards;
+ return jobCards.filter(group=>[group.key,group.household,...group.applicants.flatMap(a=>[a.name,a.number,...a.values.map(normalize)])].some(v=>String(v||'').toLocaleLowerCase().includes(q)));
 }
 function renderTable(){
- const filtered=getFilteredRows(),totalPages=Math.max(1,Math.ceil(filtered.length/pageSize));currentPage=Math.min(currentPage,totalPages-1);
+ const filtered=getFilteredCards(),totalPages=Math.max(1,Math.ceil(filtered.length/pageSize));currentPage=Math.min(currentPage,totalPages-1);
  const start=currentPage*pageSize,shown=filtered.slice(start,start+pageSize);
  const thead=$('mis-table').querySelector('thead'),tbody=$('mis-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
- const hr=document.createElement('tr');const rowHead=document.createElement('th');rowHead.textContent='#';hr.appendChild(rowHead);
- headers.forEach(h=>{const th=document.createElement('th');th.textContent=h;hr.appendChild(th)});thead.appendChild(hr);
- shown.forEach((r,i)=>{const tr=document.createElement('tr');const rn=document.createElement('td');rn.textContent=String(r.rowNumber||start+i+2);tr.appendChild(rn);
-  headers.forEach((_,col)=>{const td=document.createElement('td');const value=r.values[col];td.textContent=value==null?'':String(value);td.title=td.textContent;tr.appendChild(td)});tbody.appendChild(tr)});
+ const hr=document.createElement('tr');
+ ['','Job Card Number','Head of Household','Applicants'].forEach((label,i)=>{const th=document.createElement('th');th.textContent=label;if(i===0){th.style.width='44px';th.style.minWidth='44px'}hr.appendChild(th)});
+ thead.appendChild(hr);
+ shown.forEach(group=>{
+  const tr=document.createElement('tr');tr.className='jobcard-row';
+  const toggleCell=document.createElement('td');toggleCell.style.minWidth='44px';toggleCell.style.width='44px';
+  const toggle=document.createElement('button');toggle.type='button';toggle.className='secondary';toggle.style.minHeight='30px';toggle.style.padding='3px 9px';toggle.setAttribute('aria-expanded',String(expandedCards.has(group.key)));toggle.setAttribute('aria-label',(expandedCards.has(group.key)?'Collapse ':'Expand ')+group.key);toggle.textContent=expandedCards.has(group.key)?'−':'+';toggle.addEventListener('click',()=>{if(expandedCards.has(group.key))expandedCards.delete(group.key);else expandedCards.add(group.key);renderTable()});toggleCell.appendChild(toggle);tr.appendChild(toggleCell);
+  const keyCell=document.createElement('td');keyCell.textContent=group.key;keyCell.style.fontWeight='700';tr.appendChild(keyCell);
+  const householdCell=document.createElement('td');householdCell.textContent=group.household||'—';householdCell.style.fontWeight='600';tr.appendChild(householdCell);
+  const countCell=document.createElement('td');countCell.textContent=group.applicants.length+' applicant'+(group.applicants.length===1?'':'s');tr.appendChild(countCell);tbody.appendChild(tr);
+  if(expandedCards.has(group.key)){
+   const detailTr=document.createElement('tr');detailTr.className='applicant-detail';const detailTd=document.createElement('td');detailTd.colSpan=4;detailTd.style.padding='12px 18px 16px 42px';detailTd.style.background='#f8fafc';
+   const subtable=document.createElement('table');subtable.style.width='100%';subtable.style.maxWidth='760px';
+   const subhead=document.createElement('thead'),subheadRow=document.createElement('tr');
+   ['#','Name of Applicant','Applicant No.'].forEach(label=>{const th=document.createElement('th');th.textContent=label;th.style.position='static';th.style.background='#e2e8f0';subheadRow.appendChild(th)});subhead.appendChild(subheadRow);subtable.appendChild(subhead);
+   const subbody=document.createElement('tbody');
+   group.applicants.forEach((applicant,index)=>{const ar=document.createElement('tr');const n=document.createElement('td');n.textContent=String(index+1);ar.appendChild(n);const name=document.createElement('td');name.textContent=applicant.name||'—';ar.appendChild(name);const no=document.createElement('td');no.textContent=applicant.number||'—';ar.appendChild(no);subbody.appendChild(ar)});
+   subtable.appendChild(subbody);detailTd.appendChild(subtable);detailTr.appendChild(detailTd);tbody.appendChild(detailTr);
+  }
+ });
  $('table-wrap').classList.toggle('hidden',!headers.length);
- $('result-count').textContent=filtered.length+' record'+(filtered.length===1?'':'s')+(filtered.length!==allRows.length?' matching search':'');
- $('page-label').textContent=filtered.length?'Showing '+(start+1)+'–'+Math.min(start+pageSize,filtered.length)+' of '+filtered.length:'No matching records';
+ const totalApplicants=filtered.reduce((sum,g)=>sum+g.applicants.length,0);
+ $('result-count').textContent=filtered.length+' job card'+(filtered.length===1?'':'s')+' · '+totalApplicants+' applicant'+(totalApplicants===1?'':'s')+(filtered.length!==jobCards.length?' matching search':'');
+ $('page-label').textContent=filtered.length?'Showing job cards '+(start+1)+'–'+Math.min(start+pageSize,filtered.length)+' of '+filtered.length:'No matching job cards';
  $('prev-button').disabled=currentPage<=0;$('next-button').disabled=currentPage>=totalPages-1;
 }
 $('login-form').addEventListener('submit',async e=>{e.preventDefault();$('login-button').disabled=true;try{

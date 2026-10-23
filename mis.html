@@ -170,8 +170,9 @@
       }
     });
 
-    supabaseClient.auth.onAuthStateChange((_event, session) => {
-      Promise.resolve().then(() => updateAuthUI(session ? session.user : null));
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') updateAuthUI(null);
+      else if (event === 'TOKEN_REFRESHED' && session) Promise.resolve().then(() => updateAuthUI(session.user));
     });
     supabaseClient.auth.getSession().then(({ data }) => updateAuthUI(data.session ? data.session.user : null));
 

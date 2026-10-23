@@ -4,53 +4,101 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0f172a">
-  <title>MIS — Choose System</title>
+  <title>MIS — Choose System & Import Excel</title>
   <style>
     :root { color-scheme: light; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f1f5f9; color: #0f172a; }
-    main { width: min(100%, 520px); padding: 30px; background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; box-shadow: 0 12px 32px rgb(15 23 42 / 8%); }
+    body { margin: 0; min-height: 100vh; padding: 24px; background: #f1f5f9; color: #0f172a; }
+    main { width: min(100%, 980px); margin: 0 auto; padding: clamp(20px, 4vw, 32px); background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; box-shadow: 0 12px 32px rgb(15 23 42 / 8%); }
     h1 { margin: 0 0 8px; font-size: clamp(1.6rem, 5vw, 2rem); }
-    p { color: #475569; line-height: 1.5; margin: 0 0 24px; }
-    .switch-label { display: block; margin-bottom: 10px; font-weight: 650; }
+    h2 { margin: 0 0 12px; font-size: 1.12rem; }
+    p { color: #475569; line-height: 1.5; margin: 0 0 20px; }
+    .section { margin-top: 28px; padding-top: 24px; border-top: 1px solid #e2e8f0; }
+    .switch-label, .file-label { display: block; margin-bottom: 10px; font-weight: 650; }
     .switch { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; padding: 5px; border: 1px solid #cbd5e1; background: #f1f5f9; border-radius: 14px; }
     .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
     .switch label { display: block; padding: 13px 10px; border-radius: 10px; text-align: center; font-weight: 650; cursor: pointer; color: #475569; }
     .switch input:checked + label { background: #0f172a; color: #fff; box-shadow: 0 1px 3px rgb(15 23 42 / 18%); }
     .switch input:focus-visible + label { outline: 3px solid #93c5fd; outline-offset: 3px; }
-    .details { margin: 16px 0 22px; padding: 13px 14px; border-radius: 10px; background: #f8fafc; color: #475569; font-size: .9rem; line-height: 1.5; }
-    button.open { width: 100%; min-height: 54px; padding: 14px 18px; border: 0; border-radius: 12px; background: #0f172a; color: #fff; font: inherit; font-weight: 700; cursor: pointer; text-align: center; }
-    button.open:hover { background: #1e293b; }
-    button.open:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
-    .note { margin: 18px 0 0; font-size: .82rem; color: #64748b; }
+    .details { margin: 16px 0 18px; padding: 13px 14px; border-radius: 10px; background: #f8fafc; color: #475569; font-size: .9rem; line-height: 1.5; }
+    button { width: 100%; min-height: 50px; padding: 13px 18px; border: 0; border-radius: 12px; background: #0f172a; color: #fff; font: inherit; font-weight: 700; cursor: pointer; text-align: center; }
+    button:hover { background: #1e293b; }
+    button:focus-visible, input:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
+    button.secondary { background: #fff; color: #0f172a; border: 1px solid #cbd5e1; }
+    button.secondary:hover { background: #f8fafc; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    .file-box { padding: 16px; border: 1px solid #cbd5e1; border-radius: 12px; margin-bottom: 14px; }
+    input[type=file] { display: block; width: 100%; max-width: 100%; font: inherit; font-size: .9rem; }
+    .hint, .note { margin: 10px 0 0; font-size: .84rem; color: #64748b; line-height: 1.5; }
+    .status { margin-top: 16px; padding: 12px 14px; background: #f8fafc; border-radius: 10px; font-size: .9rem; white-space: pre-wrap; }
+    .status.error { background: #fef2f2; color: #991b1b; }
+    .actions { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 14px; }
+    .table-wrap { overflow: auto; max-height: 520px; margin-top: 16px; border: 1px solid #e2e8f0; border-radius: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: .85rem; white-space: nowrap; }
+    th, td { padding: 9px 11px; border: 1px solid #cbd5e1; text-align: left; }
+    th { position: sticky; top: 0; background: #dbeafe; text-align: center; z-index: 1; }
+    tr.new-row td { background: #fff59d; }
+    .hidden { display: none; }
+    @media (min-width: 620px) { .actions { grid-template-columns: 1fr 1fr; } }
   </style>
 </head>
 <body>
   <main>
     <h1>MIS</h1>
-    <p>Select which system you want to use, then press the single button below.</p>
+    <p>Select a system to open, or import an Excel workbook and apply the same data-cleaning and Unique ID rules as the VBA macro.</p>
 
-    <span class="switch-label">System</span>
-    <div class="switch" role="radiogroup" aria-label="Choose MIS system">
-      <input type="radio" id="nrega" name="system" value="nrega" checked>
-      <label for="nrega">NREGA</label>
-      <input type="radio" id="vbgramg" name="system" value="vbgramg">
-      <label for="vbgramg">VB-G RAM G</label>
-    </div>
+    <section>
+      <h2>1. Choose system</h2>
+      <span class="switch-label">System</span>
+      <div class="switch" role="radiogroup" aria-label="Choose MIS system">
+        <input type="radio" id="nrega" name="system" value="nrega" checked>
+        <label for="nrega">NREGA</label>
+        <input type="radio" id="vbgramg" name="system" value="vbgramg">
+        <label for="vbgramg">VB-G RAM G</label>
+      </div>
+      <div class="details" id="system-details" aria-live="polite">NREGA / NREGASoft — New Serchhip North, FY 2026–2027.</div>
+      <button type="button" id="open-button">Open selected system</button>
+    </section>
 
-    <div class="details" id="system-details" aria-live="polite">
-      NREGA / NREGASoft — New Serchhip North, FY 2026–2027.
-    </div>
-
-    <button type="button" class="open" id="open-button">Open selected system</button>
-    <p class="note">The selected system opens in a new tab. Panchayat and financial-year parameters are preselected.</p>
+    <section class="section">
+      <h2>2. Import and process Excel</h2>
+      <p>Select the raw workbook downloaded/exported from the chosen system. The processing runs in this browser; the file is not uploaded to a server.</p>
+      <div class="file-box">
+        <label class="file-label" for="source-file">Raw data Excel file (.xlsx, .xls)</label>
+        <input type="file" id="source-file" accept=".xlsx,.xls,.xlsm,.csv">
+        <p class="hint">Uses the VBA row layout: data starts at Excel row 17, and the last two rows are excluded. It reads columns 9, 2, 4 and 11.</p>
+      </div>
+      <div class="file-box">
+        <label class="file-label" for="main-file">Optional: MAIN.xlsx (for comparing existing Unique IDs)</label>
+        <input type="file" id="main-file" accept=".xlsx,.xls,.xlsm">
+        <p class="hint">If supplied, the MIS output is compared against column G of the MAIN sheet. New records are highlighted and can be exported as an updated MAIN workbook.</p>
+      </div>
+      <div class="actions">
+        <button type="button" id="process-button">Import and process</button>
+        <button type="button" class="secondary" id="download-mis" disabled>Download processed MIS.xlsx</button>
+      </div>
+      <div class="actions">
+        <button type="button" class="secondary" id="download-new" disabled>Download new records only</button>
+        <button type="button" class="secondary" id="download-main" disabled>Download updated MAIN.xlsx</button>
+      </div>
+      <div id="status" class="status" aria-live="polite">Choose the raw Excel file to begin.</div>
+      <div id="preview-wrap" class="table-wrap hidden">
+        <table id="preview"><thead></thead><tbody></tbody></table>
+      </div>
+      <p class="note">The original files are never modified. Downloads create new files. This matches the VBA data processing and comparison steps; it does not automatically write back to your local MAIN.xlsx.</p>
+    </section>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
     const urls = {
-      nrega: 'https://mnregaweb2.dord.gov.in/netnrega/IndexFrame.aspx?lflag=eng&District_Code=2207&district_name=SERCHHIP&state_name=MIZORAM&state_Code=22&block_name=serchhip&block_code=2207001&fin_year=2026-2027&check=1&Panchayat_name=NEW+SERCHHIP+North&Panchayat_Code=2207001005',
-      vbgramg: 'https://vbgramgrep.dord.gov.in/VBGRAMG/IndexFrame.aspx?lflag=eng&District_Code=2207&district_name=SERCHHIP&state_name=MIZORAM&state_Code=22&block_name=serchhip&block_code=2207001&fin_year=2026-2027&check=1&Panchayat_name=NEW+SERCHHIP+North&Panchayat_Code=2207001005'
+      nrega: 'https://mnregaweb2.dord.gov.in/netnrega/IndexFrame.aspx?lflag=eng&District_Code=2207&district_name=SERCHHIP&state_name=MIZORAM&state_Code=22&block_name=serchchip&block_code=2207001&fin_year=2026-2027&check=1&Panchayat_name=NEW+SERCHHIP+North&Panchayat_Code=2207001005',
+      vbgramg: 'https://vbgramgrep.dord.gov.in/VBGRAMG/IndexFrame.aspx?lflag=eng&District_Code=2207&district_name=SERCHHIP&state_name=MIZORAM&state_Code=22&block_name=serchchip&block_code=2207001&fin_year=2026-2027&check=1&Panchayat_name=NEW+SERCHHIP+North&Panchayat_Code=2207001005'
     };
+
+    // Keep the exact URL parameters provided for New Serchhip North.
+    urls.nrega = 'https://mnregaweb2.dord.gov.in/netnrega/IndexFrame.aspx?lflag=eng&District_Code=2207&district_name=SERCHHIP&state_name=MIZORAM&state_Code=22&block_name=serchhip&block_code=2207001&fin_year=2026-2027&check=1&Panchayat_name=NEW+SERCHHIP+North&Panchayat_Code=2207001005';
+    urls.vbgramg = 'https://vbgramgrep.dord.gov.in/VBGRAMG/IndexFrame.aspx?lflag=eng&District_Code=2207&district_name=SERCHHIP&state_name=MIZORAM&state_Code=22&block_name=serchhip&block_code=2207001&fin_year=2026-2027&check=1&Panchayat_name=NEW+SERCHHIP+North&Panchayat_Code=2207001005';
 
     const details = document.getElementById('system-details');
     document.querySelectorAll('input[name="system"]').forEach(function (radio) {
@@ -60,10 +108,155 @@
           : 'VB-G RAM G — New Serchhip North, FY 2026–2027.';
       });
     });
-
     document.getElementById('open-button').addEventListener('click', function () {
       const selected = document.querySelector('input[name="system"]:checked').value;
       window.open(urls[selected], '_blank', 'noopener,noreferrer');
+    });
+
+    const sourceInput = document.getElementById('source-file');
+    const mainInput = document.getElementById('main-file');
+    const statusBox = document.getElementById('status');
+    const previewWrap = document.getElementById('preview-wrap');
+    const preview = document.getElementById('preview');
+    const downloadMis = document.getElementById('download-mis');
+    const downloadNew = document.getElementById('download-new');
+    const downloadMain = document.getElementById('download-main');
+    let finalRows = [];
+    let newRows = [];
+    let updatedMainRows = null;
+
+    function setStatus(message, error) {
+      statusBox.textContent = message;
+      statusBox.classList.toggle('error', !!error);
+    }
+    function clean(value) {
+      return value == null ? '' : String(value).trim();
+    }
+    function sheetToRows(file) {
+      return file.arrayBuffer().then(function (buffer) {
+        const workbook = XLSX.read(buffer, { type: 'array', cellText: true, cellDates: false });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        if (!sheet) throw new Error('The selected workbook has no worksheet.');
+        return XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
+      });
+    }
+    function renderTable(rows, newIdSet) {
+      const headers = ['Sl. No.', 'Job Card Number', 'JC No.', 'Head of HouseHold', 'Name of Applicant', 'No of Applicant', 'Unique ID'];
+      const thead = preview.querySelector('thead');
+      const tbody = preview.querySelector('tbody');
+      thead.replaceChildren();
+      tbody.replaceChildren();
+      const hr = document.createElement('tr');
+      headers.forEach(function (h) { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); });
+      thead.appendChild(hr);
+      rows.slice(0, 500).forEach(function (row) {
+        const tr = document.createElement('tr');
+        if (newIdSet && newIdSet.has(row[6])) tr.className = 'new-row';
+        row.forEach(function (value) { const td = document.createElement('td'); td.textContent = value == null ? '' : String(value); tr.appendChild(td); });
+        tbody.appendChild(tr);
+      });
+      previewWrap.classList.remove('hidden');
+      if (rows.length > 500) setStatus(statusBox.textContent + '\nPreview limited to first 500 rows; downloads contain all rows.', false);
+    }
+    function workbookDownload(filename, sheetName, rows) {
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = [{wch:9},{wch:24},{wch:16},{wch:28},{wch:28},{wch:17},{wch:38}];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+      XLSX.writeFile(wb, filename);
+    }
+
+    document.getElementById('process-button').addEventListener('click', async function () {
+      const sourceFile = sourceInput.files[0];
+      if (!sourceFile) { setStatus('Please select the raw Excel file first.', true); return; }
+      if (typeof XLSX === 'undefined') { setStatus('Excel reader failed to load. Check your internet connection, refresh the page, and try again.', true); return; }
+      const processButton = document.getElementById('process-button');
+      processButton.disabled = true;
+      downloadMis.disabled = downloadNew.disabled = downloadMain.disabled = true;
+      previewWrap.classList.add('hidden');
+      try {
+        setStatus('Reading workbook and applying VBA rules…', false);
+        const rawRows = await sheetToRows(sourceFile);
+        // VBA reads from Excel row 17 through the row before the last two rows (inclusive).
+        // JavaScript index 16 is Excel row 17; end index excludes the final two rows.
+        if (rawRows.length < 19) throw new Error('Not enough rows. The VBA layout expects at least 19 rows, with data beginning at Excel row 17.');
+        const sourceRows = rawRows.slice(16, rawRows.length - 2);
+        const working = sourceRows.map(function (row) {
+          return {
+            jobCard: clean(row[8]),       // source column 9
+            household: clean(row[1]),     // source column 2
+            applicant: clean(row[3]),     // source column 4
+            status: clean(row[10])        // source column 11
+          };
+        });
+
+        let lastHousehold = '';
+        const counts = new Map();
+        working.forEach(function (row) {
+          if (row.household) lastHousehold = row.household;
+          else row.household = lastHousehold;
+          const count = row.jobCard ? (counts.get(row.jobCard) || 0) + 1 : 0;
+          if (row.jobCard) counts.set(row.jobCard, count);
+          row.count = count;
+          const slash = row.jobCard.lastIndexOf('/');
+          row.jcNo = slash >= 0 ? row.jobCard.slice(slash + 1).trim() : row.jobCard;
+          row.uniqueId = row.jobCard ? row.jobCard + '/' + count : '';
+        });
+
+        finalRows = [];
+        working.forEach(function (row) {
+          if (!row.status.toLowerCase().includes('deleted')) {
+            finalRows.push([finalRows.length + 1, row.jobCard, row.jcNo, row.household, row.applicant, row.count, row.uniqueId]);
+          }
+        });
+        if (!finalRows.length) throw new Error('No active records remained after removing rows with status containing “deleted”. Check that the source workbook has the expected VBA row layout and column positions.');
+
+        newRows = [];
+        updatedMainRows = null;
+        const mainFile = mainInput.files[0];
+        if (mainFile) {
+          const mainBook = XLSX.read(await mainFile.arrayBuffer(), { type: 'array' });
+          const mainSheet = mainBook.Sheets['MAIN'] || mainBook.Sheets[mainBook.SheetNames[0]];
+          if (!mainSheet) throw new Error('The MAIN workbook has no worksheet.');
+          const mainData = XLSX.utils.sheet_to_json(mainSheet, { header: 1, raw: false, defval: '' });
+          const known = new Set(mainData.slice(1).map(row => clean(row[6])).filter(Boolean));
+          newRows = finalRows.filter(row => row[6] && !known.has(clean(row[6])));
+          // Preserve existing MAIN sheet rows and append new rows, as the VBA does.
+          updatedMainRows = mainData.map(row => row.slice());
+          if (!updatedMainRows.length) updatedMainRows.push(['Sl. No.', 'Job Card Number', 'JC No.', 'Head of HouseHold', 'Name of Applicant', 'No of Applicant', 'Unique ID']);
+          newRows.forEach(row => updatedMainRows.push(row));
+          downloadMain.disabled = false;
+        }
+
+        const newIds = new Set(newRows.map(row => row[6]));
+        renderTable(finalRows, mainFile ? newIds : null);
+        downloadMis.disabled = false;
+        downloadNew.disabled = !mainFile || newRows.length === 0;
+        const summary = 'Processing complete.\nActive records: ' + finalRows.length +
+          (mainFile ? '\nNew Unique IDs: ' + newRows.length + (newRows.length ? ' (highlighted yellow in the preview).' : '.') : '') +
+          '\nRules applied: extract JC No. after final slash; fill down household head; count applicants per Job Card Number; build Unique ID; exclude status containing “deleted”.';
+        setStatus(summary, false);
+      } catch (error) {
+        setStatus('Could not process this workbook: ' + (error && error.message ? error.message : String(error)), true);
+      } finally {
+        processButton.disabled = false;
+      }
+    });
+
+    downloadMis.addEventListener('click', function () {
+      const headers = ['Sl. No.', 'Job Card Number', 'JC No.', 'Head of HouseHold', 'Name of Applicant', 'No of Applicant', 'Unique ID'];
+      workbookDownload('MIS_processed.xlsx', 'MIS', [headers].concat(finalRows));
+    });
+    downloadNew.addEventListener('click', function () {
+      const headers = ['Sl. No.', 'Job Card Number', 'JC No.', 'Head of HouseHold', 'Name of Applicant', 'No of Applicant', 'Unique ID'];
+      workbookDownload('MIS_new_records.xlsx', 'New Records', [headers].concat(newRows));
+    });
+    downloadMain.addEventListener('click', function () {
+      if (!updatedMainRows) return;
+      const ws = XLSX.utils.aoa_to_sheet(updatedMainRows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'MAIN');
+      XLSX.writeFile(wb, 'MAIN_updated.xlsx');
     });
   </script>
 </body>

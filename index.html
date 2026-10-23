@@ -72,7 +72,6 @@ async function loadData(){
   if(seq!==loadSequence)return;
   $('source-file').textContent=data.sourceFilename||'—';
   $('updated-at').textContent=data.updatedAt?new Date(data.updatedAt).toLocaleString():'—';
-  $('total-rows').textContent=data.totalRows??0;
   if(!data.hasData||!data.totalRows){allRows=[];headers=[];jobCards=[];renderTable();status($('data-status'),'No MIS data has been imported yet. An administrator can import the MIS worksheet.');return}
   let rows=(data.rows||[]).map(r=>({rowNumber:r.rowNumber,values:Array.isArray(r.values)?r.values:[]}));
   for(let page=1;page<Math.ceil(data.totalRows/200);page++){

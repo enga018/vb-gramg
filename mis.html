@@ -4,218 +4,107 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0f172a">
-  <title>MIS — Import and Process Excel</title>
+  <title>MIS — Import Excel Data</title>
   <style>
     :root { color-scheme: light; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     * { box-sizing: border-box; }
     body { margin: 0; min-height: 100vh; padding: 24px; background: #f1f5f9; color: #0f172a; }
-    main { width: min(100%, 980px); margin: 0 auto; padding: clamp(20px, 4vw, 32px); background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; box-shadow: 0 12px 32px rgb(15 23 42 / 8%); }
+    main { width: min(100%, 1100px); margin: 0 auto; padding: clamp(20px, 4vw, 32px); background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; box-shadow: 0 12px 32px rgb(15 23 42 / 8%); }
     h1 { margin: 0 0 8px; font-size: clamp(1.6rem, 5vw, 2rem); }
-    h2 { margin: 0 0 12px; font-size: 1.12rem; }
     p { color: #475569; line-height: 1.5; margin: 0 0 20px; }
-    .section { margin-top: 28px; padding-top: 24px; border-top: 1px solid #e2e8f0; }
+    .file-box { padding: 16px; border: 1px solid #cbd5e1; border-radius: 12px; margin: 18px 0 14px; }
     .file-label { display: block; margin-bottom: 10px; font-weight: 650; }
-    button { width: 100%; min-height: 50px; padding: 13px 18px; border: 0; border-radius: 12px; background: #0f172a; color: #fff; font: inherit; font-weight: 700; cursor: pointer; text-align: center; }
-    button:hover { background: #1e293b; }
-    button:focus-visible, input:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
-    button.secondary { background: #fff; color: #0f172a; border: 1px solid #cbd5e1; }
-    button.secondary:hover { background: #f8fafc; }
-    button:disabled { opacity: .45; cursor: not-allowed; }
-    .file-box { padding: 16px; border: 1px solid #cbd5e1; border-radius: 12px; margin-bottom: 14px; }
     input[type=file] { display: block; width: 100%; max-width: 100%; font: inherit; font-size: .9rem; }
-    .hint, .note { margin: 10px 0 0; font-size: .84rem; color: #64748b; line-height: 1.5; }
+    button { width: 100%; min-height: 50px; padding: 13px 18px; border: 0; border-radius: 12px; background: #0f172a; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    button:focus-visible, input:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
     .status { margin-top: 16px; padding: 12px 14px; background: #f8fafc; border-radius: 10px; font-size: .9rem; white-space: pre-wrap; }
     .status.error { background: #fef2f2; color: #991b1b; }
-    .actions { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 14px; }
-    .table-wrap { overflow: auto; max-height: 520px; margin-top: 16px; border: 1px solid #e2e8f0; border-radius: 10px; }
-    table { width: 100%; border-collapse: collapse; font-size: .85rem; white-space: nowrap; }
+    .table-wrap { overflow: auto; max-height: 560px; margin-top: 16px; border: 1px solid #e2e8f0; border-radius: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: .85rem; white-space: pre; }
     th, td { padding: 9px 11px; border: 1px solid #cbd5e1; text-align: left; }
-    th { position: sticky; top: 0; background: #dbeafe; text-align: center; z-index: 1; }
-    tr.new-row td { background: #fff59d; }
+    th { position: sticky; top: 0; background: #dbeafe; z-index: 1; }
     .hidden { display: none; }
-    @media (min-width: 620px) { .actions { grid-template-columns: 1fr 1fr; } }
   </style>
 </head>
 <body>
   <main>
-    <h1>MIS</h1>
-    <p>Import your Excel workbook and apply the same data-cleaning, Unique ID, and MAIN comparison rules as the VBA macro.</p>
-
-    <section class="section" style="margin-top:0;padding-top:0;border-top:0">
-      <h2>Import and process Excel</h2>
-      <p>Select the raw workbook downloaded/exported from the chosen system. Processing runs in this browser; the file is not uploaded to a server.</p>
-      <div class="file-box">
-        <label class="file-label" for="source-file">Raw data Excel file (.xlsx, .xls)</label>
-        <input type="file" id="source-file" accept=".xlsx,.xls,.xlsm,.csv">
-        <p class="hint">Uses the VBA row layout: data starts at Excel row 17, and the last two rows are excluded. It reads columns 9, 2, 4 and 11.</p>
-      </div>
-      <div class="file-box">
-        <label class="file-label" for="main-file">Optional: MAIN.xlsx (for comparing existing Unique IDs)</label>
-        <input type="file" id="main-file" accept=".xlsx,.xls,.xlsm">
-        <p class="hint">If supplied, the MIS output is compared against column G of the MAIN sheet. New records are highlighted and can be exported as an updated MAIN workbook.</p>
-      </div>
-      <div class="actions">
-        <button type="button" id="process-button">Import and process</button>
-        <button type="button" class="secondary" id="download-mis" disabled>Download processed MIS.xlsx</button>
-      </div>
-      <div class="actions">
-        <button type="button" class="secondary" id="download-new" disabled>Download new records only</button>
-        <button type="button" class="secondary" id="download-main" disabled>Download updated MAIN.xlsx</button>
-      </div>
-      <div id="status" class="status" aria-live="polite">Choose the raw Excel file to begin.</div>
-      <div id="preview-wrap" class="table-wrap hidden">
-        <table id="preview"><thead></thead><tbody></tbody></table>
-      </div>
-      <p class="note">The original files are never modified. Downloads create new files. This matches the VBA data processing and comparison steps; it does not automatically write back to your local MAIN.xlsx.</p>
-    </section>
+    <h1>MIS — Import Excel</h1>
+    <p>Import the worksheet exactly as provided. The importer does not remove rows, fill blanks, change columns, filter statuses, or generate values. The file is processed in your browser and is not uploaded to a server.</p>
+    <div class="file-box">
+      <label class="file-label" for="source-file">Choose Excel or CSV file</label>
+      <input type="file" id="source-file" accept=".xlsx,.xls,.xlsm,.csv">
+    </div>
+    <button type="button" id="import-button">Import data as it is</button>
+    <div id="status" class="status" aria-live="polite">Choose a file to begin.</div>
+    <div id="preview-wrap" class="table-wrap hidden">
+      <table id="preview"><thead></thead><tbody></tbody></table>
+    </div>
   </main>
-
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
     const sourceInput = document.getElementById('source-file');
-    const mainInput = document.getElementById('main-file');
+    const importButton = document.getElementById('import-button');
     const statusBox = document.getElementById('status');
     const previewWrap = document.getElementById('preview-wrap');
     const preview = document.getElementById('preview');
-    const downloadMis = document.getElementById('download-mis');
-    const downloadNew = document.getElementById('download-new');
-    const downloadMain = document.getElementById('download-main');
-    let finalRows = [];
-    let newRows = [];
-    let updatedMainRows = null;
+    let importedRows = [];
+    let importedWorkbook = null;
+    let importedSheetName = 'Sheet1';
 
     function setStatus(message, error) {
       statusBox.textContent = message;
       statusBox.classList.toggle('error', !!error);
     }
-    function clean(value) {
-      return value == null ? '' : String(value).trim();
-    }
-    function sheetToRows(file) {
-      return file.arrayBuffer().then(function (buffer) {
-        const workbook = XLSX.read(buffer, { type: 'array', cellText: true, cellDates: false });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        if (!sheet) throw new Error('The selected workbook has no worksheet.');
-        return XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
-      });
-    }
-    function renderTable(rows, newIdSet) {
-      const headers = ['Sl. No.', 'Job Card Number', 'JC No.', 'Head of HouseHold', 'Name of Applicant', 'No of Applicant', 'Unique ID'];
+    function renderRows(rows) {
       const thead = preview.querySelector('thead');
       const tbody = preview.querySelector('tbody');
       thead.replaceChildren();
       tbody.replaceChildren();
-      const hr = document.createElement('tr');
-      headers.forEach(function (h) { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); });
-      thead.appendChild(hr);
+      const maxCols = rows.reduce((max, row) => Math.max(max, row.length), 0);
+      const header = document.createElement('tr');
+      for (let i = 0; i < maxCols; i++) {
+        const th = document.createElement('th');
+        th.textContent = 'Column ' + (i + 1);
+        header.appendChild(th);
+      }
+      thead.appendChild(header);
       rows.slice(0, 500).forEach(function (row) {
         const tr = document.createElement('tr');
-        if (newIdSet && newIdSet.has(row[6])) tr.className = 'new-row';
-        row.forEach(function (value) { const td = document.createElement('td'); td.textContent = value == null ? '' : String(value); tr.appendChild(td); });
+        for (let i = 0; i < maxCols; i++) {
+          const td = document.createElement('td');
+          const value = row[i] == null ? '' : String(row[i]);
+          td.textContent = value;
+          td.title = value;
+          tr.appendChild(td);
+        }
         tbody.appendChild(tr);
       });
       previewWrap.classList.remove('hidden');
-      if (rows.length > 500) setStatus(statusBox.textContent + '\nPreview limited to first 500 rows; downloads contain all rows.', false);
-    }
-    function workbookDownload(filename, sheetName, rows) {
-      const ws = XLSX.utils.aoa_to_sheet(rows);
-      ws['!cols'] = [{wch:9},{wch:24},{wch:16},{wch:28},{wch:28},{wch:17},{wch:38}];
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, sheetName);
-      XLSX.writeFile(wb, filename);
     }
 
-    document.getElementById('process-button').addEventListener('click', async function () {
-      const sourceFile = sourceInput.files[0];
-      if (!sourceFile) { setStatus('Please select the raw Excel file first.', true); return; }
+    importButton.addEventListener('click', async function () {
+      const file = sourceInput.files[0];
+      if (!file) { setStatus('Please choose an Excel or CSV file first.', true); return; }
       if (typeof XLSX === 'undefined') { setStatus('Excel reader failed to load. Check your internet connection, refresh the page, and try again.', true); return; }
-      const processButton = document.getElementById('process-button');
-      processButton.disabled = true;
-      downloadMis.disabled = downloadNew.disabled = downloadMain.disabled = true;
+      importButton.disabled = true;
       previewWrap.classList.add('hidden');
       try {
-        setStatus('Reading workbook and applying VBA rules…', false);
-        const rawRows = await sheetToRows(sourceFile);
-        // VBA reads from Excel row 17 through the row before the last two rows (inclusive).
-        // JavaScript index 16 is Excel row 17; end index excludes the final two rows.
-        if (rawRows.length < 19) throw new Error('Not enough rows. The VBA layout expects at least 19 rows, with data beginning at Excel row 17.');
-        const sourceRows = rawRows.slice(16, rawRows.length - 2);
-        const working = sourceRows.map(function (row) {
-          return {
-            jobCard: clean(row[8]),       // source column 9
-            household: clean(row[1]),     // source column 2
-            applicant: clean(row[3]),     // source column 4
-            status: clean(row[10])        // source column 11
-          };
-        });
-
-        let lastHousehold = '';
-        const counts = new Map();
-        working.forEach(function (row) {
-          if (row.household) lastHousehold = row.household;
-          else row.household = lastHousehold;
-          const count = row.jobCard ? (counts.get(row.jobCard) || 0) + 1 : 0;
-          if (row.jobCard) counts.set(row.jobCard, count);
-          row.count = count;
-          const slash = row.jobCard.lastIndexOf('/');
-          row.jcNo = slash >= 0 ? row.jobCard.slice(slash + 1).trim() : row.jobCard;
-          row.uniqueId = row.jobCard ? row.jobCard + '/' + count : '';
-        });
-
-        finalRows = [];
-        working.forEach(function (row) {
-          if (!row.status.toLowerCase().includes('deleted')) {
-            finalRows.push([finalRows.length + 1, row.jobCard, row.jcNo, row.household, row.applicant, row.count, row.uniqueId]);
-          }
-        });
-        if (!finalRows.length) throw new Error('No active records remained after removing rows with status containing “deleted”. Check that the source workbook has the expected VBA row layout and column positions.');
-
-        newRows = [];
-        updatedMainRows = null;
-        const mainFile = mainInput.files[0];
-        if (mainFile) {
-          const mainBook = XLSX.read(await mainFile.arrayBuffer(), { type: 'array' });
-          const mainSheet = mainBook.Sheets['MAIN'] || mainBook.Sheets[mainBook.SheetNames[0]];
-          if (!mainSheet) throw new Error('The MAIN workbook has no worksheet.');
-          const mainData = XLSX.utils.sheet_to_json(mainSheet, { header: 1, raw: false, defval: '' });
-          const known = new Set(mainData.slice(1).map(row => clean(row[6])).filter(Boolean));
-          newRows = finalRows.filter(row => row[6] && !known.has(clean(row[6])));
-          // Preserve existing MAIN sheet rows and append new rows, as the VBA does.
-          updatedMainRows = mainData.map(row => row.slice());
-          if (!updatedMainRows.length) updatedMainRows.push(['Sl. No.', 'Job Card Number', 'JC No.', 'Head of HouseHold', 'Name of Applicant', 'No of Applicant', 'Unique ID']);
-          newRows.forEach(row => updatedMainRows.push(row));
-          downloadMain.disabled = false;
-        }
-
-        const newIds = new Set(newRows.map(row => row[6]));
-        renderTable(finalRows, mainFile ? newIds : null);
-        downloadMis.disabled = false;
-        downloadNew.disabled = !mainFile || newRows.length === 0;
-        const summary = 'Processing complete.\nActive records: ' + finalRows.length +
-          (mainFile ? '\nNew Unique IDs: ' + newRows.length + (newRows.length ? ' (highlighted yellow in the preview).' : '.') : '') +
-          '\nRules applied: extract JC No. after final slash; fill down household head; count applicants per Job Card Number; build Unique ID; exclude status containing “deleted”.';
-        setStatus(summary, false);
+        setStatus('Importing worksheet without changing its rows or columns…', false);
+        const buffer = await file.arrayBuffer();
+        importedWorkbook = XLSX.read(buffer, { type: 'array', raw: false, cellDates: false });
+        importedSheetName = importedWorkbook.SheetNames[0];
+        const sheet = importedWorkbook.Sheets[importedSheetName];
+        if (!sheet) throw new Error('The selected workbook has no worksheet.');
+        importedRows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '', blankrows: true });
+        renderRows(importedRows);
+        const note = importedRows.length > 500 ? '\\nPreview shows the first 500 rows; all imported rows remain in the workbook.' : '';
+        setStatus('Import complete. Worksheet: ' + importedSheetName + '\\nRows read: ' + importedRows.length + '\\nColumns detected: ' + importedRows.reduce((max, row) => Math.max(max, row.length), 0) + '\\nNo data-cleaning or transformation rules were applied.' + note, false);
       } catch (error) {
-        setStatus('Could not process this workbook: ' + (error && error.message ? error.message : String(error)), true);
+        setStatus('Could not import this file: ' + (error && error.message ? error.message : String(error)), true);
       } finally {
-        processButton.disabled = false;
+        importButton.disabled = false;
       }
-    });
-
-    downloadMis.addEventListener('click', function () {
-      const headers = ['Sl. No.', 'Job Card Number', 'JC No.', 'Head of HouseHold', 'Name of Applicant', 'No of Applicant', 'Unique ID'];
-      workbookDownload('MIS_processed.xlsx', 'MIS', [headers].concat(finalRows));
-    });
-    downloadNew.addEventListener('click', function () {
-      const headers = ['Sl. No.', 'Job Card Number', 'JC No.', 'Head of HouseHold', 'Name of Applicant', 'No of Applicant', 'Unique ID'];
-      workbookDownload('MIS_new_records.xlsx', 'New Records', [headers].concat(newRows));
-    });
-    downloadMain.addEventListener('click', function () {
-      if (!updatedMainRows) return;
-      const ws = XLSX.utils.aoa_to_sheet(updatedMainRows);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'MAIN');
-      XLSX.writeFile(wb, 'MAIN_updated.xlsx');
     });
   </script>
 </body>

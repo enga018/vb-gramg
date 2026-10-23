@@ -85,8 +85,8 @@ async function loadData(){
   const sourceHeader=rows.length?rows[0].values:[];
   headers=sourceHeader.map((v,i)=>String(v==null||String(v).trim()===''?'Column '+(i+1):v));
   allRows=rows.slice(1);
-  $('total-columns').textContent=headers.length;
-  currentPage=0;renderTable();
+  buildJobCards();
+  currentPage=0;expandedCards=new Set();renderTable();
   status($('data-status'),'MIS data loaded successfully.','success');
  }catch(error){if(seq===loadSequence)status($('data-status'),'Could not load MIS data: '+(error&&error.message?error.message:String(error)),'error')}
  finally{}

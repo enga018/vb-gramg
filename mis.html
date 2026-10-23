@@ -40,12 +40,14 @@
 
     <section class="auth-box" aria-labelledby="auth-heading">
       <h2 id="auth-heading">Authorized sign-in</h2>
-      <p class="hint">Only the verified email enga018@gmail.com is authorized to import. Sign in with a secure email link; the main app remains public.</p>
+      <p class="hint">Sign in with an approved account. Only administrators can import MIS data.</p>
       <div id="signed-out">
-        <label class="file-label" for="email">Admin email</label>
-        <input id="email" type="email" autocomplete="email" value="enga018@gmail.com" readonly required>
-        <button type="button" id="sign-in-button">Send sign-in link</button>
-        <p class="hint">We will email a one-time sign-in link to enga018@gmail.com. No password is needed.</p>
+        <label class="file-label" for="email">Email</label>
+        <input id="email" type="email" autocomplete="username" required>
+        <label class="file-label" for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password" required>
+        <button type="button" id="sign-in-button">Sign in</button>
+        <p class="hint">Only approved accounts can access this tool. Only administrators can import.</p>
       </div>
       <div id="signed-in" class="hidden">
         <p id="account-label" class="signed-in"></p>
@@ -83,6 +85,7 @@
     const signInButton = document.getElementById('sign-in-button');
     const signOutButton = document.getElementById('sign-out-button');
     let currentUser = null;
+    let currentRole = null;
     let importedWorkbook = null;
     let importedFileName = '';
     let importedRows = [];
@@ -93,12 +96,24 @@
       statusBox.classList.toggle('success', type === 'success');
     }
 
-    function updateAuthUI(user) {
-      currentUser = user || null;
+    async function updateAuthUI(user) {
+      currentUser = null;
+      currentRole = null;
+      if (user) {
+        const { data: access, error } = await supabaseClient.functions.invoke('vbgramg-app-access', { body: {} });
+        if (error || !access || access.approved !== true) {
+          await supabaseClient.auth.signOut();
+          setStatus((access && access.error) || (error && error.message) || 'This account is not approved for VBGRAMG.', 'error');
+          user = null;
+        } else {
+          currentUser = user;
+          currentRole = access.role;
+        }
+      }
       signedOut.classList.toggle('hidden', !!currentUser);
       signedIn.classList.toggle('hidden', !currentUser);
-      accountLabel.textContent = currentUser ? 'Signed in as ' + currentUser.email : '';
-      importButton.disabled = !currentUser || !importedWorkbook;
+      accountLabel.textContent = currentUser ? 'Signed in as ' + currentUser.email + (currentRole === 'admin' ? ' · Administrator' : '') : '';
+      importButton.disabled = !currentUser || currentRole !== 'admin' || !importedWorkbook;
     }
 
     function renderRows(rows) {
@@ -132,10 +147,13 @@
       signInButton.disabled = true;
       try {
         const email = document.getElementById('email').value.trim();
-        if (email.toLowerCase() !== 'enga018@gmail.com') throw new Error('Only enga018@gmail.com is authorized.');
-        const { error } = await supabaseClient.auth.signInWithOtp({ email, options: { emailRedirectTo: 'https://enga018.github.io/vb-gramg/mis.html', shouldCreateUser: true } });
+        const password = document.getElementById('password').value;
+        if (!email || !password) throw new Error('Enter your email and password.');
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        setStatus('If Supabase Auth is configured for this site, a sign-in link has been sent to enga018@gmail.com. Open it on this device to finish signing in.', 'success');
+        await updateAuthUI(data.user);
+        if (!currentUser) throw new Error('This account is not approved for the app.');
+        setStatus(currentRole === 'admin' ? 'Signed in as administrator. Import is available.' : 'Signed in. MIS importing is administrator-only.', 'success');
       } catch (error) {
         setStatus('Sign-in failed: ' + (error && error.message ? error.message : String(error)), 'error');
       } finally {
@@ -153,7 +171,7 @@
     });
 
     supabaseClient.auth.onAuthStateChange((_event, session) => {
-      updateAuthUI(session ? session.user : null);
+      Promise.resolve().then(() => updateAuthUI(session ? session.user : null));
     });
     supabaseClient.auth.getSession().then(({ data }) => updateAuthUI(data.session ? data.session.user : null));
 
@@ -208,7 +226,7 @@
     }
 
     importButton.addEventListener('click', async function () {
-      if (!currentUser || !importedWorkbook || !Array.isArray(importedRows)) {
+      if (!currentUser || currentRole !== 'admin' || !importedWorkbook || !Array.isArray(importedRows)) {
         setStatus('Sign in and choose a workbook containing a tab named MIS.', 'error');
         return;
       }
@@ -248,7 +266,7 @@
         setStatus('Import failed: ' + (error && error.message ? error.message : String(error)) + '\nThe previous active MIS import has not intentionally been replaced.', 'error');
       } finally {
         sourceInput.disabled = false;
-        importButton.disabled = !currentUser || !importedWorkbook;
+        importButton.disabled = !currentUser || currentRole !== 'admin' || !importedWorkbook;
       }
     });
   </script>

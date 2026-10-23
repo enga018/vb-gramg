@@ -32,9 +32,9 @@ button.secondary,.link-button.secondary{background:#e2e8f0;color:#0f172a}button:
 </section>
 <div id="app-panel" class="hidden">
 <header class="topbar"><div class="brand"><h1>VBGRAMG</h1><p>Village Benefit Management · MIS records</p></div>
-<div class="account"><span id="account-label" class="account-label"></span><button id="refresh-button" class="secondary" type="button">Refresh data</button><button id="logout-button" class="secondary" type="button">Sign out</button></div></header>
+<div class="account"><span id="account-label" class="account-label"></span><button id="logout-button" class="secondary" type="button">Sign out</button></div></header>
 <section class="panel">
-<div class="section-head"><div><h2>MIS</h2><p>Current active MIS data from the database. Importing is an administrator tool; viewing the data is the main workspace.</p></div><a id="import-link" class="link-button hidden" href="mis.html">Import / replace MIS</a></div>
+<div class="section-head"><div><h2>MIS</h2><p>Current active MIS data from the database. Importing is an administrator tool; viewing the data is the main workspace.</p></div></div>
 <div class="meta"><div class="stat"><small>Total rows</small><strong id="total-rows">—</strong></div><div class="stat"><small>Columns</small><strong id="total-columns">—</strong></div><div class="stat"><small>Source file</small><strong id="source-file">—</strong></div><div class="stat"><small>Last updated</small><strong id="updated-at">—</strong></div></div>
 <div class="toolbar"><div class="search"><label for="search-input">Search MIS records</label><input id="search-input" type="search" placeholder="Search any column…"></div><span id="result-count" class="muted"></span></div>
 <div id="data-status" class="status" aria-live="polite">Loading MIS data…</div>
@@ -59,12 +59,11 @@ async function verifyAccess(user){
  if(seq!==loadSequence)return false;
  if(error||!data||data.approved!==true){await supabaseClient.auth.signOut();showLoggedOut();status($('login-status'),(data&&data.error)||(error&&error.message)||'This account is not approved.','error');return false}
  currentRole=data.role;$('account-label').textContent='Signed in: '+data.email+(currentRole==='admin'?' · Administrator':'');
- $('import-link').classList.toggle('hidden',currentRole!=='admin');
  $('login-panel').classList.add('hidden');$('app-panel').classList.remove('hidden');
  await loadData();return true;
 }
 async function loadData(){
- const seq=++loadSequence;const button=$('refresh-button');button.disabled=true;
+ const seq=++loadSequence;
  status($('data-status'),'Loading current MIS data…');
  try{
   const first=await supabaseClient.functions.invoke('vbgramg-mis-data',{body:{page:0,pageSize:200}});
@@ -90,7 +89,7 @@ async function loadData(){
   currentPage=0;renderTable();
   status($('data-status'),'MIS data loaded successfully.','success');
  }catch(error){if(seq===loadSequence)status($('data-status'),'Could not load MIS data: '+(error&&error.message?error.message:String(error)),'error')}
- finally{button.disabled=false}
+ finally{}
 }
 function getFilteredRows(){
  const q=$('search-input').value.trim().toLocaleLowerCase();
@@ -115,7 +114,6 @@ $('login-form').addEventListener('submit',async e=>{e.preventDefault();$('login-
  await verifyAccess(data.user);
  }catch(error){showLoggedOut();status($('login-status'),'Sign-in failed: '+(error&&error.message?error.message:String(error)),'error')}finally{$('login-button').disabled=false}});
 $('logout-button').addEventListener('click',async()=>{const {error}=await supabaseClient.auth.signOut();showLoggedOut();status($('login-status'),error?'Sign-out error: '+error.message:'You are signed out.',error?'error':'')});
-$('refresh-button').addEventListener('click',loadData);
 $('search-input').addEventListener('input',()=>{currentPage=0;renderTable()});
 $('prev-button').addEventListener('click',()=>{currentPage--;renderTable()});$('next-button').addEventListener('click',()=>{currentPage++;renderTable()});
 supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){loadSequence++;showLoggedOut();status($('login-status'),'You are signed out.')}else if(event==='TOKEN_REFRESHED'&&session)Promise.resolve().then(()=>verifyAccess(session.user))});

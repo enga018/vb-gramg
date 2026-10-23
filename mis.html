@@ -92,27 +92,83 @@
       previewWrap.classList.remove('hidden');
     }
 
-    importButton.addEventListener('click', async function () {
+    sourceInput.addEventListener('change', async function () {
       const file = sourceInput.files[0];
-      if (!file) { setStatus('Please choose an Excel or CSV file first.', true); return; }
-      if (typeof XLSX === 'undefined') { setStatus('Excel reader failed to load. Check your internet connection, refresh the page, and try again.', true); return; }
+      sheetPicker.classList.add('hidden');
+      importButton.disabled = true;
+      previewWrap.classList.add('hidden');
+      importedWorkbook = null;
+      selectedSheetNames = [];
+      if (!file) return;
+      if (typeof XLSX === 'undefined') {
+        setStatus('Excel reader failed to load. Check your internet connection, refresh the page, and try again.', true);
+        return;
+      }
+      try {
+        setStatus('Reading workbook tabs…', false);
+        importedWorkbook = XLSX.read(await file.arrayBuffer(), { type: 'array', raw: false, cellDates: false });
+        importedFileName = file.name.replace(/\.[^.]+$/, '') || 'Imported';
+        if (!importedWorkbook.SheetNames.length) throw new Error('The selected workbook has no worksheets.');
+        sheetList.replaceChildren();
+        importedWorkbook.SheetNames.forEach(function (name, index) {
+          const label = document.createElement('label');
+          label.className = 'sheet-option';
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.value = name;
+          checkbox.checked = index === 0;
+          checkbox.addEventListener('change', function () {
+            selectedSheetNames = Array.from(sheetList.querySelectorAll('input:checked')).map(input => input.value);
+            importButton.disabled = selectedSheetNames.length === 0;
+          });
+          const span = document.createElement('span');
+          span.textContent = name;
+          label.append(checkbox, span);
+          sheetList.appendChild(label);
+          if (checkbox.checked) selectedSheetNames.push(name);
+        });
+        sheetPicker.classList.remove('hidden');
+        importButton.disabled = selectedSheetNames.length === 0;
+        setStatus('Workbook loaded: ' + importedWorkbook.SheetNames.length + ' tab(s). Select the tabs you want to import.', false);
+      } catch (error) {
+        importedWorkbook = null;
+        setStatus('Could not read this workbook: ' + (error && error.message ? error.message : String(error)), true);
+      }
+    });
+
+    importButton.addEventListener('click', function () {
+      if (!importedWorkbook || selectedSheetNames.length === 0) {
+        setStatus('Choose a workbook and select at least one tab.', true);
+        return;
+      }
       importButton.disabled = true;
       previewWrap.classList.add('hidden');
       try {
-        setStatus('Importing worksheet without changing its rows or columns…', false);
-        const buffer = await file.arrayBuffer();
-        importedWorkbook = XLSX.read(buffer, { type: 'array', raw: false, cellDates: false });
-        importedSheetName = importedWorkbook.SheetNames[0];
-        const sheet = importedWorkbook.Sheets[importedSheetName];
-        if (!sheet) throw new Error('The selected workbook has no worksheet.');
-        importedRows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '', blankrows: true });
-        renderRows(importedRows);
-        const note = importedRows.length > 500 ? '\\nPreview shows the first 500 rows; all imported rows remain in the workbook.' : '';
-        setStatus('Import complete. Worksheet: ' + importedSheetName + '\\nRows read: ' + importedRows.length + '\\nColumns detected: ' + importedRows.reduce((max, row) => Math.max(max, row.length), 0) + '\\nNo data-cleaning or transformation rules were applied.' + note, false);
+        const outputBook = XLSX.utils.book_new();
+        const summaries = [];
+        let previewRows = [];
+        selectedSheetNames.forEach(function (sheetName, index) {
+          const sourceSheet = importedWorkbook.Sheets[sheetName];
+          if (!sourceSheet) throw new Error('Worksheet not found: ' + sheetName);
+          // Keep the original worksheet cell map and worksheet metadata wherever supported by SheetJS.
+          const copiedSheet = JSON.parse(JSON.stringify(sourceSheet));
+          XLSX.utils.book_append_sheet(outputBook, copiedSheet, sheetName);
+          const rows = XLSX.utils.sheet_to_json(sourceSheet, { header: 1, raw: false, defval: '', blankrows: true });
+          summaries.push(sheetName + ': ' + rows.length + ' row(s)');
+          if (selectedSheetNames.length === 1) {
+            previewRows = rows;
+          } else if (previewRows.length < 500) {
+            previewRows.push(['Worksheet: ' + sheetName]);
+            previewRows.push(...rows.slice(0, Math.max(0, 500 - previewRows.length)));
+          }
+        });
+        XLSX.writeFile(outputBook, importedFileName + '_selected_tabs.xlsx');
+        renderRows(previewRows);
+        setStatus('Import complete. Downloaded a workbook containing the selected tabs. No row or column transformation rules were applied.\n' + summaries.join('\n') + (previewRows.length >= 500 ? '\nPreview is limited to 500 rows.' : ''), false);
       } catch (error) {
-        setStatus('Could not import this file: ' + (error && error.message ? error.message : String(error)), true);
+        setStatus('Could not import selected tabs: ' + (error && error.message ? error.message : String(error)), true);
       } finally {
-        importButton.disabled = false;
+        importButton.disabled = selectedSheetNames.length === 0;
       }
     });
   </script>

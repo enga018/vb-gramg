@@ -161,7 +161,7 @@ async function importOldBackup(){
    if(error||!data||data.error||data.valid!==true)throw new Error((data&&data.error)||(error&&error.message)||'Backup validation failed at batch '+(i+1)+'.');
    already+=Number(data.alreadyImported)||0;toImport+=Number(data.toImport)||0;
   }
-  if(!confirm('Validation passed for '+rows.length.toLocaleString('en-IN')+' ledger entries across '+backup.citizens.length+' job cards.\n\nAlready present or matching January charges to skip: '+already.toLocaleString('en-IN')+'.\nNew entries to import: '+toImport.toLocaleString('en-IN')+'.\n\nProceed with importing into VBGRAMG Supabase?'))throw new Error('Import cancelled. No new rows were written.');
+  if(!confirm('Validation passed for '+rows.length.toLocaleString('en-IN')+' ledger entries and '+citizenRows.length.toLocaleString('en-IN')+' citizen records.\\n\\nLedger rows to import: '+toImport.toLocaleString('en-IN')+' (skip '+already.toLocaleString('en-IN')+').\\nCitizen records to import: '+citizensToImport.toLocaleString('en-IN')+' (skip '+citizensAlready.toLocaleString('en-IN')+').\\n\\nProceed with importing into VBGRAMG Supabase?'))throw new Error('Import cancelled. No new rows were written.');
   let inserted=0,skipped=0,citizensInserted=0,citizensSkipped=0;
   $('importBackupBtn').textContent='Importing ledger…';
   for(let i=0;i<batches.length;i++){

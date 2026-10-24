@@ -141,10 +141,9 @@ tbody tr:last-child td{border-bottom:0}
 <body>
 <main>
 <div id="app-panel" class="hidden">
-<header class="topbar"><div class="brand"><h1>VBGRAMG</h1><p><a href="./" style="color:inherit">← Main menu</a> · Village Benefit Management · MIS records</p></div>
-<div class="account"><span id="account-label" class="account-label"></span><a id="import-link" class="link-button hidden" href="./mis-import.html">Import MIS</a><button id="logout-button" class="secondary" type="button">Sign out</button></div></header>
+<header class="topbar"><div class="brand"><h1>MIS</h1><p><a href="./" style="color:inherit">← Main menu</a></p></div>
+<div class="account"><a id="import-link" class="link-button hidden" href="./mis-import.html">Import</a></div></header>
 <section class="panel">
-<div class="section-head"><div><h2>MIS</h2><p>Current active MIS data from the database. Importing is an administrator tool; viewing the data is the main workspace.</p></div></div>
 <div class="meta"><div class="stat"><small>Total Job Card</small><strong id="total-jobcards">—</strong></div><div class="stat"><small>Total Application</small><strong id="total-applicants">—</strong></div><div class="stat"><small>Demand</small><strong id="total-demand">—</strong></div><div class="stat"><small>Unwilling</small><strong id="total-unwilling">—</strong></div><div class="stat"><small>Last Updated</small><strong id="updated-at">—</strong></div></div>
 <div class="toolbar"><div class="search"><label for="search-input">Search job cards or applicants</label><input id="search-input" type="search" placeholder="Job card number, household, applicant name or number…"></div><div class="filter-control"><label for="selection-filter">Selection status</label><select id="selection-filter"><option value="all">All job cards</option><option value="selected">Selected</option><option value="none">None selected</option></select></div><span id="result-count" class="muted"></span></div>
 <div id="data-status" class="status" aria-live="polite">Loading MIS data…</div>
@@ -167,7 +166,7 @@ async function verifyAccess(user){
  const {data,error}=await supabaseClient.functions.invoke('vbgramg-app-access',{body:{}});
  if(seq!==loadSequence)return false;
  if(error||!data||data.approved!==true){await supabaseClient.auth.signOut();window.location.replace('./');return false}
- currentRole=data.role;$('account-label').textContent=data.email+(currentRole==='admin'?' · Administrator':'');$('import-link').classList.toggle('hidden',currentRole!=='admin');
+ currentRole=data.role;$('import-link').classList.toggle('hidden',currentRole!=='admin');
  $('app-panel').classList.remove('hidden');
  await loadData();return true;
 }
@@ -349,7 +348,6 @@ function renderTable(){
  $('page-label').textContent=filtered.length?'Showing job cards '+(start+1)+'–'+Math.min(start+pageSize,filtered.length)+' of '+filtered.length:'No matching job cards';
  $('prev-button').disabled=currentPage<=0;$('next-button').disabled=currentPage>=totalPages-1;
 }
-$('logout-button').addEventListener('click',async()=>{await supabaseClient.auth.signOut();window.location.replace('./')});
 $('search-input').addEventListener('input',()=>{currentPage=0;renderTable()});$('selection-filter').addEventListener('change',()=>{currentPage=0;renderTable()});
 $('prev-button').addEventListener('click',()=>{currentPage--;renderTable()});$('next-button').addEventListener('click',()=>{currentPage++;renderTable()});
 supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){loadSequence++;window.location.replace('./')}else if(event==='TOKEN_REFRESHED'&&session)Promise.resolve().then(()=>verifyAccess(session.user))});

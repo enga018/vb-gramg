@@ -181,8 +181,10 @@ tbody tr:last-child td{border-bottom:0}
  </div>
  <p class="import-help">If a job card already has a charge for the selected period, it will be flagged. Check the existing charge before marking that duplicate as reviewed. Reviewed duplicates can be imported only when you explicitly tick the review checkbox.</p>
  <div id="import-summary" class="status" aria-live="polite">Choose a contribution period to check for existing charges.</div>
- <div class="table-wrap import-table-wrap"><table id="import-preview-table" class="import-table"><thead><tr><th>#</th><th>Job card</th><th>Account holder / applicant</th><th>FTO rows</th><th>Charge amount</th><th>Defer</th><th>Duplicate check</th><th>Manual review</th></tr></thead><tbody></tbody></table></div>
- <div class="table-foot"><span id="import-count" class="muted"></span><div class="actions"><button id="fto-import-button" type="button" disabled>Import charges to Contribution</button></div></div>
+ <div class="table-wrap import-table-wrap"><table id="import-preview-table" class="import-table"><thead><tr><th>#</th><th>Job card</th><th>Account holder / applicant</th><th>FTO rows</th><th>FTO status</th><th>Calculated charge</th><th>Defer</th><th>Duplicate check</th><th>Manual review</th></tr></thead><tbody></tbody></table></div>
+ <div class="field"><label for="fto-status-action">FTO status action</label><select id="fto-status-action"><option value="processed">Import Processed (active charge)</option><option value="blank">Import Blank (defer charge)</option><option value="rejected">Rejected — delete previously deferred FTO charge</option></select></div>
+ <p class="import-help">Processed rows create or activate charges. Blank rows create or keep charges deferred. Rejected rows remove only a previously imported, deferred FTO charge for the selected contribution period; unrelated charges and active charges are not deleted.</p>
+ <div class="table-foot"><span id="import-count" class="muted"></span><div class="actions"><button id="fto-import-button" type="button" disabled>Import Processed charges</button></div></div>
 </div>
 </section>
 </div>
@@ -291,34 +293,33 @@ function parseAmount(value){
  const amount=Number(cleaned);
  return Number.isFinite(amount)&&amount>0?amount:0;
 }
+function currentStatusAction(){return $('fto-status-action').value}
+function actionGroups(){return importGroups.filter(g=>g.status===currentStatusAction())}
 function buildImportGroups(){
- $('fto-import-button').textContent='Import charges to Contribution';
  const divisor=Number($('amount-divisor').value),multiplier=Number($('amount-multiplier').value);
  const validFormula=Number.isFinite(divisor)&&divisor>0&&Number.isFinite(multiplier)&&multiplier>0;
  const map=new Map();
  for(const row of parsedDataRows){
-  const jobCard=jobCardFromRow(row);
-  if(!jobCard)continue;
-  const creditAmount=parseAmount(row[11]);
-  const amount=validFormula&&creditAmount>0?(creditAmount/divisor)*multiplier:0;
+  const jobCard=jobCardFromRow(row);if(!jobCard)continue;
+  const creditAmount=parseAmount(row[11]),amount=validFormula&&creditAmount>0?(creditAmount/divisor)*multiplier:0;
   const personName=String(row[7]||row[5]||'').replace(/<br\s*\/?>/gi,' ').replace(/\s+/g,' ').trim();
-  if(!map.has(jobCard))map.set(jobCard,{job_card_number:jobCard,person_name:personName||'Name needs review',amount:0,row_count:0,invalid_amount_rows:0});
-  const group=map.get(jobCard);
-  if(!group.person_name||group.person_name==='Name needs review')group.person_name=personName||group.person_name;
-  group.row_count++;
-  if(amount>0)group.amount+=amount;else group.invalid_amount_rows++;
+  const rawStatus=String(row[12]||'').replace(/<br\s*\/?>/gi,' ').trim().toLowerCase();
+  const rowStatus=rawStatus==='processed'?'processed':rawStatus==='rejected'?'rejected':rawStatus===''?'blank':'other';
+  if(!map.has(jobCard))map.set(jobCard,{job_card_number:jobCard,person_name:personName||'Name needs review',amount:0,row_count:0,invalid_amount_rows:0,statuses:new Set()});
+  const group=map.get(jobCard);if(!group.person_name||group.person_name==='Name needs review')group.person_name=personName||group.person_name;
+  group.row_count++;group.statuses.add(rowStatus);if(amount>0)group.amount+=amount;else group.invalid_amount_rows++;
  }
- importGroups=[...map.values()].sort((a,b)=>a.job_card_number.localeCompare(b.job_card_number));
- for(const group of importGroups)if(!deferredCards.has(group.job_card_number))deferredCards.set(group.job_card_number,false);
+ importGroups=[...map.values()].map(g=>({...g,status:g.statuses.size===1?[...g.statuses][0]:'mixed'})).sort((a,b)=>a.job_card_number.localeCompare(b.job_card_number));
+ for(const group of importGroups)if(!deferredCards.has(group.job_card_number))deferredCards.set(group.job_card_number,group.status==='blank');
  duplicateCards=new Map();reviewedCards=new Set();unknownCards=new Set();reviewedNewCards=new Set();
- renderImportPreview();
- refreshDuplicates();
+ renderImportPreview();refreshDuplicates();
 }
 function currentDeferMode(){return $('defer-mode').value}
 function setAllDeferredFromMode(){
  const mode=currentDeferMode();
  if(mode==='all')for(const group of importGroups)deferredCards.set(group.job_card_number,true);
  if(mode==='none')for(const group of importGroups)deferredCards.set(group.job_card_number,false);
+ if(currentStatusAction()==='blank')for(const group of importGroups.filter(g=>g.status==='blank'))deferredCards.set(group.job_card_number,true);
  renderImportPreview();
 }
 function renderImportPreview(){
@@ -336,9 +337,10 @@ function renderImportPreview(){
   addCell(group.job_card_number);
   addCell(group.person_name);
   addCell(String(group.row_count));
-  addCell(group.amount>0?'₹'+group.amount.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}):'Invalid amount');
+  addCell(group.status==='blank'?'Blank':group.status==='processed'?'Processed':group.status==='rejected'?'Rejected':group.status==='mixed'?'Mixed statuses':'Unknown status');
+  addCell(group.amount>0?'₹'+group.amount.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}):'—');
   const deferCell=addCell('');
-  const deferBox=document.createElement('input');deferBox.type='checkbox';deferBox.checked=Boolean(deferredCards.get(group.job_card_number));deferBox.disabled=currentDeferMode()!=='selected';deferBox.setAttribute('aria-label','Defer '+group.job_card_number);
+  const deferBox=document.createElement('input');deferBox.type='checkbox';deferBox.checked=Boolean(deferredCards.get(group.job_card_number));deferBox.disabled=currentStatusAction()!=='blank';deferBox.setAttribute('aria-label','Defer '+group.job_card_number);
   deferBox.addEventListener('change',()=>{deferredCards.set(group.job_card_number,deferBox.checked);renderImportPreview()});
   deferCell.appendChild(deferBox);
   const duplicate=duplicateCards.get(group.job_card_number);
@@ -380,10 +382,10 @@ async function refreshDuplicates(){
  const seq=++duplicateCheckSequence;
  duplicateCards=new Map();
  const period=$('charge-period').value;
- if(!period){checkingDuplicates=false;duplicateCheckFailed=false;renderImportPreview();return}
+ if(!period||currentStatusAction()==='rejected'){checkingDuplicates=false;duplicateCheckFailed=false;renderImportPreview();return}
  checkingDuplicates=true;duplicateCheckFailed=false;renderImportPreview();
  try{
-  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'check-fto-duplicates',charge_period:period+'-01',job_cards:importGroups.map(g=>g.job_card_number)}});
+  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'check-fto-duplicates',charge_period:period+'-01',job_cards:actionGroups().map(g=>g.job_card_number)}});
   if(seq!==duplicateCheckSequence)return;
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not check for duplicate charges.');
   duplicateCards=new Map((data.duplicates||[]).map(row=>[String(row.job_card_number),row]));
@@ -400,43 +402,43 @@ async function refreshDuplicates(){
 }
 function updateImportButton(){
  const period=$('charge-period').value;
- const invalid=importGroups.some(g=>!g.job_card_number||!g.person_name||g.person_name==='Name needs review'||g.amount<=0||g.invalid_amount_rows>0);
+ const mode=currentStatusAction(),selected=actionGroups();
+ const invalid=selected.some(g=>!g.job_card_number||!g.person_name||g.person_name==='Name needs review'||(mode!=='rejected'&&(g.amount<=0||g.invalid_amount_rows>0))||g.status==='mixed'||g.status==='other');
  const unreviewed=[...duplicateCards.keys()].some(card=>!reviewedCards.has(card));
  const unverifiedNew=[...unknownCards].some(card=>!reviewedNewCards.has(card));
- $('fto-import-button').disabled=!period||!importGroups.length||invalid||checkingDuplicates||duplicateCheckFailed||unreviewed||unverifiedNew;
+ const isRejected=mode==='rejected';
+ $('fto-import-button').textContent=isRejected?'Delete existing rejected charges':mode==='blank'?'Import Blank as deferred':'Import Processed charges';
+ $('fto-import-button').disabled=!period||!selected.length||invalid||(!isRejected&&(checkingDuplicates||duplicateCheckFailed||unreviewed||unverifiedNew));
 }
 function bytesToHex(bytes){return [...new Uint8Array(bytes)].map(b=>b.toString(16).padStart(2,'0')).join('')}
 async function sha256(text){return bytesToHex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)))}
 $('charge-period').addEventListener('change',()=>{reviewedCards=new Set();refreshDuplicates()});
+$('fto-status-action').addEventListener('change',()=>{reviewedCards=new Set();reviewedNewCards=new Set();setAllDeferredFromMode();refreshDuplicates()});
 $('amount-divisor').addEventListener('input',()=>buildImportGroups());
 $('amount-multiplier').addEventListener('input',()=>buildImportGroups());
 $('defer-mode').addEventListener('change',setAllDeferredFromMode);
 $('fto-import-button').addEventListener('click',async()=>{
  if($('fto-import-button').disabled)return;
- const button=$('fto-import-button');button.disabled=true;button.textContent='Checking and importing…';
+ const button=$('fto-import-button'),mode=currentStatusAction(),selected=actionGroups();
+ if(mode==='rejected'&&!window.confirm('Delete only previously imported DEFERRED FTO charges for '+selected.length+' rejected job cards in '+$('charge-period').value+'? This cannot be undone.'))return;
+ button.disabled=true;button.textContent=mode==='rejected'?'Removing rejected charges…':'Applying FTO status…';
  try{
   const period=$('charge-period').value+'-01';
-  const payloadRows=importGroups.map(g=>({job_card_number:g.job_card_number,person_name:g.person_name,amount:Number(g.amount.toFixed(2)),is_deferred:Boolean(deferredCards.get(g.job_card_number))}));
-  const sourceSha=await sha256(JSON.stringify({raw:$('table-input').value,period,amount_divisor:$('amount-divisor').value,amount_multiplier:$('amount-multiplier').value,rows:payloadRows}));
-  const ftoNumber=extractFtoNumber($('table-input').value);
-  const sourceFilename=ftoNumber||('FTO-'+period+'-'+sourceSha.slice(0,12));
-  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'import-fto-batch',charge_period:period,rows:payloadRows,source_sha256:sourceSha,source_filename:sourceFilename,fto_number:ftoNumber,reviewed_duplicates:[...reviewedCards],reviewed_new_job_cards:[...reviewedNewCards]}});
+  const payloadRows=selected.map(g=>({job_card_number:g.job_card_number,person_name:g.person_name,amount:Number(g.amount.toFixed(2)),status:g.status,is_deferred:mode==='blank'}));
+  const sourceSha=await sha256(JSON.stringify({raw:$('table-input').value,period,mode,amount_divisor:$('amount-divisor').value,amount_multiplier:$('amount-multiplier').value,rows:payloadRows}));
+  const ftoNumber=extractFtoNumber($('table-input').value),sourceFilename=ftoNumber||('FTO-'+period+'-'+sourceSha.slice(0,12));
+  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'sync-fto-status',charge_period:period,mode,rows:payloadRows,source_sha256:sourceSha,source_filename:sourceFilename,fto_number:ftoNumber,reviewed_duplicates:[...reviewedCards],reviewed_new_job_cards:[...reviewedNewCards]}});
   if(error||!data||data.error){
    if(data&&Array.isArray(data.duplicates)){duplicateCards=new Map(data.duplicates.map(row=>[String(row.job_card_number),row]));reviewedCards=new Set();}
    if(data&&Array.isArray(data.unknown_job_cards)){unknownCards=new Set(data.unknown_job_cards.map(String));reviewedNewCards=new Set();}
    if(data&&(Array.isArray(data.duplicates)||Array.isArray(data.unknown_job_cards)))renderImportPreview();
-   throw new Error((data&&data.error)||(error&&error.message)||'Import failed.');
+   throw new Error((data&&data.error)||(error&&error.message)||'FTO status action failed.');
   }
-  status(data.already_imported?'This exact FTO batch was already imported; no duplicate charges were added.':'Imported '+data.imported+' charge entries for '+data.rows+' job cards. Total ₹'+Number(data.total_amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'.','success');
-  button.textContent='Import completed';
- }catch(err){
-  status(err.message||'Import failed. Review the preview and try again.','error');
-  button.textContent='Import charges to Contribution';
-  checkingDuplicates=false;
-  updateImportButton();
- }finally{
-  if(button.textContent!=='Import completed')button.disabled=false;
- }
+  if(mode==='rejected')status('Rejected rows checked. Deleted '+Number(data.deleted||0)+' previously deferred FTO charge(s); unrelated or active charges were left unchanged.','success');
+  else status((mode==='blank'?'Blank rows processed as deferred. ':'Processed rows imported/activated. ')+'New charges: '+Number(data.inserted||0)+', existing FTO charges updated: '+Number(data.updated||0)+', skipped after review: '+Number(data.skipped||0)+'. Total calculated amount ₹'+Number(data.total_amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'.','success');
+  button.textContent='Status action completed';
+ }catch(err){status(err.message||'FTO status action failed. Review the preview and try again.','error');button.textContent=mode==='rejected'?'Delete existing rejected charges':mode==='blank'?'Import Blank as deferred':'Import Processed charges';checkingDuplicates=false;updateImportButton()}
+ finally{if(button.textContent!=='Status action completed')button.disabled=false}
 });
 
 $('table-input').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')$('load-table-button').click()});

@@ -18,6 +18,8 @@ main{width:min(100%,1440px);margin:0 auto;padding:0 0 44px}
 .panel{padding:clamp(18px,2.5vw,28px);margin-bottom:16px}.panel h1{font-size:1.18rem;margin:0 0 6px;letter-spacing:-.02em}.sub{color:var(--muted);font-size:.88rem;margin:0 0 12px}
 .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 18px}.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:13px 15px;min-width:0}.stat .k{display:block;color:var(--muted);font-size:.78rem;font-weight:600;margin-bottom:7px;line-height:1.3}.stat .v{display:block;font-size:1.08rem;font-weight:750;letter-spacing:-.02em;line-height:1.35;overflow-wrap:anywhere;color:var(--ink)}.stat .v.due{color:var(--due)}.stat .v.paid{color:var(--paid)}
 .toolbar{display:flex;gap:10px;align-items:end;margin:0 0 14px;flex-wrap:wrap}.toolbar input{flex:1;min-width:220px;min-height:44px;padding:10px 12px;font:inherit;border:1px solid #cfd7e4;border-radius:10px;outline:0;background:#fff;color:var(--ink)}.toolbar input:focus,.field input:focus,.field select:focus,.toolbar select:focus{outline:3px solid rgb(36 87 197 / 15%);border-color:#6f91dc}.filter-control{min-width:170px}.filter-control label{display:block;font-size:.82rem;font-weight:650;color:#344054;margin:0 0 6px}.filter-control select{width:100%;min-height:44px;padding:10px 12px;font:inherit;border:1px solid #cfd7e4;border-radius:10px;background:#fff;color:var(--ink)}
+.table-wrap{overflow:auto;overscroll-behavior:contain;max-height:68vh;border:1px solid #dfe5ee;border-radius:12px;background:#fff;box-shadow:0 2px 8px rgb(23 32 51 / 3%)}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem;white-space:normal}thead th{position:sticky;top:0;z-index:1;background:#edf2f8;color:#475467;text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;font-weight:750;white-space:nowrap}th,td{padding:12px 14px;border-bottom:1px solid #e8edf4}tbody tr:last-child td{border-bottom:0}.contribution-row{background:#fff;cursor:pointer;transition:background .15s}.contribution-row:hover{background:#f6f9ff}.contribution-row:focus-visible{outline:2px solid #3972df;outline-offset:-2px}.contribution-row td:first-child{color:#667085;width:64px}.contribution-row .jobcard{font-weight:700;white-space:nowrap}.contribution-row .person{font-weight:650}.contribution-row .amount,.contribution-row .balance{font-weight:750;white-space:nowrap;text-align:right}.contribution-row .status-cell{white-space:nowrap}.table-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px}.table-foot .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.muted{font-size:.84rem;color:var(--muted);line-height:1.45}
 .citizen{display:flex;align-items:center;gap:12px;padding:13px 15px;margin-bottom:8px;border:1px solid var(--line);border-radius:12px;width:100%;background:var(--surface);text-align:left;cursor:pointer;transition:background .15s,border-color .15s}.citizen:hover{background:#f6f9ff;border-color:#cbd8f0}.citizen:focus-visible{outline:3px solid rgb(36 87 197 / 25%);outline-offset:2px}.citizen .info{flex:1;min-width:0}.citizen .info b{font-size:.93rem;display:block;font-weight:700;color:var(--ink)}.citizen .info small{font-size:.8rem;color:var(--muted);display:block;margin-top:3px;overflow-wrap:anywhere}.citizen .bal{font-size:.95rem;font-weight:750;white-space:nowrap}.dot{width:8px;height:8px;border-radius:50%;flex:none}.dot.paid{background:var(--paid)}.dot.partial{background:var(--partial)}.dot.due{background:var(--due)}
 .badge{display:inline-flex;font-size:.66rem;font-weight:750;padding:4px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.04em}.badge.paid{background:#e6f4ea;color:var(--paid)}.badge.partial{background:#fdf1e3;color:var(--partial)}.badge.due{background:#fdeaea;color:var(--due)}
 .notice{padding:11px 13px;border:1px solid #e5eaf2;border-radius:10px;background:#f7f9fc;color:#475467;font-size:.88rem;line-height:1.45;margin:0 0 16px;overflow-wrap:anywhere}.notice.err{background:#fff4f2;border-color:#ffd8d2;color:#a12b20}.notice.info{background:#f7f9fc;border-color:#e5eaf2;color:#475467}.hidden{display:none!important}.empty{padding:24px;text-align:center;color:var(--muted);font-size:.9rem}.count{color:var(--muted);font-size:.84rem;margin:0 0 10px}
@@ -33,11 +35,11 @@ main{width:min(100%,1440px);margin:0 auto;padding:0 0 44px}
 <body>
 <header class="topbar"><div class="brand"><h1>Contribution</h1><p><a href="./">← Main menu</a></p></div><div class="top-actions"><button class="btn ghost small" id="refreshBtn" type="button">Refresh</button></div></header>
 <main>
-<section class="panel"><div id="status" class="notice info">Checking your approved account…</div><div id="importNote" class="sub hidden"></div></section>
+<section class="panel"><div id="status" class="notice info">Checking your approved account…</div></section>
 <div id="app" class="hidden">
 <section class="panel">
 <div class="stats"><div class="stat"><div class="k">Households</div><div class="v" id="households">—</div></div><div class="stat"><div class="k">Total charged</div><div class="v" id="charged">—</div></div><div class="stat"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div></div>
-<div class="toolbar"><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due">Due</option><option value="partial">Partially paid</option><option value="paid">Settled</option><option value="deferred">Has deferred charges</option></select></div><button id="clearSearch" class="btn ghost" type="button">Clear</button></div><p id="count" class="count"></p><div id="citizens"></div><div id="empty" class="empty hidden">No matching job cards found.</div>
+<div class="toolbar"><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due">Due</option><option value="partial">Partially paid</option><option value="paid">Settled</option><option value="deferred">Has deferred charges</option></select></div><button id="clearSearch" class="btn ghost" type="button">Clear</button></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button></div></div>
 </section>
 </div>
 </main>
@@ -51,7 +53,7 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let entries=[], imports=[], citizens=[], citizenRegistry=[], currentCitizen=null, busy=false;
+let entries=[], citizens=[], citizenRegistry=[], currentCitizen=null, busy=false, currentPage=0, pageSize=50;
 const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const day=s=>s?new Date(s+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'Date not recorded';
@@ -85,12 +87,33 @@ function render(){
  $('households').textContent=citizens.length.toLocaleString('en-IN');
  $('charged').textContent=fmt(citizens.reduce((s,c)=>s+c.totalCharged,0));
  $('outstanding').textContent=fmt(citizens.reduce((s,c)=>s+Math.max(0,c.balance),0));
- $('count').textContent='Showing '+list.length.toLocaleString('en-IN')+' of '+citizens.length.toLocaleString('en-IN')+' job cards';
- $('citizens').innerHTML=list.map(c=>{
-  const state=c.balance<=0?'paid':c.paid>0?'partial':'due';
-  return '<button class="citizen" type="button" data-card="'+esc(c.id)+'"><span class="dot '+state+'"></span><span class="info"><b>'+esc(c.name)+'</b><small>Job card: '+esc(c.id)+' · '+c.ledger.length+' ledger entries</small></span><span style="text-align:right"><span class="bal">'+fmt(Math.max(0,c.balance))+'</span><br><span class="badge '+state+'">'+(state==='paid'?'Settled':state==='partial'?'Partial':'Due')+'</span></span></button>';
- }).join('');
- $('empty').classList.toggle('hidden',list.length!==0);
+ const totalPages=Math.max(1,Math.ceil(list.length/pageSize));currentPage=Math.min(currentPage,totalPages-1);
+ const start=currentPage*pageSize,shown=list.slice(start,start+pageSize),isMobile=window.matchMedia('(max-width: 700px)').matches;
+ const thead=$('contribution-table').querySelector('thead'),tbody=$('contribution-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
+ const head=document.createElement('tr');
+ (isMobile?['Sl. No.','Job Card Details']:['Sl. No.','Job Card Number','Head of Household','Total Charged','Outstanding','Status']).forEach(label=>{const th=document.createElement('th');th.textContent=label;head.appendChild(th)});thead.appendChild(head);
+ shown.forEach((c,index)=>{
+  const state=c.balance<=0?'paid':c.paid>0?'partial':'due',tr=document.createElement('tr');tr.className='contribution-row';tr.tabIndex=0;tr.dataset.card=c.id;tr.setAttribute('role','button');tr.setAttribute('aria-label','Open contribution history for '+c.name+' job card '+c.id);
+  const cell=(value,cls)=>{const td=document.createElement('td');td.textContent=value;if(cls)td.className=cls;tr.appendChild(td);return td};
+  cell(String(start+index+1));
+  if(isMobile){
+   const detail=cell('','');const number=document.createElement('div');number.textContent=c.id;number.className='jobcard';number.style.whiteSpace='normal';number.style.overflowWrap='anywhere';detail.appendChild(number);
+   const secondary=document.createElement('div');secondary.className='mobile-secondary';secondary.style.cssText='display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:5px;font-size:.8rem;color:#64748b;font-weight:400';
+   const name=document.createElement('span');name.textContent=c.name;secondary.appendChild(name);
+   const balance=document.createElement('span');balance.textContent='Outstanding: '+fmt(Math.max(0,c.balance));secondary.appendChild(balance);
+   const charge=document.createElement('span');charge.textContent='Charged: '+fmt(c.totalCharged);secondary.appendChild(charge);detail.appendChild(secondary);
+   const stateBadge=document.createElement('span');stateBadge.className='badge '+state;stateBadge.textContent=state==='paid'?'Settled':state==='partial'?'Partial':'Due';
+   const statusLine=document.createElement('div');statusLine.style.marginTop='7px';statusLine.appendChild(stateBadge);detail.appendChild(statusLine);
+  }else{
+   cell(c.id,'jobcard');cell(c.name,'person');cell(fmt(c.totalCharged),'amount');cell(fmt(Math.max(0,c.balance)),'balance');
+   const td=cell('','status-cell');const badge=document.createElement('span');badge.className='badge '+state;badge.textContent=state==='paid'?'Settled':state==='partial'?'Partial':'Due';td.appendChild(badge);
+  }
+  tr.addEventListener('click',()=>openCitizen(c.id));tr.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();openCitizen(c.id)}});tbody.appendChild(tr);
+ });
+ $('table-wrap').classList.toggle('hidden',list.length===0);$('empty').classList.toggle('hidden',list.length!==0);
+ $('count').textContent=list.length.toLocaleString('en-IN')+' job card'+(list.length===1?'':'s')+' matching filters';
+ $('page-label').textContent=list.length?'Showing '+(start+1)+'–'+Math.min(start+pageSize,list.length)+' of '+list.length:'No matching job cards';
+ $('prev-button').disabled=currentPage<=0;$('next-button').disabled=currentPage>=totalPages-1;
 }
 function openCitizen(id){
  currentCitizen=citizens.find(c=>c.id===id);if(!currentCitizen)return;
@@ -145,19 +168,18 @@ async function load(){
   status('Loading contribution ledger…');
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
-  entries=data.entries||[];imports=data.imports||[];citizenRegistry=data.citizens||[];deriveCitizens();
-  const jan=imports.find(i=>String(i.charge_period||'').startsWith('2026-01'));
-  $('importNote').textContent=jan?'January 2026 import: '+Number(jan.row_count).toLocaleString('en-IN')+' charges · '+fmt(jan.total_amount):'No completed January import metadata found.';
-  $('importNote').classList.remove('hidden');
+  entries=data.entries||[];citizenRegistry=data.citizens||[];deriveCitizens();
   $('app').classList.remove('hidden');status('Signed in and approved. '+entries.length.toLocaleString('en-IN')+' ledger entries loaded.');
   render();
  }catch(err){status(err.message||'Could not load contribution data.','err');}
  finally{$('refreshBtn').disabled=false;}
 }
 $('citizens').addEventListener('click',e=>{const btn=e.target.closest('[data-card]');if(btn)openCitizen(btn.dataset.card);});
-$('search').addEventListener('input',render);
-$('statusFilter').addEventListener('change',render);
-$('clearSearch').addEventListener('click',()=>{$('search').value='';$('statusFilter').value='all';render();$('search').focus();});
+$('search').addEventListener('input',()=>{currentPage=0;render()});
+$('statusFilter').addEventListener('change',()=>{currentPage=0;render()});
+$('clearSearch').addEventListener('click',()=>{$('search').value='';$('statusFilter').value='all';currentPage=0;render();$('search').focus();});
+$('prev-button').addEventListener('click',()=>{currentPage--;render()});$('next-button').addEventListener('click',()=>{currentPage++;render()});
+window.addEventListener('resize',()=>render());
 $('refreshBtn').addEventListener('click',load);
 $('closeSheet').addEventListener('click',()=>$('overlay').classList.add('hidden'));
 $('overlay').addEventListener('click',e=>{if(e.target===$('overlay'))$('overlay').classList.add('hidden');});

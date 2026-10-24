@@ -16,8 +16,8 @@ button,.link-button{font:inherit;font-weight:650;border:0;border-radius:9px;min-
 button.secondary,.link-button.secondary{background:#e2e8f0;color:#0f172a}button:disabled{opacity:.5;cursor:wait}
 .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.login-card{max-width:460px;margin:7vh auto}.hidden{display:none!important}
 .status{margin:14px 0 0;padding:12px 14px;border-radius:9px;background:#f8fafc;color:#475569;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.9rem}.status.error{background:#fef2f2;color:#991b1b}.status.success{background:#f0fdf4;color:#166534}
-.toolbar{display:flex;gap:12px;align-items:end;justify-content:space-between;flex-wrap:wrap;margin:20px 0 14px}.search{flex:1;min-width:220px;max-width:520px}.search label{margin-top:0}.meta{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}.stat{padding:12px 15px;border:1px solid #e2e8f0;border-radius:11px;background:#f8fafc;min-width:140px}.stat small{display:block;color:#64748b;margin-bottom:3px}.stat strong{font-size:1rem;overflow-wrap:anywhere}
-.table-wrap{overflow:auto;max-height:68vh;border:1px solid #e2e8f0;border-radius:10px}table{border-collapse:separate;border-spacing:0;width:100%;font-size:.88rem;white-space:normal}th,td{padding:10px 12px;text-align:left;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0;vertical-align:top;min-width:105px;max-width:360px;overflow-wrap:anywhere}th{position:sticky;top:0;z-index:1;background:#dbeafe;font-weight:750}td:first-child,th:first-child{min-width:58px;width:58px;color:#64748b}.expand-cell{cursor:pointer}.expand-cell:hover{text-decoration:underline;color:#1d4ed8}tbody tr:nth-child(even){background:#f8fafc}tbody tr:hover{background:#eff6ff}.table-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px}.muted{font-size:.86rem;color:#64748b}.section-head{display:flex;align-items:start;justify-content:space-between;gap:16px;flex-wrap:wrap}.section-head p{margin:4px 0 0}
+.toolbar{display:flex;gap:12px;align-items:end;justify-content:space-between;flex-wrap:wrap;margin:20px 0 14px}.search{flex:1;min-width:220px;max-width:560px}.search label,.filter-control label{margin-top:0}.filter-control{min-width:180px}.filter-control select{font:inherit;width:100%;min-height:44px;padding:10px 34px 10px 12px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#0f172a}.meta{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}.stat{padding:13px 16px;border:1px solid #e2e8f0;border-radius:13px;background:linear-gradient(145deg,#fff,#f8fafc);min-width:140px}.stat small{display:block;color:#64748b;margin-bottom:4px}.stat strong{font-size:1rem;overflow-wrap:anywhere}
+.table-wrap{overflow:auto;max-height:68vh;border:1px solid #dbe3ee;border-radius:14px;background:#fff;box-shadow:0 3px 12px rgb(15 23 42 / 3%)}table{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem;white-space:normal}th,td{padding:13px 15px;text-align:left;border-bottom:1px solid #e8edf4;vertical-align:middle;min-width:100px;max-width:420px;overflow-wrap:anywhere}th{position:sticky;top:0;z-index:1;background:#f1f5f9;color:#475569;font-size:.76rem;letter-spacing:.045em;text-transform:uppercase;font-weight:750}td:first-child,th:first-child{min-width:58px;width:58px;color:#64748b}.jobcard-row{background:#fff;transition:background .15s}.jobcard-row:hover{background:#f8fbff}.jobcard-row.has-selection{box-shadow:inset 3px 0 #16a34a}.jobcard-row.no-selection{box-shadow:inset 3px 0 #f59e0b}.expand-cell{cursor:pointer}.expand-cell:hover{text-decoration:underline;color:#1d4ed8}.expand-cell:focus-visible,.count-link:focus-visible{outline:2px solid #2563eb;outline-offset:2px;border-radius:4px}.count-link{border:0;background:transparent;color:#1d4ed8;padding:4px 0;min-height:0;font:inherit;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px}.count-link:hover{text-decoration:underline}.count-link .count-hint{color:#64748b;font-size:.78rem;font-weight:500}.selection-badge{display:inline-flex;align-items:center;gap:7px;padding:5px 10px;border-radius:999px;font-size:.78rem;font-weight:750;white-space:nowrap}.selection-badge.selected{background:#dcfce7;color:#166534}.selection-badge.none{background:#fff7ed;color:#9a3412}.selection-dot{width:7px;height:7px;border-radius:50%;background:currentColor}.applicant-detail td{background:#f8fafc}.applicant-detail table{border:1px solid #e2e8f0;border-radius:10px;overflow:hidden}.applicant-detail th{background:#e9eff7}.applicant-detail tbody tr:nth-child(even){background:#fff}.applicant-detail tbody tr:hover{background:#eff6ff}.table-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px}.muted{font-size:.86rem;color:#64748b}.section-head{display:flex;align-items:start;justify-content:space-between;gap:16px;flex-wrap:wrap}.section-head p{margin:4px 0 0}
 @media(max-width:600px){body{padding:10px}.topbar{padding:15px}.account{width:100%}.account button{flex:1}.panel{padding:15px}.stat{flex:1;min-width:120px}}
 </style>
 </head>
@@ -29,7 +29,7 @@ button.secondary,.link-button.secondary{background:#e2e8f0;color:#0f172a}button:
 <section class="panel">
 <div class="section-head"><div><h2>MIS</h2><p>Current active MIS data from the database. Importing is an administrator tool; viewing the data is the main workspace.</p></div></div>
 <div class="meta"><div class="stat"><small>Unique job cards</small><strong id="total-jobcards">—</strong></div><div class="stat"><small>Total applicants</small><strong id="total-applicants">—</strong></div><div class="stat"><small>Source file</small><strong id="source-file">—</strong></div><div class="stat"><small>Last updated</small><strong id="updated-at">—</strong></div></div>
-<div class="toolbar"><div class="search"><label for="search-input">Search job cards or applicants</label><input id="search-input" type="search" placeholder="Job card number, household, applicant name or number…"></div><span id="result-count" class="muted"></span></div>
+<div class="toolbar"><div class="search"><label for="search-input">Search job cards or applicants</label><input id="search-input" type="search" placeholder="Job card number, household, applicant name or number…"></div><div class="filter-control"><label for="selection-filter">Selection status</label><select id="selection-filter"><option value="all">All job cards</option><option value="selected">Selected</option><option value="none">None selected</option></select></div><span id="result-count" class="muted"></span></div>
 <div id="data-status" class="status" aria-live="polite">Loading MIS data…</div>
 <div id="table-wrap" class="table-wrap hidden"><table id="mis-table"><thead></thead><tbody></tbody></table></div>
 <div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="secondary" type="button">Previous</button><button id="next-button" class="secondary" type="button">Next</button></div></div>
@@ -149,27 +149,33 @@ function buildJobCards(){
  $('total-applicants').textContent=allRows.length;
 }
 function getFilteredCards(){
- const q=$('search-input').value.trim().toLocaleLowerCase();
- if(!q)return jobCards;
- return jobCards.filter(group=>[group.key,group.household,...group.applicants.flatMap(a=>[a.name,a.number,...a.values.map(normalize)])].some(v=>String(v||'').toLocaleLowerCase().includes(q)));
+ const q=$('search-input').value.trim().toLocaleLowerCase(),filter=$('selection-filter').value;
+ return jobCards.filter(group=>{
+  const hasSelection=selectedApplicants.has(group.key);
+  if(filter==='selected'&&!hasSelection)return false;
+  if(filter==='none'&&hasSelection)return false;
+  return !q||[group.key,group.household,...group.applicants.flatMap(a=>[a.name,a.number,...a.values.map(normalize)])].some(v=>String(v||'').toLocaleLowerCase().includes(q));
+ });
 }
 function renderTable(){
  const filtered=getFilteredCards(),totalPages=Math.max(1,Math.ceil(filtered.length/pageSize));currentPage=Math.min(currentPage,totalPages-1);
  const start=currentPage*pageSize,shown=filtered.slice(start,start+pageSize);
  const thead=$('mis-table').querySelector('thead'),tbody=$('mis-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
  const hr=document.createElement('tr');
- ['Sl. No.','Job Card Number','Head of Household','Applicants'].forEach(label=>{const th=document.createElement('th');th.textContent=label;hr.appendChild(th)});
+ ['Sl. No.','Job Card Number','Head of Household','Applicants','Selection Status'].forEach(label=>{const th=document.createElement('th');th.textContent=label;hr.appendChild(th)});
  thead.appendChild(hr);
- shown.forEach(group=>{
-  const tr=document.createElement('tr');tr.className='jobcard-row';
-  const serialCell=document.createElement('td');serialCell.textContent=String(start+shown.indexOf(group)+1);tr.appendChild(serialCell);
+ shown.forEach((group,visibleIndex)=>{
+  const hasSelection=selectedApplicants.has(group.key);
+  const tr=document.createElement('tr');tr.className='jobcard-row '+(hasSelection?'has-selection':'no-selection');
+  const serialCell=document.createElement('td');serialCell.textContent=String(start+visibleIndex+1);tr.appendChild(serialCell);
   const toggleGroup=()=>{if(expandedCards.has(group.key))expandedCards.delete(group.key);else expandedCards.add(group.key);renderTable()};
   const makeExpandCell=(value,weight)=>{const cell=document.createElement('td');cell.textContent=value;cell.style.fontWeight=weight;cell.classList.add('expand-cell');cell.tabIndex=0;cell.setAttribute('role','button');cell.setAttribute('aria-expanded',String(expandedCards.has(group.key)));cell.setAttribute('aria-label',(expandedCards.has(group.key)?'Collapse ':'Expand ')+group.key);cell.addEventListener('click',toggleGroup);cell.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleGroup()}});return cell};
   tr.appendChild(makeExpandCell(group.key,'700'));
   tr.appendChild(makeExpandCell(group.household||'—','600'));
-  const countCell=document.createElement('td');countCell.textContent=group.applicants.length+' applicant'+(group.applicants.length===1?'':'s');tr.appendChild(countCell);tbody.appendChild(tr);
+  const countCell=document.createElement('td');const countButton=document.createElement('button');countButton.type='button';countButton.className='count-link';countButton.setAttribute('aria-expanded',String(expandedCards.has(group.key)));countButton.setAttribute('aria-label',(expandedCards.has(group.key)?'Collapse ':'Expand ')+group.applicants.length+' applicants for job card '+group.key);const countText=document.createElement('span');countText.textContent=String(group.applicants.length);countButton.appendChild(countText);const countHint=document.createElement('span');countHint.className='count-hint';countHint.textContent=group.applicants.length===1?'applicant':'applicants';countButton.appendChild(countHint);countButton.addEventListener('click',toggleGroup);countCell.appendChild(countButton);tr.appendChild(countCell);
+  const selectionCell=document.createElement('td');const badge=document.createElement('span');badge.className='selection-badge '+(hasSelection?'selected':'none');const dot=document.createElement('span');dot.className='selection-dot';dot.setAttribute('aria-hidden','true');badge.appendChild(dot);badge.appendChild(document.createTextNode(hasSelection?'Selected':'None selected'));selectionCell.appendChild(badge);tr.appendChild(selectionCell);tbody.appendChild(tr);
   if(expandedCards.has(group.key)){
-   const detailTr=document.createElement('tr');detailTr.className='applicant-detail';const detailTd=document.createElement('td');detailTd.colSpan=4;detailTd.style.padding='12px 18px 16px 42px';detailTd.style.background='#f8fafc';
+   const detailTr=document.createElement('tr');detailTr.className='applicant-detail';const detailTd=document.createElement('td');detailTd.colSpan=5;detailTd.style.padding='12px 18px 16px 42px';detailTd.style.background='#f8fafc';
    const subtable=document.createElement('table');subtable.style.width='100%';subtable.style.maxWidth='760px';
    const subhead=document.createElement('thead'),subheadRow=document.createElement('tr');
    ['Select','#','Name of Applicant','Applicant No.'].forEach(label=>{const th=document.createElement('th');th.textContent=label;th.style.position='static';th.style.background='#e2e8f0';subheadRow.appendChild(th)});subhead.appendChild(subheadRow);subtable.appendChild(subhead);
@@ -203,7 +209,7 @@ function renderTable(){
  $('prev-button').disabled=currentPage<=0;$('next-button').disabled=currentPage>=totalPages-1;
 }
 $('logout-button').addEventListener('click',async()=>{await supabaseClient.auth.signOut();window.location.replace('./')});
-$('search-input').addEventListener('input',()=>{currentPage=0;renderTable()});
+$('search-input').addEventListener('input',()=>{currentPage=0;renderTable()});$('selection-filter').addEventListener('change',()=>{currentPage=0;renderTable()});
 $('prev-button').addEventListener('click',()=>{currentPage--;renderTable()});$('next-button').addEventListener('click',()=>{currentPage++;renderTable()});
 supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){loadSequence++;window.location.replace('./')}else if(event==='TOKEN_REFRESHED'&&session)Promise.resolve().then(()=>verifyAccess(session.user))});
 supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){window.location.replace('./');return}return verifyAccess(data.session.user)});

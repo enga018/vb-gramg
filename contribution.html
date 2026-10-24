@@ -48,6 +48,7 @@ const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const day=s=>s?new Date(s+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'Date not recorded';
 function status(message,type='info'){ $('status').className='notice '+(type==='err'?'err':'info');$('status').textContent=message; }
+async function functionErrorMessage(error,data,fallback){if(data&&data.error)return String(data.error);const response=error&&error.context;if(response&&typeof response.clone==='function'){try{const body=await response.clone().json();if(body&&body.error)return String(body.error);if(body&&body.message)return String(body.message);}catch(_){}}return (error&&error.message)||fallback;}
 function deriveCitizens(){
  const map=new Map();
  for(const r of citizenRegistry){const key=String(r.job_card_number||'').trim();if(!key)continue;map.set(key,{id:key,jobCard:key,name:r.person_name||'Unnamed',charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,ledger:[]});}
@@ -152,13 +153,13 @@ async function importOldBackup(){
   for(let i=0;i<citizenBatches.length;i++){
    $('backupProgress').textContent='Validation pass: checking citizen batch '+(i+1)+' of '+citizenBatches.length+'…';
    const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'validate-backup-citizens',citizens:citizenBatches[i]}});
-   if(error||!data||data.error||data.valid!==true)throw new Error((data&&data.error)||(error&&error.message)||'Citizen validation failed at batch '+(i+1)+'.');
+   if(error||!data||data.error||data.valid!==true)throw new Error(await functionErrorMessage(error,data,'Citizen validation failed at batch '+(i+1)+'.'));
    citizensAlready+=Number(data.alreadyImported)||0;citizensToImport+=Number(data.toImport)||0;
   }
   for(let i=0;i<batches.length;i++){
    $('backupProgress').textContent='Validation pass: checking batch '+(i+1)+' of '+batches.length+' ('+rows.length.toLocaleString('en-IN')+' ledger entries total)…';
    const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'validate-backup-batch',entries:batches[i]}});
-   if(error||!data||data.error||data.valid!==true)throw new Error((data&&data.error)||(error&&error.message)||'Backup validation failed at batch '+(i+1)+'.');
+   if(error||!data||data.error||data.valid!==true)throw new Error(await functionErrorMessage(error,data,'Backup validation failed at batch '+(i+1)+'.'));
    already+=Number(data.alreadyImported)||0;toImport+=Number(data.toImport)||0;
   }
   if(!confirm('Validation passed for '+rows.length.toLocaleString('en-IN')+' ledger entries and '+citizenRows.length.toLocaleString('en-IN')+' citizen records.\n\nLedger rows to import: '+toImport.toLocaleString('en-IN')+' (skip '+already.toLocaleString('en-IN')+').\nCitizen records to import: '+citizensToImport.toLocaleString('en-IN')+' (skip '+citizensAlready.toLocaleString('en-IN')+').\n\nProceed with importing into VBGRAMG Supabase?'))throw new Error('Import cancelled. No new rows were written.');
@@ -167,14 +168,14 @@ async function importOldBackup(){
   for(let i=0;i<batches.length;i++){
    $('backupProgress').textContent='Import pass: batch '+(i+1)+' of '+batches.length+'… Imported '+inserted.toLocaleString('en-IN')+' new entries so far.';
    const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'import-backup-batch',entries:batches[i]}});
-   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Import failed at batch '+(i+1)+'. You can retry safely; previously imported rows will be skipped.');
+   if(error||!data||data.error)throw new Error(await functionErrorMessage(error,data,'Import failed at batch '+(i+1)+'. You can retry safely; previously imported rows will be skipped.'));
    inserted+=Number(data.imported)||0;skipped+=Number(data.skipped)||0;
   }
   $('importBackupBtn').textContent='Importing citizens…';
   for(let i=0;i<citizenBatches.length;i++){
    $('backupProgress').textContent='Import pass: citizen batch '+(i+1)+' of '+citizenBatches.length+'… Imported '+citizensInserted.toLocaleString('en-IN')+' citizen records so far.';
    const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'import-backup-citizens',citizens:citizenBatches[i]}});
-   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Citizen import failed at batch '+(i+1)+'. Retry safely; existing records will be skipped.');
+   if(error||!data||data.error)throw new Error(await functionErrorMessage(error,data,'Citizen import failed at batch '+(i+1)+'. Retry safely; existing records will be skipped.'));
    citizensInserted+=Number(data.imported)||0;citizensSkipped+=Number(data.skipped)||0;
   }
   let metadataWarning='';
@@ -182,7 +183,7 @@ async function importOldBackup(){
    const digest=await crypto.subtle.digest('SHA-256',await file.arrayBuffer());
    const sourceSha=Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join('');
    const {data:metaData,error:metaError}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'save-backup-metadata',source_filename:file.name,source_sha256:sourceSha,exported_at:backup.exportedAt,citizen_count:backup.citizens.length,ledger_count:rows.length,source_meta:backup.meta||{}}});
-   if(metaError||!metaData||metaData.error)metadataWarning=' Ledger rows are imported, but the backup metadata archive failed: '+((metaData&&metaData.error)||(metaError&&metaError.message)||'unknown error')+'. Re-select the same file and retry; duplicate rows will be skipped.';
+   if(metaError||!metaData||metaData.error)metadataWarning=' Ledger rows are imported, but the backup metadata archive failed: '+(await functionErrorMessage(metaError,metaData,'unknown error'))+'. Re-select the same file and retry; duplicate rows will be skipped.';
   }catch(metaErr){metadataWarning=' Ledger rows are imported, but the raw backup metadata could not be archived: '+(metaErr.message||'unknown error')+'.';}
   $('backupProgress').textContent='Import complete. '+inserted.toLocaleString('en-IN')+' new ledger entries and '+citizensInserted.toLocaleString('en-IN')+' citizen records imported; '+skipped.toLocaleString('en-IN')+' ledger entries and '+citizensSkipped.toLocaleString('en-IN')+' citizen records skipped as already present.'+metadataWarning+' Refreshing ledger…';
   $('backupProgress').className='notice info';

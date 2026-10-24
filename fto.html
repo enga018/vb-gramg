@@ -177,7 +177,7 @@ function parsePastedTable(raw){
  if(!text)return [];
  const lines=text.split('\n').filter(line=>line.trim().length>0);
  const delimiter=lines.some(line=>line.includes('\t'))?'\t':lines.some(line=>line.includes('|'))?'|':',';
- return lines.map(line=>{
+ const parsed=lines.map(line=>{
   let cells;
   if(delimiter==='|') {
    cells=line.split('|').map(cell=>cell.trim());
@@ -197,6 +197,19 @@ function parsePastedTable(raw){
   }
   return cells;
  });
+ if(delimiter==='\t'){
+  const merged=[];
+  for(const cells of parsed){
+   const continuation=(cells[0]||'').startsWith('(')&&merged.length&&merged[merged.length-1].length===3;
+   if(continuation){
+    const previous=merged[merged.length-1];
+    previous[2]+='\n'+cells[0];
+    previous.push(...cells.slice(1));
+   }else merged.push(cells);
+  }
+  return merged;
+ }
+ return parsed;
 }
 function isHeaderOrSeparator(row){
  const normalized=row.map(cell=>cell.replace(/\*\*/g,'').replace(/<br\s*\/?>/gi,' ').replace(/\s+/g,' ').trim().toLowerCase());

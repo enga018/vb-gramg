@@ -151,7 +151,7 @@ tbody tr:last-child td{border-bottom:0}
 </div>
 <div id="data-status" class="status" aria-live="polite">Paste the copied table above, then select Load table.</div>
 <div id="table-output" class="hidden" style="margin-top:18px">
-<div class="section-head" style="margin-bottom:12px"><div><h2>FTO table</h2><p id="table-summary"></p></div></div>
+<div style="margin-bottom:12px"><p id="fto-number" class="muted hidden" style="margin:0 0 8px;font-weight:700;color:var(--ink)"></p><div class="section-head"><div><h2>FTO transactions</h2><p id="table-summary"></p></div></div></div>
 <div class="table-wrap"><table id="parsed-table"><thead></thead><tbody></tbody></table></div>
 </div>
 </section>
@@ -216,7 +216,14 @@ function isHeaderOrSeparator(row){
  if(normalized.some(cell=>cell.includes('block name'))&&normalized.some(cell=>cell.includes('job card no')))return true;
  return normalized.length>0&&normalized.every(cell=>/^:?-+:?$/.test(cell));
 }
-function renderPastedTable(rows){
+function extractFtoNumber(raw){
+ const match=raw.match(/\b\d{10,}SSPAYREQ\d{8,}\b/i);
+ return match?match[0]:'';
+}
+function renderPastedTable(rows,ftoNumber){
+ const numberLine=$('fto-number');
+ numberLine.textContent=ftoNumber?'FTO No.: '+ftoNumber:'';
+ numberLine.classList.toggle('hidden',!ftoNumber);
  const table=$('parsed-table'),thead=table.querySelector('thead'),tbody=table.querySelector('tbody');
  thead.replaceChildren();tbody.replaceChildren();
  const headerRow=document.createElement('tr');
@@ -236,7 +243,7 @@ function renderPastedTable(rows){
 $('load-table-button').addEventListener('click',()=>{
  const rows=parsePastedTable($('table-input').value);
  if(!rows.length){status('Paste the copied FTO table first, then select Load table.','error');return}
- const result=renderPastedTable(rows);
+ const result=renderPastedTable(rows,extractFtoNumber($('table-input').value));
  if(!result){status('No data rows detected. Paste the FTO table including its data.','error');return}
  status('Loaded '+result.rowCount+' data rows into the predefined '+result.columnCount+'-column table. The pasted data stays in this page and is not uploaded.','success');
 });

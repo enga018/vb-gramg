@@ -1,24 +1,139 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0f172a">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5">
+<meta name="theme-color" content="#1b4d3e">
 <title>VBGRAMG — Contribution</title>
 <style>
-:root{color-scheme:light;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#0f172a;background:#f1f5f9}*{box-sizing:border-box}
-body{margin:0;min-height:100vh;padding:20px}main{width:min(100%,960px);margin:0 auto}
-.panel,.topbar{background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 8px 24px rgb(15 23 42 / 5%)}
-.panel{padding:clamp(20px,4vw,32px)}.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:18px 22px;margin-bottom:20px}
-h1{font-size:1.6rem;margin:0 0 5px}h2{margin:0 0 8px;font-size:1.2rem}p{color:#64748b;line-height:1.5;margin:0 0 18px}
-a,button{font:inherit;font-weight:650;border:0;border-radius:10px;min-height:44px;padding:11px 16px;background:#0f172a;color:#fff;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
-.note{padding:16px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;margin-top:18px}
-@media(max-width:600px){body{padding:10px}.topbar{padding:15px}.panel{padding:18px}}
+:root{--green:#1b4d3e;--green-dark:#143a2f;--green-soft:#e8efe9;--paper:#f7f6f2;--surface:#fff;--ink:#1c2724;--muted:#6b7672;--border:#e3e1d8;--border-strong:#cfd0c7;--paid:#15803d;--partial:#b45309;--due:#b91c1c;--shadow:0 1px 2px rgba(20,40,30,.05),0 8px 24px rgba(20,40,30,.07);--radius:16px}
+*{box-sizing:border-box}html,body{margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--paper);color:var(--ink);line-height:1.45;-webkit-font-smoothing:antialiased}
+header{background:var(--green);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;z-index:20}.brand{display:flex;flex-direction:column;line-height:1.2}.brand b{font-size:15px;font-weight:650;letter-spacing:.2px}.brand span{font-size:11px;opacity:.8;text-transform:uppercase;letter-spacing:1px}
+main{max-width:760px;margin:0 auto;padding:18px 16px 60px}.btn{background:var(--green);color:#fff;border:none;padding:12px 16px;border-radius:12px;font-size:14px;font-weight:650;white-space:nowrap;cursor:pointer}.btn:active{background:var(--green-dark)}.btn.ghost{background:transparent;color:var(--green);border:1.5px solid var(--green)}.btn.small{padding:8px 12px;font-size:13px}.btn:disabled{opacity:.5;cursor:wait}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow);padding:18px;margin-bottom:14px}.panel h1{font-size:22px;margin:0 0 4px}.sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:16px}.stat{background:var(--surface);border:1px solid var(--border);border-radius:15px;padding:13px 12px;box-shadow:var(--shadow);min-width:0}.stat .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}.stat .v{font-size:clamp(16px,3vw,22px);font-weight:750;margin-top:4px;overflow-wrap:anywhere}.stat .v.due{color:var(--due)}.stat .v.paid{color:var(--paid)}
+.toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}.toolbar input{flex:1;min-width:180px;padding:11px 12px;font-size:15px;border:1.5px solid var(--border-strong);border-radius:12px;outline:0;background:#fff}.toolbar input:focus,.field input:focus,.field select:focus{border-color:var(--green)}
+.citizen{display:flex;align-items:center;gap:12px;padding:14px 15px;margin-bottom:8px;border:1px solid var(--border);border-radius:16px;width:100%;background:var(--surface);box-shadow:var(--shadow);text-align:left;cursor:pointer}.citizen:hover{background:var(--green-soft)}.citizen .info{flex:1;min-width:0}.citizen .info b{font-size:15px;display:block;font-weight:650}.citizen .info small{font-size:12px;color:var(--muted);display:block;margin-top:2px;overflow-wrap:anywhere}.citizen .bal{font-size:15px;font-weight:750;white-space:nowrap}.dot{width:8px;height:8px;border-radius:50%;flex:none}.dot.paid{background:var(--paid)}.dot.partial{background:var(--partial)}.dot.due{background:var(--due)}
+.badge{display:inline-flex;font-size:10px;font-weight:750;padding:4px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.4px}.badge.paid{background:#e6f4ea;color:var(--paid)}.badge.partial{background:#fdf1e3;color:var(--partial)}.badge.due{background:#fdeaea;color:var(--due)}
+.notice{padding:13px 14px;border-radius:11px;font-size:13px;margin:12px 0}.notice.err{background:#fdeaea;color:#7a1d1d;border:1px solid #f3c4c4}.notice.info{background:var(--green-soft);color:var(--green-dark);border:1px solid #cfe0d5}.hidden{display:none!important}.empty{padding:24px;text-align:center;color:var(--muted);font-size:14px}
+.overlay{position:fixed;inset:0;background:rgba(20,30,25,.48);z-index:40;display:flex;align-items:flex-end;justify-content:center}.sheet{background:var(--surface);width:100%;max-width:760px;max-height:92vh;overflow-y:auto;border-radius:18px 18px 0 0}.sheet-head{position:sticky;top:0;background:var(--surface);padding:16px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px;z-index:2}.sheet-head h2{margin:0;font-size:17px}.x{background:var(--paper);border:1px solid var(--border);width:36px;height:36px;border-radius:50%;font-size:19px;color:var(--muted);cursor:pointer}.sheet-body{padding:18px}.balance{padding:20px;text-align:center;border:1px solid var(--border);border-radius:15px;background:var(--paper);margin-bottom:14px}.balance .label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}.balance .amount{font-size:38px;font-weight:800;letter-spacing:-1px;margin:3px 0}.balance .amount.owing{color:var(--due)}.balance .amount.zero{color:var(--paid)}
+.split{display:flex;border:1px solid var(--border);border-radius:13px;overflow:hidden;margin-bottom:16px}.split>div{flex:1;padding:12px;text-align:center;min-width:0}.split>div+div{border-left:1px solid var(--border)}.split .k{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}.split .v{font-size:16px;font-weight:700;margin-top:3px;overflow-wrap:anywhere}
+.section-title{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:750;margin:18px 0 8px}.entry{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}.entry:last-child{border-bottom:0}.entry .desc{flex:1;min-width:0}.entry .desc b{display:block;font-size:13.5px}.entry .desc small{color:var(--muted);font-size:11.5px}.entry .amt{font-size:14px;font-weight:750;white-space:nowrap}.entry .amt.payment{color:var(--paid)}
+.field{margin-bottom:12px}.field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:5px}.field input,.field select{width:100%;padding:11px 12px;font-size:15px;border:1.5px solid var(--border-strong);border-radius:11px;background:#fff;outline:0}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.top-actions{display:flex;gap:8px;align-items:center}.count{color:var(--muted);font-size:12px;margin:0 0 10px}footer{text-align:center;color:var(--muted);font-size:11px;padding:22px 10px}
+@media(max-width:520px){main{padding:12px 10px 48px}.stats{gap:6px}.stat{padding:10px 8px}.stat .k{font-size:9px}.toolbar input{min-width:100%}.citizen{padding:12px 10px;gap:8px}.citizen .bal{font-size:13px}.grid2{grid-template-columns:1fr}.panel{padding:15px}}
 </style>
 </head>
-<body><main>
-<header class="topbar"><div><h1>VBGRAMG</h1><p style="margin:0">Contribution</p></div><a href="./index.html">Back to modules</a></header>
-<section class="panel">
-<h2>Contribution ledger</h2>
-<p>This workspace will track monthly charges, payments, waivers and returns using the full job card number as the matching key.</p>
-<div class="note"><strong>January 2026 data is prepared.</strong><p style="margin:8px 0 0">462 charge records totaling ₹3,56,160 are stored in the contribution ledger. The payment-entry and balance dashboard are the next implementation step.</p></div>
-</section>
-</main></body></html>
+<body>
+<header><div class="brand"><b>VBGRAMG</b><span>Contribution ledger</span></div><div class="top-actions"><a class="btn ghost small" href="./index.html" style="color:#fff;border-color:#ffffff99">Modules</a><button class="btn small" id="refreshBtn" style="background:#ffffff20" type="button">Refresh</button></div></header>
+<main>
+<section class="panel"><h1>Contribution</h1><p class="sub">Monthly charges and payments by full job card number.</p><div id="status" class="notice info">Checking your approved account…</div><div id="importNote" class="sub hidden"></div></section>
+<div id="app" class="hidden">
+<div class="stats"><div class="stat"><div class="k">Households</div><div class="v" id="households">—</div></div><div class="stat"><div class="k">Total charged</div><div class="v" id="charged">—</div></div><div class="stat"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div></div>
+<section class="panel"><div class="toolbar"><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><button id="clearSearch" class="btn ghost" type="button">Clear</button></div><p id="count" class="count"></p><div id="citizens"></div><div id="empty" class="empty hidden">No matching job cards found.</div></section>
+</div>
+</main>
+<div id="overlay" class="overlay hidden" role="dialog" aria-modal="true"><div class="sheet"><div class="sheet-head"><h2 id="sheetTitle">Contribution statement</h2><button class="x" id="closeSheet" aria-label="Close">×</button></div><div id="sheetBody" class="sheet-body"></div></div></div>
+<footer>VBGRAMG · Contribution ledger</footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(() => {
+'use strict';
+const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+const $=id=>document.getElementById(id);
+let entries=[], imports=[], citizens=[], currentCitizen=null, busy=false;
+const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const day=s=>s?new Date(s+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'Date not recorded';
+function status(message,type='info'){ $('status').className='notice '+(type==='err'?'err':'info');$('status').textContent=message; }
+function deriveCitizens(){
+ const map=new Map();
+ for(const e of entries){
+  const key=String(e.job_card_number||'').trim(); if(!key)continue;
+  if(!map.has(key))map.set(key,{id:key,jobCard:key,name:e.person_name||'Unnamed',charges:0,paid:0,waived:0,returns:0,ledger:[]});
+  const c=map.get(key); c.ledger.push(e);
+  const amount=Number(e.amount)||0;
+  if(e.entry_type==='charge')c.charges+=amount;
+  else if(e.entry_type==='payment')c.paid+=amount;
+  else if(e.entry_type==='forgive')c.waived+=amount;
+  else if(e.entry_type==='return')c.returns+=amount;
+ }
+ citizens=[...map.values()].map(c=>({...c,balance:c.charges-c.paid-c.waived-c.returns})).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
+}
+function render(){
+ const q=$('search').value.trim().toLocaleLowerCase();
+ const list=citizens.filter(c=>c.name.toLocaleLowerCase().includes(q)||c.id.toLocaleLowerCase().includes(q));
+ $('households').textContent=citizens.length.toLocaleString('en-IN');
+ $('charged').textContent=fmt(citizens.reduce((s,c)=>s+c.charges,0));
+ $('outstanding').textContent=fmt(citizens.reduce((s,c)=>s+Math.max(0,c.balance),0));
+ $('count').textContent='Showing '+list.length.toLocaleString('en-IN')+' of '+citizens.length.toLocaleString('en-IN')+' job cards';
+ $('citizens').innerHTML=list.map(c=>{
+  const state=c.balance<=0?'paid':c.paid>0?'partial':'due';
+  return '<button class="citizen" type="button" data-card="'+esc(c.id)+'"><span class="dot '+state+'"></span><span class="info"><b>'+esc(c.name)+'</b><small>Job card: '+esc(c.id)+' · '+c.ledger.length+' ledger entries</small></span><span style="text-align:right"><span class="bal">'+fmt(Math.max(0,c.balance))+'</span><br><span class="badge '+state+'">'+(state==='paid'?'Settled':state==='partial'?'Partial':'Due')+'</span></span></button>';
+ }).join('');
+ $('empty').classList.toggle('hidden',list.length!==0);
+}
+function openCitizen(id){
+ currentCitizen=citizens.find(c=>c.id===id);if(!currentCitizen)return;
+ const c=currentCitizen;
+ $('sheetTitle').textContent=c.name;
+ const sorted=[...c.ledger].sort((a,b)=>(a.entry_date||'').localeCompare(b.entry_date||'')||(a.created_at||'').localeCompare(b.created_at||''));
+ const lines=sorted.map(e=>{
+  const type=e.entry_type, amount=Number(e.amount)||0, isPayment=type==='payment';
+  const label=type==='charge'?'Charge · '+(e.charge_period?e.charge_period.slice(0,7):'Monthly charge'):type==='payment'?'Payment':type==='forgive'?'Waiver':type==='return'?'Return':type;
+  return '<div class="entry"><div class="desc"><b>'+esc(label)+(e.note?' · '+esc(e.note):'')+'</b><small>'+esc(day(e.entry_date))+'</small></div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div></div>';
+ }).join('');
+ $('sheetBody').innerHTML='<div class="balance"><div class="label">Current outstanding balance</div><div class="amount '+(c.balance<=0?'zero':'owing')+'">'+fmt(Math.max(0,c.balance))+'</div><div class="sub" style="margin:0">Full job card: '+esc(c.id)+'</div></div><div class="split"><div><div class="k">Charges</div><div class="v">'+fmt(c.charges)+'</div></div><div><div class="k">Payments</div><div class="v" style="color:var(--paid)">'+fmt(c.paid)+'</div></div><div><div class="k">Waivers / returns</div><div class="v">'+fmt(c.waived+c.returns)+'</div></div></div><button class="btn" type="button" id="addPaymentBtn">Record payment</button><div class="section-title">Ledger history</div>'+(lines||'<div class="empty">No ledger entries.</div>');
+ $('overlay').classList.remove('hidden');
+ $('addPaymentBtn').addEventListener('click',showPaymentForm);
+}
+function showPaymentForm(){
+ const c=currentCitizen;if(!c)return;
+ $('sheetBody').innerHTML='<div class="notice info">Record a payment against this full job card. The amount is added to the ledger; it does not delete or alter earlier charges.</div><form id="paymentForm"><div class="field"><label for="paymentAmount">Payment amount (₹)</label><input id="paymentAmount" type="number" min="0.01" max="10000000" step="0.01" required inputmode="decimal"></div><div class="grid2"><div class="field"><label for="paymentDate">Payment date</label><input id="paymentDate" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div><div class="field"><label for="paymentMethod">Method / note</label><select id="paymentMethod"><option>Cash</option><option>Bank</option><option>UPI</option><option>Other</option></select></div></div><button class="btn" type="submit" id="savePayment">Save payment</button> <button class="btn ghost" type="button" id="cancelPayment">Cancel</button><div id="paymentError"></div></form>';
+ $('cancelPayment').addEventListener('click',()=>openCitizen(c.id));
+ $('paymentForm').addEventListener('submit',async ev=>{
+  ev.preventDefault();if(busy)return;
+  const amount=Number($('paymentAmount').value),date=$('paymentDate').value,note=$('paymentMethod').value;
+  if(!Number.isFinite(amount)||amount<=0){$('paymentError').innerHTML='<div class="notice err">Enter an amount greater than zero.</div>';return;}
+  busy=true;$('savePayment').disabled=true;$('savePayment').textContent='Saving…';
+  try{
+   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'add-payment',job_card_number:c.id,amount,entry_date:date,note}});
+   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save payment.');
+   entries.push(data.entry);deriveCitizens();render();openCitizen(c.id);status('Payment saved. Ledger updated.','info');
+  }catch(err){$('paymentError').innerHTML='<div class="notice err">'+esc(err.message||'Could not save payment.')+'</div>';}
+  finally{busy=false;if($('savePayment')){$('savePayment').disabled=false;$('savePayment').textContent='Save payment';}}
+ });
+}
+async function load(){
+ if(busy)return;
+ $('refreshBtn').disabled=true;
+ try{
+  const {data:sessionData,error:sessionError}=await supabaseClient.auth.getSession();
+  if(sessionError||!sessionData.session){status('Sign in from the VBGRAMG home page first.');$('app').classList.add('hidden');return;}
+  const {data:access,error:accessError}=await supabaseClient.functions.invoke('vbgramg-app-access',{body:{}});
+  if(accessError||!access||access.approved!==true){status((access&&access.error)||(accessError&&accessError.message)||'This account is not approved.','err');$('app').classList.add('hidden');return;}
+  status('Loading contribution ledger…');
+  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}});
+  if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
+  entries=data.entries||[];imports=data.imports||[];deriveCitizens();
+  const jan=imports.find(i=>String(i.charge_period||'').startsWith('2026-01'));
+  $('importNote').textContent=jan?'January 2026 import: '+Number(jan.row_count).toLocaleString('en-IN')+' charges · '+fmt(jan.total_amount):'No completed January import metadata found.';
+  $('importNote').classList.remove('hidden');
+  $('app').classList.remove('hidden');status('Signed in and approved. '+entries.length.toLocaleString('en-IN')+' ledger entries loaded.');
+  render();
+ }catch(err){status(err.message||'Could not load contribution data.','err');}
+ finally{$('refreshBtn').disabled=false;}
+}
+$('citizens').addEventListener('click',e=>{const btn=e.target.closest('[data-card]');if(btn)openCitizen(btn.dataset.card);});
+$('search').addEventListener('input',render);
+$('clearSearch').addEventListener('click',()=>{$('search').value='';render();$('search').focus();});
+$('refreshBtn').addEventListener('click',load);
+$('closeSheet').addEventListener('click',()=>$('overlay').classList.add('hidden'));
+$('overlay').addEventListener('click',e=>{if(e.target===$('overlay'))$('overlay').classList.add('hidden');});
+supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'||!session){$('app').classList.add('hidden');status('Sign in from the VBGRAMG home page first.');}});
+load();
+})();
+</script>
+</body>
+</html>

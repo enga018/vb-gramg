@@ -2,46 +2,45 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0f172a">
-<title>VBGRAMG — MIS</title>
+<title>VBGRAMG — Home</title>
 <style>
 :root{color-scheme:light;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#0f172a;background:#f1f5f9}*{box-sizing:border-box}
-body{margin:0;min-height:100vh;padding:20px}main{width:min(100%,1440px);margin:0 auto}
-.topbar,.panel{background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 8px 24px rgb(15 23 42 / 5%)}
-.topbar{display:flex;gap:16px;align-items:center;justify-content:space-between;padding:18px 22px;margin-bottom:18px;flex-wrap:wrap}
-.brand h1{font-size:1.5rem;margin:0 0 3px}.brand p{margin:0;color:#64748b;font-size:.92rem}
-.account{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.account-label{font-size:.88rem;color:#475569;overflow-wrap:anywhere}
-.panel{padding:clamp(18px,3vw,28px)}h2{margin:0 0 8px;font-size:1.2rem}p{color:#64748b;line-height:1.5}
+body{margin:0;min-height:100vh;padding:20px}main{width:min(100%,960px);margin:0 auto}
+.panel,.topbar{background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 8px 24px rgb(15 23 42 / 5%)}
+.panel{padding:clamp(20px,4vw,32px)}.login-card{max-width:460px;margin:7vh auto}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:18px 22px;margin-bottom:20px}
+h1{font-size:1.6rem;margin:0 0 5px}h2{margin:0 0 8px;font-size:1.2rem}.muted,p{color:#64748b;line-height:1.5}p{margin:0 0 18px}
 label{display:block;font-weight:650;margin:14px 0 6px}input{font:inherit;min-height:44px;padding:10px 12px;border:1px solid #cbd5e1;border-radius:9px;width:100%}
-button,.link-button{font:inherit;font-weight:650;border:0;border-radius:9px;min-height:42px;padding:10px 15px;background:#0f172a;color:white;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
-button.secondary,.link-button.secondary{background:#e2e8f0;color:#0f172a}button:disabled{opacity:.5;cursor:wait}
-.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.login-card{max-width:460px;margin:7vh auto}.hidden{display:none!important}
-.status{margin:14px 0 0;padding:12px 14px;border-radius:9px;background:#f8fafc;color:#475569;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.9rem}.status.error{background:#fef2f2;color:#991b1b}.status.success{background:#f0fdf4;color:#166534}
-.toolbar{display:flex;gap:12px;align-items:end;justify-content:space-between;flex-wrap:wrap;margin:20px 0 14px}.search{flex:1;min-width:220px;max-width:520px}.search label{margin-top:0}.meta{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}.stat{padding:12px 15px;border:1px solid #e2e8f0;border-radius:11px;background:#f8fafc;min-width:140px}.stat small{display:block;color:#64748b;margin-bottom:3px}.stat strong{font-size:1rem;overflow-wrap:anywhere}
-.table-wrap{overflow:auto;max-height:68vh;border:1px solid #e2e8f0;border-radius:10px}table{border-collapse:separate;border-spacing:0;width:100%;font-size:.88rem;white-space:normal}th,td{padding:10px 12px;text-align:left;border-bottom:1px solid #e2e8f0;border-right:1px solid #e2e8f0;vertical-align:top;min-width:105px;max-width:360px;overflow-wrap:anywhere}th{position:sticky;top:0;z-index:1;background:#dbeafe;font-weight:750}td:first-child,th:first-child{min-width:58px;width:58px;color:#64748b}.expand-cell{cursor:pointer}.expand-cell:hover{text-decoration:underline;color:#1d4ed8}tbody tr:nth-child(even){background:#f8fafc}tbody tr:hover{background:#eff6ff}.table-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px}.muted{font-size:.86rem;color:#64748b}.section-head{display:flex;align-items:start;justify-content:space-between;gap:16px;flex-wrap:wrap}.section-head p{margin:4px 0 0}
-@media(max-width:600px){body{padding:10px}.topbar{padding:15px}.account{width:100%}.account button{flex:1}.panel{padding:15px}.stat{flex:1;min-width:120px}}
+button,.module-link{font:inherit;font-weight:650;border:0;border-radius:10px;min-height:44px;padding:11px 16px;background:#0f172a;color:#fff;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center}
+button.secondary{background:#e2e8f0;color:#0f172a}.hidden{display:none!important}
+.status{margin-top:14px;padding:12px 14px;border-radius:9px;background:#f8fafc;color:#475569;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.9rem}.status.error{background:#fef2f2;color:#991b1b}.status.success{background:#f0fdf4;color:#166534}
+.account{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.account-label{font-size:.9rem;color:#475569;overflow-wrap:anywhere}
+.modules{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:20px}
+.module{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:22px;border:1px solid #e2e8f0;border-radius:14px;background:#fff;box-shadow:0 8px 24px rgb(15 23 42 / 4%);text-decoration:none;color:#0f172a;min-height:190px}
+.module:hover{border-color:#94a3b8;background:#f8fafc}.module .symbol{font-size:1.8rem}.module p{margin:0;font-size:.92rem}.module-link{margin-top:auto;width:100%}
+@media(max-width:600px){body{padding:10px}.topbar{padding:15px}.account{width:100%;justify-content:space-between}.panel{padding:18px}}
 </style>
 </head>
-<body>
-<main>
+<body><main>
 <section id="login-panel" class="panel login-card">
-<h1>VBGRAMG</h1><p>Sign in with an approved account to view the MIS data.</p>
+<h1>VBGRAMG</h1><p>Sign in with an approved account to continue.</p>
 <form id="login-form"><label for="email">Email</label><input id="email" type="email" autocomplete="username" required maxlength="254">
 <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required>
 <button id="login-button" type="submit" style="width:100%;margin-top:16px">Sign in</button></form>
-<p class="muted">Private application. Public registration is disabled; only approved users can sign in.</p><div id="login-status" class="status" aria-live="polite">Checking your session…</div>
+<p class="muted" style="font-size:.86rem;margin-top:14px">Private application. Only approved accounts can sign in.</p>
+<div id="login-status" class="status" aria-live="polite">Checking your session…</div>
 </section>
-<div id="app-panel" class="hidden">
-<header class="topbar"><div class="brand"><h1>VBGRAMG</h1><p>Village Benefit Management · MIS records</p></div>
+<section id="home-panel" class="hidden">
+<header class="topbar"><div><h1>VBGRAMG</h1><p style="margin:0">Village Benefit Management</p></div>
 <div class="account"><span id="account-label" class="account-label"></span><button id="logout-button" class="secondary" type="button">Sign out</button></div></header>
-<section class="panel">
-<div class="section-head"><div><h2>MIS</h2><p>Current active MIS data from the database. Importing is an administrator tool; viewing the data is the main workspace.</p></div></div>
-<div class="meta"><div class="stat"><small>Unique job cards</small><strong id="total-jobcards">—</strong></div><div class="stat"><small>Total applicants</small><strong id="total-applicants">—</strong></div><div class="stat"><small>Source file</small><strong id="source-file">—</strong></div><div class="stat"><small>Last updated</small><strong id="updated-at">—</strong></div></div>
-<div class="toolbar"><div class="search"><label for="search-input">Search job cards or applicants</label><input id="search-input" type="search" placeholder="Job card number, household, applicant name or number…"></div><span id="result-count" class="muted"></span></div>
-<div id="data-status" class="status" aria-live="polite">Loading MIS data…</div>
-<div id="table-wrap" class="table-wrap hidden"><table id="mis-table"><thead></thead><tbody></tbody></table></div>
-<div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="secondary" type="button">Previous</button><button id="next-button" class="secondary" type="button">Next</button></div></div>
-</section>
+<div class="panel"><h2>Choose a module</h2><p>Open the workspace you need. MIS and FTO operate separately.</p>
+<div class="modules">
+<a class="module" href="./mis.html"><span class="symbol" aria-hidden="true">👥</span><h2>MIS</h2><p>Search job cards, view households and applicants, and manage applicant selections. Administrators can also import and compare MIS files.</p><span class="module-link">Open MIS</span></a>
+<a class="module" href="./fto.html" id="fto-link"><span class="symbol" aria-hidden="true">📄</span><h2>FTO</h2><p>Future module for FTO search and payment-related tracking.</p><span class="module-link">FTO — coming later</span></a>
 </div>
+<div id="home-status" class="status" aria-live="polite">Signed in.</div>
+</div>
+</section>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -49,119 +48,25 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let currentRole=null,allRows=[],headers=[],jobCards=[],currentPage=0,pageSize=50,loadSequence=0,expandedCards=new Set(),selectedApplicants=new Map();
-function status(el,msg,type){el.textContent=msg;el.classList.toggle('error',type==='error');el.classList.toggle('success',type==='success')}
-function showLoggedOut(){ $('login-panel').classList.remove('hidden');$('app-panel').classList.add('hidden');currentRole=null;allRows=[];headers=[]; }
+let authSequence=0;
+function setStatus(el,msg,type){el.textContent=msg;el.classList.toggle('error',type==='error');el.classList.toggle('success',type==='success')}
+function showLoggedOut(){ $('login-panel').classList.remove('hidden');$('home-panel').classList.add('hidden') }
 async function verifyAccess(user){
- const seq=++loadSequence;
- if(!user){showLoggedOut();status($('login-status'),'Sign in to continue.');return false}
+ const seq=++authSequence;
+ if(!user){showLoggedOut();setStatus($('login-status'),'Sign in to continue.');return false}
  const {data,error}=await supabaseClient.functions.invoke('vbgramg-app-access',{body:{}});
- if(seq!==loadSequence)return false;
- if(error||!data||data.approved!==true){await supabaseClient.auth.signOut();showLoggedOut();status($('login-status'),(data&&data.error)||(error&&error.message)||'This account is not approved.','error');return false}
- currentRole=data.role;$('account-label').textContent='Signed in: '+data.email+(currentRole==='admin'?' · Administrator':'');
- $('login-panel').classList.add('hidden');$('app-panel').classList.remove('hidden');
- await loadData();return true;
-}
-async function loadData(){
- const seq=++loadSequence;
- status($('data-status'),'Loading current MIS data…');
- try{
-  const first=await supabaseClient.functions.invoke('vbgramg-mis-data',{body:{page:0,pageSize:200}});
-  if(first.error)throw new Error(first.error.message||'Could not load MIS data.');
-  const data=first.data;if(!data||data.approved!==true)throw new Error((data&&data.error)||'MIS data access was denied.');
-  if(seq!==loadSequence)return;
-  $('source-file').textContent=data.sourceFilename||'—';
-  $('updated-at').textContent=data.updatedAt?new Date(data.updatedAt).toLocaleString():'—';
-  if(!data.hasData||!data.totalRows){allRows=[];headers=[];jobCards=[];renderTable();status($('data-status'),'No MIS data has been imported yet. An administrator can import the MIS worksheet.');return}
-  let rows=(data.rows||[]).map(r=>({rowNumber:r.rowNumber,values:Array.isArray(r.values)?r.values:[]}));
-  for(let page=1;page<Math.ceil(data.totalRows/200);page++){
-   const next=await supabaseClient.functions.invoke('vbgramg-mis-data',{body:{page,pageSize:200}});
-   if(next.error)throw new Error(next.error.message||'Could not load all MIS rows.');
-   if(!next.data||next.data.approved!==true)throw new Error((next.data&&next.data.error)||'MIS data access was denied.');
-   rows=rows.concat((next.data.rows||[]).map(r=>({rowNumber:r.rowNumber,values:Array.isArray(r.values)?r.values:[]})));
-  }
-  if(seq!==loadSequence)return;
-  const sourceHeader=rows.length?rows[0].values:[];
-  headers=sourceHeader.map((v,i)=>String(v==null||String(v).trim()===''?'Column '+(i+1):v));
-  allRows=rows.slice(1);
-  buildJobCards();
-  currentPage=0;expandedCards=new Set();selectedApplicants=new Map();renderTable();
-  status($('data-status'),'MIS data loaded successfully.','success');
- }catch(error){if(seq===loadSequence)status($('data-status'),'Could not load MIS data: '+(error&&error.message?error.message:String(error)),'error')}
- finally{}
-}
-function normalize(value){return String(value==null?'':value).trim()}
-function buildJobCards(){
- const jobIndex=headers.findIndex(h=>/^(job card number|jobcard number)$/i.test(h.trim()));
- const fallbackIndex=headers.findIndex(h=>/^jc no\.?$/i.test(h.trim()));
- const householdIndex=headers.findIndex(h=>/head of household/i.test(h));
- const nameIndex=headers.findIndex(h=>/name of applicant|applicant name/i.test(h));
- const applicantNoIndex=headers.findIndex(h=>/applicant no/i.test(h));
- const keyIndex=jobIndex>=0?jobIndex:fallbackIndex;
- const groups=new Map();
- allRows.forEach((row,i)=>{
-  const values=row.values||[];
-  const key=normalize(keyIndex>=0?values[keyIndex]:'')||'(Job card number missing)';
-  if(!groups.has(key))groups.set(key,{key,household:normalize(householdIndex>=0?values[householdIndex]:''),applicants:[],firstRow:i});
-  const group=groups.get(key);
-  if(!group.household&&householdIndex>=0)group.household=normalize(values[householdIndex]);
-  group.applicants.push({name:normalize(nameIndex>=0?values[nameIndex]:''),number:normalize(applicantNoIndex>=0?values[applicantNoIndex]:''),values,rowNumber:row.rowNumber});
- });
- jobCards=Array.from(groups.values());
- $('total-jobcards').textContent=jobCards.filter(g=>g.key!=='(Job card number missing)').length;
- $('total-applicants').textContent=allRows.length;
-}
-function getFilteredCards(){
- const q=$('search-input').value.trim().toLocaleLowerCase();
- if(!q)return jobCards;
- return jobCards.filter(group=>[group.key,group.household,...group.applicants.flatMap(a=>[a.name,a.number,...a.values.map(normalize)])].some(v=>String(v||'').toLocaleLowerCase().includes(q)));
-}
-function renderTable(){
- const filtered=getFilteredCards(),totalPages=Math.max(1,Math.ceil(filtered.length/pageSize));currentPage=Math.min(currentPage,totalPages-1);
- const start=currentPage*pageSize,shown=filtered.slice(start,start+pageSize);
- const thead=$('mis-table').querySelector('thead'),tbody=$('mis-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
- const hr=document.createElement('tr');
- ['Sl. No.','Job Card Number','Head of Household','Applicants'].forEach(label=>{const th=document.createElement('th');th.textContent=label;hr.appendChild(th)});
- thead.appendChild(hr);
- shown.forEach(group=>{
-  const tr=document.createElement('tr');tr.className='jobcard-row';
-  const serialCell=document.createElement('td');serialCell.textContent=String(start+shown.indexOf(group)+1);tr.appendChild(serialCell);
-  const toggleGroup=()=>{if(expandedCards.has(group.key))expandedCards.delete(group.key);else expandedCards.add(group.key);renderTable()};
-  const makeExpandCell=(value,weight)=>{const cell=document.createElement('td');cell.textContent=value;cell.style.fontWeight=weight;cell.classList.add('expand-cell');cell.tabIndex=0;cell.setAttribute('role','button');cell.setAttribute('aria-expanded',String(expandedCards.has(group.key)));cell.setAttribute('aria-label',(expandedCards.has(group.key)?'Collapse ':'Expand ')+group.key);cell.addEventListener('click',toggleGroup);cell.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleGroup()}});return cell};
-  tr.appendChild(makeExpandCell(group.key,'700'));
-  tr.appendChild(makeExpandCell(group.household||'—','600'));
-  const countCell=document.createElement('td');countCell.textContent=group.applicants.length+' applicant'+(group.applicants.length===1?'':'s');tr.appendChild(countCell);tbody.appendChild(tr);
-  if(expandedCards.has(group.key)){
-   const detailTr=document.createElement('tr');detailTr.className='applicant-detail';const detailTd=document.createElement('td');detailTd.colSpan=4;detailTd.style.padding='12px 18px 16px 42px';detailTd.style.background='#f8fafc';
-   const subtable=document.createElement('table');subtable.style.width='100%';subtable.style.maxWidth='760px';
-   const subhead=document.createElement('thead'),subheadRow=document.createElement('tr');
-   ['Select','#','Name of Applicant','Applicant No.'].forEach(label=>{const th=document.createElement('th');th.textContent=label;th.style.position='static';th.style.background='#e2e8f0';subheadRow.appendChild(th)});subhead.appendChild(subheadRow);subtable.appendChild(subhead);
-   const subbody=document.createElement('tbody');
-   group.applicants.forEach((applicant,index)=>{const ar=document.createElement('tr');
-    const applicantId=String(applicant.rowNumber??(group.key+'-'+index));
-    const selectCell=document.createElement('td');selectCell.style.minWidth='72px';
-    const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.style.width='18px';checkbox.style.minHeight='18px';checkbox.style.padding='0';checkbox.style.margin='2px 0';checkbox.checked=selectedApplicants.get(group.key)===applicantId;checkbox.setAttribute('aria-label','Select '+(applicant.name||'applicant')+' for job card '+group.key);
-    checkbox.addEventListener('change',()=>{if(checkbox.checked)selectedApplicants.set(group.key,applicantId);else if(selectedApplicants.get(group.key)===applicantId)selectedApplicants.delete(group.key);renderTable()});
-    selectCell.appendChild(checkbox);ar.appendChild(selectCell);
-    const n=document.createElement('td');n.textContent=String(index+1);ar.appendChild(n);
-    const name=document.createElement('td');name.textContent=applicant.name||'—';ar.appendChild(name);
-    const no=document.createElement('td');no.textContent=applicant.number||'—';ar.appendChild(no);subbody.appendChild(ar)});
-   subtable.appendChild(subbody);detailTd.appendChild(subtable);detailTr.appendChild(detailTd);tbody.appendChild(detailTr);
-  }
- });
- $('table-wrap').classList.toggle('hidden',!headers.length);
- const totalApplicants=filtered.reduce((sum,g)=>sum+g.applicants.length,0);
- $('result-count').textContent=filtered.length+' job card'+(filtered.length===1?'':'s')+' · '+totalApplicants+' applicant'+(totalApplicants===1?'':'s')+(filtered.length!==jobCards.length?' matching search':'');
- $('page-label').textContent=filtered.length?'Showing job cards '+(start+1)+'–'+Math.min(start+pageSize,filtered.length)+' of '+filtered.length:'No matching job cards';
- $('prev-button').disabled=currentPage<=0;$('next-button').disabled=currentPage>=totalPages-1;
+ if(seq!==authSequence)return false;
+ if(error||!data||data.approved!==true){await supabaseClient.auth.signOut();showLoggedOut();setStatus($('login-status'),(data&&data.error)||(error&&error.message)||'This account is not approved.','error');return false}
+ $('account-label').textContent=data.email+(data.role==='admin'?' · Administrator':'');
+ $('login-panel').classList.add('hidden');$('home-panel').classList.remove('hidden');
+ setStatus($('home-status'),'Choose MIS to work with job cards and applicants. FTO will be added separately.','success');
+ return true;
 }
 $('login-form').addEventListener('submit',async e=>{e.preventDefault();$('login-button').disabled=true;try{
  const {data,error}=await supabaseClient.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error)throw error;
  await verifyAccess(data.user);
- }catch(error){showLoggedOut();status($('login-status'),'Sign-in failed: '+(error&&error.message?error.message:String(error)),'error')}finally{$('login-button').disabled=false}});
-$('logout-button').addEventListener('click',async()=>{const {error}=await supabaseClient.auth.signOut();showLoggedOut();status($('login-status'),error?'Sign-out error: '+error.message:'You are signed out.',error?'error':'')});
-$('search-input').addEventListener('input',()=>{currentPage=0;renderTable()});
-$('prev-button').addEventListener('click',()=>{currentPage--;renderTable()});$('next-button').addEventListener('click',()=>{currentPage++;renderTable()});
-supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){loadSequence++;showLoggedOut();status($('login-status'),'You are signed out.')}else if(event==='TOKEN_REFRESHED'&&session)Promise.resolve().then(()=>verifyAccess(session.user))});
-supabaseClient.auth.getSession().then(({data,error})=>{if(error){showLoggedOut();status($('login-status'),error.message,'error');return}return verifyAccess(data.session?data.session.user:null)});
+ }catch(error){showLoggedOut();setStatus($('login-status'),'Sign-in failed: '+(error&&error.message?error.message:String(error)),'error')}finally{$('login-button').disabled=false}});
+$('logout-button').addEventListener('click',async()=>{const {error}=await supabaseClient.auth.signOut();showLoggedOut();setStatus($('login-status'),error?'Sign-out error: '+error.message:'You are signed out.',error?'error':'')});
+supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){authSequence++;showLoggedOut();setStatus($('login-status'),'You are signed out.')}else if((event==='SIGNED_IN'||event==='TOKEN_REFRESHED')&&session)Promise.resolve().then(()=>verifyAccess(session.user))});
+supabaseClient.auth.getSession().then(({data,error})=>{if(error){showLoggedOut();setStatus($('login-status'),error.message,'error');return}return verifyAccess(data.session?data.session.user:null)});
 </script></body></html>

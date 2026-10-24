@@ -192,7 +192,7 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let authSequence=0,parsedDataRows=[],importGroups=[],duplicateCards=new Map(),reviewedCards=new Set(),deferredCards=new Map(),duplicateCheckSequence=0,checkingDuplicates=false;
+let authSequence=0,parsedDataRows=[],importGroups=[],duplicateCards=new Map(),reviewedCards=new Set(),deferredCards=new Map(),duplicateCheckSequence=0,checkingDuplicates=false,duplicateCheckFailed=false;
 function status(msg,type){$('data-status').textContent=msg;$('data-status').classList.toggle('error',type==='error');$('data-status').classList.toggle('success',type==='success')}
 const FTO_HEADERS=[
  'S.No','Block Name','Job Card No. (Panchayat Name)','Reference No.','Transaction Date',
@@ -277,7 +277,7 @@ $('load-table-button').addEventListener('click',()=>{
  if(!rows.length){status('Paste the copied FTO table first, then select Load table.','error');return}
  const result=renderPastedTable(rows,extractFtoNumber($('table-input').value));
  if(!result){status('No data rows detected. Paste the FTO table including its data.','error');return}
- status('Loaded '+result.rowCount+' data rows into the predefined '+result.columnCount+'-column table. The pasted data stays in this page and is not uploaded.','success');
+ status('Loaded '+result.rowCount+' data rows into the predefined '+result.columnCount+'-column table. Nothing is sent to Contribution until you choose Import charges to Contribution.','success');
 });
 
 function jobCardFromRow(row){
@@ -318,6 +318,7 @@ function setAllDeferredFromMode(){
  renderImportPreview();
 }
 function renderImportPreview(){
+ $('import-summary').classList.remove('error');
  const tbody=$('import-preview-table').querySelector('tbody');
  tbody.replaceChildren();
  let total=0,invalid=0,deferred=0;
@@ -365,18 +366,18 @@ async function refreshDuplicates(){
  const seq=++duplicateCheckSequence;
  duplicateCards=new Map();
  const period=$('charge-period').value;
- if(!period){checkingDuplicates=false;renderImportPreview();return}
- checkingDuplicates=true;renderImportPreview();
+ if(!period){checkingDuplicates=false;duplicateCheckFailed=false;renderImportPreview();return}
+ checkingDuplicates=true;duplicateCheckFailed=false;renderImportPreview();
  try{
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'check-fto-duplicates',charge_period:period+'-01',job_cards:importGroups.map(g=>g.job_card_number)}});
   if(seq!==duplicateCheckSequence)return;
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not check for duplicate charges.');
   duplicateCards=new Map((data.duplicates||[]).map(row=>[String(row.job_card_number),row]));
-  checkingDuplicates=false;
+  checkingDuplicates=false;duplicateCheckFailed=false;
   renderImportPreview();
  }catch(err){
   if(seq!==duplicateCheckSequence)return;
-  checkingDuplicates=false;
+  checkingDuplicates=false;duplicateCheckFailed=true;
   $('import-summary').classList.add('error');
   $('import-summary').textContent='Could not verify duplicates: '+(err.message||'check failed')+'. Import is disabled until the check succeeds.';
   updateImportButton();
@@ -386,7 +387,7 @@ function updateImportButton(){
  const period=$('charge-period').value;
  const invalid=importGroups.some(g=>!g.job_card_number||!g.person_name||g.amount<=0||g.invalid_amount_rows>0);
  const unreviewed=[...duplicateCards.keys()].some(card=>!reviewedCards.has(card));
- $('fto-import-button').disabled=!period||!importGroups.length||invalid||checkingDuplicates||unreviewed;
+ $('fto-import-button').disabled=!period||!importGroups.length||invalid||checkingDuplicates||duplicateCheckFailed||unreviewed;
 }
 function bytesToHex(bytes){return [...new Uint8Array(bytes)].map(b=>b.toString(16).padStart(2,'0')).join('')}
 async function sha256(text){return bytesToHex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)))}

@@ -31,6 +31,15 @@
     th { position: sticky; top: 0; background: #dbeafe; z-index: 1; }
     .hidden { display: none !important; }
     .signed-in { font-size: .9rem; overflow-wrap: anywhere; margin: 0 0 12px; }
+    .diff-panel { margin-top: 18px; padding: 16px; border: 1px solid #cbd5e1; border-radius: 12px; background: #f8fafc; }
+    .diff-summary { display: grid; grid-template-columns: repeat(auto-fit,minmax(130px,1fr)); gap: 10px; margin: 12px 0; }
+    .diff-count { padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px; background: white; }
+    .diff-count strong { display:block; font-size:1.35rem; }
+    .diff-list { max-height: 220px; overflow:auto; padding-left: 22px; font-size:.9rem; }
+    .diff-list li { margin: 6px 0; overflow-wrap:anywhere; }
+    .diff-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+    .diff-actions button { flex:1; min-width:150px; }
+    button.danger { background:#991b1b; color:#fff; }
   </style>
 </head>
 <body>
@@ -62,6 +71,24 @@
     </div>
     <button type="button" id="import-button" disabled>Import MIS to Supabase</button>
     <div id="status" class="status" aria-live="polite">Sign in with an authorized account, then choose a workbook.</div>
+    <section id="diff-panel" class="diff-panel hidden" aria-live="polite">
+      <h2>Review MIS changes</h2>
+      <p id="diff-intro">Compare the uploaded file with the current active MIS before applying changes.</p>
+      <div class="diff-summary">
+        <div class="diff-count"><span>Added</span><strong id="diff-added-count">0</strong></div>
+        <div class="diff-count"><span>Deleted</span><strong id="diff-deleted-count">0</strong></div>
+        <div class="diff-count"><span>Updated</span><strong id="diff-updated-count">0</strong></div>
+        <div class="diff-count"><span>Unchanged</span><strong id="diff-unchanged-count">0</strong></div>
+      </div>
+      <h3>Added applicants</h3><ul id="diff-added-list" class="diff-list"></ul>
+      <h3>Deleted applicants</h3><ul id="diff-deleted-list" class="diff-list"></ul>
+      <h3>Updated applicants</h3><ul id="diff-updated-list" class="diff-list"></ul>
+      <div class="diff-actions">
+        <button id="apply-changes-button" type="button">Confirm and apply changes</button>
+        <button id="cancel-changes-button" type="button" class="secondary">Cancel upload</button>
+      </div>
+      <p class="hint">Confirming makes the uploaded MIS active and removes old MIS row data from the database. Import history metadata is retained.</p>
+    </section>
     <div id="preview-wrap" class="table-wrap hidden">
       <table id="preview"><thead></thead><tbody></tbody></table>
     </div>
@@ -89,6 +116,8 @@
     let importedWorkbook = null;
     let importedFileName = '';
     let importedRows = [];
+    let pendingImportId = null;
+    let pendingComparison = null;
 
     function setStatus(message, type) {
       statusBox.textContent = message;
@@ -226,20 +255,39 @@
       return data;
     }
 
+    function applicantLabel(item) {
+      const parts = [item.jobCardNumber && 'Job card ' + item.jobCardNumber, item.household && 'Household ' + item.household, item.applicantName && item.applicantName, item.applicantNo && 'Applicant No. ' + item.applicantNo, item.uniqueId && 'ID ' + item.uniqueId].filter(Boolean);
+      return parts.join(' · ') || 'Applicant record';
+    }
+    function fillDiffList(id, items, formatter) {
+      const list = document.getElementById(id); list.replaceChildren();
+      if (!items.length) { const li=document.createElement('li'); li.textContent='None'; list.appendChild(li); return; }
+      items.forEach(item=>{const li=document.createElement('li');li.textContent=formatter(item);list.appendChild(li)});
+    }
+    function showComparison(diff) {
+      pendingComparison = diff;
+      document.getElementById('diff-added-count').textContent = diff.added.length;
+      document.getElementById('diff-deleted-count').textContent = diff.deleted.length;
+      document.getElementById('diff-updated-count').textContent = diff.updated.length;
+      document.getElementById('diff-unchanged-count').textContent = diff.unchanged;
+      document.getElementById('diff-intro').textContent = 'Current applicants: ' + diff.oldCount + '. Uploaded applicants: ' + diff.newCount + '. Check the changes below before applying.';
+      fillDiffList('diff-added-list', diff.added, applicantLabel);
+      fillDiffList('diff-deleted-list', diff.deleted, applicantLabel);
+      fillDiffList('diff-updated-list', diff.updated, item => applicantLabel(item.before) + ' → ' + applicantLabel(item.after));
+      document.getElementById('diff-panel').classList.remove('hidden');
+      document.getElementById('apply-changes-button').disabled = false;
+    }
+
     importButton.addEventListener('click', async function () {
       if (!currentUser || currentRole !== 'admin' || !importedWorkbook || !Array.isArray(importedRows)) {
-        setStatus('Sign in and choose a workbook containing a tab named MIS.', 'error');
-        return;
+        setStatus('Sign in and choose a workbook containing a tab named MIS.', 'error'); return;
       }
-      if (importedRows.length > 100000) {
-        setStatus('This workbook contains more than 100,000 rows. Import limit is 100,000 rows.', 'error');
-        return;
-      }
-      importButton.disabled = true;
-      sourceInput.disabled = true;
+      if (importedRows.length > 100000) { setStatus('This workbook contains more than 100,000 rows. Import limit is 100,000 rows.', 'error'); return; }
+      importButton.disabled = true; sourceInput.disabled = true;
       let importId = null;
+      document.getElementById('diff-panel').classList.add('hidden');
       try {
-        setStatus('Creating a staging import. The current active MIS data will remain unchanged until verification succeeds…', '');
+        setStatus('Uploading to a temporary staging area. The current active MIS will remain unchanged…', '');
         const started = await invokeImport({ action: 'begin', filename: sourceInput.files[0]?.name || importedFileName + '.xlsx', rowCount: importedRows.length });
         importId = started.importId;
         const batchSize = 250;
@@ -248,28 +296,57 @@
           await invokeImport({ action: 'append', importId, startRow: offset + 1, rows: batch });
           setStatus('Uploading MIS rows: ' + Math.min(offset + batch.length, importedRows.length) + ' / ' + importedRows.length, '');
         }
-        const completed = await invokeImport({ action: 'finalize', importId });
-        if (!completed || completed.rowCount !== importedRows.length) {
-          throw new Error('Supabase did not confirm the expected saved row count.');
-        }
-
-        // Keep the previous workflow's optional local Excel export after the database import succeeds.
-        const misName = importedWorkbook.SheetNames.find(name => name.trim().toLowerCase() === 'mis');
-        const outputBook = XLSX.utils.book_new();
-        const copiedSheet = JSON.parse(JSON.stringify(importedWorkbook.Sheets[misName]));
-        XLSX.utils.book_append_sheet(outputBook, copiedSheet, 'MIS');
-        XLSX.writeFile(outputBook, importedFileName + '_MIS.xlsx');
-        setStatus('Supabase import successful.\nSource: ' + (sourceInput.files[0]?.name || importedFileName) + '\nWorksheet: MIS\nRows verified in database: ' + completed.rowCount + '\nImport ID: ' + completed.importId + '\nThe new import is now active. A local MIS-only Excel copy was also downloaded.', 'success');
+        setStatus('Comparing the uploaded applicants with the current active MIS…', '');
+        const comparison = await invokeImport({ action: 'compare', importId });
+        pendingImportId = importId;
+        showComparison(comparison);
+        setStatus('Comparison complete. Review the added, deleted and updated applicants, then confirm or cancel.', 'success');
       } catch (error) {
-        if (importId) {
-          try { await invokeImport({ action: 'abort', importId }); } catch (_) {}
-        }
-        setStatus('Import failed: ' + (error && error.message ? error.message : String(error)) + '\nThe previous active MIS import has not intentionally been replaced.', 'error');
+        if (importId) { try { await invokeImport({ action: 'abort', importId }); } catch (_) {} }
+        pendingImportId = null; pendingComparison = null;
+        setStatus('Comparison failed: ' + (error && error.message ? error.message : String(error)) + '\nThe existing active MIS has not been changed.', 'error');
       } finally {
         sourceInput.disabled = false;
         importButton.disabled = !currentUser || currentRole !== 'admin' || !importedWorkbook;
       }
     });
+
+    document.getElementById('apply-changes-button').addEventListener('click', async function () {
+      if (!pendingImportId || !pendingComparison || !currentUser || currentRole !== 'admin') {
+        setStatus('No comparison is waiting for confirmation. Upload and compare the file again.', 'error'); return;
+      }
+      const button = document.getElementById('apply-changes-button');
+      button.disabled = true; document.getElementById('cancel-changes-button').disabled = true; sourceInput.disabled = true;
+      try {
+        setStatus('Applying the reviewed changes…', '');
+        const result = await invokeImport({ action: 'finalize', importId: pendingImportId, expectedActiveImportId: pendingComparison.expectedActiveImportId });
+        if (!result || !result.success) throw new Error('Supabase did not confirm that the changes were applied.');
+        const filename = sourceInput.files[0]?.name || importedFileName;
+        const misName = importedWorkbook.SheetNames.find(name => name.trim().toLowerCase() === 'mis');
+        const outputBook = XLSX.utils.book_new();
+        const copiedSheet = JSON.parse(JSON.stringify(importedWorkbook.Sheets[misName]));
+        XLSX.utils.book_append_sheet(outputBook, copiedSheet, 'MIS');
+        XLSX.writeFile(outputBook, importedFileName + '_MIS.xlsx');
+        setStatus('MIS update successful.\nSource: ' + filename + '\nAdded applicants: ' + result.added.length + '\nDeleted applicants: ' + result.deleted.length + '\nUpdated applicants: ' + result.updated.length + '\nUnchanged applicants: ' + result.unchanged + '\nCurrent applicants: ' + result.newCount + '\nThe updated MIS is active. Old MIS row data has been removed; import metadata remains for history.', 'success');
+        document.getElementById('diff-panel').classList.add('hidden');
+        pendingImportId = null; pendingComparison = null;
+      } catch (error) {
+        setStatus('Could not apply changes: ' + (error && error.message ? error.message : String(error)) + '\nPlease compare again before retrying.', 'error');
+      } finally {
+        button.disabled = false; document.getElementById('cancel-changes-button').disabled = false; sourceInput.disabled = false;
+        importButton.disabled = !currentUser || currentRole !== 'admin' || !importedWorkbook;
+      }
+    });
+
+    document.getElementById('cancel-changes-button').addEventListener('click', async function () {
+      const id = pendingImportId;
+      document.getElementById('diff-panel').classList.add('hidden');
+      pendingImportId = null; pendingComparison = null;
+      if (id) { try { await invokeImport({ action: 'abort', importId: id }); } catch (_) {} }
+      setStatus('Upload cancelled. The existing active MIS was not changed.', '');
+      importButton.disabled = !currentUser || currentRole !== 'admin' || !importedWorkbook;
+    });
+
   </script>
 </body>
 </html>

@@ -52,7 +52,7 @@
     <div class="paste-box">
       <label class="file-label" for="table-input">Paste table copied from the MIS page</label>
       <textarea id="table-input" rows="8" placeholder="Copy the MIS table, then paste it here…"></textarea>
-      <p class="hint">Tab-separated data copied from a webpage or spreadsheet is supported. Header row is required. The pasted data is previewed locally before any upload.</p>
+      <p class="hint">Paste the government Registration Application Register or the existing 7-column MIS export. The importer converts it to the database layout: Sl. No., Job Card Number, JC No., Head of HouseHold, Name of Applicant, Applicant No., and Unique ID. Review the converted preview before comparing.</p>
       <button type="button" id="load-table-button">Load pasted table</button>
     </div>
     <button type="button" id="import-button" disabled>Compare pasted MIS</button>
@@ -131,15 +131,16 @@
       const tbody = preview.querySelector('tbody');
       thead.replaceChildren();
       tbody.replaceChildren();
-      const maxCols = rows.reduce((max, row) => Math.max(max, row.length), 0);
+      const headers = rows[0] || [];
+      const maxCols = Math.max(headers.length, ...rows.slice(1, 501).map(row => row.length), 0);
       const header = document.createElement('tr');
       for (let i = 0; i < maxCols; i++) {
         const th = document.createElement('th');
-        th.textContent = 'Column ' + (i + 1);
+        th.textContent = headers[i] == null ? 'Column ' + (i + 1) : String(headers[i]);
         header.appendChild(th);
       }
       thead.appendChild(header);
-      rows.slice(0, 500).forEach(function (row) {
+      rows.slice(1, 501).forEach(function (row) {
         const tr = document.createElement('tr');
         for (let i = 0; i < maxCols; i++) {
           const td = document.createElement('td');
@@ -184,17 +185,94 @@
       });
     }
 
+    function headerKey(value) {
+      return String(value == null ? '' : value).toLowerCase().replace(/&amp;/g, '&').replace(/[^a-z0-9]+/g, ' ').trim();
+    }
+
+    function normalizeMisTable(rows) {
+      const headersIndex = rows.findIndex(row => {
+        const keys = row.map(headerKey);
+        return keys.some(v => v === 'job card number' || v === 'jobcard number') &&
+          keys.some(v => v === 'name of applicant' || v === 'applicant name') &&
+          (keys.some(v => v === 'unique id') || keys.some(v => v === 's no' || v === 's no.'));
+      });
+      if (headersIndex < 0) {
+        throw new Error('Could not find the MIS table headings. Copy the table with its column headings, including Job Card Number and Name of Applicant.');
+      }
+
+      const header = rows[headersIndex].map(headerKey);
+      const find = (...names) => header.findIndex(value => names.includes(value));
+      const jobIndex = find('job card number', 'jobcard number');
+      const nameIndex = find('name of applicant', 'applicant name');
+      const householdIndex = find('head of household', 'head of household name');
+      const slIndex = find('sl no', 's no', 's no.');
+      const applicantNoIndex = find('applicant no', 'applicant no.');
+      const uidIndex = find('unique id');
+      const jcNoIndex = find('jc no', 'jc no.');
+      if (jobIndex < 0 || nameIndex < 0) throw new Error('The pasted table must contain Job Card Number and Name of Applicant.');
+
+      const canonicalHeader = ['Sl. No.', 'Job Card Number', 'JC No.', 'Head of HouseHold', 'Name of Applicant', 'Applicant No.', 'Unique ID'];
+      const isDatabaseShape = uidIndex >= 0;
+      const result = [canonicalHeader];
+      const applicantCounts = new Map();
+      let lastHousehold = '';
+      let lastJobCard = '';
+      let serial = 0;
+
+      for (const row of rows.slice(headersIndex + 1)) {
+        const jobCard = String(row[jobIndex] || '').trim();
+        if (!/^MZ-[A-Z0-9-]+\/\d+$/i.test(jobCard)) continue;
+        const applicantName = String(row[nameIndex] || '').trim();
+        if (!applicantName) continue;
+
+        serial++;
+        let applicantNo = applicantNoIndex >= 0 ? String(row[applicantNoIndex] || '').trim() : '';
+        let household = householdIndex >= 0 ? String(row[householdIndex] || '').trim() : '';
+        if (jobCard !== lastJobCard) {
+          lastJobCard = jobCard;
+          lastHousehold = household;
+        } else if (!household) {
+          household = lastHousehold;
+        } else {
+          lastHousehold = household;
+        }
+
+        if (isDatabaseShape) {
+          applicantNo = applicantNo || String(row[applicantNoIndex] || '').trim();
+          const uniqueId = String(row[uidIndex] || '').trim();
+          const jcNo = jcNoIndex >= 0 ? String(row[jcNoIndex] || '').trim() : (jobCard.match(/\/(\d+)$/) || [])[1] || '';
+          result.push([
+            slIndex >= 0 && String(row[slIndex] || '').trim() ? String(row[slIndex]).trim() : String(serial),
+            jobCard, jcNo, household, applicantName, applicantNo, uniqueId
+          ]);
+          continue;
+        }
+
+        const match = jobCard.match(/\/(\d+)$/);
+        const jcNo = match ? match[1] : '';
+        applicantNo = String((applicantCounts.get(jobCard) || 0) + 1);
+        applicantCounts.set(jobCard, Number(applicantNo));
+        const uniqueId = jobCard + '/' + applicantNo;
+        result.push([
+          slIndex >= 0 && String(row[slIndex] || '').trim() ? String(row[slIndex]).trim() : String(serial),
+          jobCard, jcNo, household, applicantName, applicantNo, uniqueId
+        ]);
+      }
+      if (result.length < 2) throw new Error('Found the table headings, but no applicant rows with valid job card numbers. Copy the complete applicant table.');
+      return result;
+    }
+
     loadTableButton.addEventListener('click', function () {
       importButton.disabled = true; pastedTableLoaded = false; importedRows = [];
       previewWrap.classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
       pendingImportId = null; pendingComparison = null;
-      const rows = parsePastedTable(tableInput.value);
+      let rows;\n      try { rows = normalizeMisTable(parsePastedTable(tableInput.value)); } catch (error) { setStatus(error.message || String(error), 'error'); return; }
       if (!rows.length) { setStatus('Paste the copied MIS table first, then select Load pasted table.', 'error'); return; }
       if (rows.length > 100000) { setStatus('The pasted MIS contains more than 100,000 rows. The import limit is 100,000 rows.', 'error'); return; }
       if (!rows[0].some(cell => String(cell || '').trim())) { setStatus('The pasted table has no header row. Copy the MIS table including its column headings.', 'error'); return; }
       importedRows = rows; pastedTableLoaded = true; renderRows(importedRows);
       importButton.disabled = !currentUser || currentRole !== 'admin';
-      setStatus('Loaded ' + importedRows.length + ' pasted rows. Review the preview, then select Compare pasted MIS. Nothing has been sent to Supabase yet.', 'success');
+      setStatus('Converted to the database layout: ' + (importedRows.length - 1) + ' applicants plus the header. Review the named columns and generated applicant IDs, then select Compare pasted MIS. Nothing has been sent to Supabase yet.', 'success');
     });
     tableInput.addEventListener('input', function () {
       pastedTableLoaded = false; importedRows = []; importButton.disabled = true;

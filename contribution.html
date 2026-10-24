@@ -196,7 +196,7 @@ function showBulkPaymentForm(){
  if(appRole!=="admin"){status("Only an approved administrator can register bulk bank payments.","err");return;}
  $('sheetTitle').textContent="Bulk bank payments";
  $('sheetBody').innerHTML='<div class="notice info">Register bank payments for multiple job cards in one batch. Every saved entry will be tagged <b>Bank</b>. Paste one job card and amount per line, separated by a comma or tab. Maximum 250 payments per batch.</div><div class="field"><label for="bulkPaymentDate">Payment date for this batch</label><input id="bulkPaymentDate" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div><div class="field"><label for="bulkPaymentRows">Job card number, amount</label><textarea id="bulkPaymentRows" rows="8" style="width:100%;padding:12px;font:inherit;border:1px solid #cfd7e4;border-radius:10px;resize:vertical" placeholder="MZ-07-001-005-001/389,1240&#10;MZ-07-001-005-002/390,850"></textarea><p class="muted">A header row such as Job Card, Amount is allowed. Duplicate job cards are rejected to prevent accidental double entry.</p></div><button class="btn" id="previewBulkPayments" type="button">Preview batch</button> <button class="btn ghost" id="cancelBulkPayments" type="button">Cancel</button><div id="bulkPaymentPreview"></div>';
- $('cancelBulkPayments').addEventListener('click',closeSheet);
+ $('cancelBulkPayments').addEventListener('click',()=>$('overlay').classList.add('hidden'));
  $('previewBulkPayments').addEventListener('click',()=>{
   const parsed=parseBulkPayments($('bulkPaymentRows').value),date=$('bulkPaymentDate').value,box=$('bulkPaymentPreview');
   if(!date){box.innerHTML='<div class="notice err">Choose a payment date.</div>';return;}

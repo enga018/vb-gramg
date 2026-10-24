@@ -33,7 +33,7 @@ table{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem;white
 </style>
 </head>
 <body>
-<header class="topbar"><div class="brand"><h1>Contribution</h1><p><a href="./">← Main menu</a></p></div><div class="top-actions"><button class="btn ghost small" id="refreshBtn" type="button">Refresh</button></div></header>
+<header class="topbar"><div class="brand"><h1>Contribution</h1><p><a href="./">← Main menu</a></p></div><div class="top-actions"><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk bank payment</button><button class="btn ghost small" id="refreshBtn" type="button">Refresh</button></div></header>
 <main>
 <section class="panel"><div id="status" class="notice info">Checking your approved account…</div></section>
 <div id="app" class="hidden">
@@ -156,11 +156,11 @@ function openCitizen(id){
 }
 function showPaymentForm(){
  const c=currentCitizen;if(!c)return;
- $('sheetBody').innerHTML='<div class="notice info">Record a payment against this full job card. The amount is added to the ledger; it does not delete or alter earlier charges.</div><form id="paymentForm"><div class="field"><label for="paymentAmount">Payment amount (₹)</label><input id="paymentAmount" type="number" min="0.01" max="10000000" step="0.01" required inputmode="decimal"></div><div class="grid2"><div class="field"><label for="paymentDate">Payment date</label><input id="paymentDate" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div><div class="field"><label for="paymentMethod">Method / note</label><select id="paymentMethod"><option>Cash</option><option>Bank</option><option>UPI</option><option>Other</option></select></div></div><button class="btn" type="submit" id="savePayment">Save payment</button> <button class="btn ghost" type="button" id="cancelPayment">Cancel</button><div id="paymentError"></div></form>';
+ $('sheetBody').innerHTML='<div class="notice info">Record a payment against this full job card. The amount is added to the ledger; it does not delete or alter earlier charges.</div><form id="paymentForm"><div class="field"><label for="paymentAmount">Payment amount (₹)</label><input id="paymentAmount" type="number" min="0.01" max="10000000" step="0.01" required inputmode="decimal"></div><div class="grid2"><div class="field"><label for="paymentDate">Payment date</label><input id="paymentDate" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div><div class="field"><label>Method</label><input value="Cash" readonly aria-readonly="true"></div></div><button class="btn" type="submit" id="savePayment">Save payment</button> <button class="btn ghost" type="button" id="cancelPayment">Cancel</button><div id="paymentError"></div></form>';
  $('cancelPayment').addEventListener('click',()=>openCitizen(c.id));
  $('paymentForm').addEventListener('submit',async ev=>{
   ev.preventDefault();if(busy)return;
-  const amount=Number($('paymentAmount').value),date=$('paymentDate').value,note=$('paymentMethod').value;
+  const amount=Number($('paymentAmount').value),date=$('paymentDate').value,note="Cash";
   if(!Number.isFinite(amount)||amount<=0){$('paymentError').innerHTML='<div class="notice err">Enter an amount greater than zero.</div>';return;}
   busy=true;$('savePayment').disabled=true;$('savePayment').textContent='Saving…';
   try{
@@ -172,6 +172,52 @@ function showPaymentForm(){
  });
 }
 
+
+
+function parseBulkPayments(raw){
+ const rows=[],errors=[],seen=new Set();
+ const lines=String(raw||"").split(/\r?\n/);
+ for(let i=0;i<lines.length;i++){
+  const line=lines[i].trim();if(!line)continue;
+  if(i===0&&/job.?card/i.test(line)&&/amount/i.test(line))continue;
+  const parts=line.split(/\t|,|;/).map(v=>v.trim());
+  if(parts.length<2){errors.push('Line '+(i+1)+': use Job Card, Amount.');continue;}
+  const jobCard=parts[0],amount=Number(parts[1].replace(/[₹,\s]/g,""));
+  if(!jobCard){errors.push('Line '+(i+1)+': job card number is missing.');continue;}
+  if(!Number.isFinite(amount)||amount<=0||amount>10000000){errors.push('Line '+(i+1)+': enter a valid positive amount.');continue;}
+  if(seen.has(jobCard)){errors.push('Line '+(i+1)+': duplicate job card '+jobCard+'.');continue;}
+  seen.add(jobCard);rows.push({job_card_number:jobCard,amount});
+ }
+ if(!rows.length&&!errors.length)errors.push('Paste at least one job card and amount.');
+ if(rows.length>250)errors.push('A batch can contain at most 250 payments.');
+ return {rows,errors};
+}
+function showBulkPaymentForm(){
+ if(appRole!=="admin"){status("Only an approved administrator can register bulk bank payments.","err");return;}
+ $('sheetTitle').textContent="Bulk bank payments";
+ $('sheetBody').innerHTML='<div class="notice info">Register bank payments for multiple job cards in one batch. Every saved entry will be tagged <b>Bank</b>. Paste one job card and amount per line, separated by a comma or tab. Maximum 250 payments per batch.</div><div class="field"><label for="bulkPaymentDate">Payment date for this batch</label><input id="bulkPaymentDate" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div><div class="field"><label for="bulkPaymentRows">Job card number, amount</label><textarea id="bulkPaymentRows" rows="8" style="width:100%;padding:12px;font:inherit;border:1px solid #cfd7e4;border-radius:10px;resize:vertical" placeholder="MZ-07-001-005-001/389,1240&#10;MZ-07-001-005-002/390,850"></textarea><p class="muted">A header row such as Job Card, Amount is allowed. Duplicate job cards are rejected to prevent accidental double entry.</p></div><button class="btn" id="previewBulkPayments" type="button">Preview batch</button> <button class="btn ghost" id="cancelBulkPayments" type="button">Cancel</button><div id="bulkPaymentPreview"></div>';
+ $('cancelBulkPayments').addEventListener('click',closeSheet);
+ $('previewBulkPayments').addEventListener('click',()=>{
+  const parsed=parseBulkPayments($('bulkPaymentRows').value),date=$('bulkPaymentDate').value,box=$('bulkPaymentPreview');
+  if(!date){box.innerHTML='<div class="notice err">Choose a payment date.</div>';return;}
+  if(parsed.errors.length){box.innerHTML='<div class="notice err">'+parsed.errors.map(esc).join('<br>')+'</div>';return;}
+  const total=parsed.rows.reduce((sum,row)=>sum+row.amount,0);
+  box.innerHTML='<div class="notice info">Review before saving: <b>'+parsed.rows.length+' payments</b>, total <b>'+fmt(total)+'</b>, method <b>Bank</b>, date <b>'+esc(date)+'</b>. The server will verify every job card before inserting the batch.</div><div style="max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:10px"><table><thead><tr><th>Job card</th><th style="text-align:right">Amount</th></tr></thead><tbody>'+parsed.rows.map(row=>'<tr><td>'+esc(row.job_card_number)+'</td><td style="text-align:right">'+fmt(row.amount)+'</td></tr>').join('')+'</tbody></table></div><p class="muted">Saving creates separate Bank payment entries; it does not change charges or delete existing transactions.</p><button class="btn" id="saveBulkPayments" type="button">Save '+parsed.rows.length+' bank payments</button> <button class="btn ghost" id="editBulkPayments" type="button">Edit batch</button><div id="bulkSaveError"></div>';
+  $('editBulkPayments').addEventListener('click',()=>{$('bulkPaymentPreview').innerHTML='';});
+  $('saveBulkPayments').addEventListener('click',async()=>{
+   if(busy)return;
+   if(!window.confirm('Save '+parsed.rows.length+' Bank payment entries totalling '+fmt(total)+'?'))return;
+   busy=true;$('saveBulkPayments').disabled=true;$('saveBulkPayments').textContent='Saving batch…';
+   try{
+    const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:"bulk-bank-payment",entry_date:date,entries:parsed.rows}});
+    if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save bank payment batch.');
+    entries.push(...(data.entries||[]));deriveCitizens();render();closeSheet();
+    status('Saved '+data.count+' Bank payments totalling '+fmt(data.total_amount)+'. Ledger updated.');
+   }catch(err){$('bulkSaveError').innerHTML='<div class="notice err">'+esc(err.message||'Could not save bank payment batch.')+'</div>';if($('saveBulkPayments')){$('saveBulkPayments').disabled=false;$('saveBulkPayments').textContent='Save '+parsed.rows.length+' bank payments';}}
+   finally{busy=false;}
+  });
+ });
+}
 
 function updateEntryInMemory(entry){
  const index=entries.findIndex(e=>String(e.id)===String(entry.id));
@@ -240,7 +286,7 @@ async function load(){
   status('Loading contribution ledger…');
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
-  appRole=String(data.role||"");entries=data.entries||[];citizenRegistry=data.citizens||[];deriveCitizens();
+  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");entries=data.entries||[];citizenRegistry=data.citizens||[];deriveCitizens();
   $('app').classList.remove('hidden');status('Signed in and approved. '+entries.length.toLocaleString('en-IN')+' ledger entries loaded.');
   render();
  }catch(err){status(err.message||'Could not load contribution data.','err');}
@@ -253,6 +299,7 @@ $('clearSearch').addEventListener('click',()=>{$('search').value='';$('statusFil
 $('prev-button').addEventListener('click',()=>{currentPage--;render()});$('next-button').addEventListener('click',()=>{currentPage++;render()});
 window.addEventListener('resize',()=>render());
 $('refreshBtn').addEventListener('click',load);
+$('bulkPaymentBtn').addEventListener('click',showBulkPaymentForm);
 $('closeSheet').addEventListener('click',()=>$('overlay').classList.add('hidden'));
 $('overlay').addEventListener('click',e=>{if(e.target===$('overlay'))$('overlay').classList.add('hidden');});
 supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'||!session){$('app').classList.add('hidden');status('Sign in from the VBGRAMG home page first.');}});

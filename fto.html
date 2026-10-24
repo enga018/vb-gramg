@@ -165,6 +165,13 @@ const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHA
 const $=id=>document.getElementById(id);
 let authSequence=0;
 function status(msg,type){$('data-status').textContent=msg;$('data-status').classList.toggle('error',type==='error');$('data-status').classList.toggle('success',type==='success')}
+const FTO_HEADERS=[
+ 'S.No','Block Name','Job Card No. (Panchayat Name)','Reference No.','Transaction Date',
+ 'Applicant Name','Wagelist No.','Name of Primary Account Holder','Bank Code','IFSC code',
+ 'Amount to be credited (In Rs.)','Credit Amount (In Rs.)','Status','Processed Date',
+ 'Bank To co-operative/postoffice Processed Date','UTR No.','Rejection Reason',
+ 'Paid in account of (in case of ABP)','Paid in Bank (in case of ABP)'
+];
 function parsePastedTable(raw){
  const text=raw.replace(/\r/g,'').trim();
  if(!text)return [];
@@ -172,8 +179,11 @@ function parsePastedTable(raw){
  const delimiter=lines.some(line=>line.includes('\t'))?'\t':lines.some(line=>line.includes('|'))?'|':',';
  return lines.map(line=>{
   let cells;
-  if(delimiter==='|')cells=line.split('|');
-  else if(delimiter==='\t')cells=line.split('\t');
+  if(delimiter==='|') {
+   cells=line.split('|').map(cell=>cell.trim());
+   if(cells.length&&cells[0]==='')cells.shift();
+   if(cells.length&&cells[cells.length-1]==='')cells.pop();
+  } else if(delimiter==='\t') cells=line.split('\t').map(cell=>cell.trim());
   else{
    cells=[];let cell='',quoted=false;
    for(let i=0;i<line.length;i++){
@@ -185,32 +195,37 @@ function parsePastedTable(raw){
    }
    cells.push(cell.trim());
   }
-  return cells.map(cell=>cell.trim());
+  return cells;
  });
+}
+function isHeaderOrSeparator(row){
+ const normalized=row.map(cell=>cell.replace(/\*\*/g,'').replace(/\s+/g,' ').trim().toLowerCase());
+ if(normalized.some(cell=>cell.includes('block name'))&&normalized.some(cell=>cell.includes('job card no')))return true;
+ return normalized.length>0&&normalized.every(cell=>/^:?-{2,}:?$/.test(cell));
 }
 function renderPastedTable(rows){
  const table=$('parsed-table'),thead=table.querySelector('thead'),tbody=table.querySelector('tbody');
  thead.replaceChildren();tbody.replaceChildren();
- if(!rows.length){$('table-output').classList.add('hidden');return false}
- const headers=rows[0];
  const headerRow=document.createElement('tr');
- headers.forEach(value=>{const th=document.createElement('th');th.textContent=value;headerRow.appendChild(th)});
+ FTO_HEADERS.forEach(value=>{const th=document.createElement('th');th.textContent=value;headerRow.appendChild(th)});
  thead.appendChild(headerRow);
- rows.slice(1).forEach(row=>{
+ const dataRows=rows.filter(row=>!isHeaderOrSeparator(row));
+ if(!dataRows.length){$('table-output').classList.add('hidden');return null}
+ dataRows.forEach(row=>{
   const tr=document.createElement('tr');
-  headers.forEach((_,index)=>{const td=document.createElement('td');td.textContent=row[index]||'';tr.appendChild(td)});
+  FTO_HEADERS.forEach((_,index)=>{const td=document.createElement('td');td.textContent=row[index]||'';tr.appendChild(td)});
   tbody.appendChild(tr);
  });
- $('table-summary').textContent=(rows.length-1)+' data rows · '+headers.length+' columns';
+ $('table-summary').textContent=dataRows.length+' data rows · '+FTO_HEADERS.length+' predefined columns';
  $('table-output').classList.remove('hidden');
- return true;
+ return {rowCount:dataRows.length,columnCount:FTO_HEADERS.length};
 }
 $('load-table-button').addEventListener('click',()=>{
  const rows=parsePastedTable($('table-input').value);
- if(!rows.length){status('Paste a table first, then select Load table.','error');return}
- if(rows.length===1){status('Only a header row was detected. Paste the full table including its data rows.','error');return}
- if(!renderPastedTable(rows)){status('No table data detected.','error');return}
- status('Loaded '+(rows.length-1)+' data rows into the table. The pasted data stays in this page and is not uploaded.','success');
+ if(!rows.length){status('Paste the copied FTO table first, then select Load table.','error');return}
+ const result=renderPastedTable(rows);
+ if(!result){status('No data rows detected. Paste the FTO table including its data.','error');return}
+ status('Loaded '+result.rowCount+' data rows into the predefined '+result.columnCount+'-column table. The pasted data stays in this page and is not uploaded.','success');
 });
 $('table-input').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')$('load-table-button').click()});
 async function verifyAccess(user){

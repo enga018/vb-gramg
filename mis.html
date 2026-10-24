@@ -13,7 +13,7 @@
     h1 { margin: 0 0 8px; font-size: clamp(1.6rem, 5vw, 2rem); }
     h2 { margin: 0 0 12px; font-size: 1.1rem; }
     p { color: #475569; line-height: 1.5; margin: 0 0 20px; }
-    .file-box, .auth-box { padding: 16px; border: 1px solid #cbd5e1; border-radius: 12px; margin: 18px 0 14px; }
+    .file-box { padding: 16px; border: 1px solid #cbd5e1; border-radius: 12px; margin: 18px 0 14px; }
     .file-label { display: block; margin-bottom: 10px; font-weight: 650; }
     .hint { margin-top: 8px; font-size: .85rem; color: #64748b; }
     input[type=file], input[type=email], input[type=password] { display: block; width: 100%; max-width: 100%; font: inherit; font-size: .95rem; }
@@ -47,30 +47,13 @@
     <h1>MIS — Import Excel</h1>
     <p>Upload only the worksheet named <strong>MIS</strong> to the vb-gramg Supabase database. Other tabs are ignored. Rows and columns are stored as arrays, including blank cells; no business-field mapping or filtering is applied.</p>
 
-    <section class="auth-box" aria-labelledby="auth-heading">
-      <h2 id="auth-heading">Authorized sign-in</h2>
-      <p class="hint">Sign in with an approved account. Only administrators can import MIS data.</p>
-      <div id="signed-out">
-        <label class="file-label" for="email">Email</label>
-        <input id="email" type="email" autocomplete="username" required>
-        <label class="file-label" for="password">Password</label>
-        <input id="password" type="password" autocomplete="current-password" required>
-        <button type="button" id="sign-in-button">Sign in</button>
-        <p class="hint">Only approved accounts can access this tool. Only administrators can import.</p>
-      </div>
-      <div id="signed-in" class="hidden">
-        <p id="account-label" class="signed-in"></p>
-        <button type="button" id="sign-out-button" class="secondary">Sign out</button>
-      </div>
-    </section>
-
     <div class="file-box">
       <label class="file-label" for="source-file">Choose Excel or CSV file</label>
       <input type="file" id="source-file" accept=".xlsx,.xls,.xlsm,.csv">
       <p class="hint">The file is read locally in your browser. Only the MIS worksheet data is sent to Supabase, in batches.</p>
     </div>
     <button type="button" id="import-button" disabled>Import MIS to Supabase</button>
-    <div id="status" class="status" aria-live="polite">Sign in with an authorized account, then choose a workbook.</div>
+    <div id="status" class="status" aria-live="polite">Checking administrator access…</div>
     <section id="diff-panel" class="diff-panel hidden" aria-live="polite">
       <h2 id="diff-title">Review MIS changes</h2>
       <p id="diff-intro">Compare the uploaded file with the current active MIS before applying changes.</p>
@@ -106,11 +89,6 @@
     const statusBox = document.getElementById('status');
     const previewWrap = document.getElementById('preview-wrap');
     const preview = document.getElementById('preview');
-    const signedOut = document.getElementById('signed-out');
-    const signedIn = document.getElementById('signed-in');
-    const accountLabel = document.getElementById('account-label');
-    const signInButton = document.getElementById('sign-in-button');
-    const signOutButton = document.getElementById('sign-out-button');
     let currentUser = null;
     let currentRole = null;
     let importedWorkbook = null;
@@ -128,21 +106,20 @@
     async function updateAuthUI(user) {
       currentUser = null;
       currentRole = null;
-      if (user) {
-        const { data: access, error } = await supabaseClient.functions.invoke('vbgramg-app-access', { body: {} });
-        if (error || !access || access.approved !== true) {
-          await supabaseClient.auth.signOut();
-          setStatus((access && access.error) || (error && error.message) || 'This account is not approved for VBGRAMG.', 'error');
-          user = null;
-        } else {
-          currentUser = user;
-          currentRole = access.role;
-        }
+      if (!user) {
+        setStatus('Administrator access is required. Redirecting to the main app…', 'error');
+        window.location.replace('./');
+        return;
       }
-      signedOut.classList.toggle('hidden', !!currentUser);
-      signedIn.classList.toggle('hidden', !currentUser);
-      accountLabel.textContent = currentUser ? 'Signed in as ' + currentUser.email + (currentRole === 'admin' ? ' · Administrator' : '') : '';
-      importButton.disabled = !currentUser || currentRole !== 'admin' || !importedWorkbook;
+      const { data: access, error } = await supabaseClient.functions.invoke('vbgramg-app-access', { body: {} });
+      if (error || !access || access.approved !== true || access.role !== 'admin') {
+        setStatus('Administrator access is required. Returning to the main app…', 'error');
+        window.location.replace('./');
+        return;
+      }
+      currentUser = user;
+      currentRole = access.role;
+      importButton.disabled = !importedWorkbook;
     }
 
     function renderRows(rows) {
@@ -172,35 +149,8 @@
       previewWrap.classList.remove('hidden');
     }
 
-    signInButton.addEventListener('click', async function () {
-      signInButton.disabled = true;
-      try {
-        const email = document.getElementById('email').value.trim();
-        const password = document.getElementById('password').value;
-        if (!email || !password) throw new Error('Enter your email and password.');
-        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        await updateAuthUI(data.user);
-        if (!currentUser) throw new Error('This account is not approved for the app.');
-        setStatus(currentRole === 'admin' ? 'Signed in as administrator. Import is available.' : 'Signed in. MIS importing is administrator-only.', 'success');
-      } catch (error) {
-        setStatus('Sign-in failed: ' + (error && error.message ? error.message : String(error)), 'error');
-      } finally {
-        signInButton.disabled = false;
-      }
-    });
-
-    signOutButton.addEventListener('click', async function () {
-      const { error } = await supabaseClient.auth.signOut();
-      if (error) setStatus('Could not sign out: ' + error.message, 'error');
-      else {
-        updateAuthUI(null);
-        setStatus('Signed out. Sign in with an authorized account to import.', '');
-      }
-    });
-
     supabaseClient.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') updateAuthUI(null);
+      if (event === 'SIGNED_OUT') window.location.replace('./');
       else if (event === 'TOKEN_REFRESHED' && session) Promise.resolve().then(() => updateAuthUI(session.user));
     });
     supabaseClient.auth.getSession().then(({ data }) => updateAuthUI(data.session ? data.session.user : null));
@@ -227,7 +177,7 @@
         }
         const sheet = importedWorkbook.Sheets[misName];
         importedRows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null, blankrows: true });
-        importButton.disabled = !currentUser;
+        importButton.disabled = !currentUser || currentRole !== 'admin';
         setStatus('Found the MIS tab in “' + file.name + '”. Rows detected: ' + importedRows.length + '. Ready to send to Supabase.', '');
         renderRows(importedRows);
       } catch (error) {

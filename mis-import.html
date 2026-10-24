@@ -191,6 +191,28 @@
       return String(value == null ? '' : value).toLowerCase().replace(/&amp;/g, '&').replace(/[^a-z0-9]+/g, ' ').trim();
     }
 
+    function filterPastedRows(rows, excludeFlagged) {
+      const key = v => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      const hi = rows.findIndex(row => row.some(v => key(v) === 'job card number') && row.some(v => key(v) === 'name of applicant'));
+      if (hi < 0) throw new Error('Could not find Job Card Number and Name of Applicant headings.');
+      const h = rows[hi].map(key), ix = (...n) => h.findIndex(v => n.includes(v));
+      const ji = ix('job card number'), ni = ix('name of applicant'), hh = ix('head of household'), ri = ix('remarks','reasons if job card not issued any other remarks');
+      const kept = rows.slice(0, hi + 1), removed = [], review = [];
+      for (const row of rows.slice(hi + 1)) {
+        const text = row.map(v => String(v || '').trim()).filter(Boolean).join(' · ');
+        const jc = String(row[ji] || '').trim(), name = String(row[ni] || '').trim();
+        const valid = jc.startsWith('MZ-') && jc.includes('/') && /^MZ-[A-Z0-9-]+\/\d+$/i.test(jc);
+        if (!text || /^(total|villages|report completed)/i.test(text) || text.startsWith('# End of Report')) { removed.push('Non-applicant heading/total: ' + (text || '(blank row)')); continue; }
+        if (!valid && !name) { removed.push('No job card or applicant name: ' + text); continue; }
+        if (!valid || !name) { review.push((!valid ? 'Missing/invalid job card' : 'Missing applicant name') + ': ' + text); continue; }
+        const remarks = String(ri >= 0 ? row[ri] || '' : '');
+        const flagged = String(hh >= 0 ? row[hh] || '' : '').includes('*') || name.includes('*') || remarks.toLowerCase().includes('deleted');
+        if (excludeFlagged && flagged) { removed.push('Marked deleted: ' + jc + ' · ' + name); continue; }
+        kept.push(row);
+      }
+      return { rows: kept, removed, review };
+    }
+
     function normalizeMisTable(rows) {
       const headersIndex = rows.findIndex(row => {
         const keys = row.map(headerKey);

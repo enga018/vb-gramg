@@ -198,7 +198,7 @@
       if (hi < 0) throw new Error('Could not find Job Card Number and Name of Applicant headings.');
       const h = rows[hi].map(key), ix = (...n) => h.findIndex(v => n.includes(v));
       const ji = ix('job card number'), ni = ix('name of applicant'), hh = ix('head of household'), ri = ix('remarks','reasons if job card not issued any other remarks');
-      const kept = rows.slice(0, hi + 1), removed = [], review = [];
+      const kept = rows.slice(0, hi + 1), removed = [], review = [], sourceApplicantCounts = new Map();
       for (const row of rows.slice(hi + 1)) {
         const text = row.map(v => String(v || '').trim()).filter(Boolean).join(' · ');
         const jc = String(row[ji] || '').trim(), name = String(row[ni] || '').trim();
@@ -206,6 +206,9 @@
         if (!text || /^(total|villages|report completed)/i.test(text) || text.startsWith('# End of Report')) { removed.push('Non-applicant heading/total: ' + (text || '(blank row)')); continue; }
         if (!valid && !name) { removed.push('No job card or applicant name: ' + text); continue; }
         if (!valid || !name) { review.push((!valid ? 'Missing/invalid job card' : 'Missing applicant name') + ': ' + text); continue; }
+        const sourceApplicantNo = (sourceApplicantCounts.get(jc) || 0) + 1;
+        sourceApplicantCounts.set(jc, sourceApplicantNo);
+        row.__sourceApplicantNo = sourceApplicantNo;
         const remarks = String(ri >= 0 ? row[ri] || '' : '');
         const flagged = String(hh >= 0 ? row[hh] || '' : '').includes('*') || name.includes('*') || remarks.toLowerCase().includes('deleted');
         if (excludeFlagged && flagged) { removed.push('Marked deleted: ' + jc + ' · ' + name); continue; }
@@ -275,7 +278,7 @@
 
         const match = jobCard.match(/\/(\d+)$/);
         const jcNo = match ? match[1] : '';
-        applicantNo = String((applicantCounts.get(jobCard) || 0) + 1);
+        applicantNo = String(row.__sourceApplicantNo || (applicantCounts.get(jobCard) || 0) + 1);
         applicantCounts.set(jobCard, Number(applicantNo));
         const uniqueId = jobCard + '/' + applicantNo;
         result.push([
@@ -313,7 +316,7 @@
     });
     tableInput.addEventListener('input', function () {
       pastedTableLoaded = false; importedRows = []; importButton.disabled = true;
-      previewWrap.classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
+      previewWrap.classList.add('hidden'); document.getElementById('filter-summary').classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
     });
 
     async function invokeImport(payload) {

@@ -222,7 +222,7 @@ function renderPastedTable(rows){
  const headerRow=document.createElement('tr');
  FTO_HEADERS.forEach(value=>{const th=document.createElement('th');th.textContent=value;headerRow.appendChild(th)});
  thead.appendChild(headerRow);
- const dataRows=rows.filter(row=>{if(isHeaderOrSeparator(row))return false;const cells=row.map(cell=>String(cell||'').replace(/<br\\s*\\/?>/gi,' ').trim());return /^\\d+$/.test(cells[0]||'')&&cells.length>=13&&/^MZ-\\d{2}-/i.test(cells[2]||'')&&/^\\d{15,}$/.test(cells[3]||'')&&/^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(cells[4]||'')});
+ const dataRows=rows.filter(row=>{if(isHeaderOrSeparator(row))return false;const cells=row.map(cell=>String(cell||'').replace(/<br\s*\/?>/gi,' ').trim());return /^\d+$/.test(cells[0]||'')&&cells.length>=13&&/^MZ-\d{2}-/i.test(cells[2]||'')&&/^\d{15,}$/.test(cells[3]||'')&&/^\d{2}\/\d{2}\/\d{4}$/.test(cells[4]||'')});
  if(!dataRows.length){$('table-output').classList.add('hidden');return null}
  dataRows.forEach(row=>{
   const tr=document.createElement('tr');

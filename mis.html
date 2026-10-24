@@ -177,7 +177,7 @@ function renderTable(){
   const hasSelection=selectedApplicants.has(group.key);
   const tr=document.createElement('tr');tr.className='jobcard-row '+(hasSelection?'has-selection':'no-selection');
   const serialCell=document.createElement('td');serialCell.textContent=String(start+visibleIndex+1);if(isMobile)serialCell.style.verticalAlign='top';tr.appendChild(serialCell);
-  const toggleGroup=()=>{if(expandedCards.has(group.key))expandedCards.delete(group.key);else expandedCards.add(group.key);renderTable()};
+  const toggleGroup=()=>{if(expandedCards.has(group.key))expandedCards.clear();else{expandedCards.clear();expandedCards.add(group.key)}renderTable()};
   tr.tabIndex=0;
   tr.setAttribute('aria-expanded',String(expandedCards.has(group.key)));
   tr.setAttribute('aria-label',(expandedCards.has(group.key)?'Collapse ':'Expand ')+'applicants for job card '+group.key);

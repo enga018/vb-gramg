@@ -314,14 +314,6 @@ function buildImportGroups(){
  duplicateCards=new Map();reviewedCards=new Set();unknownCards=new Set();reviewedNewCards=new Set();
  renderImportPreview();refreshDuplicates();
 }
-function currentDeferMode(){return $('defer-mode').value}
-function setAllDeferredFromMode(){
- const mode=currentDeferMode();
- if(mode==='all')for(const group of importGroups)deferredCards.set(group.job_card_number,true);
- if(mode==='none')for(const group of importGroups)deferredCards.set(group.job_card_number,false);
- if(currentStatusAction()==='blank')for(const group of importGroups.filter(g=>g.status==='blank'))deferredCards.set(group.job_card_number,true);
- renderImportPreview();
-}
 function renderImportPreview(){
  $('import-summary').classList.remove('error');
  const tbody=$('import-preview-table').querySelector('tbody');
@@ -413,10 +405,9 @@ function updateImportButton(){
 function bytesToHex(bytes){return [...new Uint8Array(bytes)].map(b=>b.toString(16).padStart(2,'0')).join('')}
 async function sha256(text){return bytesToHex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)))}
 $('charge-period').addEventListener('change',()=>{reviewedCards=new Set();refreshDuplicates()});
-$('fto-status-action').addEventListener('change',()=>{reviewedCards=new Set();reviewedNewCards=new Set();setAllDeferredFromMode();refreshDuplicates()});
+$('fto-status-action').addEventListener('change',()=>{reviewedCards=new Set();reviewedNewCards=new Set();refreshDuplicates()});
 $('amount-divisor').addEventListener('input',()=>buildImportGroups());
 $('amount-multiplier').addEventListener('input',()=>buildImportGroups());
-$('defer-mode').addEventListener('change',setAllDeferredFromMode);
 $('fto-import-button').addEventListener('click',async()=>{
  if($('fto-import-button').disabled)return;
  const button=$('fto-import-button'),mode=currentStatusAction(),selected=actionGroups();

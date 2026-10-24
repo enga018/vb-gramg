@@ -266,7 +266,8 @@
       importButton.disabled = true; pastedTableLoaded = false; importedRows = [];
       previewWrap.classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
       pendingImportId = null; pendingComparison = null;
-      let rows;\n      try { rows = normalizeMisTable(parsePastedTable(tableInput.value)); } catch (error) { setStatus(error.message || String(error), 'error'); return; }
+      let rows;
+      try { rows = normalizeMisTable(parsePastedTable(tableInput.value)); } catch (error) { setStatus(error.message || String(error), 'error'); return; }
       if (!rows.length) { setStatus('Paste the copied MIS table first, then select Load pasted table.', 'error'); return; }
       if (rows.length > 100000) { setStatus('The pasted MIS contains more than 100,000 rows. The import limit is 100,000 rows.', 'error'); return; }
       if (!rows[0].some(cell => String(cell || '').trim())) { setStatus('The pasted table has no header row. Copy the MIS table including its column headings.', 'error'); return; }

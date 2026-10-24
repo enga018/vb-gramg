@@ -222,17 +222,6 @@ async function verifyAccess(user){
  $('app-panel').classList.remove('hidden');
  return true;
 }
-$('submit-button').addEventListener('click',()=>{
- const rawUrl=$('payload-url').value.trim();
- const reference=$('reference-input').value.trim();
- let parsed;
- try{parsed=new URL(rawUrl)}catch(_){status('Enter a valid FTO page URL.','error');return}
- if(parsed.protocol!=='https:'&&parsed.protocol!=='http:'){status('The URL must use HTTP or HTTPS.','error');return}
- if(!reference){status('Enter the reference you want to search for.','error');$('reference-input').focus();return}
- window.open(parsed.href,'_blank','noopener');
- status('Opened the FTO page in a new tab. Reference: '+reference+'. Search-and-click automation is not implemented yet.','success');
-});
-$('reference-input').addEventListener('keydown',e=>{if(e.key==='Enter')$('submit-button').click()});
 supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){authSequence++;window.location.replace('./')}else if(event==='TOKEN_REFRESHED'&&session)Promise.resolve().then(()=>verifyAccess(session.user))});
 supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){window.location.replace('./');return}return verifyAccess(data.session.user)});
 </script>

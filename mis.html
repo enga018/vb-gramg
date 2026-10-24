@@ -64,7 +64,7 @@ async function loadData(){
   if(seq!==loadSequence)return;
   $('source-file').textContent=data.sourceFilename||'—';
   $('updated-at').textContent=data.updatedAt?new Date(data.updatedAt).toLocaleString():'—';
-  if(!data.hasData||!data.totalRows){allRows=[];headers=[];jobCards=[];renderTable();status($('data-status'),'No MIS data has been imported yet. An administrator can import the MIS worksheet.');return}
+  if(!data.hasData||!data.totalRows){allRows=[];headers=[];jobCards=[];selectedApplicants=new Map();renderTable();status($('data-status'),'No MIS data has been imported yet. An administrator can import the MIS worksheet.');return}
   let rows=(data.rows||[]).map(r=>({rowNumber:r.rowNumber,values:Array.isArray(r.values)?r.values:[]}));
   for(let page=1;page<Math.ceil(data.totalRows/200);page++){
    const next=await supabaseClient.functions.invoke('vbgramg-mis-data',{body:{page,pageSize:200}});
@@ -76,19 +76,45 @@ async function loadData(){
   const sourceHeader=rows.length?rows[0].values:[];
   headers=sourceHeader.map((v,i)=>String(v==null||String(v).trim()===''?'Column '+(i+1):v));
   allRows=rows.slice(1);
+  selectedApplicants=await loadSavedSelections();
+  if(seq!==loadSequence)return;
   buildJobCards();
-  currentPage=0;expandedCards=new Set();selectedApplicants=new Map();renderTable();
+  currentPage=0;expandedCards=new Set();renderTable();
   status($('data-status'),'MIS data loaded successfully.','success');
  }catch(error){if(seq===loadSequence)status($('data-status'),'Could not load MIS data: '+(error&&error.message?error.message:String(error)),'error')}
  finally{}
 }
 function normalize(value){return String(value==null?'':value).trim()}
+function applicantStableKey(groupKey, values, nameIndex, applicantNoIndex, uniqueIdIndex){
+ const uniqueId=normalize(uniqueIdIndex>=0?values[uniqueIdIndex]:'');
+ if(uniqueId)return 'uid:'+uniqueId.toLocaleLowerCase();
+ const fallback=[groupKey,normalize(applicantNoIndex>=0?values[applicantNoIndex]:''),normalize(nameIndex>=0?values[nameIndex]:'')].map(v=>v.toLocaleLowerCase());
+ return 'fallback:'+JSON.stringify(fallback);
+}
+async function loadSavedSelections(){
+ const result=await invokeSelection({action:'get'});
+ if(!result||result.approved!==true||!Array.isArray(result.selections))throw new Error('Could not load shared MIS selections.');
+ const saved=new Map();
+ result.selections.forEach(item=>{if(item&&typeof item.job_card_number==='string'&&typeof item.applicant_key==='string')saved.set(item.job_card_number,item.applicant_key)});
+ return saved;
+}
+async function invokeSelection(payload){
+ const {data,error}=await supabaseClient.functions.invoke('vbgramg-mis-selection',{body:payload});
+ if(error){
+  let message=error.message||'Selection request failed.';
+  try{const response=error.context;if(response&&typeof response.json==='function'){const detail=await response.json();if(detail&&detail.error)message=detail.error}}catch(_){}
+  throw new Error(message);
+ }
+ if(data&&data.error)throw new Error(data.error);
+ return data;
+}
 function buildJobCards(){
  const jobIndex=headers.findIndex(h=>/^(job card number|jobcard number)$/i.test(h.trim()));
  const fallbackIndex=headers.findIndex(h=>/^jc no\.?$/i.test(h.trim()));
  const householdIndex=headers.findIndex(h=>/head of household/i.test(h));
  const nameIndex=headers.findIndex(h=>/name of applicant|applicant name/i.test(h));
  const applicantNoIndex=headers.findIndex(h=>/applicant no/i.test(h));
+ const uniqueIdIndex=headers.findIndex(h=>/^unique id$/i.test(h.trim()));
  const keyIndex=jobIndex>=0?jobIndex:fallbackIndex;
  const groups=new Map();
  allRows.forEach((row,i)=>{
@@ -97,7 +123,7 @@ function buildJobCards(){
   if(!groups.has(key))groups.set(key,{key,household:normalize(householdIndex>=0?values[householdIndex]:''),applicants:[],firstRow:i});
   const group=groups.get(key);
   if(!group.household&&householdIndex>=0)group.household=normalize(values[householdIndex]);
-  group.applicants.push({name:normalize(nameIndex>=0?values[nameIndex]:''),number:normalize(applicantNoIndex>=0?values[applicantNoIndex]:''),values,rowNumber:row.rowNumber});
+  group.applicants.push({name:normalize(nameIndex>=0?values[nameIndex]:''),number:normalize(applicantNoIndex>=0?values[applicantNoIndex]:''),selectionKey:applicantStableKey(key,values,nameIndex,applicantNoIndex,uniqueIdIndex),values,rowNumber:row.rowNumber});
  });
  jobCards=Array.from(groups.values());
  $('total-jobcards').textContent=jobCards.filter(g=>g.key!=='(Job card number missing)').length;
@@ -130,10 +156,20 @@ function renderTable(){
    ['Select','#','Name of Applicant','Applicant No.'].forEach(label=>{const th=document.createElement('th');th.textContent=label;th.style.position='static';th.style.background='#e2e8f0';subheadRow.appendChild(th)});subhead.appendChild(subheadRow);subtable.appendChild(subhead);
    const subbody=document.createElement('tbody');
    group.applicants.forEach((applicant,index)=>{const ar=document.createElement('tr');
-    const applicantId=String(applicant.rowNumber??(group.key+'-'+index));
+    const applicantId=applicant.selectionKey;
     const selectCell=document.createElement('td');selectCell.style.minWidth='72px';
     const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.style.width='18px';checkbox.style.minHeight='18px';checkbox.style.padding='0';checkbox.style.margin='2px 0';checkbox.checked=selectedApplicants.get(group.key)===applicantId;checkbox.setAttribute('aria-label','Select '+(applicant.name||'applicant')+' for job card '+group.key);
-    checkbox.addEventListener('change',()=>{if(checkbox.checked)selectedApplicants.set(group.key,applicantId);else if(selectedApplicants.get(group.key)===applicantId)selectedApplicants.delete(group.key);renderTable()});
+    checkbox.addEventListener('change',async()=>{
+     const shouldSelect=checkbox.checked;checkbox.disabled=true;
+     try{
+      await invokeSelection({action:shouldSelect?'set':'clear',jobCardNumber:group.key,applicantKey:applicantId});
+      selectedApplicants=await loadSavedSelections();
+      status($('data-status'),shouldSelect?'Selection saved for job card '+group.key+'.':'Selection cleared for job card '+group.key+'.','success');
+     }catch(error){
+      status($('data-status'),'Could not save selection: '+(error&&error.message?error.message:String(error))+'. Reload the page if another user may have changed this selection.','error');
+     }
+     renderTable();
+    });
     selectCell.appendChild(checkbox);ar.appendChild(selectCell);
     const n=document.createElement('td');n.textContent=String(index+1);ar.appendChild(n);
     const name=document.createElement('td');name.textContent=applicant.name||'—';ar.appendChild(name);

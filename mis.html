@@ -129,11 +129,12 @@ async function invokeSelection(payload){
 }
 function updateKpis(){
  const totalApplications=allRows.length;
- const selectedCount=selectedApplicants.size;
- $('total-jobcards').textContent=jobCards.filter(g=>g.key!=='(Job card number missing)').length;
+ const validJobCards=jobCards.filter(g=>g.key!=='(Job card number missing)');
+ const selectedCount=validJobCards.filter(g=>selectedApplicants.has(g.key)).length;
+ $('total-jobcards').textContent=validJobCards.length;
  $('total-applicants').textContent=totalApplications;
  $('total-demand').textContent=selectedCount;
- $('total-unwilling').textContent=Math.max(0,totalApplications-selectedCount);
+ $('total-unwilling').textContent=Math.max(0,validJobCards.length-selectedCount);
 }
 function buildJobCards(){
  const jobIndex=headers.findIndex(h=>/^(job card number|jobcard number)$/i.test(h.trim()));

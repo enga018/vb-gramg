@@ -199,9 +199,9 @@ function parsePastedTable(raw){
  });
 }
 function isHeaderOrSeparator(row){
- const normalized=row.map(cell=>cell.replace(/\*\*/g,'').replace(/\s+/g,' ').trim().toLowerCase());
+ const normalized=row.map(cell=>cell.replace(/\*\*/g,'').replace(/<br\s*\/?>/gi,' ').replace(/\s+/g,' ').trim().toLowerCase());
  if(normalized.some(cell=>cell.includes('block name'))&&normalized.some(cell=>cell.includes('job card no')))return true;
- return normalized.length>0&&normalized.every(cell=>/^:?-{2,}:?$/.test(cell));
+ return normalized.length>0&&normalized.every(cell=>/^:?-+:?$/.test(cell));
 }
 function renderPastedTable(rows){
  const table=$('parsed-table'),thead=table.querySelector('thead'),tbody=table.querySelector('tbody');
@@ -213,7 +213,7 @@ function renderPastedTable(rows){
  if(!dataRows.length){$('table-output').classList.add('hidden');return null}
  dataRows.forEach(row=>{
   const tr=document.createElement('tr');
-  FTO_HEADERS.forEach((_,index)=>{const td=document.createElement('td');td.textContent=row[index]||'';tr.appendChild(td)});
+  FTO_HEADERS.forEach((_,index)=>{const td=document.createElement('td');td.textContent=(row[index]||'').replace(/<br\s*\/?>/gi,'\n');td.style.whiteSpace='pre-line';tr.appendChild(td)});
   tbody.appendChild(tr);
  });
  $('table-summary').textContent=dataRows.length+' data rows · '+FTO_HEADERS.length+' predefined columns';

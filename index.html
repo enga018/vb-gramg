@@ -17,7 +17,7 @@ button.secondary{background:#e2e8f0;color:#0f172a}.hidden{display:none!important
 .account{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.account-label{font-size:.9rem;color:#475569;overflow-wrap:anywhere}
 .modules{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:20px}
 .module{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:22px;border:1px solid #e2e8f0;border-radius:14px;background:#fff;box-shadow:0 8px 24px rgb(15 23 42 / 4%);text-decoration:none;color:#0f172a;min-height:190px}
-.module:hover{border-color:#94a3b8;background:#f8fafc}.module .symbol{font-size:1.8rem}.module p{margin:0;font-size:.92rem}.module-link{margin-top:auto;width:100%}
+.module:hover{border-color:#94a3b8;background:#f8fafc}.module.future{opacity:.72;cursor:not-allowed}.module .symbol{font-size:1.8rem}.module p{margin:0;font-size:.92rem}.module-link{margin-top:auto;width:100%}
 @media(max-width:600px){body{padding:10px}.topbar{padding:15px}.account{width:100%;justify-content:space-between}.panel{padding:18px}}
 </style>
 </head>
@@ -36,7 +36,7 @@ button.secondary{background:#e2e8f0;color:#0f172a}.hidden{display:none!important
 <div class="panel"><h2>Choose a module</h2><p>Open the workspace you need. MIS and FTO operate separately.</p>
 <div class="modules">
 <a class="module" href="./mis.html"><span class="symbol" aria-hidden="true">👥</span><h2>MIS</h2><p>Search job cards, view households and applicants, and manage applicant selections. Administrators can also import and compare MIS files.</p><span class="module-link">Open MIS</span></a>
-<a class="module" href="./fto.html" id="fto-link"><span class="symbol" aria-hidden="true">📄</span><h2>FTO</h2><p>Future module for FTO search and payment-related tracking.</p><span class="module-link">FTO — coming later</span></a>
+<div class="module future" aria-disabled="true"><span class="symbol" aria-hidden="true">📄</span><h2>FTO</h2><p>Future module for FTO search and payment-related tracking.</p><span class="module-link">FTO — coming later</span></div>
 </div>
 <div id="home-status" class="status" aria-live="polite">Signed in.</div>
 </div>

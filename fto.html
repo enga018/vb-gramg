@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0f172a">
+<title>FTO — VBGRAMG</title>
+<style>
+:root{
+ color-scheme:light;
+ font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+ color:#172033;
+ background:#f3f6fb;
+ --ink:#172033;
+ --muted:#667085;
+ --line:#e3e8f0;
+ --surface:#fff;
+ --surface-soft:#f7f9fc;
+ --accent:#2457c5;
+ --radius:16px;
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;padding:20px;background:#f3f6fb}
+main{width:min(100%,1440px);margin:0 auto}
+.topbar,.panel{
+ background:var(--surface);
+ border:1px solid var(--line);
+ border-radius:var(--radius);
+ box-shadow:0 4px 18px rgb(23 32 51 / 4%);
+}
+.topbar{
+ display:flex;gap:18px;align-items:center;justify-content:space-between;
+ padding:18px 22px;margin-bottom:18px;flex-wrap:wrap;
+}
+.brand h1{font-size:1.45rem;letter-spacing:-.035em;margin:0 0 5px;color:var(--ink)}
+.brand p{margin:0;color:var(--muted);font-size:.88rem;line-height:1.45}
+.brand a{text-decoration:none}
+.brand a:hover{text-decoration:underline}
+.header-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex:0 1 auto;min-width:0;flex-wrap:wrap}
+.header-actions-label{font-size:.86rem;color:#475467;overflow-wrap:anywhere}
+.panel{padding:clamp(18px,2.5vw,28px)}
+h2{margin:0 0 6px;font-size:1.18rem;letter-spacing:-.02em;color:var(--ink)}
+p{color:var(--muted);line-height:1.5}
+label{display:block;font-size:.88rem;font-weight:650;margin:0 0 7px;color:#344054}
+input,select{font:inherit;min-height:44px;padding:10px 12px;border:1px solid #cfd7e4;border-radius:10px;width:100%;background:#fff;color:var(--ink)}
+input:focus,select:focus{outline:3px solid rgb(36 87 197 / 15%);border-color:#6f91dc}
+button,.link-button{
+ font:inherit;font-size:.9rem;font-weight:650;border:1px solid transparent;border-radius:10px;
+ min-height:42px;padding:10px 15px;background:var(--ink);color:#fff;cursor:pointer;
+ text-decoration:none;display:inline-flex;align-items:center;justify-content:center;
+ transition:background .15s,border-color .15s,transform .15s;
+}
+button:hover,.link-button:hover{background:#2c3b55}
+button.secondary,.link-button.secondary{background:#f0f3f8;color:#344054;border-color:#e0e6ef}
+button.secondary:hover,.link-button.secondary:hover{background:#e6ebf3}
+button:focus-visible,.link-button:focus-visible{outline:3px solid rgb(36 87 197 / 25%);outline-offset:2px}
+button:disabled{opacity:.48;cursor:not-allowed}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.login-card{max-width:460px;margin:7vh auto}
+.hidden{display:none!important}
+.status{margin:14px 0 0;padding:11px 13px;border:1px solid #e5eaf2;border-radius:10px;background:#f7f9fc;color:#475467;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.88rem;line-height:1.45}
+.status.error{background:#fff4f2;border-color:#ffd8d2;color:#a12b20}
+.status.success{background:#effaf3;border-color:#ccebd7;color:#17663a}
+.toolbar{display:flex;gap:14px;align-items:end;justify-content:space-between;flex-wrap:wrap;margin:22px 0 14px}
+.search{flex:1;min-width:220px;max-width:620px}
+.filter-control{min-width:180px}
+.filter-control select{padding-right:34px}
+.meta{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:18px 0}
+.stat{min-width:0;padding:13px 15px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.stat small{display:block;color:var(--muted);font-size:.78rem;font-weight:600;margin-bottom:7px;line-height:1.3}
+.stat strong{display:block;font-size:1.08rem;font-weight:750;letter-spacing:-.02em;line-height:1.35;overflow-wrap:anywhere;color:var(--ink)}
+#updated-at{font-size:.88rem;font-weight:650;letter-spacing:0}
+.muted{font-size:.84rem;color:var(--muted);line-height:1.45}
+.table-wrap{overflow:auto;overscroll-behavior:contain;max-height:68vh;border:1px solid #dfe5ee;border-radius:12px;background:#fff;box-shadow:0 2px 8px rgb(23 32 51 / 3%)}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem;white-space:normal}
+th,td{padding:12px 14px;text-align:left;border-bottom:1px solid #edf0f5;vertical-align:middle;min-width:100px;max-width:420px;overflow-wrap:anywhere}
+th{position:sticky;top:0;z-index:1;background:#f5f7fb;color:#5b6577;font-size:.72rem;letter-spacing:.055em;text-transform:uppercase;font-weight:750}
+td:first-child,th:first-child{min-width:58px;width:58px;color:#667085}
+tbody tr:last-child td{border-bottom:0}
+.jobcard-row{background:#fff;cursor:pointer;transition:background .15s}
+.jobcard-row:hover{background:#f6f9ff}
+.jobcard-row:active{background:#edf3ff}
+.jobcard-row:focus-visible{outline:2px solid #3972df;outline-offset:-2px}
+.jobcard-row.has-selection{box-shadow:inset 3px 0 #16a34a}
+.jobcard-row.no-selection{box-shadow:inset 3px 0 #e9a23b}
+.applicant-detail td{background:#f8fafd}
+.applicant-detail table{border:1px solid #e3e8f0;border-radius:9px;overflow:hidden}
+.applicant-detail th{background:#edf2f8}
+.applicant-detail tbody tr:nth-child(even){background:#fff}
+.applicant-detail tbody tr:hover{background:#f3f7ff}
+.applicant-detail input[type=checkbox]{accent-color:#2457c5;cursor:pointer}
+.table-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px}
+.section-head{display:flex;align-items:start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.section-head p{margin:4px 0 0;max-width:780px;font-size:.91rem}
+@media(max-width:900px){
+ .meta{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .stat:last-child{grid-column:span 1}
+}
+@media(max-width:700px){
+ body{padding:10px}
+ .topbar{padding:15px;gap:14px;border-radius:13px;margin-bottom:12px}
+ .brand h1{font-size:1.3rem}
+ .brand p{font-size:.82rem}
+ .header-actions{width:100%;justify-content:flex-start;gap:8px}
+ .header-actions-label{flex:1;min-width:0;font-size:.8rem}
+ .header-actions .link-button,.header-actions button{flex:0 0 auto;min-height:40px;padding:9px 12px}
+ .panel{padding:14px;border-radius:13px}
+ .section-head p{font-size:.86rem}
+ .meta{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:15px 0}
+ .stat{padding:11px 12px;border-radius:10px}
+ .stat small{font-size:.74rem;margin-bottom:5px}
+ .stat strong{font-size:1rem}
+ .stat:last-child{grid-column:span 2}
+ #updated-at{font-size:.82rem}
+ .toolbar{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin:18px 0 12px}
+ .search,.filter-control{min-width:0;max-width:none;width:100%}
+ .toolbar label{margin-bottom:6px}
+ #result-count{margin-top:0}
+ .table-wrap{max-height:65vh;border-radius:10px}
+ table{font-size:.84rem}
+ th,td{padding:11px 10px}
+ th{font-size:.68rem}
+ td:first-child,th:first-child{min-width:60px;width:60px}
+ .jobcard-row td{padding-top:12px;padding-bottom:12px}
+ .applicant-detail td{padding:10px!important}
+ .applicant-detail th{font-size:.64rem;letter-spacing:.025em}
+ .applicant-detail td{font-size:.8rem}
+ .applicant-detail input[type=checkbox]{width:20px!important;height:20px;min-height:20px!important}
+ .table-foot{align-items:stretch;margin-top:12px}
+ .table-foot .actions{display:grid;grid-template-columns:1fr 1fr;width:100%}
+ .table-foot .actions button{width:100%}
+}
+@media(max-width:360px){
+ body{padding:7px}
+ .panel{padding:11px}
+ .header-actions .link-button,.header-actions button{padding:8px 9px;font-size:.82rem}
+ .stat{padding:10px}
+ .stat strong{font-size:.94rem}
+ th,td{padding:9px 8px}
+}
+</style>
+</head>
+<body>
+<main>
+<div id="app-panel" class="hidden">
+<header class="topbar"><div class="brand"><h1>FTO</h1><p><a href="./" style="color:inherit">← Main menu</a></p></div>
+<div class="header-actions" aria-label="FTO actions"></div></header>
+<section class="panel">
+<div class="section-head"><div><h2>FTO workspace</h2><p>This is the starting point for FTO search and payment-related tracking. We can shape the workflow from here.</p></div></div>
+<div class="toolbar" style="align-items:start">
+<div class="search" style="max-width:none"><label for="payload-url">FTO page URL</label><input id="payload-url" type="url" inputmode="url" autocomplete="url" placeholder="https://vbgramgrep.dord.gov.in/VBGRAMG/FTO/" value="https://vbgramgrep.dord.gov.in/VBGRAMG/FTO/"></div>
+<div class="search" style="max-width:none"><label for="reference-input">Reference to search</label><input id="reference-input" type="text" autocomplete="off" placeholder="e.g. 2207001000SSPAYREQ2908202625"></div>
+<div class="actions"><button id="submit-button" type="button">Open FTO page</button></div>
+</div>
+<div id="data-status" class="status" aria-live="polite">Enter a reference and open the FTO page. Search-and-click automation can be added in the next step.</div>
+</section>
+</div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+const $=id=>document.getElementById(id);
+let authSequence=0;
+function status(msg,type){$('data-status').textContent=msg;$('data-status').classList.toggle('error',type==='error');$('data-status').classList.toggle('success',type==='success')}
+async function verifyAccess(user){
+ const seq=++authSequence;
+ if(!user){window.location.replace('./');return false}
+ const {data,error}=await supabaseClient.functions.invoke('vbgramg-app-access',{body:{}});
+ if(seq!==authSequence)return false;
+ if(error||!data||data.approved!==true){await supabaseClient.auth.signOut();window.location.replace('./');return false}
+ $('app-panel').classList.remove('hidden');
+ return true;
+}
+$('submit-button').addEventListener('click',()=>{
+ const rawUrl=$('payload-url').value.trim();
+ const reference=$('reference-input').value.trim();
+ let parsed;
+ try{parsed=new URL(rawUrl)}catch(_){status('Enter a valid FTO page URL.','error');return}
+ if(parsed.protocol!=='https:'&&parsed.protocol!=='http:'){status('The URL must use HTTP or HTTPS.','error');return}
+ if(!reference){status('Enter the reference you want to search for.','error');$('reference-input').focus();return}
+ window.open(parsed.href,'_blank','noopener');
+ status('Opened the FTO page in a new tab. Reference: '+reference+'. Search-and-click automation is not implemented yet.','success');
+});
+$('reference-input').addEventListener('keydown',e=>{if(e.key==='Enter')$('submit-button').click()});
+supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){authSequence++;window.location.replace('./')}else if(event==='TOKEN_REFRESHED'&&session)Promise.resolve().then(()=>verifyAccess(session.user))});
+supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){window.location.replace('./');return}return verifyAccess(data.session.user)});
+</script>
+</body>
+</html>

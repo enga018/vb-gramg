@@ -118,7 +118,14 @@
         window.location.replace('./');
         return;
       }
-      const { data: access, error } = await supabaseClient.functions.invoke('vbgramg-app-access', { body: {} });
+      setStatus('Signed in. Verifying administrator access…', '');
+      let access, error;
+      try {
+        ({ data: access, error } = await supabaseClient.functions.invoke('vbgramg-app-access', { body: {} }));
+      } catch (err) {
+        setStatus('Could not verify administrator access: ' + (err && err.message ? err.message : String(err)) + '. Check your connection and reload this page.', 'error');
+        return;
+      }
       if (error || !access || access.approved !== true || access.role !== 'admin') {
         setStatus('Administrator access is required. Returning to the main app…', 'error');
         window.location.replace('./');
@@ -127,6 +134,7 @@
       currentUser = user;
       currentRole = access.role;
       importButton.disabled = !pastedTableLoaded || (uncertainRowsCount > 0 && !document.getElementById('review-confirm').checked);
+      setStatus('Administrator access verified. Paste the MIS table below, then select “Filter and prepare table”.', 'success');
     }
 
     function renderRows(rows) {
@@ -161,7 +169,10 @@
       if (event === 'SIGNED_OUT') window.location.replace('./');
       else if (event === 'TOKEN_REFRESHED' && session) Promise.resolve().then(() => updateAuthUI(session.user));
     });
-    supabaseClient.auth.getSession().then(({ data }) => updateAuthUI(data.session ? data.session.user : null));
+    supabaseClient.auth.getSession().then(({ data, error }) => {
+      if (error) { setStatus('Could not read your sign-in session: ' + error.message + '. Reload the page and sign in again.', 'error'); return; }
+      return updateAuthUI(data && data.session ? data.session.user : null);
+    }).catch(error => setStatus('Could not check your sign-in session: ' + (error && error.message ? error.message : String(error)) + '. Reload the page and sign in again.', 'error'));
 
     function parsePastedTable(raw) {
       const text = String(raw || '').replace(/\r/g, '').trim();

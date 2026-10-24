@@ -158,7 +158,7 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let currentRole=null,allRows=[],headers=[],jobCards=[],outstandingByJobCard=new Map(),currentPage=0,pageSize=50,loadSequence=0,expandedCards=new Set(),selectedApplicants=new Map(),scrollExpandedCardKey=null;
+let currentRole=null,allRows=[],headers=[],jobCards=[],currentPage=0,pageSize=50,loadSequence=0,expandedCards=new Set(),selectedApplicants=new Map(),scrollExpandedCardKey=null;
 function status(el,msg,type){el.textContent=msg;el.classList.toggle('error',type==='error');el.classList.toggle('success',type==='success')}
 async function verifyAccess(user){
  const seq=++loadSequence;
@@ -191,8 +191,6 @@ async function loadData(){
   const sourceHeader=rows.length?rows[0].values:[];
   headers=sourceHeader.map((v,i)=>String(v==null||String(v).trim()===''?'Column '+(i+1):v));
   allRows=rows.slice(1);
-  await loadContributionBalances();
-  if(seq!==loadSequence)return;
   selectedApplicants=await loadSavedSelections();
   if(seq!==loadSequence)return;
   buildJobCards();
@@ -208,30 +206,6 @@ async function loadData(){
 }
 function normalize(value){return String(value==null?'':value).trim()}
 function money(value){return '₹'+(Number(value)||0).toLocaleString('en-IN',{maximumFractionDigits:2})}
-async function loadContributionBalances(){
- outstandingByJobCard=new Map();
- const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}});
- if(error||!data||data.error){
-  console.warn('Contribution balances could not be loaded into MIS.',(data&&data.error)||(error&&error.message));
-  return false;
- }
- const totals=new Map();
- for(const e of (data.entries||[])){
-  const key=normalize(e.job_card_number);if(!key)continue;
-  if(!totals.has(key))totals.set(key,{activeCharges:0,paid:0,waived:0,returns:0});
-  const t=totals.get(key),amount=Number(e.amount)||0;
-  if(e.entry_type==='charge'||e.entry_type==='sanitationFee'){
-   if(!e.is_deferred)t.activeCharges+=amount;
-  }else if(e.entry_type==='payment')t.paid+=amount;
-  else if(e.entry_type==='forgive')t.waived+=amount;
-  else if(e.entry_type==='return')t.returns+=amount;
- }
- for(const [key,t] of totals){
-  const balance=t.activeCharges-Math.min(t.activeCharges,t.waived)-t.paid+t.returns;
-  outstandingByJobCard.set(key,Math.max(0,balance));
- }
- return true;
-}
 function applicantStableKey(groupKey, values, nameIndex, applicantNoIndex, uniqueIdIndex){
  const uniqueId=normalize(uniqueIdIndex>=0?values[uniqueIdIndex]:'');
  if(uniqueId)return 'uid:'+uniqueId.toLocaleLowerCase();
@@ -314,7 +288,7 @@ function renderTable(){
  const thead=$('mis-table').querySelector('thead'),tbody=$('mis-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
  const isMobile=window.matchMedia('(max-width: 700px)').matches;
  const hr=document.createElement('tr');
- (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Applicants','Outstanding']).forEach(label=>{const th=document.createElement('th');th.textContent=label;hr.appendChild(th)});
+ (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Applicants']).forEach(label=>{const th=document.createElement('th');th.textContent=label;hr.appendChild(th)});
  thead.appendChild(hr);
  shown.forEach((group,visibleIndex)=>{
   const hasSelection=selectedApplicants.has(group.key);
@@ -329,7 +303,6 @@ function renderTable(){
    const jobCell=document.createElement('td');jobCell.style.fontWeight='700';jobCell.style.whiteSpace='nowrap';jobCell.textContent=group.key;tr.appendChild(jobCell);
    const householdCell=document.createElement('td');householdCell.textContent=group.household||'—';householdCell.style.fontWeight='600';tr.appendChild(householdCell);
    const countCell=document.createElement('td');countCell.textContent=String(group.applicants.length);countCell.style.fontWeight='700';tr.appendChild(countCell);
-   const outstandingCell=document.createElement('td');outstandingCell.textContent=money(outstandingByJobCard.get(group.key)||0);outstandingCell.style.fontWeight='750';outstandingCell.style.whiteSpace='nowrap';outstandingCell.style.color=(outstandingByJobCard.get(group.key)||0)>0?'#b45309':'#15803d';tr.appendChild(outstandingCell);
   }else{
    const detailCell=document.createElement('td');detailCell.style.verticalAlign='top';
    const firstLine=document.createElement('div');firstLine.style.display='flex';firstLine.style.alignItems='center';firstLine.style.justifyContent='space-between';firstLine.style.gap='8px';
@@ -337,12 +310,11 @@ function renderTable(){
    const secondary=document.createElement('div');secondary.style.display='flex';secondary.style.alignItems='center';secondary.style.flexWrap='wrap';secondary.style.gap='4px 14px';secondary.style.marginTop='5px';secondary.style.fontSize='0.82rem';secondary.style.fontWeight='400';secondary.style.color='#64748b';
    const household=document.createElement('span');household.textContent=group.household||'—';secondary.appendChild(household);
    const applicantsMeta=document.createElement('span');applicantsMeta.textContent='Applicants: '+group.applicants.length;secondary.appendChild(applicantsMeta);
-   const outstandingMeta=document.createElement('span');outstandingMeta.textContent='Outstanding: '+money(outstandingByJobCard.get(group.key)||0);outstandingMeta.style.fontWeight='700';outstandingMeta.style.color=(outstandingByJobCard.get(group.key)||0)>0?'#b45309':'#15803d';secondary.appendChild(outstandingMeta);
    detailCell.appendChild(secondary);tr.appendChild(detailCell);
   }
   tbody.appendChild(tr);
   if(expandedCards.has(group.key)){
-   const detailTr=document.createElement('tr');detailTr.className='applicant-detail';const detailTd=document.createElement('td');detailTd.colSpan=isMobile?1:4;detailTd.style.padding='12px 14px 16px 14px';detailTd.style.background='#f8fafc';
+   const detailTr=document.createElement('tr');detailTr.className='applicant-detail';const detailTd=document.createElement('td');detailTd.colSpan=isMobile?1:3;detailTd.style.padding='12px 14px 16px 14px';detailTd.style.background='#f8fafc';
    const subtable=document.createElement('table');subtable.style.width='100%';subtable.style.maxWidth='none';subtable.style.tableLayout='fixed';
    const subhead=document.createElement('thead'),subheadRow=document.createElement('tr');
    ['Name of Applicant','Applicant No.',''].forEach((label,index)=>{const th=document.createElement('th');th.textContent=label;th.style.position='static';th.style.background='#e2e8f0';if(index===0)th.style.width='56%';if(index===1)th.style.width='32%';if(index===2){th.style.width='12%';th.style.textAlign='center';th.style.minWidth='52px'}subheadRow.appendChild(th)});subhead.appendChild(subheadRow);subtable.appendChild(subhead);

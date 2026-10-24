@@ -52,22 +52,23 @@ function deriveCitizens(){
  const map=new Map();
  for(const e of entries){
   const key=String(e.job_card_number||'').trim(); if(!key)continue;
-  if(!map.has(key))map.set(key,{id:key,jobCard:key,name:e.person_name||'Unnamed',charges:0,paid:0,waived:0,returns:0,ledger:[]});
+  if(!map.has(key))map.set(key,{id:key,jobCard:key,name:e.person_name||'Unnamed',charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,ledger:[]});
   const c=map.get(key); c.ledger.push(e);
   const amount=Number(e.amount)||0;
-  if(e.entry_type==='charge'||e.entry_type==='sanitationFee')c.charges+=amount;
-  if(e.entry_type==='charge'&&e.is_deferred)c.deferred=(c.deferred||0)+amount;
-  else if(e.entry_type==='payment')c.paid+=amount;
+  if(e.entry_type==='charge'||e.entry_type==='sanitationFee'){
+   c.charges+=amount;
+   if(e.is_deferred)c.deferred+=amount;else c.activeCharges+=amount;
+  }else if(e.entry_type==='payment')c.paid+=amount;
   else if(e.entry_type==='forgive')c.waived+=amount;
   else if(e.entry_type==='return')c.returns+=amount;
  }
- citizens=[...map.values()].map(c=>({...c,deferred:c.deferred||0,balance:c.charges-c.paid-c.waived-c.returns-(c.deferred||0)})).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
+ citizens=[...map.values()].map(c=>({...c,totalCharged:c.charges-Math.min(c.charges,c.waived),balance:c.activeCharges-Math.min(c.activeCharges,c.waived)-c.paid+c.returns})).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
 }
 function render(){
  const q=$('search').value.trim().toLocaleLowerCase();
  const list=citizens.filter(c=>c.name.toLocaleLowerCase().includes(q)||c.id.toLocaleLowerCase().includes(q));
  $('households').textContent=citizens.length.toLocaleString('en-IN');
- $('charged').textContent=fmt(citizens.reduce((s,c)=>s+c.charges,0));
+ $('charged').textContent=fmt(citizens.reduce((s,c)=>s+c.totalCharged,0));
  $('outstanding').textContent=fmt(citizens.reduce((s,c)=>s+Math.max(0,c.balance),0));
  $('count').textContent='Showing '+list.length.toLocaleString('en-IN')+' of '+citizens.length.toLocaleString('en-IN')+' job cards';
  $('citizens').innerHTML=list.map(c=>{
@@ -118,10 +119,26 @@ async function importOldBackup(){
   const backup=JSON.parse(await file.text());
   if(backup.app!=='nsnvc-contribution'||backup.version!==2||!Array.isArray(backup.citizens)||Number(backup.count)!==backup.citizens.length)throw new Error('This is not a supported version 2 nsnvc-contribution backup.');
   const rows=[];
+  const defState=backup.meta&&backup.meta.deferredPeriods||{};
+  const defPeriods=Array.isArray(defState.periods)?defState.periods:[];
+  const defUpdated=defState.updatedAt&&typeof defState.updatedAt==='object'?defState.updatedAt:{};
+  const defOverrides=backup.meta&&backup.meta.deferredPeriodOverrides||{};
+  function deferredFor(c,e){
+   if(e.type!=='charge'&&e.type!=='sanitationFee')return false;
+   const period=String(e.note||'').trim(),raw=defOverrides[c.id]&&typeof defOverrides[c.id]==='object'?defOverrides[c.id]:{};
+   let ov=Object.prototype.hasOwnProperty.call(raw,e.entryId)?raw[e.entryId]:raw[period];
+   if(typeof ov==='boolean')ov={value:ov,at:0};
+   if(!ov||typeof ov!=='object'||!Object.prototype.hasOwnProperty.call(ov,'value'))ov=null;
+   const bulkAt=Number(defUpdated[period])||0,overrideAt=ov?(Number(ov.at)||0):-1;
+   if(ov&&overrideAt>=bulkAt)return Boolean(ov.value);
+   if(period&&defPeriods.includes(period))return true;
+   if(ov)return Boolean(ov.value);
+   return Boolean(e.deferred);
+  }
   for(const c of backup.citizens){
    if(!c.jobCard||!c.name||!Array.isArray(c.ledger))throw new Error('The backup contains a citizen without a job card, name, or ledger.');
    for(const e of c.ledger){
-    rows.push({job_card_number:String(c.jobCard),person_name:String(c.name),entry_type:String(e.type),amount:Number(e.amount),note:String(e.note||''),entry_date:String(e.date||''),legacy_entry_id:String(c.jobCard)+'|'+String(e.entryId),is_deferred:Boolean(e.deferred),source_created_at_ms:Number(e.createdAtMs||0)});
+    rows.push({job_card_number:String(c.jobCard),person_name:String(c.name),entry_type:String(e.type),amount:Number(e.amount),note:String(e.note||''),entry_date:String(e.date||''),legacy_entry_id:String(c.jobCard)+'|'+String(e.entryId),is_deferred:deferredFor(c,e),source_created_at_ms:Number(e.createdAtMs||0)});
    }
   }
   if(rows.length===0)throw new Error('No ledger entries were found in this backup.');

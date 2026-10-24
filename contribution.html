@@ -25,7 +25,7 @@ table{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem;white
 .notice{padding:11px 13px;border:1px solid #e5eaf2;border-radius:10px;background:#f7f9fc;color:#475467;font-size:.88rem;line-height:1.45;margin:0 0 16px;overflow-wrap:anywhere}.notice.err{background:#fff4f2;border-color:#ffd8d2;color:#a12b20}.notice.info{background:#f7f9fc;border-color:#e5eaf2;color:#475467}.hidden{display:none!important}.empty{padding:24px;text-align:center;color:var(--muted);font-size:.9rem}.count{color:var(--muted);font-size:.84rem;margin:0 0 10px}
 .overlay{position:fixed;inset:0;background:rgba(15,23,42,.48);z-index:40;display:flex;align-items:flex-end;justify-content:center;padding:0}.sheet{background:var(--surface);width:100%;max-width:760px;max-height:92vh;overflow-y:auto;border:1px solid var(--line);border-radius:18px 18px 0 0;box-shadow:0 16px 50px rgb(15 23 42 / 18%)}.sheet-head{position:sticky;top:0;background:var(--surface);padding:16px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px;z-index:2}.sheet-head h2{margin:0;font-size:1.05rem}.x{background:#f0f3f8;border:1px solid #e0e6ef;width:36px;height:36px;border-radius:10px;font-size:19px;color:#475467;cursor:pointer}.sheet-body{padding:18px}.balance{padding:20px;text-align:center;border:1px solid var(--line);border-radius:12px;background:var(--surface-soft);margin-bottom:14px}.balance .label{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}.balance .amount{font-size:clamp(30px,5vw,38px);font-weight:800;letter-spacing:-1px;margin:3px 0}.balance .amount.owing{color:var(--due)}.balance .amount.zero{color:var(--paid)}
 .split{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px}.split>div{flex:1;padding:12px;text-align:center;min-width:0}.split>div+div{border-left:1px solid var(--line)}.split .k{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.split .v{font-size:.95rem;font-weight:700;margin-top:3px;overflow-wrap:anywhere}
-.section-title{font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:750;margin:18px 0 8px}.entry{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #edf0f5}.entry:last-child{border-bottom:0}.entry .desc{flex:1;min-width:0}.entry .desc b{display:block;font-size:.88rem;overflow-wrap:anywhere}.entry .desc small{color:var(--muted);font-size:.76rem}.entry .amt{font-size:.9rem;font-weight:750;white-space:nowrap}.entry .amt.payment{color:var(--paid)}
+.section-title{font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:750;margin:18px 0 8px}.entry{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #edf0f5}.entry:last-child{border-bottom:0}.entry .desc{flex:1;min-width:0}.entry .desc b{display:block;font-size:.88rem;overflow-wrap:anywhere}.entry .desc small{color:var(--muted);font-size:.76rem}.entry .amt{font-size:.9rem;font-weight:750;white-space:nowrap}.entry .amt.payment{color:var(--paid)}.entry .entry-actions{display:flex;gap:5px;align-items:center;flex:none}.entry .entry-actions .btn{min-height:32px;padding:5px 8px;font-size:.75rem}.transaction-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}.transaction-actions .btn{min-height:38px;padding:8px 12px}
 .field{margin-bottom:12px}.field label{display:block;font-size:.82rem;font-weight:650;color:#344054;margin-bottom:6px}.field input,.field select{width:100%;min-height:44px;padding:10px 12px;font:inherit;border:1px solid #cfd7e4;border-radius:10px;background:#fff;outline:0}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}footer{text-align:center;color:var(--muted);font-size:.78rem;padding:10px}
 @media(min-width:900px){.overlay{align-items:center;padding:20px}.sheet{border-radius:16px;max-height:88vh}}
 @media(max-width:700px){body{padding:10px}.topbar{padding:15px;gap:14px;border-radius:13px;margin-bottom:12px}.brand h1{font-size:1.3rem}.top-actions{width:100%;justify-content:flex-start;gap:8px}.panel{padding:14px;border-radius:13px}.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}.stat{padding:11px 12px;border-radius:10px}.stat .k{font-size:.74rem;margin-bottom:5px}.stat .v{font-size:1rem}.toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.toolbar input{min-width:0;width:100%;grid-column:1/-1}.filter-control{min-width:0;width:100%}.filter-control select{min-width:0}.citizen{padding:12px 10px;gap:8px}.citizen .bal{font-size:.88rem}.grid2{grid-template-columns:1fr}.split>div{padding:10px 6px}.split .k{font-size:.61rem}.split .v{font-size:.84rem}.sheet-body{padding:14px}}
@@ -53,7 +53,7 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let entries=[], citizens=[], citizenRegistry=[], currentCitizen=null, busy=false, currentPage=0, pageSize=50;
+let entries=[], citizens=[], citizenRegistry=[], currentCitizen=null, busy=false, currentPage=0, pageSize=50, appRole="";
 const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const day=s=>s?new Date(s+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'Date not recorded';
@@ -144,11 +144,15 @@ function openCitizen(id){
   const looksLikePeriod=/^(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)(\s*[-/]?\s*\d{0,4})?$/i.test(noteText)||/^MAY\s*1$/i.test(noteText)||/^MAY1$/i.test(noteText);
   const displayNote=type==='payment'&&looksLikePeriod?'':noteText;
   const transactionDate=String(e.entry_date||'').slice(0,10)>='2026-06-01'?day(e.entry_date):'';
-  return '<div class="entry"><div class="desc"><b>'+esc(label)+(type!=='charge'&&displayNote?' · '+esc(displayNote):'')+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div></div>';
+  return '<div class="entry"><div class="desc"><b>'+esc(label)+(type!=='charge'&&displayNote?' · '+esc(displayNote):'')+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+(appRole==='admin'?'<div class="entry-actions"><button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button></div>':'')+'</div>';
  }).join('');
- $('sheetBody').innerHTML='<div class="balance"><div class="label">Current outstanding balance</div><div class="amount '+(c.balance<=0?'zero':'owing')+'">'+fmt(Math.max(0,c.balance))+'</div><div class="sub" style="margin:0">Full job card: '+esc(c.id)+'</div></div><div class="split"><div><div class="k">Charges incl. fees</div><div class="v">'+fmt(c.charges)+'</div></div><div><div class="k">Payments</div><div class="v" style="color:var(--paid)">'+fmt(c.paid)+'</div></div><div><div class="k">Waivers / returns</div><div class="v">'+fmt(c.waived+c.returns)+'</div></div><div><div class="k">Deferred</div><div class="v">'+fmt(c.deferred)+'</div></div></div><button class="btn" type="button" id="addPaymentBtn">Record payment</button><div class="section-title">Ledger history</div>'+(lines||'<div class="empty">No ledger entries.</div>');
+ $('sheetBody').innerHTML='<div class="balance"><div class="label">Current outstanding balance</div><div class="amount '+(c.balance<=0?'zero':'owing')+'">'+fmt(Math.max(0,c.balance))+'</div><div class="sub" style="margin:0">Full job card: '+esc(c.id)+'</div></div><div class="split"><div><div class="k">Charges incl. fees</div><div class="v">'+fmt(c.charges)+'</div></div><div><div class="k">Payments</div><div class="v" style="color:var(--paid)">'+fmt(c.paid)+'</div></div><div><div class="k">Waivers / returns</div><div class="v">'+fmt(c.waived+c.returns)+'</div></div><div><div class="k">Deferred</div><div class="v">'+fmt(c.deferred)+'</div></div></div><div class="transaction-actions"><button class="btn" type="button" id="addPaymentBtn">Record payment</button>'+(c.balance>0?'<button class="btn" type="button" id="payFullBtn">Pay in full</button>':'')+(appRole==='admin'?'<button class="btn ghost" type="button" id="waiveBtn">Waive</button><button class="btn ghost" type="button" id="returnBtn">Return</button>':'')+'</div><div class="section-title">Ledger history</div>'+(lines||'<div class="empty">No ledger entries.</div>');
  $('overlay').classList.remove('hidden');
  $('addPaymentBtn').addEventListener('click',showPaymentForm);
+ const payFull=$('payFullBtn');if(payFull)payFull.addEventListener('click',payInFull);
+ const waive=$('waiveBtn');if(waive)waive.addEventListener('click',()=>showAdjustmentForm('add-waiver'));
+ const ret=$('returnBtn');if(ret)ret.addEventListener('click',()=>showAdjustmentForm('add-return'));
+ document.querySelectorAll('[data-edit-entry]').forEach(btn=>btn.addEventListener('click',()=>showEditForm(btn.dataset.editEntry)));
 }
 function showPaymentForm(){
  const c=currentCitizen;if(!c)return;
@@ -168,6 +172,63 @@ function showPaymentForm(){
  });
 }
 
+
+function updateEntryInMemory(entry){
+ const index=entries.findIndex(e=>String(e.id)===String(entry.id));
+ if(index>=0)entries[index]=entry;else entries.push(entry);
+ deriveCitizens();render();
+}
+function showEditForm(id){
+ const c=currentCitizen;if(!c)return;
+ const e=c.ledger.find(row=>String(row.id)===String(id));if(!e)return;
+ const isCharge=e.entry_type==="charge"&&String(e.note||"").trim().toLowerCase()!=="return";
+ const typeLabel=e.entry_type==="forgive"?"Waiver":e.entry_type==="payment"?"Payment":e.entry_type==="return"?"Return":e.entry_type==="sanitationFee"?"Sanitation fee":"Charge";
+ $('sheetBody').innerHTML='<div class="notice info">Editing '+esc(typeLabel)+'. Original and revised values will be recorded in the audit log.</div><form id="editEntryForm"><div class="field"><label for="editAmount">Amount (₹)</label><input id="editAmount" type="number" min="0.01" max="10000000" step="0.01" required value="'+esc(e.amount)+'"></div><div class="grid2"><div class="field"><label for="editDate">Transaction date</label><input id="editDate" type="date" required value="'+esc(String(e.entry_date||new Date().toISOString().slice(0,10)).slice(0,10))+'"></div><div class="field"><label for="editNote">Note</label><input id="editNote" maxlength="200" value="'+esc(e.note||"")+'" placeholder="Optional note"></div></div>'+(isCharge?'<div class="field"><label for="editPeriod">Charge month</label><input id="editPeriod" type="month" required value="'+esc(String(e.charge_period||"").slice(0,7))+'"></div><div class="field"><label><input id="editDeferred" type="checkbox" '+(e.is_deferred?'checked':'')+' style="width:auto;min-height:0;margin-right:8px"> Deferred charge</label></div>':'')+'<button class="btn" id="saveEdit" type="submit">Save changes</button> <button class="btn ghost" id="cancelEdit" type="button">Cancel</button><div id="editError"></div></form>';
+ $('cancelEdit').addEventListener('click',()=>openCitizen(c.id));
+ $('editEntryForm').addEventListener('submit',async ev=>{
+  ev.preventDefault();if(busy)return;
+  const payload={action:"edit-ledger-entry",id:e.id,amount:Number($('editAmount').value),entry_date:$('editDate').value,note:$('editNote').value};
+  if(isCharge){const month=$('editPeriod').value;payload.charge_period=month?month+'-01':'';payload.is_deferred=$('editDeferred').checked;}
+  if(!Number.isFinite(payload.amount)||payload.amount<=0){$('editError').innerHTML='<div class="notice err">Enter an amount greater than zero.</div>';return;}
+  busy=true;$('saveEdit').disabled=true;$('saveEdit').textContent='Saving…';
+  try{
+   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:payload});
+   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not edit transaction.');
+   updateEntryInMemory(data.entry);openCitizen(c.id);status('Transaction updated. Original and revised values were logged.');
+  }catch(err){$('editError').innerHTML='<div class="notice err">'+esc(err.message||'Could not edit transaction.')+'</div>';}
+  finally{busy=false;if($('saveEdit')){$('saveEdit').disabled=false;$('saveEdit').textContent='Save changes';}}
+ });
+}
+function showAdjustmentForm(action){
+ const c=currentCitizen;if(!c)return;
+ const isWaiver=action==="add-waiver",title=isWaiver?"Waive contribution":"Return payment";
+ $('sheetBody').innerHTML='<div class="notice info">'+(isWaiver?'A waiver reduces the outstanding balance and is recorded as a separate ledger entry.':'A return records money returned to the household and increases the outstanding balance.')+'</div><form id="adjustmentForm"><div class="field"><label for="adjustAmount">Amount (₹)</label><input id="adjustAmount" type="number" min="0.01" max="10000000" step="0.01" required inputmode="decimal"></div><div class="grid2"><div class="field"><label for="adjustDate">Date</label><input id="adjustDate" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div><div class="field"><label for="adjustNote">Note</label><input id="adjustNote" maxlength="200" value="'+(isWaiver?'Waiver':'Return')+'"></div></div><button class="btn" id="saveAdjustment" type="submit">'+title+'</button> <button class="btn ghost" id="cancelAdjustment" type="button">Cancel</button><div id="adjustmentError"></div></form>';
+ $('cancelAdjustment').addEventListener('click',()=>openCitizen(c.id));
+ $('adjustmentForm').addEventListener('submit',async ev=>{
+  ev.preventDefault();if(busy)return;
+  const amount=Number($('adjustAmount').value),date=$('adjustDate').value,note=$('adjustNote').value;
+  if(!Number.isFinite(amount)||amount<=0){$('adjustmentError').innerHTML='<div class="notice err">Enter an amount greater than zero.</div>';return;}
+  busy=true;$('saveAdjustment').disabled=true;$('saveAdjustment').textContent='Saving…';
+  try{
+   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action,job_card_number:c.id,amount,entry_date:date,note}});
+   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save adjustment.');
+   updateEntryInMemory(data.entry);openCitizen(c.id);status((isWaiver?'Waiver':'Return')+' recorded and ledger recalculated.');
+  }catch(err){$('adjustmentError').innerHTML='<div class="notice err">'+esc(err.message||'Could not save adjustment.')+'</div>';}
+  finally{busy=false;if($('saveAdjustment')){$('saveAdjustment').disabled=false;$('saveAdjustment').textContent=title;}}
+ });
+}
+async function payInFull(){
+ const c=currentCitizen;if(!c||busy||c.balance<=0)return;
+ if(!window.confirm('Record a payment of '+fmt(c.balance)+' to settle this job card?'))return;
+ busy=true;
+ try{
+  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:"pay-in-full",job_card_number:c.id,entry_date:new Date().toISOString().slice(0,10)}});
+  if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not record full payment.');
+  updateEntryInMemory(data.entry);openCitizen(c.id);status('Full payment recorded. Ledger recalculated.');
+ }catch(err){status(err.message||'Could not record full payment.','err');}
+ finally{busy=false;}
+}
+
 async function load(){
  if(busy)return;
  $('refreshBtn').disabled=true;
@@ -179,7 +240,7 @@ async function load(){
   status('Loading contribution ledger…');
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
-  entries=data.entries||[];citizenRegistry=data.citizens||[];deriveCitizens();
+  appRole=String(data.role||"");entries=data.entries||[];citizenRegistry=data.citizens||[];deriveCitizens();
   $('app').classList.remove('hidden');status('Signed in and approved. '+entries.length.toLocaleString('en-IN')+' ledger entries loaded.');
   render();
  }catch(err){status(err.message||'Could not load contribution data.','err');}

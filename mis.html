@@ -183,15 +183,15 @@ function renderTable(){
   const countCell=document.createElement('td');const countButton=document.createElement('button');countButton.type='button';countButton.className='count-link';countButton.setAttribute('aria-expanded',String(expandedCards.has(group.key)));countButton.setAttribute('aria-label',(expandedCards.has(group.key)?'Collapse ':'Expand ')+group.applicants.length+' applicants for job card '+group.key);countButton.textContent=String(group.applicants.length);countButton.addEventListener('click',toggleGroup);countCell.appendChild(countButton);tr.appendChild(countCell);tbody.appendChild(tr);
   if(expandedCards.has(group.key)){
    const detailTr=document.createElement('tr');detailTr.className='applicant-detail';const detailTd=document.createElement('td');detailTd.colSpan=4;detailTd.style.padding='12px 18px 16px 42px';detailTd.style.background='#f8fafc';
-   const subtable=document.createElement('table');subtable.style.width='100%';subtable.style.maxWidth='760px';
+   const subtable=document.createElement('table');subtable.style.width='100%';subtable.style.maxWidth='none';subtable.style.tableLayout='fixed';
    const subhead=document.createElement('thead'),subheadRow=document.createElement('tr');
-   ['Name of Applicant','Applicant No.','Select'].forEach(label=>{const th=document.createElement('th');th.textContent=label;th.style.position='static';th.style.background='#e2e8f0';if(label==='Select'){th.style.textAlign='center';th.style.minWidth='76px'}subheadRow.appendChild(th)});subhead.appendChild(subheadRow);subtable.appendChild(subhead);
+   ['Name of Applicant','Applicant No.','Select'].forEach((label,index)=>{const th=document.createElement('th');th.textContent=label;th.style.position='static';th.style.background='#e2e8f0';if(index===0)th.style.width='56%';if(index===1)th.style.width='32%';if(index===2){th.style.width='12%';th.style.textAlign='center';th.style.minWidth='52px'}subheadRow.appendChild(th)});subhead.appendChild(subheadRow);subtable.appendChild(subhead);
    const subbody=document.createElement('tbody');
    group.applicants.forEach((applicant)=>{const ar=document.createElement('tr');
     const applicantId=applicant.selectionKey;
-    const name=document.createElement('td');name.textContent=applicant.name||'—';ar.appendChild(name);
-    const no=document.createElement('td');no.textContent=applicant.number||'—';ar.appendChild(no);
-    const selectCell=document.createElement('td');selectCell.style.minWidth='76px';selectCell.style.textAlign='center';
+    const name=document.createElement('td');name.textContent=applicant.name||'—';name.style.width='56%';name.style.minWidth='0';name.style.overflowWrap='anywhere';ar.appendChild(name);
+    const no=document.createElement('td');no.textContent=applicant.number||'—';no.style.width='32%';no.style.minWidth='0';no.style.overflowWrap='anywhere';ar.appendChild(no);
+    const selectCell=document.createElement('td');selectCell.style.width='12%';selectCell.style.minWidth='52px';selectCell.style.textAlign='center';
     const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.style.width='18px';checkbox.style.minHeight='18px';checkbox.style.padding='0';checkbox.style.margin='2px 0';checkbox.checked=selectedApplicants.get(group.key)===applicantId;checkbox.setAttribute('aria-label','Select '+(applicant.name||'applicant')+' for job card '+group.key);
     checkbox.addEventListener('change',async()=>{
      const shouldSelect=checkbox.checked;checkbox.disabled=true;

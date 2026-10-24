@@ -225,12 +225,15 @@
       fillDownHouseholdFields(rows, hi);
       const h = rows[hi].map(key), ix = (...n) => h.findIndex(v => n.includes(v));
       const ji = ix('job card number'), ni = ix('name of applicant'), hh = ix('head of household'), ri = ix('remarks','reasons if job card not issued any other remarks');
-      const kept = rows.slice(0, hi + 1), removed = [], review = [], sourceApplicantCounts = new Map();
+      const kept = [rows[hi]], removed = rows.slice(0, hi).map(row => {
+        const text = row.map(v => String(v || '').trim()).filter(Boolean).join(' · ');
+        return 'Report heading/metadata before applicant table: ' + (text || '(blank row)');
+      }), review = [], sourceApplicantCounts = new Map();
       for (const row of rows.slice(hi + 1)) {
         const text = row.map(v => String(v || '').trim()).filter(Boolean).join(' · ');
         const jc = String(row[ji] || '').trim(), name = String(row[ni] || '').trim();
         const valid = jc.startsWith('MZ-') && jc.includes('/') && /^MZ-[A-Z0-9-]+\/\d+$/i.test(jc);
-        if (!text || /^(total|villages|report completed)/i.test(text) || text.startsWith('# End of Report')) { removed.push('Non-applicant heading/total: ' + (text || '(blank row)')); continue; }
+        if (!text || /^(total|villages|report completed|no\.?\s*of\s*registrants|total\s+no\.?\s+of\s+registered\s+applicants|#\s*end\s+of\s+report|excel\s+view)\b/i.test(text)) { removed.push('Non-applicant heading/total: ' + (text || '(blank row)')); continue; }
         if (!valid && !name) { removed.push('No job card or applicant name: ' + text); continue; }
         if (!valid || !name) { review.push((!valid ? 'Missing/invalid job card' : 'Missing applicant name') + ': ' + text); continue; }
         // Assign database identity against the complete source register BEFORE filtering.

@@ -55,6 +55,7 @@ let entries=[], imports=[], citizens=[], citizenRegistry=[], currentCitizen=null
 const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const day=s=>s?new Date(s+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'Date not recorded';
+const formatPeriod=s=>{const m=String(s||'').match(/^(\\d{4})-(\\d{2})/);if(!m)return s||'Monthly charge';const months=['January','February','March','April','May','June','July','August','September','October','November','December'];const n=Number(m[2]);return n>=1&&n<=12?months[n-1]+' '+m[1]:(s||'Monthly charge')};
 function status(message,type='info'){ $('status').className='notice '+(type==='err'?'err':'info');$('status').textContent=message; }
 function deriveCitizens(){
  const map=new Map();
@@ -93,7 +94,7 @@ function openCitizen(id){
  const sorted=[...c.ledger].sort((a,b)=>(a.entry_date||'').localeCompare(b.entry_date||'')||(a.created_at||'').localeCompare(b.created_at||''));
  const lines=sorted.map(e=>{
   const type=e.entry_type, amount=Number(e.amount)||0, isPayment=type==='payment';
-  const label=type==='charge'?'Charge · '+(e.charge_period?e.charge_period.slice(0,7):'Monthly charge')+(e.is_deferred?' · Deferred':''):type==='sanitationFee'?'Sanitation fee':type==='payment'?'Payment':type==='forgive'?'Waiver':type==='return'?'Return':type;
+  const label=type==='charge'?'Charge · '+(e.charge_period?formatPeriod(e.charge_period):'Monthly charge')+(e.is_deferred?' · Deferred':''):type==='sanitationFee'?'Sanitation fee':type==='payment'?'Payment':type==='forgive'?'Waiver':type==='return'?'Return':type;
   return '<div class="entry"><div class="desc"><b>'+esc(label)+(e.note?' · '+esc(e.note):'')+'</b><small>'+esc(day(e.entry_date))+'</small></div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div></div>';
  }).join('');
  $('sheetBody').innerHTML='<div class="balance"><div class="label">Current outstanding balance</div><div class="amount '+(c.balance<=0?'zero':'owing')+'">'+fmt(Math.max(0,c.balance))+'</div><div class="sub" style="margin:0">Full job card: '+esc(c.id)+'</div></div><div class="split"><div><div class="k">Charges incl. fees</div><div class="v">'+fmt(c.charges)+'</div></div><div><div class="k">Payments</div><div class="v" style="color:var(--paid)">'+fmt(c.paid)+'</div></div><div><div class="k">Waivers / returns</div><div class="v">'+fmt(c.waived+c.returns)+'</div></div><div><div class="k">Deferred</div><div class="v">'+fmt(c.deferred)+'</div></div></div><button class="btn" type="button" id="addPaymentBtn">Record payment</button><div class="section-title">Ledger history</div>'+(lines||'<div class="empty">No ledger entries.</div>');

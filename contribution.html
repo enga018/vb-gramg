@@ -119,9 +119,17 @@ function openCitizen(id){
  currentCitizen=citizens.find(c=>c.id===id);if(!currentCitizen)return;
  const c=currentCitizen;
  $('sheetTitle').textContent=c.name;
- const sorted=[...c.ledger].sort((a,b)=>(a.entry_date||'').localeCompare(b.entry_date||'')||(a.created_at||'').localeCompare(b.created_at||''));
- const periodChargeCounts=new Map(),periodChargeIndexes=new Map();
- for(const e of sorted){if(e.entry_type==='charge'&&e.charge_period)periodChargeCounts.set(e.charge_period,(periodChargeCounts.get(e.charge_period)||0)+1);}
+ const chronological=[...c.ledger].sort((a,b)=>(a.entry_date||'').localeCompare(b.entry_date||'')||(a.created_at||'').localeCompare(b.created_at||''));
+ const periodChargeCounts=new Map(),periodChargeIndexes=new Map(),chargeOccurrenceIndex=new Map();
+ for(const e of chronological){
+  if(e.entry_type==='charge'&&e.charge_period){
+   periodChargeCounts.set(e.charge_period,(periodChargeCounts.get(e.charge_period)||0)+1);
+   const next=(periodChargeIndexes.get(e.charge_period)||0)+1;
+   periodChargeIndexes.set(e.charge_period,next);
+   chargeOccurrenceIndex.set(e,next);
+  }
+ }
+ const sorted=[...chronological].reverse();
  const lines=sorted.map(e=>{
   const type=e.entry_type, amount=Number(e.amount)||0, isPayment=type==='payment';
   let chargeTag=String(e.note||'').trim()|| (e.charge_period?formatPeriod(e.charge_period):'Monthly charge');
@@ -132,9 +140,7 @@ function openCitizen(id){
   }
   let periodLabel=chargeTag;
   if(type==='charge'&&e.charge_period&&(periodChargeCounts.get(e.charge_period)||0)>1&&!/\(\d+\)$/.test(chargeTag)){
-   const index=(periodChargeIndexes.get(e.charge_period)||0)+1;periodChargeIndexes.set(e.charge_period,index);periodLabel+='('+index+')';
-  }else if(type==='charge'&&e.charge_period&&(periodChargeCounts.get(e.charge_period)||0)>1){
-   periodChargeIndexes.set(e.charge_period,(periodChargeIndexes.get(e.charge_period)||0)+1);
+   periodLabel+='('+chargeOccurrenceIndex.get(e)+')';
   }
   const label=type==='charge'?'Charges • '+periodLabel+(e.is_deferred?' • Deferred':''):type==='sanitationFee'?'Sanitation fee':type==='payment'?'Payment':type==='forgive'?'Waiver':type==='return'?'Return':type;
   const noteText=String(e.note||'').trim();

@@ -287,12 +287,11 @@ function renderTable(){
  const thead=$('mis-table').querySelector('thead'),tbody=$('mis-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
  const isMobile=window.matchMedia('(max-width: 700px)').matches;
  const hr=document.createElement('tr');
- (isMobile?['Sl. No.','Job Card Details']:['Sl. No.','Job Card Number','Head of Household','Applicants']).forEach(label=>{const th=document.createElement('th');th.textContent=label;hr.appendChild(th)});
+ (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Applicants']).forEach(label=>{const th=document.createElement('th');th.textContent=label;hr.appendChild(th)});
  thead.appendChild(hr);
  shown.forEach((group,visibleIndex)=>{
   const hasSelection=selectedApplicants.has(group.key);
   const tr=document.createElement('tr');tr.className='jobcard-row '+(hasSelection?'has-selection':'no-selection');
-  const serialCell=document.createElement('td');serialCell.textContent=String(start+visibleIndex+1);if(isMobile)serialCell.style.verticalAlign='top';tr.appendChild(serialCell);
   const toggleGroup=()=>{if(expandedCards.has(group.key)){expandedCards.clear();scrollExpandedCardKey=null}else{expandedCards.clear();expandedCards.add(group.key);scrollExpandedCardKey=isMobile?group.key:null}renderTable()};
   tr.tabIndex=0;
   tr.setAttribute('aria-expanded',String(expandedCards.has(group.key)));
@@ -314,7 +313,7 @@ function renderTable(){
   }
   tbody.appendChild(tr);
   if(expandedCards.has(group.key)){
-   const detailTr=document.createElement('tr');detailTr.className='applicant-detail';const detailTd=document.createElement('td');detailTd.colSpan=isMobile?2:4;detailTd.style.padding='12px 18px 16px 42px';detailTd.style.background='#f8fafc';
+   const detailTr=document.createElement('tr');detailTr.className='applicant-detail';const detailTd=document.createElement('td');detailTd.colSpan=isMobile?1:3;detailTd.style.padding='12px 14px 16px 14px';detailTd.style.background='#f8fafc';
    const subtable=document.createElement('table');subtable.style.width='100%';subtable.style.maxWidth='none';subtable.style.tableLayout='fixed';
    const subhead=document.createElement('thead'),subheadRow=document.createElement('tr');
    ['Name of Applicant','Applicant No.',''].forEach((label,index)=>{const th=document.createElement('th');th.textContent=label;th.style.position='static';th.style.background='#e2e8f0';if(index===0)th.style.width='56%';if(index===1)th.style.width='32%';if(index===2){th.style.width='12%';th.style.textAlign='center';th.style.minWidth='52px'}subheadRow.appendChild(th)});subhead.appendChild(subheadRow);subtable.appendChild(subhead);

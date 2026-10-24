@@ -102,6 +102,7 @@
     let importedFileName = 'Pasted MIS';
     let pendingImportId = null;
     let pendingComparison = null;
+    let uncertainRowsCount = 0;
 
     function setStatus(message, type) {
       statusBox.textContent = message;
@@ -290,14 +291,22 @@
       importButton.disabled = true; pastedTableLoaded = false; importedRows = [];
       previewWrap.classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
       pendingImportId = null; pendingComparison = null;
-      let rows;
-      try { rows = normalizeMisTable(parsePastedTable(tableInput.value)); } catch (error) { setStatus(error.message || String(error), 'error'); return; }
-      if (!rows.length) { setStatus('Paste the copied MIS table first, then select Load pasted table.', 'error'); return; }
-      if (rows.length > 100000) { setStatus('The pasted MIS contains more than 100,000 rows. The import limit is 100,000 rows.', 'error'); return; }
-      if (!rows[0].some(cell => String(cell || '').trim())) { setStatus('The pasted table has no header row. Copy the MIS table including its column headings.', 'error'); return; }
-      importedRows = rows; pastedTableLoaded = true; renderRows(importedRows);
-      importButton.disabled = !currentUser || currentRole !== 'admin';
-      setStatus('Converted to the database layout: ' + (importedRows.length - 1) + ' applicants plus the header. Review the named columns and generated applicant IDs, then select Compare pasted MIS. Nothing has been sent to Supabase yet.', 'success');
+      try {
+        const filtered = filterPastedRows(parsePastedTable(tableInput.value), document.getElementById('exclude-deleted').checked);
+        const rows = normalizeMisTable(filtered.rows);
+        importedRows = rows; pastedTableLoaded = true; renderRows(rows);
+        document.getElementById('filter-counts').textContent = 'Kept: ' + (rows.length - 1) + ' · Excluded: ' + filtered.removed.length + ' · Manual review: ' + filtered.review.length;
+        const removedList = document.getElementById('filter-removed'); removedList.replaceChildren();
+        filtered.removed.slice(0,500).forEach(v => { const li=document.createElement('li'); li.textContent=v; removedList.appendChild(li); });
+        const reviewList = document.getElementById('filter-review'); reviewList.replaceChildren();
+        filtered.review.slice(0,500).forEach(v => { const li=document.createElement('li'); li.textContent=v; reviewList.appendChild(li); });
+        document.getElementById('review-confirm-wrap').classList.toggle('hidden', !filtered.review.length);
+        document.getElementById('review-confirm').checked = false;
+        document.getElementById('filter-summary').classList.remove('hidden');
+        uncertainRowsCount = filtered.review.length;
+        importButton.disabled = !currentUser || currentRole !== 'admin' || uncertainRowsCount > 0;
+        setStatus('Prepared locally. Original pasted text is unchanged; nothing has been sent to Supabase.', 'success');
+      } catch (error) { setStatus(error.message || String(error), 'error'); }
     });
     tableInput.addEventListener('input', function () {
       pastedTableLoaded = false; importedRows = []; importButton.disabled = true;

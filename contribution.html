@@ -174,7 +174,7 @@ async function load(){
  }catch(err){status(err.message||'Could not load contribution data.','err');}
  finally{$('refreshBtn').disabled=false;}
 }
-$('citizens').addEventListener('click',e=>{const btn=e.target.closest('[data-card]');if(btn)openCitizen(btn.dataset.card);});
+
 $('search').addEventListener('input',()=>{currentPage=0;render()});
 $('statusFilter').addEventListener('change',()=>{currentPage=0;render()});
 $('clearSearch').addEventListener('click',()=>{$('search').value='';$('statusFilter').value='all';currentPage=0;render();$('search').focus();});

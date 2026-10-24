@@ -52,11 +52,13 @@
     <div class="paste-box">
       <label class="file-label" for="table-input">Paste table copied from the MIS page</label>
       <textarea id="table-input" rows="8" placeholder="Copy the MIS table, then paste it here…"></textarea>
-      <p class="hint">Paste the government Registration Application Register or the existing 7-column MIS export. The importer converts it to the database layout: Sl. No., Job Card Number, JC No., Head of HouseHold, Name of Applicant, Applicant No., and Unique ID. Review the converted preview before comparing.</p>
-      <button type="button" id="load-table-button">Load pasted table</button>
+      <p class="hint">The original pasted text stays here. Filtering and conversion happen locally before anything is sent to Supabase.</p>
+      <label style="display:block;margin:12px 0;font-weight:600"><input id="exclude-deleted" type="checkbox" checked> Exclude applicants marked deleted (asterisk in household/applicant name or deletion remarks)</label>
+      <button type="button" id="load-table-button">Filter and prepare table</button>
     </div>
     <button type="button" id="import-button" disabled>Compare pasted MIS</button>
     <div id="status" class="status" aria-live="polite">Checking administrator access…</div>
+    <section id="filter-summary" class="diff-panel hidden"><h2>Filtering summary</h2><p id="filter-counts"></p><h3>Rows excluded and reasons</h3><ul id="filter-removed" class="diff-list"></ul><h3>Rows requiring manual review</h3><ul id="filter-review" class="diff-list"></ul><label id="review-confirm-wrap" class="hidden"><input id="review-confirm" type="checkbox"> I reviewed these uncertain rows and agree to leave them out of this import.</label></section>
     <section id="diff-panel" class="diff-panel hidden" aria-live="polite">
       <h2 id="diff-title">Review MIS changes</h2>
       <p id="diff-intro">Compare the uploaded file with the current active MIS before applying changes.</p>

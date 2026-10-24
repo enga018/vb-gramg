@@ -231,9 +231,13 @@
         if (!text || /^(total|villages|report completed)/i.test(text) || text.startsWith('# End of Report')) { removed.push('Non-applicant heading/total: ' + (text || '(blank row)')); continue; }
         if (!valid && !name) { removed.push('No job card or applicant name: ' + text); continue; }
         if (!valid || !name) { review.push((!valid ? 'Missing/invalid job card' : 'Missing applicant name') + ': ' + text); continue; }
+        // Assign database identity against the complete source register BEFORE filtering.
+        // Deleted applicants still consume their original Applicant No. so later applicants'
+        // IDs remain aligned with the government register.
         const sourceApplicantNo = (sourceApplicantCounts.get(jc) || 0) + 1;
         sourceApplicantCounts.set(jc, sourceApplicantNo);
-        row.__sourceApplicantNo = sourceApplicantNo;
+        row.__sourceApplicantNo = String(sourceApplicantNo);
+        row.__sourceUniqueId = jc + '/' + sourceApplicantNo;
         const remarks = String(ri >= 0 ? row[ri] || '' : '');
         const flagged = String(hh >= 0 ? row[hh] || '' : '').includes('*') || name.includes('*') || remarks.toLowerCase().includes('deleted');
         if (excludeFlagged && flagged) { removed.push('Marked deleted: ' + jc + ' · ' + name); continue; }
@@ -305,7 +309,7 @@
         const jcNo = match ? match[1] : '';
         applicantNo = String(row.__sourceApplicantNo || (applicantCounts.get(jobCard) || 0) + 1);
         applicantCounts.set(jobCard, Number(applicantNo));
-        const uniqueId = jobCard + '/' + applicantNo;
+        const uniqueId = String(row.__sourceUniqueId || (jobCard + '/' + applicantNo));
         result.push([
           slIndex >= 0 && String(row[slIndex] || '').trim() ? String(row[slIndex]).trim() : String(serial),
           jobCard, jcNo, household, applicantName, applicantNo, uniqueId

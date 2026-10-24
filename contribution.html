@@ -43,13 +43,14 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let entries=[], imports=[], citizens=[], currentCitizen=null, busy=false, currentRole='user';
+let entries=[], imports=[], citizens=[], citizenRegistry=[], currentCitizen=null, busy=false, currentRole='user';
 const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const day=s=>s?new Date(s+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'Date not recorded';
 function status(message,type='info'){ $('status').className='notice '+(type==='err'?'err':'info');$('status').textContent=message; }
 function deriveCitizens(){
  const map=new Map();
+ for(const r of citizenRegistry){const key=String(r.job_card_number||'').trim();if(!key)continue;map.set(key,{id:key,jobCard:key,name:r.person_name||'Unnamed',charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,ledger:[]});}
  for(const e of entries){
   const key=String(e.job_card_number||'').trim(); if(!key)continue;
   if(!map.has(key))map.set(key,{id:key,jobCard:key,name:e.person_name||'Unnamed',charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,ledger:[]});
@@ -118,6 +119,7 @@ async function importOldBackup(){
   if(currentRole!=='admin')throw new Error('Only an approved administrator can import a backup.');
   const backup=JSON.parse(await file.text());
   if(backup.app!=='nsnvc-contribution'||backup.version!==2||!Array.isArray(backup.citizens)||Number(backup.count)!==backup.citizens.length)throw new Error('This is not a supported version 2 nsnvc-contribution backup.');
+  const citizenRows=backup.citizens.map(c=>({job_card_number:String(c.jobCard),person_name:String(c.name),card_no:String(c.cardNo||''),phone:String(c.phone||''),legacy_citizen_id:String(c.id),source_total_charged:Number(c.totalCharged)||0,source_total_paid:Number(c.totalPaid)||0,source_balance:Number(c.balance)||0,source_deferred_total:Number(c.deferredTotal)||0,source_record:{id:c.id,cardNo:c.cardNo||'',name:c.name,phone:c.phone||'',totalCharged:c.totalCharged,totalPaid:c.totalPaid,balance:c.balance,deferredTotal:c.deferredTotal,pendingPayments:c.pendingPayments||[]}}));
   const rows=[];
   const defState=backup.meta&&backup.meta.deferredPeriods||{};
   const defPeriods=Array.isArray(defState.periods)?defState.periods:[];
@@ -144,7 +146,15 @@ async function importOldBackup(){
   if(rows.length===0)throw new Error('No ledger entries were found in this backup.');
   const batchSize=200,batches=[];
   for(let i=0;i<rows.length;i+=batchSize)batches.push(rows.slice(i,i+batchSize));
-  let already=0,toImport=0;
+  const citizenBatchSize=200,citizenBatches=[];
+  for(let i=0;i<citizenRows.length;i+=citizenBatchSize)citizenBatches.push(citizenRows.slice(i,i+citizenBatchSize));
+  let already=0,toImport=0,citizensAlready=0,citizensToImport=0;
+  for(let i=0;i<citizenBatches.length;i++){
+   $('backupProgress').textContent='Validation pass: checking citizen batch '+(i+1)+' of '+citizenBatches.length+'…';
+   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'validate-backup-citizens',citizens:citizenBatches[i]}});
+   if(error||!data||data.error||data.valid!==true)throw new Error((data&&data.error)||(error&&error.message)||'Citizen validation failed at batch '+(i+1)+'.');
+   citizensAlready+=Number(data.alreadyImported)||0;citizensToImport+=Number(data.toImport)||0;
+  }
   for(let i=0;i<batches.length;i++){
    $('backupProgress').textContent='Validation pass: checking batch '+(i+1)+' of '+batches.length+' ('+rows.length.toLocaleString('en-IN')+' ledger entries total)…';
    const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'validate-backup-batch',entries:batches[i]}});
@@ -152,13 +162,20 @@ async function importOldBackup(){
    already+=Number(data.alreadyImported)||0;toImport+=Number(data.toImport)||0;
   }
   if(!confirm('Validation passed for '+rows.length.toLocaleString('en-IN')+' ledger entries across '+backup.citizens.length+' job cards.\n\nAlready present or matching January charges to skip: '+already.toLocaleString('en-IN')+'.\nNew entries to import: '+toImport.toLocaleString('en-IN')+'.\n\nProceed with importing into VBGRAMG Supabase?'))throw new Error('Import cancelled. No new rows were written.');
-  let inserted=0,skipped=0;
-  $('importBackupBtn').textContent='Importing…';
+  let inserted=0,skipped=0,citizensInserted=0,citizensSkipped=0;
+  $('importBackupBtn').textContent='Importing ledger…';
   for(let i=0;i<batches.length;i++){
    $('backupProgress').textContent='Import pass: batch '+(i+1)+' of '+batches.length+'… Imported '+inserted.toLocaleString('en-IN')+' new entries so far.';
    const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'import-backup-batch',entries:batches[i]}});
    if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Import failed at batch '+(i+1)+'. You can retry safely; previously imported rows will be skipped.');
    inserted+=Number(data.imported)||0;skipped+=Number(data.skipped)||0;
+  }
+  $('importBackupBtn').textContent='Importing citizens…';
+  for(let i=0;i<citizenBatches.length;i++){
+   $('backupProgress').textContent='Import pass: citizen batch '+(i+1)+' of '+citizenBatches.length+'… Imported '+citizensInserted.toLocaleString('en-IN')+' citizen records so far.';
+   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'import-backup-citizens',citizens:citizenBatches[i]}});
+   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Citizen import failed at batch '+(i+1)+'. Retry safely; existing records will be skipped.');
+   citizensInserted+=Number(data.imported)||0;citizensSkipped+=Number(data.skipped)||0;
   }
   let metadataWarning='';
   try{
@@ -167,7 +184,7 @@ async function importOldBackup(){
    const {data:metaData,error:metaError}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'save-backup-metadata',source_filename:file.name,source_sha256:sourceSha,exported_at:backup.exportedAt,citizen_count:backup.citizens.length,ledger_count:rows.length,source_meta:backup.meta||{}}});
    if(metaError||!metaData||metaData.error)metadataWarning=' Ledger rows are imported, but the backup metadata archive failed: '+((metaData&&metaData.error)||(metaError&&metaError.message)||'unknown error')+'. Re-select the same file and retry; duplicate rows will be skipped.';
   }catch(metaErr){metadataWarning=' Ledger rows are imported, but the raw backup metadata could not be archived: '+(metaErr.message||'unknown error')+'.';}
-  $('backupProgress').textContent='Import complete. '+inserted.toLocaleString('en-IN')+' new ledger entries imported; '+skipped.toLocaleString('en-IN')+' entries skipped because they were already present or matched January charges.'+metadataWarning+' Refreshing ledger…';
+  $('backupProgress').textContent='Import complete. '+inserted.toLocaleString('en-IN')+' new ledger entries and '+citizensInserted.toLocaleString('en-IN')+' citizen records imported; '+skipped.toLocaleString('en-IN')+' ledger entries and '+citizensSkipped.toLocaleString('en-IN')+' citizen records skipped as already present.'+metadataWarning+' Refreshing ledger…';
   $('backupProgress').className='notice info';
   $('backupFile').value='';
  }catch(err){$('backupProgress').textContent=err.message||'Import failed.';$('backupProgress').className='notice err';}
@@ -186,7 +203,7 @@ async function load(){
   status('Loading contribution ledger…');
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
-  entries=data.entries||[];imports=data.imports||[];currentRole=(data.role||access.role||'user');$('backupPanel').classList.toggle('hidden',currentRole!=='admin');deriveCitizens();
+  entries=data.entries||[];imports=data.imports||[];citizenRegistry=data.citizens||[];currentRole=(data.role||access.role||'user');$('backupPanel').classList.toggle('hidden',currentRole!=='admin');deriveCitizens();
   const jan=imports.find(i=>String(i.charge_period||'').startsWith('2026-01'));
   $('importNote').textContent=jan?'January 2026 import: '+Number(jan.row_count).toLocaleString('en-IN')+' charges · '+fmt(jan.total_amount):'No completed January import metadata found.';
   $('importNote').classList.remove('hidden');

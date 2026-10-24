@@ -286,6 +286,8 @@
       importButton.disabled = true; sourceInput.disabled = true;
       let importId = null;
       document.getElementById('diff-panel').classList.add('hidden');
+      document.getElementById('diff-title').textContent = 'Review MIS changes';
+      document.querySelector('.diff-actions').classList.remove('hidden');
       try {
         setStatus('Uploading to a temporary staging area. The current active MIS will remain unchanged…', '');
         const started = await invokeImport({ action: 'begin', filename: sourceInput.files[0]?.name || importedFileName + '.xlsx', rowCount: importedRows.length });

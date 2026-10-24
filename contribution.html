@@ -127,18 +127,18 @@ function openCitizen(id){
   let chargeTag=String(e.note||'').trim()|| (e.charge_period?formatPeriod(e.charge_period):'Monthly charge');
   // Display concise charge tags and preserve an existing duplicate number.
   if(type==='charge'){
-   chargeTag=chargeTag.replace(/^MAY26(?=\\(\\d+\\)$)/i,'MAY').replace(/^MAY26$/i,'MAY');
+   chargeTag=chargeTag.replace(/^MAY26(?=\(\d+\)$)/i,'MAY').replace(/^MAY26$/i,'MAY');
    chargeTag=chargeTag.replace(/^JAN-26$/i,'JAN26').replace(/^FEB-26$/i,'FEB26').replace(/^MAR-26$/i,'MAR26').replace(/^APR-26$/i,'APR26').replace(/^JUN-26$/i,'JUN26').replace(/^JUL-26$/i,'JUL26').replace(/^AUG-26$/i,'AUG26').replace(/^SEP-26$/i,'SEP26').replace(/^OCT-26$/i,'OCT26').replace(/^NOV-26$/i,'NOV26').replace(/^DEC-26$/i,'DEC26');
   }
   let periodLabel=chargeTag;
-  if(type==='charge'&&e.charge_period&&(periodChargeCounts.get(e.charge_period)||0)>1&&!/\\(\\d+\\)$/.test(chargeTag)){
+  if(type==='charge'&&e.charge_period&&(periodChargeCounts.get(e.charge_period)||0)>1&&!/\(\d+\)$/.test(chargeTag)){
    const index=(periodChargeIndexes.get(e.charge_period)||0)+1;periodChargeIndexes.set(e.charge_period,index);periodLabel+='('+index+')';
   }else if(type==='charge'&&e.charge_period&&(periodChargeCounts.get(e.charge_period)||0)>1){
    periodChargeIndexes.set(e.charge_period,(periodChargeIndexes.get(e.charge_period)||0)+1);
   }
   const label=type==='charge'?'Charges • '+periodLabel+(e.is_deferred?' • Deferred':''):type==='sanitationFee'?'Sanitation fee':type==='payment'?'Payment':type==='forgive'?'Waiver':type==='return'?'Return':type;
   const noteText=String(e.note||'').trim();
-  const looksLikePeriod=/^(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)(\\s*[-/]?\\s*\\d{0,4})?$/i.test(noteText)||/^MAY\\s*1$/i.test(noteText)||/^MAY1$/i.test(noteText);
+  const looksLikePeriod=/^(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)(\s*[-/]?\s*\d{0,4})?$/i.test(noteText)||/^MAY\s*1$/i.test(noteText)||/^MAY1$/i.test(noteText);
   const displayNote=type==='payment'&&looksLikePeriod?'':noteText;
   const transactionDate=String(e.entry_date||'').slice(0,10)>='2026-06-01'?day(e.entry_date):'';
   return '<div class="entry"><div class="desc"><b>'+esc(label)+(type!=='charge'&&displayNote?' · '+esc(displayNote):'')+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div></div>';

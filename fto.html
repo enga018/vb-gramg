@@ -166,14 +166,14 @@ const $=id=>document.getElementById(id);
 let authSequence=0;
 function status(msg,type){$('data-status').textContent=msg;$('data-status').classList.toggle('error',type==='error');$('data-status').classList.toggle('success',type==='success')}
 function parsePastedTable(raw){
- const text=raw.replace(/\\r/g,'').trim();
+ const text=raw.replace(/\r/g,'').trim();
  if(!text)return [];
- const lines=text.split('\\n').filter(line=>line.trim().length>0);
- const delimiter=lines.some(line=>line.includes('\\t'))?'\\t':lines.some(line=>line.includes('|'))?'|':',';
+ const lines=text.split('\n').filter(line=>line.trim().length>0);
+ const delimiter=lines.some(line=>line.includes('\t'))?'\t':lines.some(line=>line.includes('|'))?'|':',';
  return lines.map(line=>{
   let cells;
   if(delimiter==='|')cells=line.split('|');
-  else if(delimiter==='\\t')cells=line.split('\\t');
+  else if(delimiter==='\t')cells=line.split('\t');
   else{
    cells=[];let cell='',quoted=false;
    for(let i=0;i<line.length;i++){

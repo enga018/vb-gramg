@@ -218,7 +218,9 @@
 
     function filterPastedRows(rows, excludeFlagged) {
       const key = v => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-      const hi = rows.findIndex(row => row.some(v => key(v) === 'job card number') && row.some(v => key(v) === 'name of applicant'));
+      const isJobHeader = v => { const k = key(v); return k === 'job card number' || k === 'jobcard number' || k.includes('job card number'); };
+      const isNameHeader = v => { const k = key(v); return k === 'name of applicant' || k === 'applicant name' || k.includes('name of applicant'); };
+      const hi = rows.findIndex(row => row.some(isJobHeader) && row.some(isNameHeader));
       if (hi < 0) throw new Error('Could not find Job Card Number and Name of Applicant headings.');
       fillDownHouseholdFields(rows, hi);
       const h = rows[hi].map(key), ix = (...n) => h.findIndex(v => n.includes(v));

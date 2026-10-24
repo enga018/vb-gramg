@@ -183,7 +183,7 @@ tbody tr:last-child td{border-bottom:0}
  <div id="import-summary" class="status" aria-live="polite">Choose a contribution period to check for existing charges.</div>
  <div class="table-wrap import-table-wrap"><table id="import-preview-table" class="import-table"><thead><tr><th>#</th><th>Job card</th><th>Account holder / applicant</th><th>FTO rows</th><th>FTO status</th><th>Calculated charge</th><th>Defer</th><th>Duplicate check</th><th>Manual review</th></tr></thead><tbody></tbody></table></div>
  <div class="field"><label for="fto-status-action">FTO status action</label><select id="fto-status-action"><option value="processed">Import Processed (active charge)</option><option value="blank">Import Blank (defer charge)</option><option value="rejected">Rejected — delete previously deferred FTO charge</option></select></div>
- <p class="import-help">Processed rows create or activate charges. Blank rows create or keep charges deferred. Rejected rows remove only a previously imported, deferred FTO charge for the selected contribution period; unrelated charges and active charges are not deleted.</p>
+ <p class="import-help">Processed rows create or activate charges. Blank rows create or keep charges deferred. Rejected rows remove previously imported FTO charges for the selected contribution period; unrelated charges are not deleted.</p>
  <div class="table-foot"><span id="import-count" class="muted"></span><div class="actions"><button id="fto-import-button" type="button" disabled>Import Processed charges</button></div></div>
 </div>
 </section>
@@ -411,7 +411,7 @@ $('amount-multiplier').addEventListener('input',()=>buildImportGroups());
 $('fto-import-button').addEventListener('click',async()=>{
  if($('fto-import-button').disabled)return;
  const button=$('fto-import-button'),mode=currentStatusAction(),selected=actionGroups();
- if(mode==='rejected'&&!window.confirm('Delete only previously imported DEFERRED FTO charges for '+selected.length+' rejected job cards in '+$('charge-period').value+'? This cannot be undone.'))return;
+ if(mode==='rejected'&&!window.confirm('Delete only previously imported FTO charges for '+selected.length+' rejected job cards in '+$('charge-period').value+'? This cannot be undone.'))return;
  button.disabled=true;button.textContent=mode==='rejected'?'Removing rejected charges…':'Applying FTO status…';
  try{
   const period=$('charge-period').value+'-01';
@@ -425,7 +425,7 @@ $('fto-import-button').addEventListener('click',async()=>{
    if(data&&(Array.isArray(data.duplicates)||Array.isArray(data.unknown_job_cards)))renderImportPreview();
    throw new Error((data&&data.error)||(error&&error.message)||'FTO status action failed.');
   }
-  if(mode==='rejected')status('Rejected rows checked. Deleted '+Number(data.deleted||0)+' previously deferred FTO charge(s); unrelated or active charges were left unchanged.','success');
+  if(mode==='rejected')status('Rejected rows checked. Deleted '+Number(data.deleted||0)+' previously imported FTO charge(s); unrelated charges were left unchanged.','success');
   else status((mode==='blank'?'Blank rows processed as deferred. ':'Processed rows imported/activated. ')+'New charges: '+Number(data.inserted||0)+', existing FTO charges updated: '+Number(data.updated||0)+', skipped after review: '+Number(data.skipped||0)+'. Total calculated amount ₹'+Number(data.total_amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'.','success');
   button.textContent='Status action completed';
  }catch(err){status(err.message||'FTO status action failed. Review the preview and try again.','error');button.textContent=mode==='rejected'?'Delete existing rejected charges':mode==='blank'?'Import Blank as deferred':'Import Processed charges';checkingDuplicates=false;updateImportButton()}

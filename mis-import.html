@@ -199,6 +199,48 @@
       });
     }
 
+    function parseReportLines(raw) {
+      const lines = String(raw || '').replace(/\r/g, '').split('\n').map(v => v.replace(/\u00a0/g, ' ').trim()).filter(Boolean);
+      const key = v => String(v || '').toLowerCase().replace(/&amp;/g, '&').replace(/[^a-z0-9]+/g, ' ').trim();
+      const start = lines.findIndex(v => key(v) === 's no' || key(v) === 's no');
+      if (start < 0) return null;
+      const headers = ['S.No.','Head of HouseHold','Caste','Name of Applicant','Father/Husband Name','Gender','Age','Date of receipt of application/Request for Registration','Job Card Number','Job-card issue date','Reasons, if Job Card NOT issued & any other remarks','Disabled','Minority','Job Card Verified on Date'];
+      const blocks = [];
+      let current = null;
+      const flush = () => { if (current) blocks.push(current); current = null; };
+      for (const line of lines.slice(start + 1)) {
+        if (/^\d{1,4}$/.test(line)) {
+          const n = Number(line);
+          if (n >= 1 && n <= 100000) { flush(); current = [line]; continue; }
+        }
+        if (current) current.push(line);
+      }
+      flush();
+      if (!blocks.some(b => b.some(v => /^MZ-[A-Z0-9-]+\/\d+$/i.test(v)))) return null;
+      const result = [headers];
+      const dateRe = /^\d{1,2}[/-]\d{1,2}[/-]\d{4}$/;
+      for (const b of blocks) {
+        const vals = b.slice(1);
+        const ji = vals.findIndex(v => /^MZ-[A-Z0-9-]+\/\d+$/i.test(v));
+        if (ji < 0) { result.push([b[0], ...vals]); continue; }
+        const before = vals.slice(0, ji), after = vals.slice(ji + 1);
+        const gi = before.findIndex(v => /^(M|F)$/i.test(v));
+        const ai = gi >= 0 && /^\d{1,3}$/.test(before[gi + 1] || '') ? gi + 1 : -1;
+        const receiptDate = ai >= 0 && dateRe.test(before[ai + 1] || '') ? before[ai + 1] : '';
+        const name = gi > 0 ? before[gi - 1] : (before[before.length - 1] || '');
+        const household = before.length >= 3 ? before[0] : '';
+        const caste = before.length >= 3 ? before[1] : '';
+        const father = gi > 2 ? before[gi - 2] : '';
+        const dates = after.filter(v => dateRe.test(v));
+        const issueDate = dates[0] || '';
+        const verified = dates[1] || '';
+        const remarks = after.find(v => /deleted|reason:|not willing|shifted|surrender|duplicate applicant|non-existent/i.test(v)) || '';
+        const flags = after.filter(v => /^(Y|N)$/i.test(v));
+        result.push([b[0], household, caste, name, father, gi >= 0 ? before[gi] : '', ai >= 0 ? before[ai] : '', receiptDate, vals[ji], issueDate, remarks, flags[0] || '', flags[1] || '', verified]);
+      }
+      return result;
+    }
+
     function headerKey(value) {
       return String(value == null ? '' : value).toLowerCase().replace(/&amp;/g, '&').replace(/[^a-z0-9]+/g, ' ').trim();
     }
@@ -344,7 +386,10 @@
       document.getElementById('review-confirm').checked = false;
       pendingImportId = null; pendingComparison = null;
       try {
-        const filtered = filterPastedRows(parsePastedTable(tableInput.value), document.getElementById('exclude-deleted').checked);
+        const reportRows = parseReportLines(tableInput.value);
+        const parsedRows = parsePastedTable(tableInput.value);
+        const sourceRows = reportRows || parsedRows;
+        const filtered = filterPastedRows(sourceRows, document.getElementById('exclude-deleted').checked);
         const rows = normalizeMisTable(filtered.rows);
         if (rows.length > 100000) throw new Error('The pasted MIS exceeds the 100,000-row import limit.');
         importedRows = rows; pastedTableLoaded = true; renderRows(rows);

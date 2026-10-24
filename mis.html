@@ -192,7 +192,7 @@ function renderTable(){
    const firstLine=document.createElement('div');firstLine.style.display='flex';firstLine.style.alignItems='center';firstLine.style.justifyContent='space-between';firstLine.style.gap='8px';
    const cardNumber=document.createElement('div');cardNumber.textContent=group.key;cardNumber.style.fontWeight='750';cardNumber.style.fontSize='0.96rem';cardNumber.style.overflowWrap='anywhere';firstLine.appendChild(cardNumber);detailCell.appendChild(firstLine);
    const secondary=document.createElement('div');secondary.style.display='flex';secondary.style.alignItems='center';secondary.style.flexWrap='wrap';secondary.style.gap='4px 14px';secondary.style.marginTop='5px';secondary.style.fontSize='0.82rem';secondary.style.fontWeight='400';secondary.style.color='#64748b';
-   const household=document.createElement('span');household.textContent='Head of Household: '+(group.household||'—');secondary.appendChild(household);
+   const household=document.createElement('span');household.textContent=group.household||'—';secondary.appendChild(household);
    const applicantsMeta=document.createElement('span');applicantsMeta.textContent='Applicants: '+group.applicants.length;secondary.appendChild(applicantsMeta);
    detailCell.appendChild(secondary);tr.appendChild(detailCell);
   }

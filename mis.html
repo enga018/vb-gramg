@@ -44,7 +44,6 @@ const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHA
 const $=id=>document.getElementById(id);
 let currentRole=null,allRows=[],headers=[],jobCards=[],currentPage=0,pageSize=50,loadSequence=0,expandedCards=new Set(),selectedApplicants=new Map();
 function status(el,msg,type){el.textContent=msg;el.classList.toggle('error',type==='error');el.classList.toggle('success',type==='success')}
-function showLoggedOut(){ $('login-panel').classList.remove('hidden');$('app-panel').classList.add('hidden');currentRole=null;allRows=[];headers=[]; }
 async function verifyAccess(user){
  const seq=++loadSequence;
  if(!user){window.location.replace('./');return false}
@@ -148,10 +147,6 @@ function renderTable(){
  $('page-label').textContent=filtered.length?'Showing job cards '+(start+1)+'–'+Math.min(start+pageSize,filtered.length)+' of '+filtered.length:'No matching job cards';
  $('prev-button').disabled=currentPage<=0;$('next-button').disabled=currentPage>=totalPages-1;
 }
-$('login-form').addEventListener('submit',async e=>{e.preventDefault();$('login-button').disabled=true;try{
- const {data,error}=await supabaseClient.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error)throw error;
- await verifyAccess(data.user);
- }catch(error){showLoggedOut();status($('login-status'),'Sign-in failed: '+(error&&error.message?error.message:String(error)),'error')}finally{$('login-button').disabled=false}});
 $('logout-button').addEventListener('click',async()=>{await supabaseClient.auth.signOut();window.location.replace('./')});
 $('search-input').addEventListener('input',()=>{currentPage=0;renderTable()});
 $('prev-button').addEventListener('click',()=>{currentPage--;renderTable()});$('next-button').addEventListener('click',()=>{currentPage++;renderTable()});

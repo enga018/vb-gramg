@@ -185,7 +185,7 @@ function renderTable(){
    const detailTr=document.createElement('tr');detailTr.className='applicant-detail';const detailTd=document.createElement('td');detailTd.colSpan=4;detailTd.style.padding='12px 18px 16px 42px';detailTd.style.background='#f8fafc';
    const subtable=document.createElement('table');subtable.style.width='100%';subtable.style.maxWidth='none';subtable.style.tableLayout='fixed';
    const subhead=document.createElement('thead'),subheadRow=document.createElement('tr');
-   ['Name of Applicant','Applicant No.','Select'].forEach((label,index)=>{const th=document.createElement('th');th.textContent=label;th.style.position='static';th.style.background='#e2e8f0';if(index===0)th.style.width='56%';if(index===1)th.style.width='32%';if(index===2){th.style.width='12%';th.style.textAlign='center';th.style.minWidth='52px'}subheadRow.appendChild(th)});subhead.appendChild(subheadRow);subtable.appendChild(subhead);
+   ['Name of Applicant','Applicant No.',''].forEach((label,index)=>{const th=document.createElement('th');th.textContent=label;th.style.position='static';th.style.background='#e2e8f0';if(index===0)th.style.width='56%';if(index===1)th.style.width='32%';if(index===2){th.style.width='12%';th.style.textAlign='center';th.style.minWidth='52px'}subheadRow.appendChild(th)});subhead.appendChild(subheadRow);subtable.appendChild(subhead);
    const subbody=document.createElement('tbody');
    group.applicants.forEach((applicant)=>{const ar=document.createElement('tr');
     const applicantId=applicant.selectionKey;

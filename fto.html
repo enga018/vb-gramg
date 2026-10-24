@@ -172,10 +172,11 @@ tbody tr:last-child td{border-bottom:0}
 </div>
 
 <div id="import-controls" class="import-controls hidden">
- <div class="section-head"><div><h2>Prepare contribution import</h2><p>Charges are grouped by job card. Repeated rows for one job card in this pasted FTO are summed into one charge for the selected period.</p></div></div>
+ <div class="section-head"><div><h2>Prepare contribution import</h2><p>Charges are calculated from Credit Amount using (Credit Amount ÷ Input 1) × Input 2, then grouped by job card. Repeated rows for one job card in this pasted FTO are summed into one charge for the selected period.</p></div></div>
  <div class="import-grid">
   <div class="field"><label for="charge-period">Contribution period</label><input id="charge-period" type="month" required></div>
-  <div class="field"><label for="amount-source">Amount to charge from FTO</label><select id="amount-source"><option value="10">Amount to be credited (In Rs.)</option><option value="11">Credit Amount (In Rs.)</option></select></div>
+  <div class="field"><label for="amount-divisor">Input 1 (divide by)</label><input id="amount-divisor" type="number" min="0.01" step="any" value="300" required></div>
+  <div class="field"><label for="amount-multiplier">Input 2 (multiply by)</label><input id="amount-multiplier" type="number" min="0.01" step="any" value="100" required></div>
   <div class="field"><label for="defer-mode">Deferral</label><select id="defer-mode"><option value="none">Defer none</option><option value="all">Defer all job cards</option><option value="selected">Select individually</option></select></div>
  </div>
  <p class="import-help">If a job card already has a charge for the selected period, it will be flagged. Check the existing charge before marking that duplicate as reviewed. Reviewed duplicates can be imported only when you explicitly tick the review checkbox.</p>
@@ -292,12 +293,14 @@ function parseAmount(value){
 }
 function buildImportGroups(){
  $('fto-import-button').textContent='Import charges to Contribution';
- const amountIndex=Number($('amount-source').value);
+ const divisor=Number($('amount-divisor').value),multiplier=Number($('amount-multiplier').value);
+ const validFormula=Number.isFinite(divisor)&&divisor>0&&Number.isFinite(multiplier)&&multiplier>0;
  const map=new Map();
  for(const row of parsedDataRows){
   const jobCard=jobCardFromRow(row);
   if(!jobCard)continue;
-  const amount=parseAmount(row[amountIndex]);
+  const creditAmount=parseAmount(row[11]);
+  const amount=validFormula&&creditAmount>0?(creditAmount/divisor)*multiplier:0;
   const personName=String(row[7]||row[5]||'').replace(/<br\s*\/?>/gi,' ').replace(/\s+/g,' ').trim();
   if(!map.has(jobCard))map.set(jobCard,{job_card_number:jobCard,person_name:personName||'Name needs review',amount:0,row_count:0,invalid_amount_rows:0});
   const group=map.get(jobCard);
@@ -405,7 +408,8 @@ function updateImportButton(){
 function bytesToHex(bytes){return [...new Uint8Array(bytes)].map(b=>b.toString(16).padStart(2,'0')).join('')}
 async function sha256(text){return bytesToHex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)))}
 $('charge-period').addEventListener('change',()=>{reviewedCards=new Set();refreshDuplicates()});
-$('amount-source').addEventListener('change',()=>buildImportGroups());
+$('amount-divisor').addEventListener('input',()=>buildImportGroups());
+$('amount-multiplier').addEventListener('input',()=>buildImportGroups());
 $('defer-mode').addEventListener('change',setAllDeferredFromMode);
 $('fto-import-button').addEventListener('click',async()=>{
  if($('fto-import-button').disabled)return;
@@ -413,7 +417,7 @@ $('fto-import-button').addEventListener('click',async()=>{
  try{
   const period=$('charge-period').value+'-01';
   const payloadRows=importGroups.map(g=>({job_card_number:g.job_card_number,person_name:g.person_name,amount:Number(g.amount.toFixed(2)),is_deferred:Boolean(deferredCards.get(g.job_card_number))}));
-  const sourceSha=await sha256(JSON.stringify({raw:$('table-input').value,period,amount_source:$('amount-source').value,rows:payloadRows}));
+  const sourceSha=await sha256(JSON.stringify({raw:$('table-input').value,period,amount_divisor:$('amount-divisor').value,amount_multiplier:$('amount-multiplier').value,rows:payloadRows}));
   const ftoNumber=extractFtoNumber($('table-input').value);
   const sourceFilename=ftoNumber||('FTO-'+period+'-'+sourceSha.slice(0,12));
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'import-fto-batch',charge_period:period,rows:payloadRows,source_sha256:sourceSha,source_filename:sourceFilename,fto_number:ftoNumber,reviewed_duplicates:[...reviewedCards],reviewed_new_job_cards:[...reviewedNewCards]}});

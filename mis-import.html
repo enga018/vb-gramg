@@ -206,14 +206,15 @@
       if (start < 0) return null;
       const headers = ['S.No.','Head of HouseHold','Caste','Name of Applicant','Father/Husband Name','Gender','Age','Date of receipt of application/Request for Registration','Job Card Number','Job-card issue date','Reasons, if Job Card NOT issued & any other remarks','Disabled','Minority','Job Card Verified on Date'];
       const blocks = [];
-      let current = null;
+      let current = null, expectedSerial = 1, previousLine = '';
       const flush = () => { if (current) blocks.push(current); current = null; };
       for (const line of lines.slice(start + 1)) {
-        if (/^\d{1,4}$/.test(line)) {
-          const n = Number(line);
-          if (n >= 1 && n <= 100000) { flush(); current = [line]; continue; }
+        const n = /^\d{1,4}$/.test(line) ? Number(line) : 0;
+        if (n === expectedSerial && !/^(M|F)$/i.test(previousLine)) {
+          flush(); current = [line]; expectedSerial++; previousLine = line; continue;
         }
         if (current) current.push(line);
+        previousLine = line;
       }
       flush();
       if (!blocks.some(b => b.some(v => /^MZ-[A-Z0-9-]+\/\d+$/i.test(v)))) return null;
@@ -227,10 +228,14 @@
         const gi = before.findIndex(v => /^(M|F)$/i.test(v));
         const ai = gi >= 0 && /^\d{1,3}$/.test(before[gi + 1] || '') ? gi + 1 : -1;
         const receiptDate = ai >= 0 && dateRe.test(before[ai + 1] || '') ? before[ai + 1] : '';
-        const name = gi > 0 ? before[gi - 1] : (before[before.length - 1] || '');
-        const household = before.length >= 3 ? before[0] : '';
-        const caste = before.length >= 3 ? before[1] : '';
-        const father = gi > 2 ? before[gi - 2] : '';
+        let household = '', caste = '', name = '', father = '';
+        if (before.length >= 4) {
+          household = before[0]; caste = before[1]; name = before[2]; father = before[3];
+        } else if (before.length === 3) {
+          household = before[0]; caste = before[1]; name = before[2];
+        } else if (before.length === 2) {
+          name = before[0]; father = before[1];
+        } else if (before.length === 1) name = before[0];
         const dates = after.filter(v => dateRe.test(v));
         const issueDate = dates[0] || '';
         const verified = dates[1] || '';

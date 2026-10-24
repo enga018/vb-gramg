@@ -40,7 +40,7 @@ main{width:min(100%,1440px);margin:0 auto}
 h2{margin:0 0 6px;font-size:1.18rem;letter-spacing:-.02em;color:var(--ink)}
 p{color:var(--muted);line-height:1.5}
 label{display:block;font-size:.88rem;font-weight:650;margin:0 0 7px;color:#344054}
-input,select{font:inherit;min-height:44px;padding:10px 12px;border:1px solid #cfd7e4;border-radius:10px;width:100%;background:#fff;color:var(--ink)}
+input,select,textarea{font:inherit;min-height:44px;padding:10px 12px;border:1px solid #cfd7e4;border-radius:10px;width:100%;background:#fff;color:var(--ink)}\ntextarea{resize:vertical;line-height:1.5}\ntextarea:focus{outline:3px solid rgb(36 87 197 / 15%);border-color:#6f91dc}
 input:focus,select:focus{outline:3px solid rgb(36 87 197 / 15%);border-color:#6f91dc}
 button,.link-button{
  font:inherit;font-size:.9rem;font-weight:650;border:1px solid transparent;border-radius:10px;
@@ -144,13 +144,16 @@ tbody tr:last-child td{border-bottom:0}
 <header class="topbar"><div class="brand"><h1>FTO</h1><p><a href="./" style="color:inherit">← Main menu</a></p></div>
 <div class="header-actions" aria-label="FTO actions"></div></header>
 <section class="panel">
-<div class="section-head"><div><h2>FTO workspace</h2><p>This is the starting point for FTO search and payment-related tracking. We can shape the workflow from here.</p></div></div>
-<div class="toolbar" style="align-items:start">
-<div class="search" style="max-width:none"><label for="payload-url">FTO page URL</label><input id="payload-url" type="url" inputmode="url" autocomplete="url" placeholder="https://vbgramgrep.dord.gov.in/VBGRAMG/FTO/" value="https://vbgramgrep.dord.gov.in/VBGRAMG/FTO/"></div>
-<div class="search" style="max-width:none"><label for="reference-input">Reference to search</label><input id="reference-input" type="text" autocomplete="off" placeholder="e.g. 2207001000SSPAYREQ2908202625"></div>
-<div class="actions"><button id="submit-button" type="button">Open FTO page</button></div>
+<div>
+<label for="table-input">Paste table copied from the FTO page</label>
+<textarea id="table-input" rows="7" placeholder="Copy the table from the FTO page, then paste it here…"></textarea>
+<div class="actions" style="margin-top:10px"><button id="load-table-button" type="button">Load table</button></div>
 </div>
-<div id="data-status" class="status" aria-live="polite">Enter a reference and open the FTO page. Search-and-click automation can be added in the next step.</div>
+<div id="data-status" class="status" aria-live="polite">Paste the copied table above, then select Load table.</div>
+<div id="table-output" class="hidden" style="margin-top:18px">
+<div class="section-head" style="margin-bottom:12px"><div><h2>FTO table</h2><p id="table-summary"></p></div></div>
+<div class="table-wrap"><table id="parsed-table"><thead></thead><tbody></tbody></table></div>
+</div>
 </section>
 </div>
 </main>
@@ -162,6 +165,54 @@ const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHA
 const $=id=>document.getElementById(id);
 let authSequence=0;
 function status(msg,type){$('data-status').textContent=msg;$('data-status').classList.toggle('error',type==='error');$('data-status').classList.toggle('success',type==='success')}
+function parsePastedTable(raw){
+ const text=raw.replace(/\\r/g,'').trim();
+ if(!text)return [];
+ const lines=text.split('\\n').filter(line=>line.trim().length>0);
+ const delimiter=lines.some(line=>line.includes('\\t'))?'\\t':lines.some(line=>line.includes('|'))?'|':',';
+ return lines.map(line=>{
+  let cells;
+  if(delimiter==='|')cells=line.split('|');
+  else if(delimiter==='\\t')cells=line.split('\\t');
+  else{
+   cells=[];let cell='',quoted=false;
+   for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(ch==='"'&&line[i+1]==='"'&&quoted){cell+='"';i++}
+    else if(ch==='"')quoted=!quoted;
+    else if(ch===','&&!quoted){cells.push(cell.trim());cell=''}
+    else cell+=ch;
+   }
+   cells.push(cell.trim());
+  }
+  return cells.map(cell=>cell.trim());
+ });
+}
+function renderPastedTable(rows){
+ const table=$('parsed-table'),thead=table.querySelector('thead'),tbody=table.querySelector('tbody');
+ thead.replaceChildren();tbody.replaceChildren();
+ if(!rows.length){$('table-output').classList.add('hidden');return false}
+ const headers=rows[0];
+ const headerRow=document.createElement('tr');
+ headers.forEach(value=>{const th=document.createElement('th');th.textContent=value;headerRow.appendChild(th)});
+ thead.appendChild(headerRow);
+ rows.slice(1).forEach(row=>{
+  const tr=document.createElement('tr');
+  headers.forEach((_,index)=>{const td=document.createElement('td');td.textContent=row[index]||'';tr.appendChild(td)});
+  tbody.appendChild(tr);
+ });
+ $('table-summary').textContent=(rows.length-1)+' data rows · '+headers.length+' columns';
+ $('table-output').classList.remove('hidden');
+ return true;
+}
+$('load-table-button').addEventListener('click',()=>{
+ const rows=parsePastedTable($('table-input').value);
+ if(!rows.length){status('Paste a table first, then select Load table.','error');return}
+ if(rows.length===1){status('Only a header row was detected. Paste the full table including its data rows.','error');return}
+ if(!renderPastedTable(rows)){status('No table data detected.','error');return}
+ status('Loaded '+(rows.length-1)+' data rows into the table. The pasted data stays in this page and is not uploaded.','success');
+});
+$('table-input').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')$('load-table-button').click()});
 async function verifyAccess(user){
  const seq=++authSequence;
  if(!user){window.location.replace('./');return false}

@@ -457,7 +457,7 @@
         setStatus('Could not apply changes: ' + (error && error.message ? error.message : String(error)) + '\nPlease compare again before retrying.', 'error');
       } finally {
         button.disabled = false; document.getElementById('cancel-changes-button').disabled = false; tableInput.disabled = false; loadTableButton.disabled = false;
-        importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || !!pendingImportId;
+        importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || !!pendingImportId || (uncertainRowsCount > 0 && !document.getElementById('review-confirm').checked);
       }
     });
 
@@ -470,7 +470,7 @@
       if (id) { try { await invokeImport({ action: 'abort', importId: id }); } catch (_) {} }
       tableInput.disabled = false; loadTableButton.disabled = false;
       setStatus('MIS comparison cancelled. The existing active MIS was not changed.', '');
-      importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded;
+      importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || (uncertainRowsCount > 0 && !document.getElementById('review-confirm').checked);
     });
 
   </script>

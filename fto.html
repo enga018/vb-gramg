@@ -291,6 +291,7 @@ function parseAmount(value){
  return Number.isFinite(amount)&&amount>0?amount:0;
 }
 function buildImportGroups(){
+ $('fto-import-button').textContent='Import charges to Contribution';
  const amountIndex=Number($('amount-source').value);
  const map=new Map();
  for(const row of parsedDataRows){

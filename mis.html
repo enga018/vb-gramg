@@ -223,7 +223,7 @@ function renderTable(){
     });
     selectCell.appendChild(checkbox);ar.appendChild(selectCell);
     subbody.appendChild(ar)});
-   subtable.appendChild(subbody);detailTd.appendChild(subtable);detailTr.appendChild(detailTd);tbody.appendChild(detailTr);if(isMobile&&scrollExpandedCardKey===group.key){scrollExpandedCardKey=null;requestAnimationFrame(()=>detailTr.scrollIntoView({behavior:'smooth',block:'start'}))}
+   subtable.appendChild(subbody);detailTd.appendChild(subtable);detailTr.appendChild(detailTd);if(isMobile)detailTr.style.scrollMarginTop='56px';tbody.appendChild(detailTr);if(isMobile&&scrollExpandedCardKey===group.key){scrollExpandedCardKey=null;requestAnimationFrame(()=>detailTr.scrollIntoView({behavior:'smooth',block:'start'}))}
   }
  });
  $('table-wrap').classList.toggle('hidden',!headers.length);

@@ -91,21 +91,20 @@ function render(){
  const start=currentPage*pageSize,shown=list.slice(start,start+pageSize),isMobile=window.matchMedia('(max-width: 700px)').matches;
  const thead=$('contribution-table').querySelector('thead'),tbody=$('contribution-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
  const head=document.createElement('tr');
- (isMobile?['Sl. No.','Job Card Details']:['Sl. No.','Job Card Number','Head of Household','Total Charged','Outstanding','Status']).forEach(label=>{const th=document.createElement('th');th.textContent=label;head.appendChild(th)});thead.appendChild(head);
+ (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Outstanding','Status']).forEach(label=>{const th=document.createElement('th');th.textContent=label;head.appendChild(th)});thead.appendChild(head);
  shown.forEach((c,index)=>{
   const state=c.balance<=0?'paid':c.paid>0?'partial':'due',tr=document.createElement('tr');tr.className='contribution-row';tr.tabIndex=0;tr.dataset.card=c.id;tr.setAttribute('role','button');tr.setAttribute('aria-label','Open contribution history for '+c.name+' job card '+c.id);
   const cell=(value,cls)=>{const td=document.createElement('td');td.textContent=value;if(cls)td.className=cls;tr.appendChild(td);return td};
-  cell(String(start+index+1));
   if(isMobile){
    const detail=cell('','');const number=document.createElement('div');number.textContent=c.id;number.className='jobcard';number.style.whiteSpace='normal';number.style.overflowWrap='anywhere';detail.appendChild(number);
    const secondary=document.createElement('div');secondary.className='mobile-secondary';secondary.style.cssText='display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:5px;font-size:.8rem;color:#64748b;font-weight:400';
    const name=document.createElement('span');name.textContent=c.name;secondary.appendChild(name);
    const balance=document.createElement('span');balance.textContent='Outstanding: '+fmt(Math.max(0,c.balance));secondary.appendChild(balance);
-   const charge=document.createElement('span');charge.textContent='Charged: '+fmt(c.totalCharged);secondary.appendChild(charge);detail.appendChild(secondary);
+   detail.appendChild(secondary);
    const stateBadge=document.createElement('span');stateBadge.className='badge '+state;stateBadge.textContent=state==='paid'?'Settled':state==='partial'?'Partial':'Due';
    const statusLine=document.createElement('div');statusLine.style.marginTop='7px';statusLine.appendChild(stateBadge);detail.appendChild(statusLine);
   }else{
-   cell(c.id,'jobcard');cell(c.name,'person');cell(fmt(c.totalCharged),'amount');cell(fmt(Math.max(0,c.balance)),'balance');
+   cell(c.id,'jobcard');cell(c.name,'person');cell(fmt(Math.max(0,c.balance)),'balance');
    const td=cell('','status-cell');const badge=document.createElement('span');badge.className='badge '+state;badge.textContent=state==='paid'?'Settled':state==='partial'?'Partial':'Due';td.appendChild(badge);
   }
   tr.addEventListener('click',()=>openCitizen(c.id));tr.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();openCitizen(c.id)}});tbody.appendChild(tr);

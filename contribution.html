@@ -17,7 +17,7 @@ main{width:min(100%,1440px);margin:0 auto;padding:0 0 44px}
 .btn:hover{background:#2c3b55}.btn.ghost{background:#f0f3f8;color:#344054;border-color:#e0e6ef}.btn.ghost:hover{background:#e6ebf3}.btn.small{min-height:40px;padding:9px 13px;font-size:.88rem}.btn:focus-visible{outline:3px solid rgb(36 87 197 / 25%);outline-offset:2px}.btn:disabled{opacity:.48;cursor:not-allowed}
 .panel{padding:clamp(18px,2.5vw,28px);margin-bottom:16px}.panel h1{font-size:1.18rem;margin:0 0 6px;letter-spacing:-.02em}.sub{color:var(--muted);font-size:.88rem;margin:0 0 12px}
 .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 18px}.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:13px 15px;min-width:0}.stat .k{display:block;color:var(--muted);font-size:.78rem;font-weight:600;margin-bottom:7px;line-height:1.3}.stat .v{display:block;font-size:1.08rem;font-weight:750;letter-spacing:-.02em;line-height:1.35;overflow-wrap:anywhere;color:var(--ink)}.stat .v.due{color:var(--due)}.stat .v.paid{color:var(--paid)}
-.toolbar{display:flex;gap:10px;align-items:center;margin:0 0 14px;flex-wrap:wrap}.toolbar input{flex:1;min-width:220px;min-height:44px;padding:10px 12px;font:inherit;border:1px solid #cfd7e4;border-radius:10px;outline:0;background:#fff;color:var(--ink)}.toolbar input:focus,.field input:focus,.field select:focus{outline:3px solid rgb(36 87 197 / 15%);border-color:#6f91dc}
+.toolbar{display:flex;gap:10px;align-items:end;margin:0 0 14px;flex-wrap:wrap}.toolbar input{flex:1;min-width:220px;min-height:44px;padding:10px 12px;font:inherit;border:1px solid #cfd7e4;border-radius:10px;outline:0;background:#fff;color:var(--ink)}.toolbar input:focus,.field input:focus,.field select:focus,.toolbar select:focus{outline:3px solid rgb(36 87 197 / 15%);border-color:#6f91dc}.filter-control{min-width:170px}.filter-control label{display:block;font-size:.82rem;font-weight:650;color:#344054;margin:0 0 6px}.filter-control select{width:100%;min-height:44px;padding:10px 12px;font:inherit;border:1px solid #cfd7e4;border-radius:10px;background:#fff;color:var(--ink)}
 .citizen{display:flex;align-items:center;gap:12px;padding:13px 15px;margin-bottom:8px;border:1px solid var(--line);border-radius:12px;width:100%;background:var(--surface);text-align:left;cursor:pointer;transition:background .15s,border-color .15s}.citizen:hover{background:#f6f9ff;border-color:#cbd8f0}.citizen:focus-visible{outline:3px solid rgb(36 87 197 / 25%);outline-offset:2px}.citizen .info{flex:1;min-width:0}.citizen .info b{font-size:.93rem;display:block;font-weight:700;color:var(--ink)}.citizen .info small{font-size:.8rem;color:var(--muted);display:block;margin-top:3px;overflow-wrap:anywhere}.citizen .bal{font-size:.95rem;font-weight:750;white-space:nowrap}.dot{width:8px;height:8px;border-radius:50%;flex:none}.dot.paid{background:var(--paid)}.dot.partial{background:var(--partial)}.dot.due{background:var(--due)}
 .badge{display:inline-flex;font-size:.66rem;font-weight:750;padding:4px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.04em}.badge.paid{background:#e6f4ea;color:var(--paid)}.badge.partial{background:#fdf1e3;color:var(--partial)}.badge.due{background:#fdeaea;color:var(--due)}
 .notice{padding:11px 13px;border:1px solid #e5eaf2;border-radius:10px;background:#f7f9fc;color:#475467;font-size:.88rem;line-height:1.45;margin:0 0 16px;overflow-wrap:anywhere}.notice.err{background:#fff4f2;border-color:#ffd8d2;color:#a12b20}.notice.info{background:#f7f9fc;border-color:#e5eaf2;color:#475467}.hidden{display:none!important}.empty{padding:24px;text-align:center;color:var(--muted);font-size:.9rem}.count{color:var(--muted);font-size:.84rem;margin:0 0 10px}
@@ -26,7 +26,7 @@ main{width:min(100%,1440px);margin:0 auto;padding:0 0 44px}
 .section-title{font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:750;margin:18px 0 8px}.entry{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #edf0f5}.entry:last-child{border-bottom:0}.entry .desc{flex:1;min-width:0}.entry .desc b{display:block;font-size:.88rem;overflow-wrap:anywhere}.entry .desc small{color:var(--muted);font-size:.76rem}.entry .amt{font-size:.9rem;font-weight:750;white-space:nowrap}.entry .amt.payment{color:var(--paid)}
 .field{margin-bottom:12px}.field label{display:block;font-size:.82rem;font-weight:650;color:#344054;margin-bottom:6px}.field input,.field select{width:100%;min-height:44px;padding:10px 12px;font:inherit;border:1px solid #cfd7e4;border-radius:10px;background:#fff;outline:0}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}footer{text-align:center;color:var(--muted);font-size:.78rem;padding:10px}
 @media(min-width:900px){.overlay{align-items:center;padding:20px}.sheet{border-radius:16px;max-height:88vh}}
-@media(max-width:700px){body{padding:10px}.topbar{padding:15px;gap:14px;border-radius:13px;margin-bottom:12px}.brand h1{font-size:1.3rem}.top-actions{width:100%;justify-content:flex-start;gap:8px}.panel{padding:14px;border-radius:13px}.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}.stat{padding:11px 12px;border-radius:10px}.stat .k{font-size:.74rem;margin-bottom:5px}.stat .v{font-size:1rem}.stat:last-child{grid-column:span 2}.toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.toolbar input{min-width:0;width:100%;grid-column:1/-1}.citizen{padding:12px 10px;gap:8px}.citizen .bal{font-size:.88rem}.grid2{grid-template-columns:1fr}.split>div{padding:10px 6px}.split .k{font-size:.61rem}.split .v{font-size:.84rem}.sheet-body{padding:14px}}
+@media(max-width:700px){body{padding:10px}.topbar{padding:15px;gap:14px;border-radius:13px;margin-bottom:12px}.brand h1{font-size:1.3rem}.top-actions{width:100%;justify-content:flex-start;gap:8px}.panel{padding:14px;border-radius:13px}.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}.stat{padding:11px 12px;border-radius:10px}.stat .k{font-size:.74rem;margin-bottom:5px}.stat .v{font-size:1rem}.stat:last-child{grid-column:span 2}.toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.toolbar input{min-width:0;width:100%;grid-column:1/-1}.filter-control{min-width:0;width:100%}.filter-control select{min-width:0}.citizen{padding:12px 10px;gap:8px}.citizen .bal{font-size:.88rem}.grid2{grid-template-columns:1fr}.split>div{padding:10px 6px}.split .k{font-size:.61rem}.split .v{font-size:.84rem}.sheet-body{padding:14px}}
 @media(max-width:360px){body{padding:7px}.panel{padding:11px}.topbar{padding:12px}.citizen{padding:10px 8px}.citizen .info b{font-size:.86rem}.citizen .info small{font-size:.73rem}.badge{font-size:.6rem;padding:3px 6px}.split .v{font-size:.78rem}}
 </style>
 </head>
@@ -37,7 +37,7 @@ main{width:min(100%,1440px);margin:0 auto;padding:0 0 44px}
 <div id="app" class="hidden">
 <section class="panel">
 <div class="stats"><div class="stat"><div class="k">Households</div><div class="v" id="households">—</div></div><div class="stat"><div class="k">Total charged</div><div class="v" id="charged">—</div></div><div class="stat"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div></div>
-<div class="toolbar"><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><button id="clearSearch" class="btn ghost" type="button">Clear</button></div><p id="count" class="count"></p><div id="citizens"></div><div id="empty" class="empty hidden">No matching job cards found.</div>
+<div class="toolbar"><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due">Due</option><option value="partial">Partially paid</option><option value="paid">Settled</option></select></div><button id="clearSearch" class="btn ghost" type="button">Clear</button></div><p id="count" class="count"></p><div id="citizens"></div><div id="empty" class="empty hidden">No matching job cards found.</div>
 </section>
 </div>
 </main>
@@ -75,8 +75,13 @@ function deriveCitizens(){
  citizens=[...map.values()].map(c=>({...c,totalCharged:c.charges-Math.min(c.charges,c.waived),balance:c.activeCharges-Math.min(c.activeCharges,c.waived)-c.paid+c.returns})).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
 }
 function render(){
- const q=$('search').value.trim().toLocaleLowerCase();
- const list=citizens.filter(c=>c.name.toLocaleLowerCase().includes(q)||c.id.toLocaleLowerCase().includes(q));
+ const q=$('search').value.trim().toLocaleLowerCase(),filter=$('statusFilter').value;
+ const list=citizens.filter(c=>{
+  const state=c.balance<=0?'paid':c.paid>0?'partial':'due';
+  const matchesStatus=filter==='all'||state===filter;
+  const matchesSearch=c.name.toLocaleLowerCase().includes(q)||c.id.toLocaleLowerCase().includes(q);
+  return matchesStatus&&matchesSearch;
+ });
  $('households').textContent=citizens.length.toLocaleString('en-IN');
  $('charged').textContent=fmt(citizens.reduce((s,c)=>s+c.totalCharged,0));
  $('outstanding').textContent=fmt(citizens.reduce((s,c)=>s+Math.max(0,c.balance),0));
@@ -141,7 +146,8 @@ async function load(){
 }
 $('citizens').addEventListener('click',e=>{const btn=e.target.closest('[data-card]');if(btn)openCitizen(btn.dataset.card);});
 $('search').addEventListener('input',render);
-$('clearSearch').addEventListener('click',()=>{$('search').value='';render();$('search').focus();});
+$('statusFilter').addEventListener('change',render);
+$('clearSearch').addEventListener('click',()=>{$('search').value='';$('statusFilter').value='all';render();$('search').focus();});
 $('refreshBtn').addEventListener('click',load);
 $('closeSheet').addEventListener('click',()=>$('overlay').classList.add('hidden'));
 $('overlay').addEventListener('click',e=>{if(e.target===$('overlay'))$('overlay').classList.add('hidden');});

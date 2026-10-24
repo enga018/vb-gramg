@@ -297,6 +297,7 @@
       try {
         const filtered = filterPastedRows(parsePastedTable(tableInput.value), document.getElementById('exclude-deleted').checked);
         const rows = normalizeMisTable(filtered.rows);
+        if (rows.length > 100000) throw new Error('The pasted MIS exceeds the 100,000-row import limit.');
         importedRows = rows; pastedTableLoaded = true; renderRows(rows);
         document.getElementById('filter-counts').textContent = 'Kept: ' + (rows.length - 1) + ' · Excluded: ' + filtered.removed.length + ' · Manual review: ' + filtered.review.length;
         const removedList = document.getElementById('filter-removed'); removedList.replaceChildren();
@@ -315,7 +316,7 @@
       importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || (uncertainRowsCount > 0 && !this.checked);
     });
     tableInput.addEventListener('input', function () {
-      pastedTableLoaded = false; importedRows = []; importButton.disabled = true;
+      pastedTableLoaded = false; importedRows = []; uncertainRowsCount = 0; importButton.disabled = true;
       previewWrap.classList.add('hidden'); document.getElementById('filter-summary').classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
     });
 

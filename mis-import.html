@@ -192,10 +192,35 @@
       return String(value == null ? '' : value).toLowerCase().replace(/&amp;/g, '&').replace(/[^a-z0-9]+/g, ' ').trim();
     }
 
+    function fillDownHouseholdFields(rows, headerIndex) {
+      const key = v => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      const header = rows[headerIndex].map(key);
+      const jobIndex = header.findIndex(v => v === 'job card number' || v === 'jobcard number');
+      const householdIndex = header.findIndex(v => v === 'head of household' || v === 'head of household name');
+      const casteIndex = header.findIndex(v => v === 'caste');
+      let activeJobCard = '', activeHousehold = '', activeCaste = '';
+      for (const row of rows.slice(headerIndex + 1)) {
+        const jobCard = String(row[jobIndex] || '').trim();
+        if (!jobCard) continue;
+        if (jobCard !== activeJobCard) {
+          activeJobCard = jobCard;
+          activeHousehold = householdIndex >= 0 ? String(row[householdIndex] || '').trim() : '';
+          activeCaste = casteIndex >= 0 ? String(row[casteIndex] || '').trim() : '';
+        } else {
+          if (householdIndex >= 0 && String(row[householdIndex] || '').trim()) activeHousehold = String(row[householdIndex]).trim();
+          if (casteIndex >= 0 && String(row[casteIndex] || '').trim()) activeCaste = String(row[casteIndex]).trim();
+          if (householdIndex >= 0 && !String(row[householdIndex] || '').trim()) row[householdIndex] = activeHousehold;
+          if (casteIndex >= 0 && !String(row[casteIndex] || '').trim()) row[casteIndex] = activeCaste;
+        }
+      }
+      return rows;
+    }
+
     function filterPastedRows(rows, excludeFlagged) {
       const key = v => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
       const hi = rows.findIndex(row => row.some(v => key(v) === 'job card number') && row.some(v => key(v) === 'name of applicant'));
       if (hi < 0) throw new Error('Could not find Job Card Number and Name of Applicant headings.');
+      fillDownHouseholdFields(rows, hi);
       const h = rows[hi].map(key), ix = (...n) => h.findIndex(v => n.includes(v));
       const ji = ix('job card number'), ni = ix('name of applicant'), hh = ix('head of household'), ri = ix('remarks','reasons if job card not issued any other remarks');
       const kept = rows.slice(0, hi + 1), removed = [], review = [], sourceApplicantCounts = new Map();

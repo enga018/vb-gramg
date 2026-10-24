@@ -80,6 +80,7 @@ async function loadData(){
   buildJobCards();
   const staleSelectionsRemoved=await pruneStaleSelections();
   if(seq!==loadSequence)return;
+  updateKpis();
   currentPage=0;expandedCards=new Set();renderTable();
   status($('data-status'),staleSelectionsRemoved
    ?'MIS data loaded. Cleared '+staleSelectionsRemoved+' saved selection(s) for applicants no longer present.'

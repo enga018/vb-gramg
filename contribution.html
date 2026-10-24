@@ -28,6 +28,7 @@ main{max-width:760px;margin:0 auto;padding:18px 16px 60px}.btn{background:var(--
 <main>
 <section class="panel"><h1>Contribution</h1><p class="sub">Monthly charges and payments by full job card number.</p><div id="status" class="notice info">Checking your approved account…</div><div id="importNote" class="sub hidden"></div></section>
 <div id="app" class="hidden">
+<section id="backupPanel" class="panel hidden"><h2 style="font-size:17px;margin:0 0 4px">Import old tracker backup</h2><p class="sub">Administrator only. Select the JSON export from nsnvc-contribution. The importer checks the whole file first, skips matching January charges already present, and avoids duplicate imports on retry.</p><div class="field"><label for="backupFile">Backup JSON file</label><input id="backupFile" type="file" accept=".json,application/json"></div><button id="importBackupBtn" class="btn" type="button">Validate and import backup</button><div id="backupProgress" class="notice info hidden"></div></section>
 <div class="stats"><div class="stat"><div class="k">Households</div><div class="v" id="households">—</div></div><div class="stat"><div class="k">Total charged</div><div class="v" id="charged">—</div></div><div class="stat"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div></div>
 <section class="panel"><div class="toolbar"><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><button id="clearSearch" class="btn ghost" type="button">Clear</button></div><p id="count" class="count"></p><div id="citizens"></div><div id="empty" class="empty hidden">No matching job cards found.</div></section>
 </div>
@@ -42,7 +43,7 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let entries=[], imports=[], citizens=[], currentCitizen=null, busy=false;
+let entries=[], imports=[], citizens=[], currentCitizen=null, busy=false, currentRole='user';
 const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const day=s=>s?new Date(s+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'Date not recorded';
@@ -54,12 +55,13 @@ function deriveCitizens(){
   if(!map.has(key))map.set(key,{id:key,jobCard:key,name:e.person_name||'Unnamed',charges:0,paid:0,waived:0,returns:0,ledger:[]});
   const c=map.get(key); c.ledger.push(e);
   const amount=Number(e.amount)||0;
-  if(e.entry_type==='charge')c.charges+=amount;
+  if(e.entry_type==='charge'||e.entry_type==='sanitationFee')c.charges+=amount;
+  if(e.entry_type==='charge'&&e.is_deferred)c.deferred=(c.deferred||0)+amount;
   else if(e.entry_type==='payment')c.paid+=amount;
   else if(e.entry_type==='forgive')c.waived+=amount;
   else if(e.entry_type==='return')c.returns+=amount;
  }
- citizens=[...map.values()].map(c=>({...c,balance:c.charges-c.paid-c.waived-c.returns})).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
+ citizens=[...map.values()].map(c=>({...c,deferred:c.deferred||0,balance:c.charges-c.paid-c.waived-c.returns-(c.deferred||0)})).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
 }
 function render(){
  const q=$('search').value.trim().toLocaleLowerCase();
@@ -81,7 +83,7 @@ function openCitizen(id){
  const sorted=[...c.ledger].sort((a,b)=>(a.entry_date||'').localeCompare(b.entry_date||'')||(a.created_at||'').localeCompare(b.created_at||''));
  const lines=sorted.map(e=>{
   const type=e.entry_type, amount=Number(e.amount)||0, isPayment=type==='payment';
-  const label=type==='charge'?'Charge · '+(e.charge_period?e.charge_period.slice(0,7):'Monthly charge'):type==='payment'?'Payment':type==='forgive'?'Waiver':type==='return'?'Return':type;
+  const label=type==='charge'?'Charge · '+(e.charge_period?e.charge_period.slice(0,7):'Monthly charge')+(e.is_deferred?' · Deferred':''):type==='sanitationFee'?'Sanitation fee':type==='payment'?'Payment':type==='forgive'?'Waiver':type==='return'?'Return':type;
   return '<div class="entry"><div class="desc"><b>'+esc(label)+(e.note?' · '+esc(e.note):'')+'</b><small>'+esc(day(e.entry_date))+'</small></div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div></div>';
  }).join('');
  $('sheetBody').innerHTML='<div class="balance"><div class="label">Current outstanding balance</div><div class="amount '+(c.balance<=0?'zero':'owing')+'">'+fmt(Math.max(0,c.balance))+'</div><div class="sub" style="margin:0">Full job card: '+esc(c.id)+'</div></div><div class="split"><div><div class="k">Charges</div><div class="v">'+fmt(c.charges)+'</div></div><div><div class="k">Payments</div><div class="v" style="color:var(--paid)">'+fmt(c.paid)+'</div></div><div><div class="k">Waivers / returns</div><div class="v">'+fmt(c.waived+c.returns)+'</div></div></div><button class="btn" type="button" id="addPaymentBtn">Record payment</button><div class="section-title">Ledger history</div>'+(lines||'<div class="empty">No ledger entries.</div>');
@@ -105,6 +107,50 @@ function showPaymentForm(){
   finally{busy=false;if($('savePayment')){$('savePayment').disabled=false;$('savePayment').textContent='Save payment';}}
  });
 }
+
+async function importOldBackup(){
+ if(busy)return;
+ const file=$('backupFile').files&&$('backupFile').files[0];
+ if(!file){$('backupProgress').textContent='Choose the nsnvc-contribution JSON backup first.';$('backupProgress').className='notice err';return;}
+ busy=true;$('importBackupBtn').disabled=true;$('importBackupBtn').textContent='Validating…';$('backupProgress').className='notice info';$('backupProgress').classList.remove('hidden');
+ try{
+  if(currentRole!=='admin')throw new Error('Only an approved administrator can import a backup.');
+  const backup=JSON.parse(await file.text());
+  if(backup.app!=='nsnvc-contribution'||backup.version!==2||!Array.isArray(backup.citizens)||Number(backup.count)!==backup.citizens.length)throw new Error('This is not a supported version 2 nsnvc-contribution backup.');
+  const rows=[];
+  for(const c of backup.citizens){
+   if(!c.jobCard||!c.name||!Array.isArray(c.ledger))throw new Error('The backup contains a citizen without a job card, name, or ledger.');
+   for(const e of c.ledger){
+    rows.push({job_card_number:String(c.jobCard),person_name:String(c.name),entry_type:String(e.type),amount:Number(e.amount),note:String(e.note||''),entry_date:String(e.date||''),legacy_entry_id:String(c.jobCard)+'|'+String(e.entryId),is_deferred:Boolean(e.deferred),source_created_at_ms:Number(e.createdAtMs||0)});
+   }
+  }
+  if(rows.length===0)throw new Error('No ledger entries were found in this backup.');
+  const batchSize=200,batches=[];
+  for(let i=0;i<rows.length;i+=batchSize)batches.push(rows.slice(i,i+batchSize));
+  let already=0,toImport=0;
+  for(let i=0;i<batches.length;i++){
+   $('backupProgress').textContent='Validation pass: checking batch '+(i+1)+' of '+batches.length+' ('+rows.length.toLocaleString('en-IN')+' ledger entries total)…';
+   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'validate-backup-batch',entries:batches[i]}});
+   if(error||!data||data.error||data.valid!==true)throw new Error((data&&data.error)||(error&&error.message)||'Backup validation failed at batch '+(i+1)+'.');
+   already+=Number(data.alreadyImported)||0;toImport+=Number(data.toImport)||0;
+  }
+  if(!confirm('Validation passed for '+rows.length.toLocaleString('en-IN')+' ledger entries across '+backup.citizens.length+' job cards.\n\nAlready present or matching January charges to skip: '+already.toLocaleString('en-IN')+'.\nNew entries to import: '+toImport.toLocaleString('en-IN')+'.\n\nProceed with importing into VBGRAMG Supabase?'))throw new Error('Import cancelled. No new rows were written.');
+  let inserted=0,skipped=0;
+  $('importBackupBtn').textContent='Importing…';
+  for(let i=0;i<batches.length;i++){
+   $('backupProgress').textContent='Import pass: batch '+(i+1)+' of '+batches.length+'… Imported '+inserted.toLocaleString('en-IN')+' new entries so far.';
+   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'import-backup-batch',entries:batches[i]}});
+   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Import failed at batch '+(i+1)+'. You can retry safely; previously imported rows will be skipped.');
+   inserted+=Number(data.imported)||0;skipped+=Number(data.skipped)||0;
+  }
+  $('backupProgress').textContent='Import complete. '+inserted.toLocaleString('en-IN')+' new ledger entries imported; '+skipped.toLocaleString('en-IN')+' entries skipped because they were already present or matched January charges. Refreshing ledger…';
+  $('backupProgress').className='notice info';
+  $('backupFile').value='';
+ }catch(err){$('backupProgress').textContent=err.message||'Import failed.';$('backupProgress').className='notice err';}
+ finally{busy=false;$('importBackupBtn').disabled=false;$('importBackupBtn').textContent='Validate and import backup';}
+ if($('backupProgress').className.includes('info')&&$('backupProgress').textContent.startsWith('Import complete'))await load();
+}
+
 async function load(){
  if(busy)return;
  $('refreshBtn').disabled=true;
@@ -116,7 +162,7 @@ async function load(){
   status('Loading contribution ledger…');
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
-  entries=data.entries||[];imports=data.imports||[];deriveCitizens();
+  entries=data.entries||[];imports=data.imports||[];currentRole=(data.role||access.role||'user');$('backupPanel').classList.toggle('hidden',currentRole!=='admin');deriveCitizens();
   const jan=imports.find(i=>String(i.charge_period||'').startsWith('2026-01'));
   $('importNote').textContent=jan?'January 2026 import: '+Number(jan.row_count).toLocaleString('en-IN')+' charges · '+fmt(jan.total_amount):'No completed January import metadata found.';
   $('importNote').classList.remove('hidden');
@@ -129,6 +175,7 @@ $('citizens').addEventListener('click',e=>{const btn=e.target.closest('[data-car
 $('search').addEventListener('input',render);
 $('clearSearch').addEventListener('click',()=>{$('search').value='';render();$('search').focus();});
 $('refreshBtn').addEventListener('click',load);
+$('importBackupBtn').addEventListener('click',importOldBackup);
 $('closeSheet').addEventListener('click',()=>$('overlay').classList.add('hidden'));
 $('overlay').addEventListener('click',e=>{if(e.target===$('overlay'))$('overlay').classList.add('hidden');});
 supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'||!session){$('app').classList.add('hidden');status('Sign in from the VBGRAMG home page first.');}});

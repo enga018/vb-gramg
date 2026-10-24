@@ -126,7 +126,7 @@
       }
       currentUser = user;
       currentRole = access.role;
-      importButton.disabled = !pastedTableLoaded;
+      importButton.disabled = !pastedTableLoaded || (uncertainRowsCount > 0 && !document.getElementById('review-confirm').checked);
     }
 
     function renderRows(rows) {

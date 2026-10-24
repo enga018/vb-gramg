@@ -306,8 +306,8 @@
         pendingImportId = null; pendingComparison = null;
         setStatus('Comparison failed: ' + (error && error.message ? error.message : String(error)) + '\nThe existing active MIS has not been changed.', 'error');
       } finally {
-        sourceInput.disabled = false;
-        importButton.disabled = !currentUser || currentRole !== 'admin' || !importedWorkbook;
+        sourceInput.disabled = !!pendingImportId;
+        importButton.disabled = !currentUser || currentRole !== 'admin' || !importedWorkbook || !!pendingImportId;
       }
     });
 
@@ -327,14 +327,14 @@
         const copiedSheet = JSON.parse(JSON.stringify(importedWorkbook.Sheets[misName]));
         XLSX.utils.book_append_sheet(outputBook, copiedSheet, 'MIS');
         XLSX.writeFile(outputBook, importedFileName + '_MIS.xlsx');
-        setStatus('MIS update successful.\nSource: ' + filename + '\nAdded applicants: ' + result.added.length + '\nDeleted applicants: ' + result.deleted.length + '\nUpdated applicants: ' + result.updated.length + '\nUnchanged applicants: ' + result.unchanged + '\nCurrent applicants: ' + result.newCount + '\nThe updated MIS is active. Old MIS row data has been removed; import metadata remains for history.', 'success');
+        setStatus('MIS update successful.\nSource: ' + filename + '\nAdded applicants: ' + result.added.length + '\nDeleted applicants: ' + result.deleted.length + '\nUpdated applicants: ' + result.updated.length + '\nUnchanged applicants: ' + result.unchanged + '\nCurrent applicants: ' + result.newCount + '\nThe updated MIS is active. Old MIS row data has been removed; import metadata remains for history.' + (result.cleanupWarning ? '\\nWARNING: ' + result.cleanupWarning : ''), 'success');
         document.getElementById('diff-panel').classList.add('hidden');
         pendingImportId = null; pendingComparison = null;
       } catch (error) {
         setStatus('Could not apply changes: ' + (error && error.message ? error.message : String(error)) + '\nPlease compare again before retrying.', 'error');
       } finally {
         button.disabled = false; document.getElementById('cancel-changes-button').disabled = false; sourceInput.disabled = false;
-        importButton.disabled = !currentUser || currentRole !== 'admin' || !importedWorkbook;
+        importButton.disabled = !currentUser || currentRole !== 'admin' || !importedWorkbook || !!pendingImportId;
       }
     });
 
@@ -343,6 +343,7 @@
       document.getElementById('diff-panel').classList.add('hidden');
       pendingImportId = null; pendingComparison = null;
       if (id) { try { await invokeImport({ action: 'abort', importId: id }); } catch (_) {} }
+      sourceInput.disabled = false;
       setStatus('Upload cancelled. The existing active MIS was not changed.', '');
       importButton.disabled = !currentUser || currentRole !== 'admin' || !importedWorkbook;
     });

@@ -124,11 +124,12 @@ function openCitizen(id){
  for(const e of sorted){if(e.entry_type==='charge'&&e.charge_period)periodChargeCounts.set(e.charge_period,(periodChargeCounts.get(e.charge_period)||0)+1);}
  const lines=sorted.map(e=>{
   const type=e.entry_type, amount=Number(e.amount)||0, isPayment=type==='payment';
-  let periodLabel=e.charge_period?formatPeriod(e.charge_period):'Monthly charge';
+  const chargeTag=String(e.note||'').trim()|| (e.charge_period?formatPeriod(e.charge_period):'Monthly charge');
+  let periodLabel=chargeTag;
   if(type==='charge'&&e.charge_period&&(periodChargeCounts.get(e.charge_period)||0)>1){
-   const index=(periodChargeIndexes.get(e.charge_period)||0)+1;periodChargeIndexes.set(e.charge_period,index);periodLabel+=' ('+index+')';
+   const index=(periodChargeIndexes.get(e.charge_period)||0)+1;periodLabel+=' ('+index+')';
   }
-  const label=type==='charge'?'Charge · '+periodLabel+(e.is_deferred?' · Deferred':''):type==='sanitationFee'?'Sanitation fee':type==='payment'?'Payment':type==='forgive'?'Waiver':type==='return'?'Return':type;
+  const label=type==='charge'?periodLabel+(e.is_deferred?' · Deferred':''):type==='sanitationFee'?'Sanitation fee':type==='payment'?'Payment':type==='forgive'?'Waiver':type==='return'?'Return':type;
   const noteText=String(e.note||'').trim();
   const looksLikePeriod=/^(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)(\\s*[-/]?\\s*\\d{0,4})?$/i.test(noteText)||/^MAY\\s*1$/i.test(noteText);
   const displayNote=type==='payment'&&looksLikePeriod?'':noteText;

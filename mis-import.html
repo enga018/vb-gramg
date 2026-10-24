@@ -322,8 +322,12 @@
     }
 
     loadTableButton.addEventListener('click', function () {
-      importButton.disabled = true; pastedTableLoaded = false; importedRows = [];
+      importButton.disabled = true; pastedTableLoaded = false; importedRows = []; uncertainRowsCount = 0;
       previewWrap.classList.add('hidden'); document.getElementById('filter-summary').classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
+      document.getElementById('filter-counts').textContent = '';
+      document.getElementById('filter-removed').replaceChildren();
+      document.getElementById('filter-review').replaceChildren();
+      document.getElementById('review-confirm').checked = false;
       pendingImportId = null; pendingComparison = null;
       try {
         const filtered = filterPastedRows(parsePastedTable(tableInput.value), document.getElementById('exclude-deleted').checked);
@@ -331,10 +335,17 @@
         if (rows.length > 100000) throw new Error('The pasted MIS exceeds the 100,000-row import limit.');
         importedRows = rows; pastedTableLoaded = true; renderRows(rows);
         document.getElementById('filter-counts').textContent = 'Kept: ' + (rows.length - 1) + ' · Excluded: ' + filtered.removed.length + ' · Manual review: ' + filtered.review.length;
-        const removedList = document.getElementById('filter-removed'); removedList.replaceChildren();
-        filtered.removed.slice(0,500).forEach(v => { const li=document.createElement('li'); li.textContent=v; removedList.appendChild(li); });
-        const reviewList = document.getElementById('filter-review'); reviewList.replaceChildren();
-        filtered.review.slice(0,500).forEach(v => { const li=document.createElement('li'); li.textContent=v; reviewList.appendChild(li); });
+        const renderReasonList = (id, values, emptyText) => {
+          const list = document.getElementById(id); list.replaceChildren();
+          (values.length ? values.slice(0, 500) : [emptyText]).forEach(v => {
+            const li = document.createElement('li'); li.textContent = v; list.appendChild(li);
+          });
+          if (values.length > 500) {
+            const li = document.createElement('li'); li.textContent = (values.length - 500) + ' more rows not displayed.'; list.appendChild(li);
+          }
+        };
+        renderReasonList('filter-removed', filtered.removed, 'No rows excluded.');
+        renderReasonList('filter-review', filtered.review, 'No uncertain rows found.');
         document.getElementById('review-confirm-wrap').classList.toggle('hidden', !filtered.review.length);
         document.getElementById('review-confirm').checked = false;
         document.getElementById('filter-summary').classList.remove('hidden');
@@ -422,7 +433,7 @@
         setStatus('Comparison failed: ' + (error && error.message ? error.message : String(error)) + '\nThe existing active MIS has not been changed.', 'error');
       } finally {
         tableInput.disabled = !!pendingImportId; loadTableButton.disabled = !!pendingImportId;
-        importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || !!pendingImportId;
+        importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || !!pendingImportId || (uncertainRowsCount > 0 && !document.getElementById('review-confirm').checked);
       }
     });
 

@@ -355,12 +355,12 @@ function renderImportPreview(){
   if(duplicate){
    const label=document.createElement('label');label.style.display='flex';label.style.gap='8px';label.style.alignItems='center';label.style.margin='0';
    const check=document.createElement('input');check.type='checkbox';check.checked=reviewedCards.has(group.job_card_number);check.setAttribute('aria-label','I reviewed duplicate '+group.job_card_number);
-   check.addEventListener('change',()=>{if(check.checked)reviewedCards.add(group.job_card_number);else reviewedCards.delete(group.job_card_number);updateImportButton()});
+   check.addEventListener('change',()=>{if(check.checked)reviewedCards.add(group.job_card_number);else reviewedCards.delete(group.job_card_number);renderImportPreview()});
    label.appendChild(check);const textNode=document.createElement('span');textNode.textContent='Reviewed; import anyway';label.appendChild(textNode);reviewCell.appendChild(label);
   }else if(isUnknown){
    const label=document.createElement('label');label.style.display='flex';label.style.gap='8px';label.style.alignItems='center';label.style.margin='0';
    const check=document.createElement('input');check.type='checkbox';check.checked=reviewedNewCards.has(group.job_card_number);check.setAttribute('aria-label','Verify new job card '+group.job_card_number);
-   check.addEventListener('change',()=>{if(check.checked)reviewedNewCards.add(group.job_card_number);else reviewedNewCards.delete(group.job_card_number);updateImportButton()});
+   check.addEventListener('change',()=>{if(check.checked)reviewedNewCards.add(group.job_card_number);else reviewedNewCards.delete(group.job_card_number);renderImportPreview()});
    label.appendChild(check);const textNode=document.createElement('span');textNode.textContent='Verified new job card';label.appendChild(textNode);reviewCell.appendChild(label);
   }else reviewCell.textContent='—';
   tbody.appendChild(tr);
@@ -396,7 +396,7 @@ async function refreshDuplicates(){
 }
 function updateImportButton(){
  const period=$('charge-period').value;
- const invalid=importGroups.some(g=>!g.job_card_number||!g.person_name||g.amount<=0||g.invalid_amount_rows>0);
+ const invalid=importGroups.some(g=>!g.job_card_number||!g.person_name||g.person_name==='Name needs review'||g.amount<=0||g.invalid_amount_rows>0);
  const unreviewed=[...duplicateCards.keys()].some(card=>!reviewedCards.has(card));
  const unverifiedNew=[...unknownCards].some(card=>!reviewedNewCards.has(card));
  $('fto-import-button').disabled=!period||!importGroups.length||invalid||checkingDuplicates||duplicateCheckFailed||unreviewed||unverifiedNew;

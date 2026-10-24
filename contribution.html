@@ -211,7 +211,7 @@ function showBulkPaymentForm(){
    try{
     const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:"bulk-bank-payment",entry_date:date,entries:parsed.rows}});
     if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save bank payment batch.');
-    entries.push(...(data.entries||[]));deriveCitizens();render();closeSheet();
+    entries.push(...(data.entries||[]));deriveCitizens();render();$('overlay').classList.add('hidden');
     status('Saved '+data.count+' Bank payments totalling '+fmt(data.total_amount)+'. Ledger updated.');
    }catch(err){$('bulkSaveError').innerHTML='<div class="notice err">'+esc(err.message||'Could not save bank payment batch.')+'</div>';if($('saveBulkPayments')){$('saveBulkPayments').disabled=false;$('saveBulkPayments').textContent='Save '+parsed.rows.length+' bank payments';}}
    finally{busy=false;}

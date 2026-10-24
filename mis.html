@@ -28,7 +28,7 @@ button.secondary,.link-button.secondary{background:#e2e8f0;color:#0f172a}button:
 <div class="account"><span id="account-label" class="account-label"></span><a id="import-link" class="link-button hidden" href="./mis-import.html">Import MIS</a><button id="logout-button" class="secondary" type="button">Sign out</button></div></header>
 <section class="panel">
 <div class="section-head"><div><h2>MIS</h2><p>Current active MIS data from the database. Importing is an administrator tool; viewing the data is the main workspace.</p></div></div>
-<div class="meta"><div class="stat"><small>Unique job cards</small><strong id="total-jobcards">—</strong></div><div class="stat"><small>Total applicants</small><strong id="total-applicants">—</strong></div><div class="stat"><small>Source file</small><strong id="source-file">—</strong></div><div class="stat"><small>Last updated</small><strong id="updated-at">—</strong></div></div>
+<div class="meta"><div class="stat"><small>Total Job Card</small><strong id="total-jobcards">—</strong></div><div class="stat"><small>Total Application</small><strong id="total-applicants">—</strong></div><div class="stat"><small>Demand (Selected)</small><strong id="total-demand">—</strong></div><div class="stat"><small>Unwilling (Not Selected)</small><strong id="total-unwilling">—</strong></div><div class="stat"><small>Upload Time</small><strong id="updated-at">—</strong></div></div>
 <div class="toolbar"><div class="search"><label for="search-input">Search job cards or applicants</label><input id="search-input" type="search" placeholder="Job card number, household, applicant name or number…"></div><div class="filter-control"><label for="selection-filter">Selection status</label><select id="selection-filter"><option value="all">All job cards</option><option value="selected">Selected</option><option value="none">None selected</option></select></div><span id="result-count" class="muted"></span></div>
 <div id="data-status" class="status" aria-live="polite">Loading MIS data…</div>
 <div id="table-wrap" class="table-wrap hidden"><table id="mis-table"><thead></thead><tbody></tbody></table></div>
@@ -62,7 +62,6 @@ async function loadData(){
   if(first.error)throw new Error(first.error.message||'Could not load MIS data.');
   const data=first.data;if(!data||data.approved!==true)throw new Error((data&&data.error)||'MIS data access was denied.');
   if(seq!==loadSequence)return;
-  $('source-file').textContent=data.sourceFilename||'—';
   $('updated-at').textContent=data.updatedAt?new Date(data.updatedAt).toLocaleString():'—';
   if(!data.hasData||!data.totalRows){allRows=[];headers=[];jobCards=[];selectedApplicants=new Map();renderTable();status($('data-status'),'No MIS data has been imported yet. An administrator can import the MIS worksheet.');return}
   let rows=(data.rows||[]).map(r=>({rowNumber:r.rowNumber,values:Array.isArray(r.values)?r.values:[]}));
@@ -127,6 +126,14 @@ async function invokeSelection(payload){
  if(data&&data.error)throw new Error(data.error);
  return data;
 }
+function updateKpis(){
+ const totalApplications=allRows.length;
+ const selectedCount=selectedApplicants.size;
+ $('total-jobcards').textContent=jobCards.filter(g=>g.key!=='(Job card number missing)').length;
+ $('total-applicants').textContent=totalApplications;
+ $('total-demand').textContent=selectedCount;
+ $('total-unwilling').textContent=Math.max(0,totalApplications-selectedCount);
+}
 function buildJobCards(){
  const jobIndex=headers.findIndex(h=>/^(job card number|jobcard number)$/i.test(h.trim()));
  const fallbackIndex=headers.findIndex(h=>/^jc no\.?$/i.test(h.trim()));
@@ -145,8 +152,7 @@ function buildJobCards(){
   group.applicants.push({name:normalize(nameIndex>=0?values[nameIndex]:''),number:normalize(applicantNoIndex>=0?values[applicantNoIndex]:''),selectionKey:applicantStableKey(key,values,nameIndex,applicantNoIndex,uniqueIdIndex),values,rowNumber:row.rowNumber});
  });
  jobCards=Array.from(groups.values());
- $('total-jobcards').textContent=jobCards.filter(g=>g.key!=='(Job card number missing)').length;
- $('total-applicants').textContent=allRows.length;
+ updateKpis();
 }
 function getFilteredCards(){
  const q=$('search-input').value.trim().toLocaleLowerCase(),filter=$('selection-filter').value;
@@ -188,6 +194,7 @@ function renderTable(){
      try{
       await invokeSelection({action:shouldSelect?'set':'clear',jobCardNumber:group.key,applicantKey:applicantId});
       selectedApplicants=await loadSavedSelections();
+      updateKpis();
       status($('data-status'),shouldSelect?'Selection saved for job card '+group.key+'.':'Selection cleared for job card '+group.key+'.','success');
      }catch(error){
       status($('data-status'),'Could not save selection: '+(error&&error.message?error.message:String(error))+'. Reload the page if another user may have changed this selection.','error');

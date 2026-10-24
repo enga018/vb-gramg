@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0f172a">
-  <title>MIS Import — VBGRAMG</title>
+  <title>MIS Paste Import — VBGRAMG</title>
   <style>
     :root { color-scheme: light; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     * { box-sizing: border-box; }
@@ -13,11 +13,12 @@
     h1 { margin: 0 0 8px; font-size: clamp(1.6rem, 5vw, 2rem); }
     h2 { margin: 0 0 12px; font-size: 1.1rem; }
     p { color: #475569; line-height: 1.5; margin: 0 0 20px; }
-    .file-box { padding: 16px; border: 1px solid #cbd5e1; border-radius: 12px; margin: 18px 0 14px; }
+    .paste-box { padding: 16px; border: 1px solid #cbd5e1; border-radius: 12px; margin: 18px 0 14px; }
     .file-label { display: block; margin-bottom: 10px; font-weight: 650; }
     .hint { margin-top: 8px; font-size: .85rem; color: #64748b; }
-    input[type=file], input[type=email], input[type=password] { display: block; width: 100%; max-width: 100%; font: inherit; font-size: .95rem; }
-    input[type=email], input[type=password] { min-height: 44px; margin: 8px 0 12px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; }
+    textarea { display:block; width:100%; min-height:190px; resize:vertical; font:inherit; font-size:.92rem; line-height:1.45; padding:12px; border:1px solid #cbd5e1; border-radius:8px; }
+    textarea:focus-visible { outline:3px solid #93c5fd; outline-offset:3px; }
+    input[type=email], input[type=password] { display:block; width:100%; min-height:44px; margin:8px 0 12px; padding:10px 12px; border:1px solid #cbd5e1; border-radius:8px; font:inherit; }
     button { width: 100%; min-height: 48px; padding: 12px 16px; border: 0; border-radius: 10px; background: #0f172a; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
     button.secondary { margin-top: 8px; background: #e2e8f0; color: #0f172a; }
     button:disabled { opacity: .45; cursor: not-allowed; }
@@ -44,16 +45,17 @@
 </head>
 <body>
   <main>
-    <h1>MIS — Import Excel</h1>
+    <h1>MIS — Paste Import</h1>
     <p><a href="./mis.html">← Back to MIS dashboard</a></p>
-    <p>Upload only the worksheet named <strong>MIS</strong> to the vb-gramg Supabase database. Other tabs are ignored. Rows and columns are stored as arrays, including blank cells; no business-field mapping or filtering is applied.</p>
+    <p>Copy the MIS table from its source page or spreadsheet, then paste it below, just like the FTO import. Review the parsed table and changes before confirming. The current MIS stays active until you confirm.</p>
 
-    <div class="file-box">
-      <label class="file-label" for="source-file">Choose Excel or CSV file</label>
-      <input type="file" id="source-file" accept=".xlsx,.xls,.xlsm,.csv">
-      <p class="hint">The file is read locally in your browser. Only the MIS worksheet data is sent to Supabase, in batches.</p>
+    <div class="paste-box">
+      <label class="file-label" for="table-input">Paste table copied from the MIS page</label>
+      <textarea id="table-input" rows="8" placeholder="Copy the MIS table, then paste it here…"></textarea>
+      <p class="hint">Tab-separated data copied from a webpage or spreadsheet is supported. Header row is required. The pasted data is previewed locally before any upload.</p>
+      <button type="button" id="load-table-button">Load pasted table</button>
     </div>
-    <button type="button" id="import-button" disabled>Import MIS to Supabase</button>
+    <button type="button" id="import-button" disabled>Compare pasted MIS</button>
     <div id="status" class="status" aria-live="polite">Checking administrator access…</div>
     <section id="diff-panel" class="diff-panel hidden" aria-live="polite">
       <h2 id="diff-title">Review MIS changes</h2>
@@ -79,22 +81,23 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  
   <script>
     const SUPABASE_URL = 'https://trtzhafgvqosjwrgckty.supabase.co';
     const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-    const sourceInput = document.getElementById('source-file');
+    const tableInput = document.getElementById('table-input');
+    const loadTableButton = document.getElementById('load-table-button');
     const importButton = document.getElementById('import-button');
     const statusBox = document.getElementById('status');
     const previewWrap = document.getElementById('preview-wrap');
     const preview = document.getElementById('preview');
     let currentUser = null;
     let currentRole = null;
-    let importedWorkbook = null;
-    let importedFileName = '';
     let importedRows = [];
+    let pastedTableLoaded = false;
+    let importedFileName = 'Pasted MIS';
     let pendingImportId = null;
     let pendingComparison = null;
 
@@ -120,7 +123,7 @@
       }
       currentUser = user;
       currentRole = access.role;
-      importButton.disabled = !importedWorkbook;
+      importButton.disabled = !pastedTableLoaded;
     }
 
     function renderRows(rows) {
@@ -156,37 +159,46 @@
     });
     supabaseClient.auth.getSession().then(({ data }) => updateAuthUI(data.session ? data.session.user : null));
 
-    sourceInput.addEventListener('change', async function () {
-      const file = sourceInput.files[0];
-      importButton.disabled = true;
-      previewWrap.classList.add('hidden');
-      importedWorkbook = null;
-      importedRows = [];
-      if (!file) return;
-      if (typeof XLSX === 'undefined') {
-        setStatus('Excel reader failed to load. Check your internet connection, refresh the page, and try again.', 'error');
-        return;
-      }
-      try {
-        setStatus('Reading workbook and looking for the MIS tab…', '');
-        importedWorkbook = XLSX.read(await file.arrayBuffer(), { type: 'array', raw: true, cellDates: false });
-        importedFileName = file.name.replace(/\.[^.]+$/, '') || 'Imported';
-        const misName = importedWorkbook.SheetNames.find(name => name.trim().toLowerCase() === 'mis');
-        if (!misName) {
-          importedWorkbook = null;
-          throw new Error('This workbook does not contain a worksheet named “MIS”. Tab names must be MIS (case-insensitive).');
+    function parsePastedTable(raw) {
+      const text = String(raw || '').replace(/\r/g, '').trim();
+      if (!text) return [];
+      const lines = text.split('\n').filter(line => line.trim().length > 0);
+      const delimiter = lines.some(line => line.includes('\t')) ? '\t' : lines.some(line => line.includes('|')) ? '|' : ',';
+      return lines.map(line => {
+        if (delimiter === '\t') return line.split('\t').map(cell => cell.trim());
+        if (delimiter === '|') {
+          const cells = line.split('|').map(cell => cell.trim());
+          if (cells.length && cells[0] === '') cells.shift();
+          if (cells.length && cells[cells.length - 1] === '') cells.pop();
+          return cells;
         }
-        const sheet = importedWorkbook.Sheets[misName];
-        importedRows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null, blankrows: true });
-        importButton.disabled = !currentUser || currentRole !== 'admin';
-        setStatus('Found the MIS tab in “' + file.name + '”. Rows detected: ' + importedRows.length + '. Ready to send to Supabase.', '');
-        renderRows(importedRows);
-      } catch (error) {
-        importedWorkbook = null;
-        importedRows = [];
-        importButton.disabled = true;
-        setStatus('Could not prepare import: ' + (error && error.message ? error.message : String(error)), 'error');
-      }
+        const cells = []; let cell = '', quoted = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (ch === '"' && line[i + 1] === '"' && quoted) { cell += '"'; i++; }
+          else if (ch === '"') quoted = !quoted;
+          else if (ch === ',' && !quoted) { cells.push(cell.trim()); cell = ''; }
+          else cell += ch;
+        }
+        cells.push(cell.trim()); return cells;
+      });
+    }
+
+    loadTableButton.addEventListener('click', function () {
+      importButton.disabled = true; pastedTableLoaded = false; importedRows = [];
+      previewWrap.classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
+      pendingImportId = null; pendingComparison = null;
+      const rows = parsePastedTable(tableInput.value);
+      if (!rows.length) { setStatus('Paste the copied MIS table first, then select Load pasted table.', 'error'); return; }
+      if (rows.length > 100000) { setStatus('The pasted MIS contains more than 100,000 rows. The import limit is 100,000 rows.', 'error'); return; }
+      if (!rows[0].some(cell => String(cell || '').trim())) { setStatus('The pasted table has no header row. Copy the MIS table including its column headings.', 'error'); return; }
+      importedRows = rows; pastedTableLoaded = true; renderRows(importedRows);
+      importButton.disabled = !currentUser || currentRole !== 'admin';
+      setStatus('Loaded ' + importedRows.length + ' pasted rows. Review the preview, then select Compare pasted MIS. Nothing has been sent to Supabase yet.', 'success');
+    });
+    tableInput.addEventListener('input', function () {
+      pastedTableLoaded = false; importedRows = []; importButton.disabled = true;
+      previewWrap.classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
     });
 
     async function invokeImport(payload) {
@@ -230,24 +242,24 @@
     }
 
     importButton.addEventListener('click', async function () {
-      if (!currentUser || currentRole !== 'admin' || !importedWorkbook || !Array.isArray(importedRows)) {
-        setStatus('Sign in and choose a workbook containing a tab named MIS.', 'error'); return;
+      if (!currentUser || currentRole !== 'admin' || !pastedTableLoaded || !Array.isArray(importedRows) || !importedRows.length) {
+        setStatus('Sign in as an administrator, paste the MIS table, and select Load pasted table first.', 'error'); return;
       }
       if (importedRows.length > 100000) { setStatus('This workbook contains more than 100,000 rows. Import limit is 100,000 rows.', 'error'); return; }
-      importButton.disabled = true; sourceInput.disabled = true;
+      importButton.disabled = true; tableInput.disabled = true; loadTableButton.disabled = true;
       let importId = null;
       document.getElementById('diff-panel').classList.add('hidden');
       document.getElementById('diff-title').textContent = 'Review MIS changes';
       document.querySelector('.diff-actions').classList.remove('hidden');
       try {
-        setStatus('Uploading to a temporary staging area. The current active MIS will remain unchanged…', '');
-        const started = await invokeImport({ action: 'begin', filename: sourceInput.files[0]?.name || importedFileName + '.xlsx', rowCount: importedRows.length });
+        setStatus('Sending pasted MIS rows to temporary staging. The current active MIS will remain unchanged…', '');
+        const started = await invokeImport({ action: 'begin', filename: importedFileName, rowCount: importedRows.length });
         importId = started.importId;
         const batchSize = 250;
         for (let offset = 0; offset < importedRows.length; offset += batchSize) {
           const batch = importedRows.slice(offset, offset + batchSize);
           await invokeImport({ action: 'append', importId, startRow: offset + 1, rows: batch });
-          setStatus('Uploading MIS rows: ' + Math.min(offset + batch.length, importedRows.length) + ' / ' + importedRows.length, '');
+          setStatus('Staging pasted MIS rows: ' + Math.min(offset + batch.length, importedRows.length) + ' / ' + importedRows.length, '');
         }
         setStatus('Comparing the uploaded applicants with the current active MIS…', '');
         const comparison = await invokeImport({ action: 'compare', importId });
@@ -259,27 +271,22 @@
         pendingImportId = null; pendingComparison = null;
         setStatus('Comparison failed: ' + (error && error.message ? error.message : String(error)) + '\nThe existing active MIS has not been changed.', 'error');
       } finally {
-        sourceInput.disabled = !!pendingImportId;
-        importButton.disabled = !currentUser || currentRole !== 'admin' || !importedWorkbook || !!pendingImportId;
+        tableInput.disabled = !!pendingImportId; loadTableButton.disabled = !!pendingImportId;
+        importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || !!pendingImportId;
       }
     });
 
     document.getElementById('apply-changes-button').addEventListener('click', async function () {
       if (!pendingImportId || !pendingComparison || !currentUser || currentRole !== 'admin') {
-        setStatus('No comparison is waiting for confirmation. Upload and compare the file again.', 'error'); return;
+        setStatus('No comparison is waiting for confirmation. Load and compare the pasted MIS again.', 'error'); return;
       }
       const button = document.getElementById('apply-changes-button');
-      button.disabled = true; document.getElementById('cancel-changes-button').disabled = true; sourceInput.disabled = true;
+      button.disabled = true; document.getElementById('cancel-changes-button').disabled = true; tableInput.disabled = true; loadTableButton.disabled = true;
       try {
         setStatus('Applying the reviewed changes…', '');
         const result = await invokeImport({ action: 'finalize', importId: pendingImportId, expectedActiveImportId: pendingComparison.expectedActiveImportId });
         if (!result || !result.success) throw new Error('Supabase did not confirm that the changes were applied.');
-        const filename = sourceInput.files[0]?.name || importedFileName;
-        const misName = importedWorkbook.SheetNames.find(name => name.trim().toLowerCase() === 'mis');
-        const outputBook = XLSX.utils.book_new();
-        const copiedSheet = JSON.parse(JSON.stringify(importedWorkbook.Sheets[misName]));
-        XLSX.utils.book_append_sheet(outputBook, copiedSheet, 'MIS');
-        XLSX.writeFile(outputBook, importedFileName + '_MIS.xlsx');
+        const filename = importedFileName;
         setStatus('MIS update successful.\nSource: ' + filename + '\nAdded applicants: ' + result.added.length + '\nDeleted applicants: ' + result.deleted.length + '\nUpdated applicants: ' + result.updated.length + '\nUnchanged applicants: ' + result.unchanged + '\nCurrent applicants: ' + result.newCount + '\nThe updated MIS is active. Old MIS row data has been removed; import metadata remains for history.' + (result.cleanupWarning ? '\nWARNING: ' + result.cleanupWarning : ''), 'success');
         document.getElementById('diff-title').textContent = 'MIS changes applied';
         document.getElementById('diff-intro').textContent = 'These are the changes that were applied to the active MIS.';
@@ -288,8 +295,8 @@
       } catch (error) {
         setStatus('Could not apply changes: ' + (error && error.message ? error.message : String(error)) + '\nPlease compare again before retrying.', 'error');
       } finally {
-        button.disabled = false; document.getElementById('cancel-changes-button').disabled = false; sourceInput.disabled = false;
-        importButton.disabled = !currentUser || currentRole !== 'admin' || !importedWorkbook || !!pendingImportId;
+        button.disabled = false; document.getElementById('cancel-changes-button').disabled = false; tableInput.disabled = false; loadTableButton.disabled = false;
+        importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || !!pendingImportId;
       }
     });
 
@@ -300,9 +307,9 @@
       document.querySelector('.diff-actions').classList.remove('hidden');
       pendingImportId = null; pendingComparison = null;
       if (id) { try { await invokeImport({ action: 'abort', importId: id }); } catch (_) {} }
-      sourceInput.disabled = false;
-      setStatus('Upload cancelled. The existing active MIS was not changed.', '');
-      importButton.disabled = !currentUser || currentRole !== 'admin' || !importedWorkbook;
+      tableInput.disabled = false; loadTableButton.disabled = false;
+      setStatus('MIS comparison cancelled. The existing active MIS was not changed.', '');
+      importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded;
     });
 
   </script>

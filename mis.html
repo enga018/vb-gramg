@@ -42,7 +42,7 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let currentRole=null,allRows=[],headers=[],jobCards=[],currentPage=0,pageSize=50,loadSequence=0,expandedCards=new Set(),selectedApplicants=new Map();
+let currentRole=null,allRows=[],headers=[],jobCards=[],currentPage=0,pageSize=50,loadSequence=0,expandedCards=new Set(),selectedApplicants=new Map(),scrollExpandedCardKey=null;
 function status(el,msg,type){el.textContent=msg;el.classList.toggle('error',type==='error');el.classList.toggle('success',type==='success')}
 async function verifyAccess(user){
  const seq=++loadSequence;
@@ -177,7 +177,7 @@ function renderTable(){
   const hasSelection=selectedApplicants.has(group.key);
   const tr=document.createElement('tr');tr.className='jobcard-row '+(hasSelection?'has-selection':'no-selection');
   const serialCell=document.createElement('td');serialCell.textContent=String(start+visibleIndex+1);if(isMobile)serialCell.style.verticalAlign='top';tr.appendChild(serialCell);
-  const toggleGroup=()=>{if(expandedCards.has(group.key))expandedCards.clear();else{expandedCards.clear();expandedCards.add(group.key)}renderTable()};
+  const toggleGroup=()=>{if(expandedCards.has(group.key)){expandedCards.clear();scrollExpandedCardKey=null}else{expandedCards.clear();expandedCards.add(group.key);scrollExpandedCardKey=isMobile?group.key:null}renderTable()};
   tr.tabIndex=0;
   tr.setAttribute('aria-expanded',String(expandedCards.has(group.key)));
   tr.setAttribute('aria-label',(expandedCards.has(group.key)?'Collapse ':'Expand ')+'applicants for job card '+group.key);
@@ -223,7 +223,7 @@ function renderTable(){
     });
     selectCell.appendChild(checkbox);ar.appendChild(selectCell);
     subbody.appendChild(ar)});
-   subtable.appendChild(subbody);detailTd.appendChild(subtable);detailTr.appendChild(detailTd);tbody.appendChild(detailTr);
+   subtable.appendChild(subbody);detailTd.appendChild(subtable);detailTr.appendChild(detailTd);tbody.appendChild(detailTr);if(isMobile&&scrollExpandedCardKey===group.key){scrollExpandedCardKey=null;requestAnimationFrame(()=>detailTr.scrollIntoView({behavior:'smooth',block:'start'}))}
   }
  });
  $('table-wrap').classList.toggle('hidden',!headers.length);

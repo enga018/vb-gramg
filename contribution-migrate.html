@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>VBGRAMG — Controlled Backup Migration</title>
+<style>
+body{font:16px/1.5 system-ui,-apple-system,sans-serif;background:#f5f6f3;color:#18251f;margin:0;padding:20px}main{max-width:760px;margin:auto}.card{background:#fff;border:1px solid #d9e0da;border-radius:16px;padding:20px;margin:0 0 14px}h1{font-size:23px;margin:0 0 6px}p{margin:8px 0}.muted{color:#5d6c64;font-size:14px}button,input{font:inherit}button{background:#1b4d3e;color:white;border:0;border-radius:10px;padding:12px 16px;font-weight:700;cursor:pointer}button:disabled{opacity:.5;cursor:wait}input[type=file]{display:block;margin:14px 0;max-width:100%}.notice{padding:12px;border-radius:10px;background:#e8efe9;margin-top:12px;white-space:pre-wrap;overflow-wrap:anywhere}.err{background:#fdeaea;color:#7a1d1d}.warn{background:#fff3d9;color:#684900}ul{padding-left:22px}progress{width:100%;height:18px}code{overflow-wrap:anywhere}
+</style>
+</head>
+<body><main>
+<section class="card"><h1>Controlled backup migration</h1><p class="muted">Admin-only migration utility. This page is intentionally not linked from the Contribution Tracker.</p><p>Choose <code>nsnvc-backup-2026-10-24.json</code>. It will validate the entire backup in batches before writing. Existing January 2026 charges are matched and skipped, not duplicated.</p><input id="file" type="file" accept=".json,application/json"><div id="preview" class="notice">Waiting for backup file.</div></section>
+<section class="card"><h2>Migration steps</h2><ul><li>497 citizen/job-card records</li><li>All 5,633 historical ledger entries, deduplicating existing January charges</li><li>Deferral metadata and per-entry overrides</li><li>Backup source metadata and SHA-256 fingerprint</li></ul><p class="muted">Do not close this page while it is running. If interrupted, select the same file and run it again; existing records are designed to be skipped.</p><button id="run" disabled>Validate and import everything</button><progress id="progress" value="0" max="100" hidden></progress><div id="result" class="notice" hidden></div></section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(()=>{'use strict';
+const URL='https://trtzhafgvqosjwrgckty.supabase.co';
+const KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
+const sb=window.supabase.createClient(URL,KEY);
+const $=id=>document.getElementById(id);
+let backup=null,fileName='',sha='',entries=[],citizens=[];
+const types={charge:'charges',payment:'payments',return:'returns',forgive:'forgiveness',sanitationFee:'sanitation fees'};
+function say(msg,kind=''){ $('result').hidden=false;$('result').className='notice '+kind;$('result').textContent=msg; }
+function batches(a,n=200){const out=[];for(let i=0;i<a.length;i+=n)out.push(a.slice(i,i+n));return out;}
+function sourceRows(d){
+ const out=[];
+ for(const c of d.citizens||[]){
+  for(const e of c.ledger||[]){
+   let deferred=Boolean(e.deferred);
+   const overrides=d.meta?.deferredPeriodOverrides||{};
+   const perCitizen=overrides[c.id]||overrides[c.jobCard]||{};
+   const note=String(e.note||'').trim().toUpperCase();
+   const periodOverride=Object.prototype.hasOwnProperty.call(perCitizen,note)?perCitizen[note]:undefined;
+   const entryOverride=perCitizen[e.entryId];
+   if(entryOverride&&typeof entryOverride.value==='boolean')deferred=entryOverride.value;
+   else if(typeof entryOverride==='boolean')deferred=entryOverride;
+   else if(periodOverride&&typeof periodOverride.value==='boolean')deferred=periodOverride.value;
+   else if(typeof periodOverride==='boolean')deferred=periodOverride;
+   else if((d.meta?.deferredPeriods?.periods||[]).map(x=>String(x).toUpperCase()).includes(note))deferred=true;
+   out.push({job_card_number:c.jobCard,person_name:c.name,entry_type:e.type,amount:Number(e.amount),note:e.note||'',entry_date:e.date||'',is_deferred:deferred,source_created_at_ms:Number(e.createdAtMs)||0,legacy_entry_id:e.entryId});
+  }
+ }
+ return out;
+}
+function citizenRows(d){
+ return (d.citizens||[]).map(c=>({job_card_number:c.jobCard,person_name:c.name,card_no:c.cardNo||'',phone:c.phone||'',legacy_citizen_id:c.id,source_total_charged:Number(c.totalCharged)||0,source_total_paid:Number(c.totalPaid)||0,source_balance:Number(c.balance)||0,source_deferred_total:Number(c.deferredTotal)||0,source_record:Object.fromEntries(Object.entries(c).filter(([k])=>k!=='ledger'))}));
+}
+async function sha256(buf){const hash=await crypto.subtle.digest('SHA-256',buf);return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('');}
+async function invoke(body){const {data,error}=await sb.functions.invoke('vbgramg-contribution-data',{body});if(error||!data||data.error)throw new Error(data?.error||error?.message||'Supabase request failed');return data;}
+$('file').addEventListener('change',async()=>{
+ backup=null;$('run').disabled=true;$('result').hidden=true;
+ const f=$('file').files?.[0];if(!f){$('preview').textContent='Waiting for backup file.';return;}
+ try{
+  const buf=await f.arrayBuffer();const d=JSON.parse(new TextDecoder().decode(buf));
+  if(d.app!=='nsnvc-contribution'||!Array.isArray(d.citizens))throw new Error('This does not look like an nsnvc-contribution backup.');
+  const allEntries=d.citizens.reduce((n,c)=>n+(c.ledger||[]).length,0);
+  if(d.citizens.length!==497||allEntries!==5633)throw new Error('Backup counts differ from the expected export. Nothing was imported.');
+  backup=d;fileName=f.name;sha=await sha256(buf);citizens=citizenRows(d);entries=sourceRows(d);
+  const counts=entries.reduce((m,e)=>(m[e.entry_type]=(m[e.entry_type]||0)+1,m),{});
+  $('preview').textContent='Validated file structure.\nFile: '+fileName+'\nCitizens: '+citizens.length+'\nLedger entries: '+entries.length+'\n'+Object.entries(counts).map(([k,v])=>(types[k]||k)+': '+v).join('\n')+'\nSHA-256: '+sha+'\nReady for server-side validation.';
+  $('run').disabled=false;
+ }catch(e){$('preview').textContent=e.message||'Could not read backup.';$('preview').className='notice err';}
+});
+$('run').addEventListener('click',async()=>{
+ if(!backup||$('run').disabled)return;
+ $('run').disabled=true;$('file').disabled=true;$('progress').hidden=false;$('progress').value=0;
+ let citizenImported=0,citizenSkipped=0,entryImported=0,entrySkipped=0;
+ try{
+  const {data:sessionData,error:sessionError}=await sb.auth.getSession();
+  if(sessionError||!sessionData.session)throw new Error('Sign in to VBGRAMG in this browser first, then reopen this migration page.');
+  // Validate administrator access before any writes.
+  const access=await invoke({action:'list'});
+  if(access.role!=='admin')throw new Error('Your approved VBGRAMG account does not have administrator permissions.');
+  const cb=batches(citizens), eb=batches(entries);
+  say('Phase 1/4: validating '+cb.length+' citizen batches and '+eb.length+' ledger batches…');
+  for(let i=0;i<cb.length;i++){await invoke({action:'validate-backup-citizens',citizens:cb[i]});$('progress').value=5+10*(i+1)/cb.length;}
+  for(let i=0;i<eb.length;i++){await invoke({action:'validate-backup-batch',entries:eb[i]});$('progress').value=15+20*(i+1)/eb.length;}
+  say('Validation passed. Phase 2/4: importing citizens…');
+  for(let i=0;i<cb.length;i++){const r=await invoke({action:'import-backup-citizens',citizens:cb[i]});citizenImported+=r.imported||0;citizenSkipped+=r.skipped||0;$('progress').value=35+15*(i+1)/cb.length;}
+  say('Citizens complete. Phase 3/4: importing all ledger entries; existing January charges will be skipped…');
+  for(let i=0;i<eb.length;i++){const r=await invoke({action:'import-backup-batch',entries:eb[i]});entryImported+=r.imported||0;entrySkipped+=r.skipped||0;$('progress').value=50+45*(i+1)/eb.length;}
+  say('Ledger complete. Phase 4/4: saving backup metadata…');
+  await invoke({action:'save-backup-metadata',source_filename:fileName,source_sha256:sha,exported_at:backup.exportedAt,citizen_count:citizens.length,ledger_count:entries.length,source_meta:backup.meta});
+  $('progress').value=100;
+  const fresh=await invoke({action:'list'});
+  const counts=fresh.entries.reduce((m,e)=>(m[e.entry_type]=(m[e.entry_type]||0)+1,m),{});
+  say('MIGRATION COMPLETED\nCitizens inserted: '+citizenImported+'; already present: '+citizenSkipped+'\nLedger entries inserted: '+entryImported+'; skipped as duplicates/existing January charges: '+entrySkipped+'\nCurrent database ledger rows: '+fresh.entries.length+'\nLedger types: '+Object.entries(counts).map(([k,v])=>k+' '+v).join(', ')+'\nCitizen records in database: '+fresh.citizens.length+'\nBackup metadata saved. Refresh the Contribution Tracker and verify balances.', '');
+ }catch(e){say('MIGRATION STOPPED\n'+(e.message||String(e))+'\nAlready completed batches remain saved. Re-run the same file to resume safely; duplicate records should be skipped.','err');}
+ finally{$('file').disabled=false;$('run').disabled=!backup;}
+});
+})();
+</script></body></html>

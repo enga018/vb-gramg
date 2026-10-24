@@ -100,10 +100,10 @@ function render(){
    const detail=cell('','');const number=document.createElement('div');number.textContent=c.id;number.className='jobcard';number.style.whiteSpace='normal';number.style.overflowWrap='anywhere';detail.appendChild(number);
    const secondary=document.createElement('div');secondary.className='mobile-secondary';secondary.style.cssText='display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:5px;font-size:.8rem;color:#64748b;font-weight:400';
    const name=document.createElement('span');name.textContent=c.name;secondary.appendChild(name);
-   const balance=document.createElement('span');balance.textContent='Outstanding: '+fmt(Math.max(0,c.balance));secondary.appendChild(balance);
+   const balance=document.createElement('span');if(c.balance>0){balance.textContent='Outstanding: '+fmt(c.balance);secondary.appendChild(balance);}
    detail.appendChild(secondary);
   }else{
-   cell(c.id,'jobcard');cell(c.name,'person');cell(fmt(Math.max(0,c.balance)),'balance');
+   cell(c.id,'jobcard');cell(c.name,'person');cell(c.balance>0?fmt(c.balance):'','balance');
   }
   tr.addEventListener('click',()=>openCitizen(c.id));tr.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();openCitizen(c.id)}});tbody.appendChild(tr);
  });

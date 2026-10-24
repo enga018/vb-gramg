@@ -192,7 +192,7 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let authSequence=0,parsedDataRows=[],importGroups=[],duplicateCards=new Map(),reviewedCards=new Set(),deferredCards=new Map(),duplicateCheckSequence=0,checkingDuplicates=false,duplicateCheckFailed=false;
+let authSequence=0,parsedDataRows=[],importGroups=[],duplicateCards=new Map(),reviewedCards=new Set(),unknownCards=new Set(),reviewedNewCards=new Set(),deferredCards=new Map(),duplicateCheckSequence=0,checkingDuplicates=false,duplicateCheckFailed=false;
 function status(msg,type){$('data-status').textContent=msg;$('data-status').classList.toggle('error',type==='error');$('data-status').classList.toggle('success',type==='success')}
 const FTO_HEADERS=[
  'S.No','Block Name','Job Card No. (Panchayat Name)','Reference No.','Transaction Date',
@@ -306,7 +306,7 @@ function buildImportGroups(){
  }
  importGroups=[...map.values()].sort((a,b)=>a.job_card_number.localeCompare(b.job_card_number));
  for(const group of importGroups)if(!deferredCards.has(group.job_card_number))deferredCards.set(group.job_card_number,false);
- duplicateCards=new Map();reviewedCards=new Set();
+ duplicateCards=new Map();reviewedCards=new Set();unknownCards=new Set();reviewedNewCards=new Set();
  renderImportPreview();
  refreshDuplicates();
 }
@@ -338,12 +338,16 @@ function renderImportPreview(){
   deferBox.addEventListener('change',()=>{deferredCards.set(group.job_card_number,deferBox.checked);renderImportPreview()});
   deferCell.appendChild(deferBox);
   const duplicate=duplicateCards.get(group.job_card_number);
+  const isUnknown=unknownCards.has(group.job_card_number);
   const duplicateCell=addCell('');
   if(duplicate){
    const flag=document.createElement('span');flag.className='flag';flag.textContent='Existing charge';
    duplicateCell.appendChild(flag);
    const detail=document.createElement('div');detail.className='muted';detail.textContent='₹'+Number(duplicate.amount||0).toLocaleString('en-IN',{maximumFractionDigits:2})+(duplicate.is_deferred?' · deferred':' · active');
    duplicateCell.appendChild(detail);
+  }else if(isUnknown){
+   const flag=document.createElement('span');flag.className='flag';flag.textContent='New job card';duplicateCell.appendChild(flag);
+   const detail=document.createElement('div');detail.className='muted';detail.textContent='Not in contribution records';duplicateCell.appendChild(detail);
   }else{
    const clear=document.createElement('span');clear.className='clear';clear.textContent='No match';duplicateCell.appendChild(clear);
   }
@@ -353,13 +357,19 @@ function renderImportPreview(){
    const check=document.createElement('input');check.type='checkbox';check.checked=reviewedCards.has(group.job_card_number);check.setAttribute('aria-label','I reviewed duplicate '+group.job_card_number);
    check.addEventListener('change',()=>{if(check.checked)reviewedCards.add(group.job_card_number);else reviewedCards.delete(group.job_card_number);updateImportButton()});
    label.appendChild(check);const textNode=document.createElement('span');textNode.textContent='Reviewed; import anyway';label.appendChild(textNode);reviewCell.appendChild(label);
+  }else if(isUnknown){
+   const label=document.createElement('label');label.style.display='flex';label.style.gap='8px';label.style.alignItems='center';label.style.margin='0';
+   const check=document.createElement('input');check.type='checkbox';check.checked=reviewedNewCards.has(group.job_card_number);check.setAttribute('aria-label','Verify new job card '+group.job_card_number);
+   check.addEventListener('change',()=>{if(check.checked)reviewedNewCards.add(group.job_card_number);else reviewedNewCards.delete(group.job_card_number);updateImportButton()});
+   label.appendChild(check);const textNode=document.createElement('span');textNode.textContent='Verified new job card';label.appendChild(textNode);reviewCell.appendChild(label);
   }else reviewCell.textContent='—';
   tbody.appendChild(tr);
  });
  const period=$('charge-period').value;
  const reviewedDuplicates=[...duplicateCards.keys()].filter(card=>reviewedCards.has(card)).length;
+ const verifiedNew=[...unknownCards].filter(card=>reviewedNewCards.has(card)).length;
  $('import-count').textContent=importGroups.length+' job cards · '+parsedDataRows.length+' FTO rows · '+deferred+' deferred';
- $('import-summary').textContent=(period?'Period: '+period:'Choose a contribution period')+' · Total: ₹'+total.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+' · Duplicate job cards: '+duplicateCards.size+' ('+reviewedDuplicates+' reviewed)'+(invalid?' · '+invalid+' row(s) have a missing/invalid selected amount':'');
+ $('import-summary').textContent=(period?'Period: '+period:'Choose a contribution period')+' · Total: ₹'+total.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+' · Duplicate job cards: '+duplicateCards.size+' ('+reviewedDuplicates+' reviewed) · New job cards: '+unknownCards.size+' ('+verifiedNew+' verified)'+(invalid?' · '+invalid+' row(s) have a missing/invalid selected amount':'');
  updateImportButton();
 }
 async function refreshDuplicates(){
@@ -373,6 +383,7 @@ async function refreshDuplicates(){
   if(seq!==duplicateCheckSequence)return;
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not check for duplicate charges.');
   duplicateCards=new Map((data.duplicates||[]).map(row=>[String(row.job_card_number),row]));
+  unknownCards=new Set((data.unknown_job_cards||[]).map(String));
   checkingDuplicates=false;duplicateCheckFailed=false;
   renderImportPreview();
  }catch(err){
@@ -387,7 +398,8 @@ function updateImportButton(){
  const period=$('charge-period').value;
  const invalid=importGroups.some(g=>!g.job_card_number||!g.person_name||g.amount<=0||g.invalid_amount_rows>0);
  const unreviewed=[...duplicateCards.keys()].some(card=>!reviewedCards.has(card));
- $('fto-import-button').disabled=!period||!importGroups.length||invalid||checkingDuplicates||duplicateCheckFailed||unreviewed;
+ const unverifiedNew=[...unknownCards].some(card=>!reviewedNewCards.has(card));
+ $('fto-import-button').disabled=!period||!importGroups.length||invalid||checkingDuplicates||duplicateCheckFailed||unreviewed||unverifiedNew;
 }
 function bytesToHex(bytes){return [...new Uint8Array(bytes)].map(b=>b.toString(16).padStart(2,'0')).join('')}
 async function sha256(text){return bytesToHex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)))}
@@ -403,9 +415,11 @@ $('fto-import-button').addEventListener('click',async()=>{
   const sourceSha=await sha256(JSON.stringify({raw:$('table-input').value,period,amount_source:$('amount-source').value,rows:payloadRows}));
   const ftoNumber=extractFtoNumber($('table-input').value);
   const sourceFilename=ftoNumber||('FTO-'+period+'-'+sourceSha.slice(0,12));
-  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'import-fto-batch',charge_period:period,rows:payloadRows,source_sha256:sourceSha,source_filename:sourceFilename,fto_number:ftoNumber,reviewed_duplicates:[...reviewedCards]}});
+  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'import-fto-batch',charge_period:period,rows:payloadRows,source_sha256:sourceSha,source_filename:sourceFilename,fto_number:ftoNumber,reviewed_duplicates:[...reviewedCards],reviewed_new_job_cards:[...reviewedNewCards]}});
   if(error||!data||data.error){
-   if(data&&Array.isArray(data.duplicates)){duplicateCards=new Map(data.duplicates.map(row=>[String(row.job_card_number),row]));reviewedCards=new Set();renderImportPreview()}
+   if(data&&Array.isArray(data.duplicates)){duplicateCards=new Map(data.duplicates.map(row=>[String(row.job_card_number),row]));reviewedCards=new Set();}
+   if(data&&Array.isArray(data.unknown_job_cards)){unknownCards=new Set(data.unknown_job_cards.map(String));reviewedNewCards=new Set();}
+   if(data&&(Array.isArray(data.duplicates)||Array.isArray(data.unknown_job_cards)))renderImportPreview();
    throw new Error((data&&data.error)||(error&&error.message)||'Import failed.');
   }
   status(data.already_imported?'This exact FTO batch was already imported; no duplicate charges were added.':'Imported '+data.imported+' charge entries for '+data.rows+' job cards. Total ₹'+Number(data.total_amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'.','success');

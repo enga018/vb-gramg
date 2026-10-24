@@ -79,8 +79,12 @@ async function loadData(){
   selectedApplicants=await loadSavedSelections();
   if(seq!==loadSequence)return;
   buildJobCards();
+  const staleSelectionsRemoved=await pruneStaleSelections();
+  if(seq!==loadSequence)return;
   currentPage=0;expandedCards=new Set();renderTable();
-  status($('data-status'),'MIS data loaded successfully.','success');
+  status($('data-status'),staleSelectionsRemoved
+   ?'MIS data loaded. Cleared '+staleSelectionsRemoved+' saved selection(s) for applicants no longer present.'
+   :'MIS data loaded successfully.','success');
  }catch(error){if(seq===loadSequence)status($('data-status'),'Could not load MIS data: '+(error&&error.message?error.message:String(error)),'error')}
  finally{}
 }
@@ -97,6 +101,21 @@ async function loadSavedSelections(){
  const saved=new Map();
  result.selections.forEach(item=>{if(item&&typeof item.job_card_number==='string'&&typeof item.applicant_key==='string')saved.set(item.job_card_number,item.applicant_key)});
  return saved;
+}
+async function pruneStaleSelections(){
+ const valid=new Map(jobCards.map(group=>[group.key,new Set(group.applicants.map(applicant=>applicant.selectionKey))]));
+ const stale=Array.from(selectedApplicants.entries()).filter(([jobCard,applicantKey])=>!valid.has(jobCard)||!valid.get(jobCard).has(applicantKey));
+ let removed=0;
+ for(const [jobCard,applicantKey] of stale){
+  try{
+   await invokeSelection({action:'clear',jobCardNumber:jobCard,applicantKey});
+   removed++;
+  }catch(error){
+   console.warn('Could not clear stale MIS selection for job card '+jobCard,error);
+  }
+ }
+ if(removed)selectedApplicants=await loadSavedSelections();
+ return removed;
 }
 async function invokeSelection(payload){
  const {data,error}=await supabaseClient.functions.invoke('vbgramg-mis-selection',{body:payload});

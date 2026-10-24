@@ -39,7 +39,7 @@ table{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem;white
 <div id="app" class="hidden">
 <section class="panel">
 <div class="stats"><div class="stat"><div class="k">Households</div><div class="v" id="households">—</div></div><div class="stat"><div class="k">Total charged</div><div class="v" id="charged">—</div></div><div class="stat"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div></div>
-<div class="toolbar"><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due">Due</option><option value="partial">Partially paid</option><option value="paid">Settled</option><option value="deferred">Has deferred charges</option></select></div><button id="clearSearch" class="btn ghost" type="button">Clear</button></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button></div></div>
+<div class="toolbar"><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due">Due</option><option value="paid">Settled</option><option value="deferred">Has deferred charges</option></select></div><button id="clearSearch" class="btn ghost" type="button">Clear</button></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button></div></div>
 </section>
 </div>
 </main>
@@ -79,7 +79,7 @@ function deriveCitizens(){
 function render(){
  const q=$('search').value.trim().toLocaleLowerCase(),filter=$('statusFilter').value;
  const list=citizens.filter(c=>{
-  const state=c.balance<=0?'paid':c.paid>0?'partial':'due';
+  const state=c.balance<=0?'paid':'due';
   const matchesStatus=filter==='all'||(filter==='deferred'?c.deferred>0:state===filter);
   const matchesSearch=c.name.toLocaleLowerCase().includes(q)||c.id.toLocaleLowerCase().includes(q);
   return matchesStatus&&matchesSearch;
@@ -93,7 +93,7 @@ function render(){
  const head=document.createElement('tr');
  (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Outstanding','Status']).forEach(label=>{const th=document.createElement('th');th.textContent=label;head.appendChild(th)});thead.appendChild(head);
  shown.forEach((c,index)=>{
-  const state=c.balance<=0?'paid':c.paid>0?'partial':'due',tr=document.createElement('tr');tr.className='contribution-row';tr.tabIndex=0;tr.dataset.card=c.id;tr.setAttribute('role','button');tr.setAttribute('aria-label','Open contribution history for '+c.name+' job card '+c.id);
+  const state=c.balance<=0?'paid':'due',tr=document.createElement('tr');tr.className='contribution-row';tr.tabIndex=0;tr.dataset.card=c.id;tr.setAttribute('role','button');tr.setAttribute('aria-label','Open contribution history for '+c.name+' job card '+c.id);
   const cell=(value,cls)=>{const td=document.createElement('td');td.textContent=value;if(cls)td.className=cls;tr.appendChild(td);return td};
   if(isMobile){
    const detail=cell('','');const number=document.createElement('div');number.textContent=c.id;number.className='jobcard';number.style.whiteSpace='normal';number.style.overflowWrap='anywhere';detail.appendChild(number);
@@ -101,7 +101,7 @@ function render(){
    const name=document.createElement('span');name.textContent=c.name;secondary.appendChild(name);
    const balance=document.createElement('span');balance.textContent='Outstanding: '+fmt(Math.max(0,c.balance));secondary.appendChild(balance);
    detail.appendChild(secondary);
-   const stateBadge=document.createElement('span');stateBadge.className='badge '+state;stateBadge.textContent=state==='paid'?'Settled':state==='partial'?'Partial':'Due';
+   const stateBadge=document.createElement('span');stateBadge.className='badge '+state;stateBadge.textContent=state==='paid'?'Settled':'Due';
    const statusLine=document.createElement('div');statusLine.style.marginTop='7px';statusLine.appendChild(stateBadge);detail.appendChild(statusLine);
   }else{
    cell(c.id,'jobcard');cell(c.name,'person');cell(fmt(Math.max(0,c.balance)),'balance');

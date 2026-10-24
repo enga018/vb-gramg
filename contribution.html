@@ -38,7 +38,7 @@ table{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem;white
 <section class="panel"><div id="status" class="notice info">Checking your approved account…</div></section>
 <div id="app" class="hidden">
 <section class="panel">
-<div class="stats"><div class="stat"><div class="k">Households</div><div class="v" id="households">—</div></div><div class="stat"><div class="k">Total charged</div><div class="v" id="charged">—</div></div><div class="stat"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred total</div><div class="v" id="deferred">—</div></div></div>
+<div class="stats"><div class="stat"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred total</div><div class="v" id="deferred">—</div></div></div>
 <div class="toolbar"><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due">Due</option><option value="paid">Settled</option><option value="deferred">Has deferred charges</option></select></div><button id="clearSearch" class="btn ghost" type="button">Clear</button></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button></div></div>
 </section>
 </div>
@@ -84,8 +84,6 @@ function render(){
   const matchesSearch=c.name.toLocaleLowerCase().includes(q)||c.id.toLocaleLowerCase().includes(q);
   return matchesStatus&&matchesSearch;
  });
- $('households').textContent=citizens.length.toLocaleString('en-IN');
- $('charged').textContent=fmt(citizens.reduce((s,c)=>s+c.totalCharged,0));
  $('outstanding').textContent=fmt(citizens.reduce((s,c)=>s+Math.max(0,c.balance),0));
  $('deferred').textContent=fmt(citizens.reduce((s,c)=>s+c.deferred,0));
  const totalPages=Math.max(1,Math.ceil(list.length/pageSize));currentPage=Math.min(currentPage,totalPages-1);

@@ -170,19 +170,23 @@ function renderTable(){
  const start=currentPage*pageSize,shown=filtered.slice(start,start+pageSize);
  const thead=$('mis-table').querySelector('thead'),tbody=$('mis-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
  const hr=document.createElement('tr');
- ['Sl. No.','Job Card Number','Head of Household','Applicants'].forEach(label=>{const th=document.createElement('th');th.textContent=label;hr.appendChild(th)});
+ ['Sl. No.','Job Card Details'].forEach(label=>{const th=document.createElement('th');th.textContent=label;hr.appendChild(th)});
  thead.appendChild(hr);
  shown.forEach((group,visibleIndex)=>{
   const hasSelection=selectedApplicants.has(group.key);
   const tr=document.createElement('tr');tr.className='jobcard-row '+(hasSelection?'has-selection':'no-selection');
-  const serialCell=document.createElement('td');serialCell.textContent=String(start+visibleIndex+1);tr.appendChild(serialCell);
+  const serialCell=document.createElement('td');serialCell.textContent=String(start+visibleIndex+1);serialCell.style.verticalAlign='top';tr.appendChild(serialCell);
   const toggleGroup=()=>{if(expandedCards.has(group.key))expandedCards.delete(group.key);else expandedCards.add(group.key);renderTable()};
-  const makeExpandCell=(value,weight)=>{const cell=document.createElement('td');cell.textContent=value;cell.style.fontWeight=weight;cell.classList.add('expand-cell');cell.tabIndex=0;cell.setAttribute('role','button');cell.setAttribute('aria-expanded',String(expandedCards.has(group.key)));cell.setAttribute('aria-label',(expandedCards.has(group.key)?'Collapse ':'Expand ')+group.key);cell.addEventListener('click',toggleGroup);cell.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleGroup()}});return cell};
-  tr.appendChild(makeExpandCell(group.key,'700'));
-  tr.appendChild(makeExpandCell(group.household||'—','600'));
-  const countCell=document.createElement('td');const countButton=document.createElement('button');countButton.type='button';countButton.className='count-link';countButton.setAttribute('aria-expanded',String(expandedCards.has(group.key)));countButton.setAttribute('aria-label',(expandedCards.has(group.key)?'Collapse ':'Expand ')+group.applicants.length+' applicants for job card '+group.key);countButton.textContent=String(group.applicants.length);countButton.addEventListener('click',toggleGroup);countCell.appendChild(countButton);tr.appendChild(countCell);tbody.appendChild(tr);
+  const detailCell=document.createElement('td');detailCell.classList.add('expand-cell');detailCell.tabIndex=0;detailCell.setAttribute('role','button');detailCell.setAttribute('aria-expanded',String(expandedCards.has(group.key)));detailCell.setAttribute('aria-label',(expandedCards.has(group.key)?'Collapse ':'Expand ')+group.key);
+  detailCell.addEventListener('click',toggleGroup);detailCell.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleGroup()}});
+  const cardNumber=document.createElement('div');cardNumber.textContent=group.key;cardNumber.style.fontWeight='750';cardNumber.style.fontSize='0.96rem';detailCell.appendChild(cardNumber);
+  const secondary=document.createElement('div');secondary.style.display='flex';secondary.style.alignItems='center';secondary.style.flexWrap='wrap';secondary.style.gap='4px 14px';secondary.style.marginTop='5px';secondary.style.fontSize='0.82rem';secondary.style.fontWeight='400';secondary.style.color='#64748b';
+  const household=document.createElement('span');household.textContent='Head of Household: '+(group.household||'—');secondary.appendChild(household);
+  const applicantsMeta=document.createElement('span');applicantsMeta.append('Applicants: ');
+  const countButton=document.createElement('button');countButton.type='button';countButton.className='count-link';countButton.setAttribute('aria-expanded',String(expandedCards.has(group.key)));countButton.setAttribute('aria-label',(expandedCards.has(group.key)?'Collapse ':'Expand ')+group.applicants.length+' applicants for job card '+group.key);countButton.textContent=String(group.applicants.length);countButton.addEventListener('click',event=>{event.stopPropagation();toggleGroup()});countButton.addEventListener('keydown',event=>event.stopPropagation());applicantsMeta.appendChild(countButton);secondary.appendChild(applicantsMeta);
+  detailCell.appendChild(secondary);tr.appendChild(detailCell);tbody.appendChild(tr);
   if(expandedCards.has(group.key)){
-   const detailTr=document.createElement('tr');detailTr.className='applicant-detail';const detailTd=document.createElement('td');detailTd.colSpan=4;detailTd.style.padding='12px 18px 16px 42px';detailTd.style.background='#f8fafc';
+   const detailTr=document.createElement('tr');detailTr.className='applicant-detail';const detailTd=document.createElement('td');detailTd.colSpan=2;detailTd.style.padding='12px 18px 16px 42px';detailTd.style.background='#f8fafc';
    const subtable=document.createElement('table');subtable.style.width='100%';subtable.style.maxWidth='none';subtable.style.tableLayout='fixed';
    const subhead=document.createElement('thead'),subheadRow=document.createElement('tr');
    ['Name of Applicant','Applicant No.',''].forEach((label,index)=>{const th=document.createElement('th');th.textContent=label;th.style.position='static';th.style.background='#e2e8f0';if(index===0)th.style.width='56%';if(index===1)th.style.width='32%';if(index===2){th.style.width='12%';th.style.textAlign='center';th.style.minWidth='52px'}subheadRow.appendChild(th)});subhead.appendChild(subheadRow);subtable.appendChild(subhead);

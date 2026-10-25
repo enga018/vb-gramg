@@ -53,10 +53,11 @@
       <label class="file-label" for="table-input">Paste table copied from the MIS page</label>
       <textarea id="table-input" rows="8" placeholder="Copy the MIS table, then paste it here…"></textarea>
       <p class="hint">Large tab-separated tables copied from the government page or a spreadsheet are processed locally first. The original pasted text remains unchanged.</p>
-      <label style="display:block;margin:10px 0;font-weight:600"><input id="exclude-deleted" type="checkbox" checked> Exclude applicants marked deleted</label>
+      <label style="display:flex;gap:8px;align-items:center;margin:12px 0;font-weight:650"><input id="exclude-deleted" type="checkbox" checked style="width:auto;min-height:auto;flex:0 0 auto"> Exclude applicants marked deleted (* in household/applicant name or deletion remarks)</label>
       <button type="button" id="import-button" disabled>Compare pasted MIS</button>
     </div>
     <div id="status" class="status" aria-live="polite">Checking administrator access…</div>
+    <section id="filter-summary" class="diff-panel hidden" aria-live="polite"><h2>Local filtering summary</h2><p id="filter-counts"></p><h3>Rows excluded and reasons</h3><ul id="filter-removed-list" class="diff-list"></ul><h3>Rows kept for manual review</h3><ul id="filter-review-list" class="diff-list"></ul></section>
     <section id="diff-panel" class="diff-panel hidden" aria-live="polite">
       <h2 id="diff-title">Review MIS changes</h2>
       <p id="diff-intro">Compare the uploaded file with the current active MIS before applying changes.</p>
@@ -73,7 +74,6 @@
         <button id="apply-changes-button" type="button">Confirm and apply changes</button>
         <button id="cancel-changes-button" type="button" class="secondary">Cancel upload</button>
       </div>
-      <section id="filter-summary" class="hidden"><h3>Local filtering summary</h3><p id="filter-counts"></p><h4>Rows excluded and reasons</h4><ul id="filter-removed-list" class="diff-list"></ul><h4>Rows kept for manual review</h4><ul id="filter-review-list" class="diff-list"></ul></section>
       <p class="hint">Confirming makes the uploaded MIS active and removes old MIS row data from the database. Import history metadata is retained.</p>
     </section>
   </main>

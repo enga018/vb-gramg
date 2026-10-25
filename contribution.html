@@ -181,8 +181,9 @@ function render(){
    cell(desktopLastCharge?String(desktopLastCharge.applicant_name||'').trim():'—','person');
    const desktopChargeCell=cell(desktopLastCharge?fmt(desktopLastCharge.amount):'—','amount');
    if(desktopLastCharge&&desktopLastCharge.is_deferred){desktopChargeCell.textContent=fmt(desktopLastCharge.amount)+' · Deferred';desktopChargeCell.style.color='var(--partial)';}
-   else if(desktopLastCharge)desktopChargeCell.textContent=fmt(desktopLastCharge.amount)+' · Charges';
-   cell(c.balance>0?fmt(c.balance):'—','balance');
+
+   const desktopBalanceCell=cell(c.balance>0?fmt(c.balance):'—','balance');
+   if(c.balance>0)desktopBalanceCell.style.color='#e9a23b';
   }
   tr.addEventListener('click',()=>openCitizen(c.id));tr.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();openCitizen(c.id)}});tbody.appendChild(tr);
  });

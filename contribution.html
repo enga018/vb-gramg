@@ -242,9 +242,9 @@ function openCitizen(id){
   // Formula-generated charge labels come from the contribution period, never the note.
   // Occurrence numbering is assigned chronologically above, so newest-first display keeps stable labels.
   const periodMatch=String(e.charge_period||'').match(/^(\d{4})-(\d{2})/);
-  const monthTags=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const monthTags=['January','February','March','April','May','June','July','August','September','October','November','December'];
   let periodLabel=periodMatch&&Number(periodMatch[2])>=1&&Number(periodMatch[2])<=12
-   ?monthTags[Number(periodMatch[2])-1]+periodMatch[1].slice(-2)
+   ?monthTags[Number(periodMatch[2])-1]+' '+periodMatch[1]
    :String(e.charge_period||'').trim()||'Monthly charge';
   if(type==='charge'&&!isExtra&&(periodChargeCounts.get(e.charge_period)||0)>1){
    periodLabel=periodLabel.replace(/\(\d+\)$/,'')+'('+chargeOccurrenceIndex.get(e)+')';

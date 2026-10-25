@@ -170,7 +170,10 @@
       const nameIndex = findColumn('name of applicant', 'applicant name');
       const householdIndex = findColumn('head of household');
       const remarksIndex = findColumn('reasons if job card not issued any other remarks', 'reasons if job card not issued', 'remarks', 'reason');
-      const kept = [header], removed = [], review = [];
+      const kept = [header], removed = rawRows.slice(0, headerIndex).map(row => {
+        const text = row.map(clean).filter(Boolean).join(' | ');
+        return text ? 'Report heading/metadata omitted before applicant table: ' + text.slice(0, 240) : '';
+      }).filter(Boolean), review = [];
       const isReportText = text => /^(villages?\b|no\.?\s*of registrants\b|total\b|total no\.?\s*of registered applicants\b|#\s*end of report\b|report completed\b|govt\.?\s*of india\b|ministry of rural development\b|department of rural development\b|viksit bharat\b|registration application register\b|state\s*:|district\s*:|block\s*:|panchayat\s*:|s\.?\s*no\.?$)/i.test(text);
       for (const original of rawRows.slice(headerIndex + 1)) {
         const row = original.map(clean);

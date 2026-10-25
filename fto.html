@@ -129,8 +129,7 @@ tbody tr:last-child td{border-bottom:0}
 #fto-history-table .col-updated{width:22%}
 #fto-history-table .col-action{width:10%}
 .history-action-cell{position:relative;min-width:0;overflow:visible}
-.history-action-menu{position:fixed;right:auto;top:auto;z-index:20;min-width:160px;padding:5px;background:#fff;border:1px solid #dfe5ee;border-radius:10px;box-shadow:0 8px 24px rgb(23 32 51 / 14%)}
-.history-action-menu{position:absolute;right:10px;top:calc(100% - 5px);z-index:5;min-width:160px;padding:5px;background:#fff;border:1px solid #dfe5ee;border-radius:10px;box-shadow:0 8px 24px rgb(23 32 51 / 14%)}
+.history-action-menu{position:fixed;left:0;top:0;z-index:20;min-width:160px;padding:5px;background:#fff;border:1px solid #dfe5ee;border-radius:10px;box-shadow:0 8px 24px rgb(23 32 51 / 14%)}
 .history-action-menu button{display:flex;width:100%;justify-content:flex-start;min-height:38px;padding:8px 10px;border:0;background:transparent;color:#344054;text-align:left}
 .history-action-menu button:hover{background:#f0f4fa}
 @media(max-width:700px){
@@ -306,7 +305,7 @@ function renderFtoHistory(){
   const menu=document.createElement("div");menu.className="history-action-menu hidden";menu.setAttribute("role","menu");
   const viewButton=document.createElement("button");viewButton.type="button";viewButton.textContent="View";viewButton.setAttribute("role","menuitem");viewButton.addEventListener("click",()=>{expandedFtoId=expandedFtoId===batch.id?null:batch.id;renderFtoHistory()});
   const editPeriod=document.createElement("button");editPeriod.type="button";editPeriod.textContent="Change period";editPeriod.setAttribute("role","menuitem");editPeriod.addEventListener("click",()=>{menu.classList.add("hidden");changeFtoPeriod(batch)});
-  menu.append(viewButton,editPeriod);actionButton.addEventListener("click",()=>{const open=menu.classList.contains("hidden");document.querySelectorAll(".history-action-menu").forEach(el=>el.classList.add("hidden"));document.querySelectorAll(".history-action-cell > button").forEach(el=>el.setAttribute("aria-expanded","false"));if(open){const rect=actionButton.getBoundingClientRect();menu.style.left=Math.max(8,Math.min(rect.right-160,window.innerWidth-168))+"px";menu.style.top=Math.max(8,Math.min(rect.bottom+4,window.innerHeight-100))+"px";}menu.classList.toggle("hidden",!open);actionButton.setAttribute("aria-expanded",String(open))});
+  menu.append(viewButton,editPeriod);actionButton.addEventListener("click",()=>{const open=menu.classList.contains("hidden");document.querySelectorAll(".history-action-menu").forEach(el=>el.classList.add("hidden"));document.querySelectorAll(".history-action-cell > button").forEach(el=>el.setAttribute("aria-expanded","false"));if(open){menu.classList.remove("hidden");const rect=actionButton.getBoundingClientRect(),menuRect=menu.getBoundingClientRect();const left=Math.max(8,Math.min(rect.right-menuRect.width,window.innerWidth-menuRect.width-8));const top=Math.max(8,rect.top-menuRect.height-6);menu.style.left=left+"px";menu.style.top=top+"px";}else{menu.classList.add("hidden");}actionButton.setAttribute("aria-expanded",String(open))});
   actionCell.append(actionButton,menu);tr.appendChild(actionCell);tbody.appendChild(tr);
   if(expandedFtoId===batch.id){const detailTr=document.createElement("tr");detailTr.className="history-detail";const td=document.createElement("td");td.colSpan=5;td.appendChild(renderHistoryTransactions(batch));detailTr.appendChild(td);tbody.appendChild(detailTr);}
  }

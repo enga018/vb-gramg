@@ -204,6 +204,7 @@ tbody tr:last-child td{border-bottom:0}
  <div class="table-wrap import-table-wrap"><table id="import-preview-table" class="import-table"><thead><tr><th>#</th><th>Job card</th><th>Village</th><th>Account holder / applicant</th><th>FTO rows</th><th>Reference numbers</th><th>Current status</th><th>Calculated charge</th><th>Duplicate check</th><th>Manual review</th></tr></thead><tbody></tbody></table></div>
  <p class="import-help">Statuses are synchronized automatically per reference number: blank becomes deferred, Processed activates the matching charge, and Rejected removes only a matching FTO charge when no active transaction remains. The system records status history and does not delete unrelated charges. Mixed statuses under one job card are reconciled from individual reference numbers.</p>
  <div class="table-foot"><span id="import-count" class="muted"></span><div class="actions"><button id="fto-import-button" type="button" disabled>Synchronize FTO</button></div></div>
+  <div id="sync-status" class="status hidden" aria-live="polite" role="status"></div>
 </div>
 <div id="fto-history" class="history-section">
  <div class="section-head"><div><h2>Imported FTO history</h2><p>Each FTO is listed once. Use Change period in its row to move every transaction in that FTO—including deferred, processed, rejected, and other statuses—to another period. Contribution charges are recalculated for affected job cards.</p></div><button id="refresh-fto-history" type="button" class="secondary">Refresh history</button></div>
@@ -225,6 +226,7 @@ const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHA
 const $=id=>document.getElementById(id);
 let authSequence=0,parsedDataRows=[],importGroups=[],duplicateCards=new Map(),duplicateReferences=new Map(),reviewedCards=new Set(),unknownCards=new Set(),reviewedNewCards=new Set(),deferredCards=new Map(),duplicateCheckSequence=0,checkingDuplicates=false,duplicateCheckFailed=false;
 function status(msg,type){$('data-status').textContent=msg;$('data-status').classList.toggle('error',type==='error');$('data-status').classList.toggle('success',type==='success')}
+function syncStatus(msg,type){const el=$('sync-status');el.textContent=msg;el.classList.remove('hidden');el.classList.toggle('error',type==='error');el.classList.toggle('success',type==='success')}
 const FTO_HEADERS=[
  'S.No','Block Name','Job Card No. (Panchayat Name)','Reference No.','Transaction Date',
  'Applicant Name','Wagelist No.','Name of Primary Account Holder','Bank Code','IFSC code',
@@ -468,7 +470,7 @@ $('fto-import-button').addEventListener('click',async()=>{
  if($('fto-import-button').disabled)return;
  const button=$('fto-import-button'),ftoNumber=$('fto-number').value.trim(),periodLabel=$('charge-period').value.trim(),period=periodToDate(periodLabel);
  if(!window.confirm('Synchronize FTO '+ftoNumber+' for contribution period "'+periodLabel+'"? Only New Serchhip North records will affect charges. Status changes will be recorded, and unrelated charges will not be deleted.'))return;
- button.disabled=true;button.textContent='Synchronizing FTO…';
+ button.disabled=true;button.textContent='Synchronizing FTO…';$('sync-status').textContent='';$('sync-status').classList.add('hidden');$('sync-status').classList.remove('error','success');
  try{
   const divisor=Number($('amount-divisor').value),multiplier=Number($('amount-multiplier').value);
   const payloadRows=parsedDataRows.map(row=>{
@@ -486,11 +488,11 @@ $('fto-import-button').addEventListener('click',async()=>{
    if(data&&(Array.isArray(data.duplicates)||Array.isArray(data.unknown_job_cards)))renderImportPreview();
    throw new Error((data&&data.error)||(error&&error.message)||'FTO synchronization failed.');
   }
-  status('FTO '+data.fto_number+' synchronized. Saved period: '+data.contribution_period+'. Rows checked: '+data.rows_seen+'. Local transactions: '+data.local_transactions+'. Other-village/unclear transactions excluded: '+data.excluded_other_village+'. Charges created: '+data.inserted+', updated: '+data.updated+', matching rejected charges removed: '+data.deleted+'. Calculated local total: ₹'+Number(data.total_amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'.','success');
+  const syncMessage='FTO '+data.fto_number+' synchronized. Saved period: '+data.contribution_period+'. Rows checked: '+data.rows_seen+'. Local transactions: '+data.local_transactions+'. Other-village/unclear transactions excluded: '+data.excluded_other_village+'. Charges created: '+data.inserted+', updated: '+data.updated+', matching rejected charges removed: '+data.deleted+'. Calculated local total: ₹'+Number(data.total_amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'.';syncStatus(syncMessage,'success');status(syncMessage,'success');
   button.textContent='Synchronization completed';
   await lookupFtoBatch();
   await loadFtoHistory();
- }catch(err){status(err.message||'FTO synchronization failed. Review the preview and try again.','error');button.textContent='Synchronize FTO statuses';checkingDuplicates=false;updateImportButton()}
+ }catch(err){const message=err.message||'FTO synchronization failed. Review the preview and try again.';syncStatus(message,'error');status(message,'error');button.textContent='Synchronize FTO statuses';checkingDuplicates=false;updateImportButton()}
  finally{if(button.textContent!=='Synchronization completed')button.disabled=false}
 });
 $('table-input').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')$('load-table-button').click()});

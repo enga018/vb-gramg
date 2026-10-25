@@ -236,8 +236,20 @@
         }
       }
       if(headerAt<0) {
-        const preview=parsedRows.slice(0,24).map((row,i)=>'['+(i+1)+'] '+row.map(normText).filter(Boolean).join(' | ')).filter(Boolean).join(' / ').slice(0,700);
-        throw new Error('Could not identify the applicant table headings. The pasted report may have been copied as plain text instead of a tabular table. Copy the table cells (including headings) from the government page, or paste from Excel. Parsed start: '+(preview||'(no readable rows)'));
+        // The report schema was supplied by the user. If the clipboard contains only
+        // applicant rows (without column headings), use the known 15-column register layout.
+        const dataAt=parsedRows.findIndex(row => {
+          const values=row.map(normText);
+          return values.some(v=>/^MZ-[A-Z0-9-]+\/\d+$/i.test(v)) &&
+            values.some(v=>/^[MF]$/i.test(v)) && values.some(v=>/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(v));
+        });
+        if(dataAt>=0 && parsedRows[dataAt].length>=9) {
+          sourceHeader=['S.No.','Head of HouseHold','Caste','Name of Applicant','Father/Husband Name','Gender','Age','Date of receipt of application/Request for Registration','Job card number','Job-card issue date','Reasons, if Job Card NOT issued & any other remarks','Disabled','Minority','Job Card Verified on Date'];
+          headerAt=dataAt-1;
+        } else {
+          const preview=parsedRows.slice(0,24).map((row,i)=>'['+(i+1)+'] '+row.map(normText).filter(Boolean).join(' | ')).filter(Boolean).join(' / ').slice(0,700);
+          throw new Error('Could not identify applicant rows. Paste the applicant table as rows and columns (tab-separated clipboard or CSV); the report title and other introductory headings are optional. Parsed start: '+(preview||'(no readable rows)'));
+        }
       }
       // Government reports sometimes put a second row of column numbers (1, 2, 3...) under the labels.
       if(parsedRows[headerAt+1] && parsedRows[headerAt+1].filter(v=>normText(v)).length>=5 &&

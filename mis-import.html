@@ -237,14 +237,27 @@
     loadTableButton.addEventListener('click', function () {
       importButton.disabled = true; pastedTableLoaded = false; importedRows = [];
       previewWrap.classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
-      pendingImportId = null; pendingComparison = null;
-      const rows = parsePastedTable(tableInput.value);
-      if (!rows.length) { setStatus('Paste the copied MIS table first, then select Load pasted table.', 'error'); return; }
-      if (rows.length > 100000) { setStatus('The pasted MIS contains more than 100,000 rows. The import limit is 100,000 rows.', 'error'); return; }
-      if (!rows[0].some(cell => String(cell || '').trim())) { setStatus('The pasted table has no header row. Copy the MIS table including its column headings.', 'error'); return; }
-      importedRows = rows; pastedTableLoaded = true; renderRows(importedRows);
-      importButton.disabled = !currentUser || currentRole !== 'admin';
-      setStatus('Loaded ' + importedRows.length + ' pasted rows. Review the preview, then select Compare pasted MIS. Nothing has been sent to Supabase yet.', 'success');
+      document.getElementById('filter-summary').classList.add('hidden');
+      pendingImportId = null; pendingComparison = null; window.misReviewCount = 0;
+      try {
+        const parsed = parsePastedTable(tableInput.value);
+        if (!parsed.length) throw new Error('Paste the copied MIS table first.');
+        const filtered = filterPastedRows(parsed, document.getElementById('exclude-deleted').checked);
+        if (filtered.rows.length > 100000) throw new Error('The prepared MIS exceeds the 100,000-row import limit.');
+        importedRows = filtered.rows; pastedTableLoaded = true; renderRows(importedRows);
+        document.getElementById('filter-counts').textContent = 'Kept: ' + (importedRows.length - 1) + ' applicant rows · Removed: ' + filtered.removed.length + ' rows · Manual review: ' + filtered.review.length + ' rows.';
+        renderFilterList('filter-removed', filtered.removed, 'No rows were excluded.');
+        renderFilterList('filter-review', filtered.review, 'No uncertain rows detected.');
+        window.misReviewCount = filtered.review.length;
+        document.getElementById('review-confirm-wrap').classList.toggle('hidden', !filtered.review.length);
+        document.getElementById('review-confirm').checked = false;
+        document.getElementById('filter-summary').classList.remove('hidden');
+        importButton.disabled = !currentUser || currentRole !== 'admin' || filtered.review.length > 0;
+        setStatus('Prepared locally. Original pasted text is unchanged; no rows have been sent to Supabase. Review the preview and filtering summary.', 'success');
+      } catch (error) { setStatus(error.message || String(error), 'error'); }
+    });
+    document.getElementById('review-confirm').addEventListener('change', function () {
+      importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || (window.misReviewCount > 0 && !this.checked);
     });
     tableInput.addEventListener('input', function () {
       pastedTableLoaded = false; importedRows = []; importButton.disabled = true;

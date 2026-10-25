@@ -137,11 +137,11 @@
       const header = document.createElement('tr');
       for (let i = 0; i < maxCols; i++) {
         const th = document.createElement('th');
-        th.textContent = 'Column ' + (i + 1);
+        th.textContent = rows[0] && rows[0][i] != null ? String(rows[0][i]) : ('Column ' + (i + 1));
         header.appendChild(th);
       }
       thead.appendChild(header);
-      rows.slice(0, 500).forEach(function (row) {
+      rows.slice(1, 501).forEach(function (row) {
         const tr = document.createElement('tr');
         for (let i = 0; i < maxCols; i++) {
           const td = document.createElement('td');
@@ -273,9 +273,11 @@
       const active=await invokeImport({action:'prepare'});
       const activeRows=Array.isArray(active.activeRows)?active.activeRows:[];
       if(!activeRows.length || !activeRows[0].length) throw new Error('The active MIS header could not be read for matching existing IDs.');
-      const targetHeader=activeRows[0].map(v=>normText(v));
+      const originalHeader=activeRows[0].map(v=>normText(v));
+      const serialIndex=originalHeader.findIndex(v=>/^sl\.?\s*no\.?$|^s\.?\s*no\.?$/i.test(v));
+      const targetHeader=originalHeader.filter((_,index)=>index!==serialIndex);
+      const normalizedActiveRows=activeRows.map(row=>row.filter((_,index)=>index!==serialIndex));
       const ti={
-        serial:findColumn(targetHeader,['sl no','sl no.','s no','s no.']),
         job:findColumn(targetHeader,['job card number','jobcard number']),
         jcNo:findColumn(targetHeader,['jc no','jc number']),
         household:findColumn(targetHeader,['head of household','head of household name']),
@@ -285,7 +287,7 @@
       };
       if([ti.job,ti.household,ti.name,ti.applicantNo,ti.uniqueId].some(i=>i<0)) throw new Error('Active MIS must contain Job Card Number, Head of HouseHold, Name of Applicant, Applicant No., and Unique ID columns.');
       const existingByMatch=new Map(), existingByCard=new Map(), nextNoByCard=new Map();
-      activeRows.slice(1).forEach((row,index)=>{
+      normalizedActiveRows.slice(1).forEach((row,index)=>{
         const card=normText(row[ti.job]), name=cleanName(row[ti.name]), no=normText(row[ti.applicantNo]), uid=normText(row[ti.uniqueId]);
         if(!card) return;
         const entry={no,uid,row,index};
@@ -331,7 +333,6 @@
         if(!uniqueId) { uniqueId=crypto.randomUUID(); generatedIdCount++; }
         usedIds.add(uniqueId);
         const targetRow=targetHeader.map(()=> '');
-        if(ti.serial>=0) targetRow[ti.serial]=normText(row[si.serial])||String(output.length);
         targetRow[ti.job]=card;
         if(ti.jcNo>=0) targetRow[ti.jcNo]=card.split('/').pop();
         targetRow[ti.household]=household;

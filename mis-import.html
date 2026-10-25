@@ -52,11 +52,13 @@
     <div class="paste-box">
       <label class="file-label" for="table-input">Paste table copied from the MIS page</label>
       <textarea id="table-input" rows="8" placeholder="Copy the MIS table, then paste it here…"></textarea>
-      <p class="hint">Tab-separated data copied from a webpage or spreadsheet is supported. Header row is required. The pasted data is previewed locally before any upload.</p>
-      <button type="button" id="load-table-button">Load pasted table</button>
+      <p class="hint">Original pasted text is retained unchanged. The app filters report headings/deleted applicants locally, maps the government register into the active database columns, and preserves existing Unique IDs when matched.</p>
+      <label style="display:flex;gap:8px;align-items:flex-start;margin:12px 0;font-weight:600"><input id="exclude-deleted" type="checkbox" checked style="width:auto;min-height:0;margin-top:4px"> Exclude applicants marked deleted (asterisk in household/applicant name or deletion remarks)</label>
+      <button type="button" id="load-table-button">Filter and prepare table</button>
     </div>
     <button type="button" id="import-button" disabled>Compare pasted MIS</button>
     <div id="status" class="status" aria-live="polite">Checking administrator access…</div>
+    <section id="filter-summary" class="diff-panel hidden"><h2>Local preparation summary</h2><p id="filter-counts"></p><h3>Removed rows and reasons</h3><ul id="filter-removed" class="diff-list"></ul><h3>Manual-review rows (held out of comparison)</h3><ul id="filter-review" class="diff-list"></ul><label id="review-confirm-wrap" class="hidden" style="display:block"><input id="review-confirm" type="checkbox" style="width:auto;min-height:0"> I reviewed the uncertain rows and agree they will remain excluded until corrected in the source and pasted again.</label></section>
     <section id="diff-panel" class="diff-panel hidden" aria-live="polite">
       <h2 id="diff-title">Review MIS changes</h2>
       <p id="diff-intro">Compare the uploaded file with the current active MIS before applying changes.</p>
@@ -184,20 +186,136 @@
       });
     }
 
-    loadTableButton.addEventListener('click', function () {
-      importButton.disabled = true; pastedTableLoaded = false; importedRows = [];
-      previewWrap.classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
-      pendingImportId = null; pendingComparison = null;
-      const parsedRows = parsePastedTable(tableInput.value);
-      if (!parsedRows.length) { setStatus('Paste the copied MIS table first, then select Load pasted table.', 'error'); return; }
-      if (parsedRows.length > 100000) { setStatus('The pasted MIS contains more than 100,000 rows. The import limit is 100,000 rows.', 'error'); return; }
-      // Parse the complete pasted content first, then omit the first 12 report rows from preview and import processing.
-      const rows = parsedRows.slice(12);
-      if (!rows.length) { setStatus('No rows remain after excluding the first 12 report rows. Check the pasted content.', 'error'); return; }
-      if (!rows[0].some(cell => String(cell || '').trim())) { setStatus('The remaining table has no usable row. Check that the pasted report includes applicant rows.', 'error'); return; }
-      importedRows = rows; pastedTableLoaded = true; renderRows(importedRows);
-      importButton.disabled = !currentUser || currentRole !== 'admin';
-      setStatus('Prepared ' + importedRows.length + ' rows after excluding the first 12 report rows. Only these rows are shown and will be compared. Nothing has been sent to Supabase yet.', 'success');
+    const normText = value => String(value == null ? '' : value).replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+    const headerKey = value => normText(value).toLowerCase().replace(/&amp;/g, '&').replace(/[^a-z0-9]+/g, ' ').trim();
+    function findColumn(header, aliases) { const keys=header.map(headerKey); return keys.findIndex(k=>aliases.includes(k)); }
+    function isDeletedRow(row, idx) {
+      const household = idx.household >= 0 ? normText(row[idx.household]) : '';
+      const name = idx.name >= 0 ? normText(row[idx.name]) : '';
+      const remarks = idx.remarks >= 0 ? normText(row[idx.remarks]) : '';
+      return household.includes('*') || name.includes('*') || /\bdeleted\b/i.test(remarks);
+    }
+    function cleanName(value) { return normText(value).replace(/\*/g,'').normalize('NFKC').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim(); }
+    function rowList(id, values, emptyText) {
+      const list=document.getElementById(id); list.replaceChildren();
+      const shown=values.length ? values.slice(0,1000) : [emptyText];
+      shown.forEach(value=>{const li=document.createElement('li');li.textContent=value;list.appendChild(li);});
+      if(values.length>1000){const li=document.createElement('li');li.textContent=(values.length-1000)+' more rows not displayed';list.appendChild(li);}
+    }
+    async function prepareGovernmentRegister(parsedRows) {
+      const headerAt=parsedRows.findIndex(row=>findColumn(row,['job card number','jobcard number'])>=0 && findColumn(row,['name of applicant','applicant name'])>=0);
+      if(headerAt<0) throw new Error('Could not find the Job Card Number and Name of Applicant headings in the pasted table.');
+      const sourceHeader=parsedRows[headerAt];
+      const si={
+        serial:findColumn(sourceHeader,['s no','s no.','s no','serial no','serial number']),
+        household:findColumn(sourceHeader,['head of household','head of household name']),
+        caste:findColumn(sourceHeader,['caste']),
+        name:findColumn(sourceHeader,['name of applicant','applicant name']),
+        father:findColumn(sourceHeader,['father husband name','father name','husband name']),
+        gender:findColumn(sourceHeader,['gender']),
+        age:findColumn(sourceHeader,['age']),
+        receipt:findColumn(sourceHeader,['date of receipt of application request for registration','date of receipt of application']),
+        job:findColumn(sourceHeader,['job card number','jobcard number']),
+        issue:findColumn(sourceHeader,['job card issue date']),
+        remarks:findColumn(sourceHeader,['reasons if job card not issued any other remarks','reasons if job card not issued','remarks']),
+        disabled:findColumn(sourceHeader,['disabled']),
+        minority:findColumn(sourceHeader,['minority']),
+        verified:findColumn(sourceHeader,['job card verified on date'])
+      };
+      const active=await invokeImport({action:'prepare'});
+      const activeRows=Array.isArray(active.activeRows)?active.activeRows:[];
+      if(!activeRows.length || !activeRows[0].length) throw new Error('The active MIS header could not be read for matching existing IDs.');
+      const targetHeader=activeRows[0].map(v=>normText(v));
+      const ti={
+        serial:findColumn(targetHeader,['sl no','sl no.','s no','s no.']),
+        job:findColumn(targetHeader,['job card number','jobcard number','jc no']),
+        household:findColumn(targetHeader,['head of household','head of household name']),
+        name:findColumn(targetHeader,['name of applicant','applicant name']),
+        applicantNo:findColumn(targetHeader,['applicant no','applicant no.']),
+        uniqueId:findColumn(targetHeader,['unique id'])
+      };
+      if([ti.job,ti.household,ti.name,ti.applicantNo,ti.uniqueId].some(i=>i<0)) throw new Error('Active MIS must contain Job Card Number, Head of HouseHold, Name of Applicant, Applicant No., and Unique ID columns.');
+      const existingByMatch=new Map(), existingByCard=new Map(), nextNoByCard=new Map();
+      activeRows.slice(1).forEach((row,index)=>{
+        const card=normText(row[ti.job]), name=cleanName(row[ti.name]), no=normText(row[ti.applicantNo]), uid=normText(row[ti.uniqueId]);
+        if(!card) return;
+        const entry={no,uid,row,index};
+        if(name){const key=card.toLowerCase()+'|'+name;const q=existingByMatch.get(key)||[];q.push(entry);existingByMatch.set(key,q);}
+        const all=existingByCard.get(card)||[];all.push(entry);existingByCard.set(card,all);
+        const numeric=Number(no);if(no && Number.isFinite(numeric))nextNoByCard.set(card,Math.max(nextNoByCard.get(card)||0,numeric));
+      });
+      const removed=[], review=[], output=[targetHeader], usedIds=new Set(), nextApplicantNo=new Map();
+      let previousCard='', previousHousehold='';
+      for(let i=headerAt+1;i<parsedRows.length;i++){
+        const row=parsedRows[i], text=row.map(normText).filter(Boolean).join(' · ');
+        if(!text){continue;}
+        if(/^(villages?\b|no\. of registrants\b|total no\. of registered applicants\b|total\b|report completed\b|# end of report\b)/i.test(text)){
+          removed.push('Report heading/total: '+text);continue;
+        }
+        const card=normText(row[si.job]), name=normText(row[si.name]);
+        const plausible=card.startsWith('MZ-') && card.includes('/') && !!name;
+        if(!plausible){
+          if(!card && !name && /^(s\.?\s*no\.?|head of household|caste|name of applicant|father\/husband name|gender|age|job card number)/i.test(text)){removed.push('Repeated report heading: '+text);continue;}
+          if(!card && !name){removed.push('Non-applicant/report row: '+text);continue;}
+          review.push('Row '+(i+1)+' — '+(!card?'missing job card number; ':'')+(!name?'missing applicant name; ':'')+text);continue;
+        }
+        if(document.getElementById('exclude-deleted').checked && isDeletedRow(row,si)){removed.push('Marked deleted: '+card+' · '+name);continue;}
+        if(card!==previousCard){previousCard=card;previousHousehold='';}
+        const rawHousehold=normText(row[si.household]);
+        if(rawHousehold) previousHousehold=rawHousehold.replace(/\*/g,'').trim();
+        const household=rawHousehold ? rawHousehold.replace(/\*/g,'').trim() : previousHousehold;
+        if(!household) review.push('Row '+(i+1)+' — no household head available within job card '+card+': '+name);
+        const matchKey=card.toLowerCase()+'|'+cleanName(name);
+        const matches=existingByMatch.get(matchKey)||[];
+        let match=matches.shift();
+        let applicantNo=match?.no||'';
+        if(!applicantNo){
+          const next=(nextNoByCard.get(card)||0)+(nextApplicantNo.get(card)||0)+1;
+          applicantNo=String(next);nextApplicantNo.set(card,(nextApplicantNo.get(card)||0)+1);
+        }
+        let uniqueId=match?.uid||'';
+        if(uniqueId && usedIds.has(uniqueId)) { review.push('Row '+(i+1)+' — duplicate existing Unique ID matched: '+uniqueId+' ('+card+' · '+name+')'); uniqueId=''; }
+        if(!uniqueId) uniqueId=crypto.randomUUID();
+        usedIds.add(uniqueId);
+        const targetRow=targetHeader.map(()=> '');
+        if(ti.serial>=0) targetRow[ti.serial]=normText(row[si.serial])||String(output.length);
+        targetRow[ti.job]=card;
+        targetRow[ti.household]=household;
+        targetRow[ti.name]=name.replace(/\*/g,'').trim();
+        targetRow[ti.applicantNo]=applicantNo;
+        targetRow[ti.uniqueId]=uniqueId;
+        output.push(targetRow);
+      }
+      const uniqueReview=[...new Set(review)];
+      return {output,removed,review:uniqueReview,activeCount:active.activeRowCount||activeRows.length-1,matched:output.slice(1).filter(row=>existingByCard.get(normText(row[ti.job]))).length};
+    }
+
+    loadTableButton.addEventListener('click', async function () {
+      importButton.disabled=true; pastedTableLoaded=false; importedRows=[];
+      previewWrap.classList.add('hidden'); document.getElementById('filter-summary').classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
+      pendingImportId=null; pendingComparison=null;
+      const parsedRows=parsePastedTable(tableInput.value);
+      if(!parsedRows.length){setStatus('Paste the copied MIS table first, then select Filter and prepare table.','error');return;}
+      if(parsedRows.length>100000){setStatus('The pasted MIS exceeds the 100,000-row limit.','error');return;}
+      loadTableButton.disabled=true;
+      try {
+        setStatus('Filtering locally and matching applicants against the active MIS…','');
+        const prepared=await prepareGovernmentRegister(parsedRows);
+        importedRows=prepared.output; pastedTableLoaded=true; window.misReviewCount=prepared.review.length;
+        renderRows(importedRows);
+        document.getElementById('filter-counts').textContent='Source rows parsed: '+parsedRows.length+' · Kept for comparison: '+Math.max(0,importedRows.length-1)+' · Removed: '+prepared.removed.length+' · Manual review: '+prepared.review.length+' · Existing IDs preserved: '+prepared.output.slice(1).filter(row=>row[prepared.output[0].findIndex(v=>headerKey(v)==='unique id')] && false).length;
+        rowList('filter-removed',prepared.removed,'No rows removed.');
+        rowList('filter-review',prepared.review,'No uncertain rows found.');
+        document.getElementById('review-confirm-wrap').classList.toggle('hidden',!prepared.review.length);
+        document.getElementById('review-confirm').checked=false;
+        document.getElementById('filter-summary').classList.remove('hidden');
+        importButton.disabled=!currentUser||currentRole!=='admin'||prepared.review.length>0;
+        setStatus('Prepared locally using the active database column layout. Original pasted text is unchanged. No MIS rows have been staged or written yet.'+(prepared.review.length?' Review the uncertain rows; comparison is blocked until you acknowledge that they remain excluded.':''),'success');
+      } catch(error) { setStatus('Preparation failed: '+(error&&error.message?error.message:String(error))+'\nThe active MIS has not been changed.','error'); }
+      finally {loadTableButton.disabled=false;}
+    });
+    document.getElementById('review-confirm').addEventListener('change',function(){
+      importButton.disabled=!currentUser||currentRole!=='admin'||!pastedTableLoaded||(window.misReviewCount>0&&!this.checked);
     });
     tableInput.addEventListener('input', function () {
       pastedTableLoaded = false; importedRows = []; importButton.disabled = true;
@@ -245,8 +363,8 @@
     }
 
     importButton.addEventListener('click', async function () {
-      if (!currentUser || currentRole !== 'admin' || !pastedTableLoaded || !Array.isArray(importedRows) || !importedRows.length) {
-        setStatus('Sign in as an administrator, paste the MIS table, and select Load pasted table first.', 'error'); return;
+      if (!currentUser || currentRole !== 'admin' || !pastedTableLoaded || !Array.isArray(importedRows) || !importedRows.length || (window.misReviewCount > 0 && !document.getElementById('review-confirm').checked)) {
+        setStatus('Sign in as an administrator, prepare the table, and review/acknowledge uncertain rows first.', 'error'); return;
       }
       if (importedRows.length > 100000) { setStatus('This workbook contains more than 100,000 rows. Import limit is 100,000 rows.', 'error'); return; }
       importButton.disabled = true; tableInput.disabled = true; loadTableButton.disabled = true;

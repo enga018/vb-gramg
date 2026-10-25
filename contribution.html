@@ -204,7 +204,19 @@ function openCitizen(id){
   if(type==='charge'&&!isExtra&&(periodChargeCounts.get(e.charge_period)||0)>1){
    periodLabel=periodLabel.replace(/\(\d+\)$/,'')+'('+chargeOccurrenceIndex.get(e)+')';
   }
-  const label=isExtra?'Extra charge • '+formatPeriod(e.charge_period):type==='charge'?'Charges • '+periodLabel+(e.is_deferred?' • Deferred':''):type==='sanitationFee'?'Sanitation fee':type==='payment'?'Payment':type==='forgive'?'Waiver':type==='return'?'Return':type;
+  let chargeApplicantName='';
+  if(type==='charge'&&!isExtra){
+   let matchedApplicant=null;
+   if(e.applicant_unique_id)matchedApplicant=activeApplicants.find(a=>a.applicant_unique_id&&String(a.applicant_unique_id)===String(e.applicant_unique_id))||null;
+   if(!matchedApplicant&&e.applicant_number)matchedApplicant=activeApplicants.find(a=>a.applicant_number&&String(a.applicant_number)===String(e.applicant_number))||null;
+   if(!matchedApplicant&&e.applicant_name){
+    const normalizedChargeName=normalizeName(e.applicant_name);
+    const nameMatches=activeApplicants.filter(a=>normalizeName(a.applicant_name)===normalizedChargeName);
+    if(nameMatches.length===1)matchedApplicant=nameMatches[0];
+   }
+   chargeApplicantName=String(matchedApplicant?.applicant_name||e.applicant_name||'').trim();
+  }
+  const label=isExtra?'Extra charge • '+formatPeriod(e.charge_period):type==='charge'?'Charges • '+periodLabel+(chargeApplicantName?' • '+chargeApplicantName:'')+(e.is_deferred?' • Deferred':''):type==='sanitationFee'?'Sanitation fee':type==='payment'?'Payment':type==='forgive'?'Waiver':type==='return'?'Return':type;
   const noteText=String(e.note||'').trim();
   const looksLikePeriod=/^(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)(\s*[-/]?\s*\d{0,4})?$/i.test(noteText)||/^MAY\s*1$/i.test(noteText)||/^MAY1$/i.test(noteText);
   const displayNote=type==='payment'&&looksLikePeriod?'':noteText;

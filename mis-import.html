@@ -276,7 +276,8 @@
       const targetHeader=activeRows[0].map(v=>normText(v));
       const ti={
         serial:findColumn(targetHeader,['sl no','sl no.','s no','s no.']),
-        job:findColumn(targetHeader,['job card number','jobcard number','jc no']),
+        job:findColumn(targetHeader,['job card number','jobcard number']),
+        jcNo:findColumn(targetHeader,['jc no','jc number']),
         household:findColumn(targetHeader,['head of household','head of household name']),
         name:findColumn(targetHeader,['name of applicant','applicant name']),
         applicantNo:findColumn(targetHeader,['applicant no','applicant no.']),
@@ -332,6 +333,7 @@
         const targetRow=targetHeader.map(()=> '');
         if(ti.serial>=0) targetRow[ti.serial]=normText(row[si.serial])||String(output.length);
         targetRow[ti.job]=card;
+        if(ti.jcNo>=0) targetRow[ti.jcNo]=card.split('/').pop();
         targetRow[ti.household]=household;
         targetRow[ti.name]=name.replace(/\*/g,'').trim();
         targetRow[ti.applicantNo]=applicantNo;

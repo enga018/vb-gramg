@@ -244,7 +244,7 @@
         const all=existingByCard.get(card)||[];all.push(entry);existingByCard.set(card,all);
         const numeric=Number(no);if(no && Number.isFinite(numeric))nextNoByCard.set(card,Math.max(nextNoByCard.get(card)||0,numeric));
       });
-      const removed=[], review=[], output=[targetHeader], usedIds=new Set(), nextApplicantNo=new Map(); let matchedCount=0, generatedIdCount=0;
+      const removed=parsedRows.slice(0,headerAt).map(row=>'Report heading/metadata before applicant table: '+row.map(normText).filter(Boolean).join(' · ')).filter(v=>v.trim().length>0), review=[], output=[targetHeader], usedIds=new Set(), nextApplicantNo=new Map(); let matchedCount=0, generatedIdCount=0;
       let previousCard='', previousHousehold='';
       for(let i=headerAt+1;i<parsedRows.length;i++){
         const row=parsedRows[i], text=row.map(normText).filter(Boolean).join(' · ');

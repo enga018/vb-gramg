@@ -152,11 +152,17 @@ function render(){
    topLine.append(document.createTextNode(' • '+c.name));detail.appendChild(topLine);
    const chargeEntries=c.ledger.filter(e=>(e.entry_type==='charge'||e.entry_type==='sanitationFee')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return')).sort((a,b)=>String(b.entry_date||'').localeCompare(String(a.entry_date||''))||String(b.created_at||'').localeCompare(String(a.created_at||'')));
    const lastCharge=chargeEntries[0];
+   const chargeLine=document.createElement('div');chargeLine.className='mobile-charge-line';
+   let chargeName=String(lastCharge?.applicant_name||'').trim();
+   if(!chargeName&&lastCharge){
+    const applicants=Array.isArray(applicantsByCard[c.id])?applicantsByCard[c.id]:[];
+    const matched=applicants.find(a=>String(a.applicant_number||'').trim()===String(lastCharge.applicant_number||'').trim());
+    chargeName=String(matched?.applicant_name||matched?.name||'').trim();
+   }
+   if(lastCharge){chargeLine.textContent=(chargeName?chargeName+' • ':'')+fmt(lastCharge.amount);}
+   else chargeLine.textContent='No charges recorded';
+   detail.appendChild(chargeLine);
    if(c.balance>0){
-    const chargeLine=document.createElement('div');chargeLine.className='mobile-charge-line';
-    if(lastCharge){const chargeName=String(lastCharge.applicant_name||'').trim();chargeLine.textContent=(chargeName?chargeName+' • ':'')+fmt(lastCharge.amount);}
-    else chargeLine.textContent='No charges recorded';
-    detail.appendChild(chargeLine);
     const balanceCell=cell(fmt(c.balance),'mobile-outstanding');
     balanceCell.style.color='#e9a23b';
    }else{

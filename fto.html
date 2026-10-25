@@ -115,7 +115,7 @@ tbody tr:last-child td{border-bottom:0}
 @media(max-width:700px){.applicant-review{padding:12px}.applicant-review .table-foot{align-items:stretch}.applicant-review .table-foot button{width:100%}.applicant-review-table select{min-width:260px}}
 @media(max-width:700px){.import-grid{grid-template-columns:minmax(0,1fr)}.import-table-wrap{max-height:52vh}.import-controls .actions{align-items:stretch}.import-controls .actions button{width:100%}}
 
-.history-section{margin-top:24px;padding-top:22px;border-top:1px solid var(--line)}
+.history-section{margin-top:0;padding-top:0;border-top:0}
 .history-toolbar{display:grid;grid-template-columns:minmax(220px,1.4fr) minmax(180px,1fr);gap:12px;margin:16px 0}
 .history-table-wrap{max-height:72vh;margin-top:12px}
 .history-expand{min-height:34px;padding:6px 10px;background:#f0f3f8;color:#344054;border-color:#e0e6ef}
@@ -151,6 +151,23 @@ tbody tr:last-child td{border-bottom:0}
 .history-detail th,.history-detail td{min-width:105px;padding:9px 10px}
 .history-detail th{position:sticky;top:0}
 .history-detail .detail-heading{font-size:.84rem;font-weight:700;color:#344054;margin:0 0 10px}
+.history-detail .detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.history-detail .detail-item{min-width:0;padding:9px 10px;background:#fff;border:1px solid #e3e8f0;border-radius:8px}
+.history-detail .detail-item strong{display:block;margin-bottom:4px;color:#667085;font-size:.7rem;text-transform:uppercase;letter-spacing:.035em}
+.history-detail .detail-item span{display:block;overflow-wrap:anywhere;color:#172033;font-size:.84rem}
+.history-detail .more-details{min-height:32px;padding:6px 9px;font-size:.78rem;white-space:nowrap}
+@media(max-width:700px){
+ .history-detail table{min-width:0!important;width:100%;display:block}
+ .history-detail thead{display:none}
+ .history-detail tbody{display:grid;gap:10px}
+ .history-detail tbody>tr:not(.transaction-more-row){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);border:1px solid #e3e8f0;border-radius:10px;background:#fff;overflow:hidden}
+ .history-detail tbody>tr:not(.transaction-more-row)>td{display:block;min-width:0;max-width:none;padding:9px 10px;border-bottom:1px solid #edf0f5;font-size:.8rem}
+ .history-detail tbody>tr:not(.transaction-more-row)>td:before{content:attr(data-label);display:block;margin-bottom:4px;color:#667085;font-size:.66rem;font-weight:750;text-transform:uppercase;letter-spacing:.025em}
+ .history-detail tbody>tr:not(.transaction-more-row)>td:last-child{grid-column:1/-1;border-bottom:0}
+ .history-detail .detail-grid{grid-template-columns:minmax(0,1fr)}
+ .history-detail .transaction-more-row{display:block}
+ .history-detail .transaction-more-row>td{display:block;min-width:0;padding:10px!important}
+}
 .history-statuses{display:flex;flex-wrap:wrap;gap:6px}
 .history-status{font-size:.75rem;padding:4px 7px;border-radius:7px;background:#f0f3f8;color:#344054;white-space:nowrap}
 .history-status.processed{background:#eaf8ef;color:#17663a}
@@ -295,25 +312,57 @@ function addHistoryCell(row,value){
 function renderHistoryTransactions(batch){
  const wrapper=document.createElement("div");
  const heading=document.createElement("p");heading.className="detail-heading";heading.textContent="Imported transactions for New Serchhip North · "+(batch.transactions||[]).length+" rows";wrapper.appendChild(heading);
+ const coreHeaders=[
+  "Job Card No. (Panchayat Name)","Reference No.","Applicant Name","Credit Amount (In Rs.)",
+  "Status","Processed Date","UTR No.","Rejection Reason"
+ ];
+ const detailHeaders=FTO_HEADERS.filter(label=>!coreHeaders.includes(label));
+ const fallback={
+  "Reference No.":tx=>tx.reference_no,
+  "Job Card No. (Panchayat Name)":tx=>tx.job_card_number,
+  "Applicant Name":tx=>tx.person_name,
+  "Credit Amount (In Rs.)":tx=>tx.credit_amount,
+  "Status":tx=>tx.status,
+  "Processed Date":tx=>tx.processed_date,
+  "Rejection Reason":tx=>tx.rejection_reason,
+  "Transaction Date":tx=>tx.transaction_date
+ };
+ const cellValue=(tx,label)=>{
+  const index=FTO_HEADERS.indexOf(label),source=Array.isArray(tx.source_row)?tx.source_row:[];
+  let value=index>=0?source[index]:undefined;
+  if(value===undefined||value===null||String(value)==="")value=fallback[label]?.(tx);
+  return value===undefined||value===null||String(value)===""?"—":String(value).replace(/<br\s*\/?>/gi," ");
+ };
  const wrap=document.createElement("div");wrap.className="table-wrap";
  const table=document.createElement("table");const thead=document.createElement("thead"),headRow=document.createElement("tr");
- FTO_HEADERS.forEach(label=>{const th=document.createElement("th");th.textContent=label;headRow.appendChild(th)});thead.appendChild(headRow);table.appendChild(thead);
+ [...coreHeaders,"More details"].forEach(label=>{const th=document.createElement("th");th.textContent=label==="Job Card No. (Panchayat Name)"?"Job Card No.":label;headRow.appendChild(th)});
+ thead.appendChild(headRow);table.appendChild(thead);
  const tbody=document.createElement("tbody");
  for(const tx of (batch.transactions||[])){
   const tr=document.createElement("tr");
-  const source=Array.isArray(tx.source_row)?tx.source_row:[];
-  FTO_HEADERS.forEach((label,index)=>{
-   let value=source[index];
-   if(value===undefined||value===null||String(value)===""){
-    const fallback={ "Reference No.":tx.reference_no,"Job Card No. (Panchayat Name)":tx.job_card_number,"Applicant Name":tx.person_name,"Credit Amount (In Rs.)":tx.credit_amount,"Status":tx.status,"Processed Date":tx.processed_date,"Rejection Reason":tx.rejection_reason,"Transaction Date":tx.transaction_date };
-    value=fallback[label]??"";
-   }
-   const td=document.createElement("td");td.textContent=String(value??"").replace(/<br\s*\/?>/gi," ");
-   tr.appendChild(td);
+  for(const label of coreHeaders){
+   const td=document.createElement("td");td.dataset.label=label==="Job Card No. (Panchayat Name)"?"Job Card No.":label;
+   td.textContent=cellValue(tx,label);tr.appendChild(td);
+  }
+  const actionTd=document.createElement("td");actionTd.dataset.label="Details";
+  const more=document.createElement("button");more.type="button";more.className="secondary more-details";more.textContent="More details";more.setAttribute("aria-expanded","false");
+  const detailTr=document.createElement("tr");detailTr.className="transaction-more-row hidden";
+  const detailTd=document.createElement("td");detailTd.colSpan=9;
+  const grid=document.createElement("div");grid.className="detail-grid";
+  for(const label of detailHeaders){
+   const item=document.createElement("div");item.className="detail-item";
+   const name=document.createElement("strong");name.textContent=label;
+   const value=document.createElement("span");value.textContent=cellValue(tx,label);
+   item.append(name,value);grid.appendChild(item);
+  }
+  detailTd.appendChild(grid);detailTr.appendChild(detailTd);
+  more.addEventListener("click",()=>{
+   const opening=detailTr.classList.contains("hidden");
+   detailTr.classList.toggle("hidden",!opening);more.textContent=opening?"Hide details":"More details";more.setAttribute("aria-expanded",String(opening));
   });
-  tbody.appendChild(tr);
+  actionTd.appendChild(more);tr.appendChild(actionTd);tbody.append(tr,detailTr);
  }
- if(!(batch.transactions||[]).length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=FTO_HEADERS.length;td.textContent="No local transaction rows are saved for this FTO.";tr.appendChild(td);tbody.appendChild(tr);}
+ if(!(batch.transactions||[]).length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=9;td.textContent="No local transaction rows are saved for this FTO.";tr.appendChild(td);tbody.appendChild(tr);}
  table.appendChild(tbody);wrap.appendChild(table);wrapper.appendChild(wrap);return wrapper;
 }
 function renderFtoHistory(){

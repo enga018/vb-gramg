@@ -203,18 +203,9 @@
       if(values.length>1000){const li=document.createElement('li');li.textContent=(values.length-1000)+' more rows not displayed';list.appendChild(li);}
     }
     async function prepareGovernmentRegister(parsedRows) {
-      const label = value => headerKey(value).replace(/\\bno\\b/g, 'number');
-      const hasJobHeading = row => row.some(v => {
-        const k=label(v);
-        return k==='job card number'||k==='jobcard number'||k==='job card no'||k==='job card number 9'||k==='jc number';
-      });
-      const hasNameHeading = row => row.some(v => {
-        const k=label(v);
-        return k==='name of applicant'||k==='applicant name'||k==='name applicant';
-      });
       // Some government-register clipboard formats split wrapped headings across adjacent rows.
       // Merge nearby header fragments by column position before deciding where applicants begin.
-      const label = value => headerKey(value).replace(/\\bno\\b/g, 'number');
+      const label = value => headerKey(value).replace(/\bno\b/g, 'number');
       const hasJobHeading = row => row.some(v => {
         const k=label(v);
         return k==='job card number'||k==='jobcard number'||k==='job card no'||k==='jc number'||k==='jc no';
@@ -229,7 +220,7 @@
           const windowRows=parsedRows.slice(i,i+span);
           const width=Math.max(...windowRows.map(row=>row.length));
           const merged=Array.from({length:width},(_,col)=>{
-            for(const row of windowRows){const value=normText(row[col]);if(value && !/^\\d+$/.test(value)) return value;}
+            for(const row of windowRows){const value=normText(row[col]);if(value && !/^\d+$/.test(value)) return value;}
             return '';
           });
           if(hasJobHeading(merged)&&hasNameHeading(merged)){
@@ -245,7 +236,7 @@
       }
       // Government reports sometimes put a second row of column numbers (1, 2, 3...) under the labels.
       if(parsedRows[headerAt+1] && parsedRows[headerAt+1].filter(v=>normText(v)).length>=5 &&
-        parsedRows[headerAt+1].filter(v=>normText(v)).every(v=>/^\\d{1,2}$/.test(normText(v)))) headerAt++;
+        parsedRows[headerAt+1].filter(v=>/^\d{1,2}$/.test(normText(v))).length===parsedRows[headerAt+1].filter(v=>normText(v)).length) headerAt++;
       const si={
         serial:findColumn(sourceHeader,['s no','s no.','s no','serial no','serial number']),
         household:findColumn(sourceHeader,['head of household','head of household name']),

@@ -356,9 +356,16 @@
         }
         setStatus('Comparing prepared applicants with the current active MIS…', '');
         const comparison = await invokeImport({ action: 'compare', importId });
-        pendingImportId = importId;
+        const hasChanges = comparison.added.length > 0 || comparison.deleted.length > 0 || comparison.updated.length > 0;
         showComparison(comparison);
-        setStatus('Comparison complete. Review the counts and applicant details below. The active MIS has not changed; confirm or cancel.', 'success');
+        if (hasChanges) {
+          pendingImportId = importId;
+          setStatus('Comparison complete. Review the counts and applicant details below. The active MIS has not changed; confirm or cancel.', 'success');
+        } else {
+          try { await invokeImport({ action: 'abort', importId }); } catch (_) {}
+          pendingImportId = null;
+          setStatus('Comparison complete. No changes detected. The active MIS is already up to date; no import or cancellation is needed.', 'success');
+        }
       } catch (error) {
         if (importId) { try { await invokeImport({ action: 'abort', importId }); } catch (_) {} }
         pendingImportId = null; pendingComparison = null;

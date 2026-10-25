@@ -1,0 +1,423 @@
+
+(async () => {
+'use strict';
+const $=id=>document.getElementById(id);
+const startupNode=$('status');
+if(startupNode)startupNode.textContent='JavaScript started — loading connection library…';
+function setStartupError(message){
+ const node=$('status');
+ if(node){node.className='notice err';node.textContent=message;}
+}
+function loadSupabaseLibrary(url){
+ return new Promise((resolve,reject)=>{
+  const script=document.createElement('script');
+  let settled=false;
+  const timer=window.setTimeout(()=>{if(settled)return;settled=true;script.remove();reject(new Error('Library request timed out'));},10000);
+  script.src=url;
+  script.onload=()=>{if(settled)return;settled=true;window.clearTimeout(timer);window.supabase&&window.supabase.createClient?resolve():reject(new Error('Supabase library did not initialize'));};
+  script.onerror=()=>{if(settled)return;settled=true;window.clearTimeout(timer);script.remove();reject(new Error('Could not download Supabase library'));};
+  document.head.appendChild(script);
+ });
+}
+try{
+ if(!window.supabase||!window.supabase.createClient){
+  try{await loadSupabaseLibrary('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2');}
+  catch(firstError){await loadSupabaseLibrary('https://unpkg.com/@supabase/supabase-js@2');}
+ }
+}catch(libraryError){
+ setStartupError('Could not load the connection library. Check your internet connection and tap Refresh to try again.');
+ return;
+}
+const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+let entries=[], citizens=[], citizenRegistry=[], applicantsByCard={}, extraCharges=[], exemptions=[], currentCitizen=null, busy=false, currentPage=0, pageSize=50, appRole="";
+const exemptCardSet=()=>new Set(exemptions.map(x=>String(x.job_card_number||"").trim()));
+const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const day=s=>s?new Date(s+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'Date not recorded';
+const formatPeriod=s=>{const m=String(s||'').match(/^(\d{4})-(\d{2})/);if(!m)return s||'Monthly charge';const months=['January','February','March','April','May','June','July','August','September','October','November','December'];const n=Number(m[2]);return n>=1&&n<=12?months[n-1]+' '+m[1]:(s||'Monthly charge')};
+function status(message,type='info'){ $('status').className='notice '+(type==='err'?'err':'info');$('status').textContent=message; }
+function calculateLedgerState(ledger){
+ let charged=0,paid=0,returned=0,waived=0,deferred=0;const active=[];
+ for(const e of ledger||[]){if(!e)continue;const n=Math.max(0,Number(e.amount)||0),t=e.entry_type;
+  if(t==='payment'){paid+=n;continue}
+  if(t==='return'||(t==='charge'&&String(e.note||'').trim()==='Return')){returned+=n;continue}
+  if(t==='forgive'){waived+=n;continue}
+  if(t!=='charge'&&t!=='sanitationFee')continue;
+  if(e.is_deferred){deferred+=n;continue}
+  charged+=n;active.push(n);
+ }
+ let credit=Math.min(waived,charged);for(let i=0;i<active.length&&credit>0;i++){const x=Math.min(credit,active[i]);active[i]-=x;credit-=x}
+ return {charged,paid,returned,waived,deferred,balance:active.reduce((sum,n)=>sum+n,0)-paid+returned};
+}
+function renderExemptions(){
+ const host=$('exemptionList');if(!host)return;
+ if(!exemptions.length){host.innerHTML='<div class="empty">No exempt job cards added.</div>';return;}
+ host.innerHTML=exemptions.map(x=>'<div class="entry"><div class="desc"><b>'+esc(x.job_card_number)+'</b>'+(x.note?'<small>'+esc(x.note)+'</small>':'')+'</div><button class="btn ghost small" type="button" data-remove-exemption="'+esc(x.job_card_number)+'">Remove exemption</button></div>').join('');
+}
+async function saveExemption(){
+ if(appRole!=="admin"||busy)return;
+ const jobCard=$('exemptJobCard').value.trim(),note=$('exemptNote').value.trim();
+ if(!jobCard){$('exemptionStatus').textContent='Enter the full job card number.';$('exemptJobCard').focus();return;}
+ busy=true;$('saveExemptionBtn').disabled=true;$('saveExemptionBtn').textContent='Saving…';
+ try{
+  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'save-exemption',job_card_number:jobCard,exempt:true,note}});
+  if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save exemption.');
+  exemptions=data.exemptions||[];entries=entries.filter(e=>String(e.job_card_number||"").trim()!==jobCard);extraCharges=extraCharges.filter(e=>String(e.job_card_number||"").trim()!==jobCard);deriveCitizens();renderExemptions();render();
+  $('exemptJobCard').value='';$('exemptNote').value='';$('exemptionStatus').textContent=jobCard+' is now exempt. Its FTO history is retained and contribution balance is excluded.';
+  if(currentCitizen&&currentCitizen.id===jobCard)$('overlay').classList.add('hidden');
+  status('Exemption saved. Contribution ledger, extra charges, and contribution-citizen records cleared; FTO history retained.');
+ }catch(err){$('exemptionStatus').textContent=err.message||'Could not save exemption.';}
+ finally{busy=false;$('saveExemptionBtn').disabled=false;$('saveExemptionBtn').textContent='Add exemption';}
+}
+async function removeExemption(jobCard){
+ if(appRole!=="admin"||busy)return;
+ if(!window.confirm('Remove the contribution exemption for '+jobCard+'? FTO history will remain. Contribution records were removed while exempt; FTO-generated charges will be recalculated when the exemption is removed, but removed payments, waivers, returns, and manual charges will not be restored.'))return;
+ busy=true;
+ try{
+  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'save-exemption',job_card_number:jobCard,exempt:false}});
+  if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not remove exemption.');
+  exemptions=data.exemptions||[];deriveCitizens();renderExemptions();render();
+  $('exemptionStatus').textContent='Exemption removed for '+jobCard+'. Its existing contribution ledger now counts again.';
+  status('Exemption removed. Contribution totals recalculated.');
+ }catch(err){$('exemptionStatus').textContent=err.message||'Could not remove exemption.';}
+ finally{busy=false;}
+}
+function deriveCitizens(){
+ const exemptSet=exemptCardSet();
+ const map=new Map(),make=(id,name)=>({id,jobCard:id,name:name||'Unnamed',exempt:exemptSet.has(id),charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,ledger:[]});
+ for(const r of citizenRegistry){const id=String(r.job_card_number||'').trim();if(id)map.set(id,make(id,r.person_name))}
+ for(const e of entries){const id=String(e.job_card_number||'').trim();if(!id||!map.has(id))continue;map.get(id).ledger.push(e)}
+ citizens=[...map.values()].map(c=>{const x=calculateLedgerState(c.ledger);let gross=0;for(const e of c.ledger){if((e.entry_type==='charge'||e.entry_type==='sanitationFee')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return'))gross+=Math.max(0,Number(e.amount)||0)}return c.exempt?{...c,charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,totalCharged:0,balance:0}:{...c,charges:gross,activeCharges:x.charged,deferred:x.deferred,paid:x.paid,waived:x.waived,returns:x.returned,totalCharged:Math.max(0,gross-Math.min(gross,x.waived)),balance:x.balance}}).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
+}
+function jobCardSuffixNumber(jobCard){
+ const match=String(jobCard||'').match(/\/([^/]+)$/);
+ if(!match)return Number.POSITIVE_INFINITY;
+ const n=Number(match[1].trim());
+ return Number.isFinite(n)?n:Number.POSITIVE_INFINITY;
+}
+function render(){
+ const q=$('search').value.trim().toLocaleLowerCase(),filter=$('statusFilter').value;
+ const list=citizens.filter(c=>{
+  const state=c.balance<=0?'paid':'due';
+  const matchesStatus=filter==='all'||(filter==='deferred'?c.deferred>0:state===filter);
+  const matchesSearch=c.name.toLocaleLowerCase().includes(q)||c.id.toLocaleLowerCase().includes(q);
+  return matchesStatus&&matchesSearch;
+ }).sort((a,b)=>jobCardSuffixNumber(a.id)-jobCardSuffixNumber(b.id)||a.id.localeCompare(b.id,undefined,{numeric:true})||a.name.localeCompare(b.name));
+ $('outstanding').textContent=fmt(citizens.reduce((s,c)=>s+Math.max(0,c.balance),0));
+ $('deferred').textContent=fmt(citizens.reduce((s,c)=>s+c.deferred,0));
+ const totalPages=Math.max(1,Math.ceil(list.length/pageSize));currentPage=Math.min(currentPage,totalPages-1);
+ const start=currentPage*pageSize,shown=list.slice(start,start+pageSize),isMobile=window.matchMedia('(max-width: 700px)').matches;
+ const thead=$('contribution-table').querySelector('thead'),tbody=$('contribution-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
+ const head=document.createElement('tr');
+ (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Last Applicant','Last Charges','Outstanding']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Outstanding'||label==='Last Charges')th.style.textAlign='right';head.appendChild(th)});thead.appendChild(head);
+ shown.forEach((c,index)=>{
+  const state=c.balance<=0?'settled':'due',tr=document.createElement('tr');tr.className='contribution-row '+state;tr.tabIndex=0;tr.dataset.card=c.id;tr.setAttribute('role','button');tr.setAttribute('aria-label','Open contribution history for '+c.name+' job card '+c.id);
+  const cell=(value,cls)=>{const td=document.createElement('td');td.textContent=value;if(cls)td.className=cls;tr.appendChild(td);return td};
+  if(isMobile){
+   const detail=cell('','mobile-details');
+   const topLine=document.createElement('div');topLine.className='mobile-jobcard-line';
+   const slashIndex=String(c.id).lastIndexOf('/');
+   if(slashIndex>=0){topLine.append(document.createTextNode(String(c.id).slice(0,slashIndex+1)));const suffix=document.createElement('span');suffix.className='suffix';suffix.textContent=String(c.id).slice(slashIndex+1);topLine.appendChild(suffix);}
+   else topLine.textContent=c.id;
+   topLine.append(document.createTextNode(' • '+c.name));detail.appendChild(topLine);
+   if(c.balance>0){
+    const subline=document.createElement('div');subline.className='mobile-subline';
+    const chargeEntries=c.ledger.filter(e=>(e.entry_type==='charge'||e.entry_type==='sanitationFee')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return')).sort((a,b)=>String(b.entry_date||'').localeCompare(String(a.entry_date||''))||String(b.created_at||'').localeCompare(String(a.created_at||'')));
+    const lastCharge=chargeEntries[0];
+    const chargeLine=document.createElement('div');chargeLine.className='mobile-charge-line';
+    let chargeName=String(lastCharge?.applicant_name||'').trim();
+    if(!chargeName&&lastCharge){
+     const applicants=Array.isArray(applicantsByCard[c.id])?applicantsByCard[c.id]:[];
+     const matched=applicants.find(a=>String(a.applicant_number||'').trim()===String(lastCharge.applicant_number||'').trim());
+     chargeName=String(matched?.applicant_name||matched?.name||'').trim();
+    }
+    chargeLine.textContent=lastCharge?(chargeName?chargeName+' • ':'')+fmt(lastCharge.amount)+(lastCharge.is_deferred?' · Deferred':''):'No charges recorded';
+    if(lastCharge&&lastCharge.is_deferred)chargeLine.style.color='var(--partial)';
+    subline.appendChild(chargeLine);
+    const balance=document.createElement('div');balance.className='mobile-outstanding';balance.textContent=fmt(c.balance);balance.style.color='#e9a23b';subline.appendChild(balance);
+    detail.appendChild(subline);
+   }else{
+    const subline=document.createElement('div');subline.className='mobile-subline';
+    const settled=document.createElement('div');settled.className='mobile-settled';settled.textContent='SETTLED';settled.style.color='#16a34a';subline.appendChild(settled);
+    detail.appendChild(subline);
+   }
+  }else{
+    const settledCell=cell('SETTLED','mobile-settled');
+    settledCell.style.color='#16a34a';
+   }
+  }else{
+   cell(c.id,'jobcard');cell(c.name+(c.exempt?' · EXEMPT':''),'person');
+   const desktopChargeEntries=c.ledger.filter(e=>(e.entry_type==='charge'||e.entry_type==='sanitationFee')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return')).sort((a,b)=>String(b.entry_date||'').localeCompare(String(a.entry_date||''))||String(b.created_at||'').localeCompare(String(a.created_at||'')));
+   const desktopLastCharge=desktopChargeEntries[0];
+   cell(desktopLastCharge?String(desktopLastCharge.applicant_name||'').trim():'—','person');
+   const desktopChargeCell=cell(desktopLastCharge?fmt(desktopLastCharge.amount):'—','amount');
+   if(desktopLastCharge&&desktopLastCharge.is_deferred){desktopChargeCell.textContent=fmt(desktopLastCharge.amount)+' · Deferred';desktopChargeCell.style.color='var(--partial)';}
+
+   const desktopBalanceCell=cell(c.balance>0?fmt(c.balance):'—','balance');
+   if(c.balance>0)desktopBalanceCell.style.color='#e9a23b';
+  }
+  tr.addEventListener('click',()=>openCitizen(c.id));tr.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();openCitizen(c.id)}});tbody.appendChild(tr);
+ });
+ $('table-wrap').classList.toggle('hidden',list.length===0);$('empty').classList.toggle('hidden',list.length!==0);
+ $('count').textContent=list.length.toLocaleString('en-IN')+' job card'+(list.length===1?'':'s')+' matching filters';
+ $('page-label').textContent=list.length?'Showing '+(start+1)+'–'+Math.min(start+pageSize,list.length)+' of '+list.length:'No matching job cards';
+ $('prev-button').disabled=currentPage<=0;$('next-button').disabled=currentPage>=totalPages-1;
+}
+function openCitizen(id){
+ currentCitizen=citizens.find(c=>c.id===id);if(!currentCitizen)return;
+ const c=currentCitizen;
+ $('sheetTitle').textContent=c.name;
+ const chronological=[...c.ledger].sort((a,b)=>(a.entry_date||'').localeCompare(b.entry_date||'')||(a.created_at||'').localeCompare(b.created_at||''));
+ const periodChargeCounts=new Map(),periodChargeIndexes=new Map(),chargeOccurrenceIndex=new Map();
+ for(const e of chronological){
+  if(e.entry_type==='charge'&&e.charge_period&&!/^FTO EXTRA:/i.test(String(e.note||''))){
+   periodChargeCounts.set(e.charge_period,(periodChargeCounts.get(e.charge_period)||0)+1);
+   const next=(periodChargeIndexes.get(e.charge_period)||0)+1;
+   periodChargeIndexes.set(e.charge_period,next);
+   chargeOccurrenceIndex.set(e,next);
+  }
+ }
+ const activeApplicants=(Array.isArray(applicantsByCard[c.id])?applicantsByCard[c.id]:[]).slice().sort((a,b)=>String(a.applicant_number||"").localeCompare(String(b.applicant_number||""),undefined,{numeric:true})||String(a.applicant_name||"").localeCompare(String(b.applicant_name||"")));
+ const normalizeName=value=>String(value||"").normalize("NFKC").replace(/\s+/g," ").trim().toLocaleLowerCase();
+ const sorted=[...chronological].reverse();
+ const lines=sorted.map(e=>{
+  const type=e.entry_type, amount=Number(e.amount)||0, isPayment=type==='payment';
+  const isExtra=type==='charge'&&/^FTO EXTRA:/i.test(String(e.note||''));
+  // Formula-generated charge labels come from the contribution period, never the note.
+  // Occurrence numbering is assigned chronologically above, so newest-first display keeps stable labels.
+  const periodMatch=String(e.charge_period||'').match(/^(\d{4})-(\d{2})/);
+  const monthTags=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  let periodLabel=periodMatch&&Number(periodMatch[2])>=1&&Number(periodMatch[2])<=12
+   ?monthTags[Number(periodMatch[2])-1]+periodMatch[1].slice(-2)
+   :String(e.charge_period||'').trim()||'Monthly charge';
+  if(type==='charge'&&!isExtra&&(periodChargeCounts.get(e.charge_period)||0)>1){
+   periodLabel=periodLabel.replace(/\(\d+\)$/,'')+'('+chargeOccurrenceIndex.get(e)+')';
+  }
+  let chargeApplicantName='';
+  if(type==='charge'&&!isExtra){
+   let matchedApplicant=null;
+   if(e.applicant_unique_id)matchedApplicant=activeApplicants.find(a=>a.applicant_unique_id&&String(a.applicant_unique_id)===String(e.applicant_unique_id))||null;
+   if(!matchedApplicant&&e.applicant_number)matchedApplicant=activeApplicants.find(a=>a.applicant_number&&String(a.applicant_number)===String(e.applicant_number))||null;
+   if(!matchedApplicant&&e.applicant_name){
+    const normalizedChargeName=normalizeName(e.applicant_name);
+    const nameMatches=activeApplicants.filter(a=>normalizeName(a.applicant_name)===normalizedChargeName);
+    if(nameMatches.length===1)matchedApplicant=nameMatches[0];
+   }
+   chargeApplicantName=String(matchedApplicant?.applicant_name||e.applicant_name||'').trim();
+  }
+  const label=isExtra?'Extra charge • '+formatPeriod(e.charge_period):type==='charge'?'Charges • '+periodLabel+(e.is_deferred?' • Deferred':(chargeApplicantName?' • '+chargeApplicantName:'')):type==='sanitationFee'?'Sanitation fee':type==='payment'?'Payment':type==='forgive'?'Waiver':type==='return'?'Return':type;
+  const noteText=String(e.note||'').trim();
+  const looksLikePeriod=/^(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)(\s*[-/]?\s*\d{0,4})?$/i.test(noteText)||/^MAY\s*1$/i.test(noteText)||/^MAY1$/i.test(noteText);
+  const displayNote=type==='payment'&&looksLikePeriod?'':noteText;
+  const transactionDate=String(e.entry_date||'').slice(0,10)>='2026-06-01'?day(e.entry_date):'';
+  const extraReason=isExtra?(extraCharges.find(x=>String(x.job_card_number)===String(c.id)&&String(x.charge_period||"")===String(e.charge_period||""))?.reason||String(e.note||"").replace(/^FTO EXTRA:\\s*/i,"")):"";
+  return '<div class="entry"><div class="desc"><b>'+esc(label)+(isExtra&&extraReason?' · '+esc(extraReason):type!=='charge'&&displayNote?' · '+esc(displayNote):'')+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+(appRole==='admin'&&!isExtra&&!c.exempt?'<div class="entry-actions"><button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button></div>':'')+'</div>';
+ }).join('');
+ $('sheetBody').innerHTML=(c.exempt?'<div class="notice info"><b>Exempt job card.</b> This job card is exempt. Contribution ledger entries are removed while exempt; its FTO transactions remain available in FTO history.</div>':'')+'<div class="balance"><div class="label">Current outstanding balance</div><div class="amount '+(c.balance<=0?'zero':'owing')+'">'+fmt(Math.max(0,c.balance))+'</div><div class="sub" style="margin:0">Full job card: '+esc(c.id)+'</div></div></div>'+(c.exempt?'<div class="section-title">Contribution ledger (empty while exempt)</div>':'<div class="transaction-actions"><button class="btn" type="button" id="addPaymentBtn">Record payment</button>'+(c.balance>0?'<button class="btn" type="button" id="payFullBtn">Pay in full</button>':'')+(appRole==='admin'?'<button class="btn ghost" type="button" id="extraChargeBtn">Add / edit extra amount</button><button class="btn ghost" type="button" id="waiveBtn">Waive</button><button class="btn ghost" type="button" id="returnBtn">Return</button>':'')+'</div><div class="section-title">Ledger history</div>')+(lines||'<div class="empty">No ledger entries.</div>');
+ $('overlay').classList.remove('hidden');
+ const addPayment=$('addPaymentBtn');if(addPayment)addPayment.addEventListener('click',showPaymentForm);
+ const payFull=$('payFullBtn');if(payFull)payFull.addEventListener('click',payInFull);
+ const waive=$('waiveBtn');if(waive)waive.addEventListener('click',()=>showAdjustmentForm('add-waiver'));
+ const ret=$('returnBtn');if(ret)ret.addEventListener('click',()=>showAdjustmentForm('add-return'));
+ const extraBtn=$('extraChargeBtn');if(extraBtn)extraBtn.addEventListener('click',showExtraChargeForm);
+ document.querySelectorAll('[data-edit-entry]').forEach(btn=>btn.addEventListener('click',()=>showEditForm(btn.dataset.editEntry)));
+}
+
+function showExtraChargeForm(){
+ const c=currentCitizen;if(!c||appRole!=="admin")return;
+ const existingForCard=extraCharges.filter(x=>String(x.job_card_number)===String(c.id));
+ const currentMonth=new Date().toISOString().slice(0,7);
+ const defaultExtra=existingForCard.find(x=>String(x.charge_period||"").slice(0,7)===currentMonth);
+ $('sheetBody').innerHTML='<div class="notice info">Add an extra amount for this job card and contribution month. The formula-generated charge is not changed. One extra amount is stored per job card per month; saving again for the same month updates that extra amount instead of adding a duplicate.</div><form id="extraChargeForm"><div class="field"><label for="extraPeriod">Contribution month</label><input id="extraPeriod" type="month" required value="'+esc(currentMonth)+'"></div><div class="field"><label for="extraAmount">Extra amount (₹)</label><input id="extraAmount" type="number" min="0.01" max="10000000" step="0.01" required inputmode="decimal" value="'+(defaultExtra?esc(defaultExtra.amount):'')+'" placeholder="Enter additional amount"></div><div class="field"><label for="extraReason">Reason</label><textarea id="extraReason" rows="3" maxlength="500" required placeholder="Why is this extra amount needed?">'+(defaultExtra?esc(defaultExtra.reason):'')+'</textarea></div><button class="btn" id="saveExtraAmount" type="submit">Save extra amount</button> <button class="btn ghost" id="cancelExtraAmount" type="button">Cancel</button><div id="extraAmountError"></div></form>';
+ const syncFormForPeriod=()=>{
+  const month=$('extraPeriod').value;
+  const old=existingForCard.find(x=>String(x.charge_period||"").slice(0,7)===month);
+  $('extraAmount').value=old?String(old.amount):'';
+  $('extraReason').value=old?String(old.reason||''):'';
+ };
+ $('extraPeriod').addEventListener('change',syncFormForPeriod);
+ $('cancelExtraAmount').addEventListener('click',()=>openCitizen(c.id));
+ $('extraChargeForm').addEventListener('submit',async ev=>{
+  ev.preventDefault();if(busy)return;
+  const month=$('extraPeriod').value,amount=Number($('extraAmount').value),reason=$('extraReason').value.trim();
+  if(!month||!Number.isFinite(amount)||amount<=0){$('extraAmountError').innerHTML='<div class="notice err">Enter a contribution month and an extra amount greater than zero.</div>';return;}
+  if(!reason){$('extraAmountError').innerHTML='<div class="notice err">Enter a reason for the extra amount.</div>';return;}
+  busy=true;$('saveExtraAmount').disabled=true;$('saveExtraAmount').textContent='Saving…';
+  try{
+   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'save-contribution-extra',job_card_number:c.id,charge_period:month+'-01',amount,reason}});
+   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save extra amount.');
+   updateEntryInMemory(data.entry);
+   extraCharges=extraCharges.filter(x=>!(String(x.job_card_number)===String(data.extra.job_card_number)&&String(x.charge_period)===String(data.extra.charge_period)));
+   extraCharges.push(data.extra);
+   openCitizen(c.id);
+   status((data.updated?'Extra amount updated.':'Extra amount saved.')+' Formula-generated charges remain unchanged.','info');
+  }catch(err){$('extraAmountError').innerHTML='<div class="notice err">'+esc(err.message||'Could not save extra amount.')+'</div>';}
+  finally{busy=false;if($('saveExtraAmount')){$('saveExtraAmount').disabled=false;$('saveExtraAmount').textContent='Save extra amount';}}
+ });
+}
+function showPaymentForm(){
+ const c=currentCitizen;if(!c)return;
+ $('sheetBody').innerHTML='<div class="notice info">Record a payment against this full job card. The amount is added to the ledger; it does not delete or alter earlier charges.</div><form id="paymentForm"><div class="field"><label for="paymentAmount">Payment amount (₹)</label><input id="paymentAmount" type="number" min="0.01" max="10000000" step="0.01" required inputmode="decimal"></div><div class="grid2"><div class="field"><label for="paymentDate">Payment date</label><input id="paymentDate" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div><div class="field"><label>Method</label><input value="Cash" readonly aria-readonly="true"></div></div><button class="btn" type="submit" id="savePayment">Save payment</button> <button class="btn ghost" type="button" id="cancelPayment">Cancel</button><div id="paymentError"></div></form>';
+ $('cancelPayment').addEventListener('click',()=>openCitizen(c.id));
+ $('paymentForm').addEventListener('submit',async ev=>{
+  ev.preventDefault();if(busy)return;
+  const amount=Number($('paymentAmount').value),date=$('paymentDate').value,note="Cash";
+  if(!Number.isFinite(amount)||amount<=0){$('paymentError').innerHTML='<div class="notice err">Enter an amount greater than zero.</div>';return;}
+  busy=true;$('savePayment').disabled=true;$('savePayment').textContent='Saving…';
+  try{
+   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'add-payment',job_card_number:c.id,amount,entry_date:date,note}});
+   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save payment.');
+   entries.push(data.entry);deriveCitizens();render();openCitizen(c.id);status('Payment saved. Ledger updated.','info');
+  }catch(err){$('paymentError').innerHTML='<div class="notice err">'+esc(err.message||'Could not save payment.')+'</div>';}
+  finally{busy=false;if($('savePayment')){$('savePayment').disabled=false;$('savePayment').textContent='Save payment';}}
+ });
+}
+
+
+
+function parseBulkPayments(raw){
+ const rows=[],errors=[],seen=new Set();
+ const lines=String(raw||"").split(/\r?\n/);
+ for(let i=0;i<lines.length;i++){
+  const line=lines[i].trim();if(!line)continue;
+  if(i===0&&/job.?card/i.test(line)&&/amount/i.test(line))continue;
+  const parts=line.split(/\t|,|;/).map(v=>v.trim());
+  if(parts.length<2){errors.push('Line '+(i+1)+': use Job Card, Amount.');continue;}
+  const jobCard=parts[0],amount=Number(parts[1].replace(/[₹,\s]/g,""));
+  if(!jobCard){errors.push('Line '+(i+1)+': job card number is missing.');continue;}
+  if(!Number.isFinite(amount)||amount<=0||amount>10000000){errors.push('Line '+(i+1)+': enter a valid positive amount.');continue;}
+  if(seen.has(jobCard)){errors.push('Line '+(i+1)+': duplicate job card '+jobCard+'.');continue;}
+  seen.add(jobCard);rows.push({job_card_number:jobCard,amount});
+ }
+ if(!rows.length&&!errors.length)errors.push('Paste at least one job card and amount.');
+ if(rows.length>500)errors.push('A batch can contain at most 500 payments.');
+ return {rows,errors};
+}
+function showBulkPaymentForm(){
+ if(appRole!=="admin"){status("Only an approved administrator can register bulk bank payments.","err");return;}
+ $('sheetTitle').textContent="Bulk bank payments";
+ $('sheetBody').innerHTML='<div class="notice info">Register bank payments for multiple job cards in one batch. Every saved entry will be tagged <b>Bank</b>. Paste one job card and amount per line, separated by a comma or tab. Maximum 500 payments per batch.</div><div class="field"><label for="bulkPaymentDate">Payment date for this batch</label><input id="bulkPaymentDate" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div><div class="field"><label for="bulkPaymentRows">Job card number, amount</label><textarea id="bulkPaymentRows" rows="8" style="width:100%;padding:12px;font:inherit;border:1px solid #cfd7e4;border-radius:10px;resize:vertical" placeholder="MZ-07-001-005-001/389,1240&#10;MZ-07-001-005-002/390,850"></textarea><p class="muted">A header row such as Job Card, Amount is allowed. Duplicate job cards are rejected to prevent accidental double entry.</p></div><button class="btn" id="previewBulkPayments" type="button">Preview batch</button> <button class="btn ghost" id="cancelBulkPayments" type="button">Cancel</button><div id="bulkPaymentPreview"></div>';
+ $('overlay').classList.remove('hidden');
+ $('cancelBulkPayments').addEventListener('click',()=>$('overlay').classList.add('hidden'));
+ $('previewBulkPayments').addEventListener('click',()=>{
+  const parsed=parseBulkPayments($('bulkPaymentRows').value),date=$('bulkPaymentDate').value,box=$('bulkPaymentPreview');
+  if(!date){box.innerHTML='<div class="notice err">Choose a payment date.</div>';return;}
+  if(parsed.errors.length){box.innerHTML='<div class="notice err">'+parsed.errors.map(esc).join('<br>')+'</div>';return;}
+  const total=parsed.rows.reduce((sum,row)=>sum+row.amount,0);
+  box.innerHTML='<div class="notice info">Review before saving: <b>'+parsed.rows.length+' payments</b>, total <b>'+fmt(total)+'</b>, method <b>Bank</b>, date <b>'+esc(date)+'</b>. The server will verify every job card before inserting the batch.</div><div style="max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:10px"><table><thead><tr><th>Job card</th><th style="text-align:right">Amount</th></tr></thead><tbody>'+parsed.rows.map(row=>'<tr><td>'+esc(row.job_card_number)+'</td><td style="text-align:right">'+fmt(row.amount)+'</td></tr>').join('')+'</tbody></table></div><p class="muted">Saving creates separate Bank payment entries; it does not change charges or delete existing transactions.</p><button class="btn" id="saveBulkPayments" type="button">Save '+parsed.rows.length+' bank payments</button> <button class="btn ghost" id="editBulkPayments" type="button">Edit batch</button><div id="bulkSaveError"></div>';
+  $('editBulkPayments').addEventListener('click',()=>{$('bulkPaymentPreview').innerHTML='';});
+  $('saveBulkPayments').addEventListener('click',async()=>{
+   if(busy)return;
+   if(!window.confirm('Save '+parsed.rows.length+' Bank payment entries totalling '+fmt(total)+'?'))return;
+   busy=true;$('saveBulkPayments').disabled=true;$('saveBulkPayments').textContent='Saving batch…';
+   try{
+    const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:"bulk-bank-payment",entry_date:date,entries:parsed.rows}});
+    if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save bank payment batch.');
+    entries.push(...(data.entries||[]));deriveCitizens();render();$('overlay').classList.add('hidden');
+    status('Saved '+data.count+' Bank payments totalling '+fmt(data.total_amount)+'. Ledger updated.');
+   }catch(err){$('bulkSaveError').innerHTML='<div class="notice err">'+esc(err.message||'Could not save bank payment batch.')+'</div>';if($('saveBulkPayments')){$('saveBulkPayments').disabled=false;$('saveBulkPayments').textContent='Save '+parsed.rows.length+' bank payments';}}
+   finally{busy=false;}
+  });
+ });
+}
+
+function updateEntryInMemory(entry){
+ const index=entries.findIndex(e=>String(e.id)===String(entry.id));
+ if(index>=0)entries[index]=entry;else entries.push(entry);
+ deriveCitizens();render();
+}
+function showEditForm(id){
+ const c=currentCitizen;if(!c)return;
+ const e=c.ledger.find(row=>String(row.id)===String(id));if(!e)return;
+ const isCharge=e.entry_type==="charge"&&String(e.note||"").trim().toLowerCase()!=="return";
+ const typeLabel=e.entry_type==="forgive"?"Waiver":e.entry_type==="payment"?"Payment":e.entry_type==="return"?"Return":e.entry_type==="sanitationFee"?"Sanitation fee":"Charge";
+ $('sheetBody').innerHTML='<div class="notice info">Editing '+esc(typeLabel)+'. Original and revised values will be recorded in the audit log.</div><form id="editEntryForm"><div class="field"><label for="editAmount">Amount (₹)</label><input id="editAmount" type="number" min="0.01" max="10000000" step="0.01" required value="'+esc(e.amount)+'"></div><div class="grid2"><div class="field"><label for="editDate">Transaction date</label><input id="editDate" type="date" required value="'+esc(String(e.entry_date||new Date().toISOString().slice(0,10)).slice(0,10))+'"></div><div class="field"><label for="editNote">Note</label><input id="editNote" maxlength="200" value="'+esc(e.note||"")+'" placeholder="Optional note"></div></div>'+(isCharge?'<div class="field"><label for="editPeriod">Charge month</label><input id="editPeriod" type="month" required value="'+esc(String(e.charge_period||"").slice(0,7))+'"></div><div class="field"><label><input id="editDeferred" type="checkbox" '+(e.is_deferred?'checked':'')+' style="width:auto;min-height:0;margin-right:8px"> Deferred charge</label></div>':'')+'<button class="btn" id="saveEdit" type="submit">Save changes</button> <button class="btn ghost" id="cancelEdit" type="button">Cancel</button><div id="editError"></div></form>';
+ $('cancelEdit').addEventListener('click',()=>openCitizen(c.id));
+ $('editEntryForm').addEventListener('submit',async ev=>{
+  ev.preventDefault();if(busy)return;
+  const payload={action:"edit-ledger-entry",id:e.id,amount:Number($('editAmount').value),entry_date:$('editDate').value,note:$('editNote').value};
+  if(isCharge){const month=$('editPeriod').value;payload.charge_period=month?month+'-01':'';payload.is_deferred=$('editDeferred').checked;}
+  if(!Number.isFinite(payload.amount)||payload.amount<=0){$('editError').innerHTML='<div class="notice err">Enter an amount greater than zero.</div>';return;}
+  busy=true;$('saveEdit').disabled=true;$('saveEdit').textContent='Saving…';
+  try{
+   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:payload});
+   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not edit transaction.');
+   updateEntryInMemory(data.entry);openCitizen(c.id);status('Transaction updated. Original and revised values were logged.');
+  }catch(err){$('editError').innerHTML='<div class="notice err">'+esc(err.message||'Could not edit transaction.')+'</div>';}
+  finally{busy=false;if($('saveEdit')){$('saveEdit').disabled=false;$('saveEdit').textContent='Save changes';}}
+ });
+}
+function showAdjustmentForm(action){
+ const c=currentCitizen;if(!c)return;
+ const isWaiver=action==="add-waiver",title=isWaiver?"Waive contribution":"Return payment";
+ $('sheetBody').innerHTML='<div class="notice info">'+(isWaiver?'A waiver reduces the outstanding balance and is recorded as a separate ledger entry.':'A return records money returned to the household and increases the outstanding balance.')+'</div><form id="adjustmentForm"><div class="field"><label for="adjustAmount">Amount (₹)</label><input id="adjustAmount" type="number" min="0.01" max="10000000" step="0.01" required inputmode="decimal"></div><div class="grid2"><div class="field"><label for="adjustDate">Date</label><input id="adjustDate" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div><div class="field"><label for="adjustNote">Note</label><input id="adjustNote" maxlength="200" value="'+(isWaiver?'Waiver':'Return')+'"></div></div><button class="btn" id="saveAdjustment" type="submit">'+title+'</button> <button class="btn ghost" id="cancelAdjustment" type="button">Cancel</button><div id="adjustmentError"></div></form>';
+ $('cancelAdjustment').addEventListener('click',()=>openCitizen(c.id));
+ $('adjustmentForm').addEventListener('submit',async ev=>{
+  ev.preventDefault();if(busy)return;
+  const amount=Number($('adjustAmount').value),date=$('adjustDate').value,note=$('adjustNote').value;
+  if(!Number.isFinite(amount)||amount<=0){$('adjustmentError').innerHTML='<div class="notice err">Enter an amount greater than zero.</div>';return;}
+  busy=true;$('saveAdjustment').disabled=true;$('saveAdjustment').textContent='Saving…';
+  try{
+   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action,job_card_number:c.id,amount,entry_date:date,note}});
+   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save adjustment.');
+   updateEntryInMemory(data.entry);openCitizen(c.id);status((isWaiver?'Waiver':'Return')+' recorded and ledger recalculated.');
+  }catch(err){$('adjustmentError').innerHTML='<div class="notice err">'+esc(err.message||'Could not save adjustment.')+'</div>';}
+  finally{busy=false;if($('saveAdjustment')){$('saveAdjustment').disabled=false;$('saveAdjustment').textContent=title;}}
+ });
+}
+async function payInFull(){
+ const c=currentCitizen;if(!c||busy||c.balance<=0)return;
+ if(!window.confirm('Record a payment of '+fmt(c.balance)+' to settle this job card?'))return;
+ busy=true;
+ try{
+  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:"pay-in-full",job_card_number:c.id,entry_date:new Date().toISOString().slice(0,10)}});
+  if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not record full payment.');
+  updateEntryInMemory(data.entry);openCitizen(c.id);status('Full payment recorded. Ledger recalculated.');
+ }catch(err){status(err.message||'Could not record full payment.','err');}
+ finally{busy=false;}
+}
+
+async function load(){
+ if(busy)return;
+ $('refreshBtn').disabled=true;
+ try{
+  status('Restoring your sign-in session…');
+  // Never leave the page on its initial account-check message if session storage stalls.
+  const sessionResult=await Promise.race([
+   supabaseClient.auth.getSession(),
+   new Promise((_,reject)=>window.setTimeout(()=>reject(new Error('Session check timed out. Return to the main menu, sign in again, then reopen Contribution.')),12000))
+  ]);
+  const {data:sessionData,error:sessionError}=sessionResult;
+  if(sessionError||!sessionData.session){status('Sign in from the VBGRAMG home page first.');$('app').classList.add('hidden');return;}
+  // The protected list action independently validates the verified session and approved-user record.
+  // Avoid a redundant access-function network round trip during startup.
+  status('Loading active MIS and contribution ledger…');
+  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}});
+  if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
+  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");entries=data.entries||[];extraCharges=data.extras||[];citizenRegistry=data.citizens||[];applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];deriveCitizens();renderExemptions();
+  $('app').classList.remove('hidden');status('Loaded active MIS job cards and '+entries.length.toLocaleString('en-IN')+' contribution ledger entries. Job card details come from active MIS; balances and history come from the ledger.');
+  render();
+ }catch(err){status(err.message||'Could not load contribution data.','err');}
+ finally{$('refreshBtn').disabled=false;}
+}
+
+$('search').addEventListener('input',()=>{currentPage=0;render()});
+$('statusFilter').addEventListener('change',()=>{currentPage=0;render()});
+$('clearSearch').addEventListener('click',()=>{$('search').value='';$('statusFilter').value='due';currentPage=0;render();$('search').focus();});
+$('prev-button').addEventListener('click',()=>{currentPage--;render()});$('next-button').addEventListener('click',()=>{currentPage++;render()});
+window.addEventListener('resize',()=>render());
+$('refreshBtn').addEventListener('click',load);
+$('bulkPaymentBtn').addEventListener('click',showBulkPaymentForm);
+$('manageExemptionsBtn').addEventListener('click',()=>{$('exemptionPanel').classList.toggle('hidden');if(!$('exemptionPanel').classList.contains('hidden')){$('exemptJobCard').focus();$('exemptionPanel').scrollIntoView({behavior:'smooth',block:'start'});}});
+$('saveExemptionBtn').addEventListener('click',saveExemption);
+$('exemptionList').addEventListener('click',async ev=>{const btn=ev.target.closest('[data-remove-exemption]');if(!btn)return;await removeExemption(btn.dataset.removeExemption);});
+$('closeSheet').addEventListener('click',()=>$('overlay').classList.add('hidden'));
+$('overlay').addEventListener('click',e=>{if(e.target===$('overlay'))$('overlay').classList.add('hidden');});
+supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'||!session){$('app').classList.add('hidden');status('Sign in from the VBGRAMG home page first.');}});
+load().catch(err=>setStartupError(err&&err.message?err.message:'Could not start the Contribution page.'));
+})().catch(err=>{
+ const node=document.getElementById('status');
+ if(node){node.className='notice err';node.textContent='Could not start the Contribution page. Tap Refresh or return to the main menu and reopen it.';}
+});

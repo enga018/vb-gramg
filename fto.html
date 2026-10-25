@@ -188,6 +188,26 @@ tbody tr:last-child td{border-bottom:0}
 .history-status.processed{background:#eaf8ef;color:#17663a}
 .history-status.rejected{background:#fff0ed;color:#9b2c20}
 .history-status.blank{background:#fff4d9;color:#8a4b08}
+.fto-view-modal-backdrop{position:fixed;inset:0;z-index:1100;display:flex;align-items:center;justify-content:center;padding:clamp(8px,2vw,24px);background:rgb(15 23 42 / 58%);backdrop-filter:blur(3px)}
+.fto-view-modal{display:flex;flex-direction:column;width:min(1500px,100%);max-height:94vh;background:#fff;border:1px solid #dfe5ee;border-radius:16px;box-shadow:0 24px 80px rgb(15 23 42 / 28%);overflow:hidden}
+.fto-view-modal-header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px 22px;border-bottom:1px solid #e3e8f0;background:#fff}
+.fto-view-modal-header h2{margin:0;font-size:1.15rem}
+.fto-view-modal-header p{margin:4px 0 0}
+.fto-view-modal-content{padding:16px 20px 20px;overflow:auto;overscroll-behavior:contain}
+.fto-view-modal-content .detail-heading{margin-top:0}
+.fto-view-modal-content .table-wrap{max-height:none;overflow:auto}
+.fto-view-modal-content .fto-transaction-table{min-width:1280px}
+@media(max-width:700px){
+ .fto-view-modal-backdrop{padding:0;align-items:stretch}
+ .fto-view-modal{width:100%;max-height:100dvh;height:100%;border-radius:0;border:0}
+ .fto-view-modal-header{padding:14px;gap:8px}
+ .fto-view-modal-header h2{font-size:1rem}
+ .fto-view-modal-header button{min-height:38px;padding:8px 11px}
+ .fto-view-modal-content{padding:12px}
+ .fto-view-modal-content .fto-transaction-table{min-width:0!important}
+ .fto-view-modal-content .table-wrap{border:0;box-shadow:none;overflow:visible}
+}
+
 
 .period-modal-backdrop{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgb(15 23 42 / 48%);backdrop-filter:blur(3px)}
 .period-modal{width:min(100%,440px);padding:24px;background:#fff;border:1px solid #e3e8f0;border-radius:18px;box-shadow:0 24px 70px rgb(15 23 42 / 24%)}
@@ -280,6 +300,16 @@ tbody tr:last-child td{border-bottom:0}
 </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<div id="fto-view-modal-backdrop" class="fto-view-modal-backdrop hidden" role="presentation">
+ <section class="fto-view-modal" role="dialog" aria-modal="true" aria-labelledby="fto-view-modal-title">
+  <header class="fto-view-modal-header">
+   <div><h2 id="fto-view-modal-title">FTO transactions</h2><p id="fto-view-modal-subtitle" class="muted"></p></div>
+   <button id="fto-view-modal-close" type="button" class="secondary" aria-label="Close transaction details">Close</button>
+  </header>
+  <div id="fto-view-modal-content" class="fto-view-modal-content"></div>
+ </section>
+</div>
+
 <script>const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
@@ -381,6 +411,19 @@ function renderHistoryTransactions(batch){
  table.appendChild(tbody);wrap.appendChild(table);wrapper.appendChild(wrap);return wrapper;
 }
 function renderFtoHistory(){
+function openFtoViewModal(batch){
+ $("fto-view-modal-title").textContent="FTO "+String(batch.fto_number||"transactions");
+ $("fto-view-modal-subtitle").textContent=String(batch.contribution_period||"No contribution period")+" · "+(batch.transactions||[]).length+" transactions";
+ const content=$("fto-view-modal-content");
+ content.replaceChildren(renderHistoryTransactions(batch));
+ $("fto-view-modal-backdrop").classList.remove("hidden");
+ $("fto-view-modal-close").focus();
+}
+function closeFtoViewModal(){
+ $("fto-view-modal-backdrop").classList.add("hidden");
+ $("fto-view-modal-content").replaceChildren();
+}
+
  const tbody=$("fto-history-table").querySelector("tbody");tbody.replaceChildren();
  const search=$("fto-history-search").value.trim().toLowerCase(),period=$("fto-history-period").value;
  const filtered=ftoHistoryRows.filter(batch=>(!period||batch.contribution_period===period)&&(!search||String(batch.fto_number||"").toLowerCase().includes(search)||String(batch.contribution_period||"").toLowerCase().includes(search)));
@@ -393,7 +436,7 @@ function renderFtoHistory(){
   const actionCell=document.createElement("td");actionCell.className="history-action-cell";actionCell.dataset.label="Action";
   const actionButton=document.createElement("button");actionButton.type="button";actionButton.className="secondary";actionButton.textContent="Action";actionButton.setAttribute("aria-haspopup","menu");actionButton.setAttribute("aria-expanded","false");
   const menu=document.createElement("div");menu.className="history-action-menu hidden";menu.setAttribute("role","menu");
-  const viewButton=document.createElement("button");viewButton.type="button";viewButton.textContent="View";viewButton.setAttribute("role","menuitem");viewButton.addEventListener("click",()=>{expandedFtoId=expandedFtoId===batch.id?null:batch.id;renderFtoHistory()});
+  const viewButton=document.createElement("button");viewButton.type="button";viewButton.textContent="View";viewButton.setAttribute("role","menuitem");viewButton.addEventListener("click",()=>{menu.classList.add("hidden");actionButton.setAttribute("aria-expanded","false");openFtoViewModal(batch)});
   const editPeriod=document.createElement("button");editPeriod.type="button";editPeriod.textContent="Change period";editPeriod.setAttribute("role","menuitem");editPeriod.addEventListener("click",()=>{menu.classList.add("hidden");changeFtoPeriod(batch)});
   menu.append(viewButton,editPeriod);actionButton.addEventListener("click",()=>{const open=menu.classList.contains("hidden");document.querySelectorAll(".history-action-menu").forEach(el=>el.classList.add("hidden"));document.querySelectorAll(".history-action-cell > button").forEach(el=>el.setAttribute("aria-expanded","false"));if(open){menu.classList.remove("hidden");const rect=actionButton.getBoundingClientRect(),menuRect=menu.getBoundingClientRect();const left=Math.max(8,Math.min(rect.right-menuRect.width,window.innerWidth-menuRect.width-8));const top=Math.max(8,rect.top-menuRect.height-6);menu.style.left=left+"px";menu.style.top=top+"px";}else{menu.classList.add("hidden");}actionButton.setAttribute("aria-expanded",String(open))});
   actionCell.append(actionButton,menu);tr.appendChild(actionCell);tbody.appendChild(tr);
@@ -457,12 +500,15 @@ async function loadFtoHistory(){
  }catch(err){if(seq!==historyLoadSequence)return;historyMessage(err.message||"Could not load FTO history.","error");}
 }
 $("refresh-fto-history").addEventListener("click",loadFtoHistory);
+$("fto-view-modal-close").addEventListener("click",closeFtoViewModal);
+$("fto-view-modal-backdrop").addEventListener("click",event=>{if(event.target===$("fto-view-modal-backdrop"))closeFtoViewModal();});
+
 $("fto-history-search").addEventListener("input",renderFtoHistory);
 $("fto-history-period").addEventListener("change",renderFtoHistory);
 $("period-modal-form").addEventListener("submit",saveFtoPeriod);
 $("period-modal-cancel").addEventListener("click",closePeriodModal);
 $("period-modal-backdrop").addEventListener("click",event=>{if(event.target===$("period-modal-backdrop"))closePeriodModal();});
-document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!$("period-modal-backdrop").classList.contains("hidden"))closePeriodModal();});
+document.addEventListener("keydown",event=>{if(event.key!=="Escape")return;if(!$("fto-view-modal-backdrop").classList.contains("hidden"))closeFtoViewModal();else if(!$("period-modal-backdrop").classList.contains("hidden"))closePeriodModal();});
 
 
 async function verifyAccess(user){

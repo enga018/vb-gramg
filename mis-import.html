@@ -78,7 +78,7 @@
       <label style="display:flex;gap:8px;align-items:flex-start;margin:12px 0;font-weight:600"><input id="exclude-deleted" type="checkbox" checked style="width:auto;min-height:0;margin-top:4px"> Exclude applicants marked deleted (asterisk in household/applicant name or deletion remarks)</label>
       <button type="button" id="load-table-button">Filter and prepare table</button>
     </div>
-    <button type="button" id="import-button" disabled>Compare pasted MIS</button>
+    <button type="button" id="import-button" disabled hidden aria-hidden="true" tabindex="-1">Compare pasted MIS</button>
     <div id="status" class="status" aria-live="polite">Checking administrator access…</div>
     <section id="filter-summary" class="diff-panel hidden"><h2>Local preparation summary</h2><p id="filter-counts"></p><h3>Removed rows and reasons</h3><ul id="filter-removed" class="diff-list"></ul><h3>Manual-review rows (held out of comparison)</h3><ul id="filter-review" class="diff-list"></ul><label id="review-confirm-wrap" class="hidden" style="display:block"><input id="review-confirm" type="checkbox" style="width:auto;min-height:0"> I reviewed the uncertain rows and agree they will remain excluded until corrected in the source and pasted again.</label></section>
     <section id="diff-panel" class="diff-panel hidden" aria-live="polite">
@@ -402,6 +402,13 @@
     }
 
     loadTableButton.addEventListener('click', async function () {
+      if (pastedTableLoaded) {
+        if (window.misReviewCount > 0 && !document.getElementById('review-confirm').checked) {
+          setStatus('Review the uncertain rows and tick the acknowledgement before comparing.', 'error'); return;
+        }
+        importButton.click();
+        return;
+      }
       importButton.disabled=true; pastedTableLoaded=false; importedRows=[];
       previewWrap.classList.add('hidden'); document.getElementById('filter-summary').classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
       pendingImportId=null; pendingComparison=null;
@@ -421,15 +428,21 @@
         document.getElementById('review-confirm').checked=false;
         document.getElementById('filter-summary').classList.remove('hidden');
         importButton.disabled=!currentUser||currentRole!=='admin'||prepared.review.length>0;
+        loadTableButton.textContent = 'Compare prepared MIS';
+        loadTableButton.disabled = !currentUser || currentRole !== 'admin' || prepared.review.length > 0;
         setStatus('Prepared locally using the active database column layout. Original pasted text is unchanged. No MIS rows have been staged or written yet.'+(prepared.review.length?' Review the uncertain rows; comparison is blocked until you acknowledge that they remain excluded.':''),'success');
       } catch(error) { setStatus('Preparation failed: '+(error&&error.message?error.message:String(error))+'\nThe active MIS has not been changed.','error'); }
       finally {loadTableButton.disabled=false;}
     });
     document.getElementById('review-confirm').addEventListener('change',function(){
-      importButton.disabled=!currentUser||currentRole!=='admin'||!pastedTableLoaded||(window.misReviewCount>0&&!this.checked);
+      const blocked = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || (window.misReviewCount > 0 && !this.checked);
+      importButton.disabled = blocked;
+      loadTableButton.disabled = blocked;
     });
     tableInput.addEventListener('input', function () {
       pastedTableLoaded = false; importedRows = []; importButton.disabled = true;
+      loadTableButton.textContent = 'Filter and prepare table'; loadTableButton.disabled = false;
+      document.getElementById('filter-summary').classList.add('hidden');
       previewWrap.classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
     });
 
@@ -503,7 +516,9 @@
         pendingImportId = null; pendingComparison = null;
         setStatus('Comparison failed: ' + (error && error.message ? error.message : String(error)) + '\nThe existing active MIS has not been changed.', 'error');
       } finally {
-        tableInput.disabled = !!pendingImportId; loadTableButton.disabled = !!pendingImportId;
+        tableInput.disabled = !!pendingImportId;
+        loadTableButton.disabled = !!pendingImportId || !currentUser || currentRole !== 'admin' || (window.misReviewCount > 0 && !document.getElementById('review-confirm').checked);
+        loadTableButton.textContent = 'Compare prepared MIS';
         importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || !!pendingImportId;
       }
     });
@@ -527,7 +542,8 @@
       } catch (error) {
         setStatus('Could not apply changes: ' + (error && error.message ? error.message : String(error)) + '\nPlease compare again before retrying.', 'error');
       } finally {
-        button.disabled = false; document.getElementById('cancel-changes-button').disabled = false; tableInput.disabled = false; loadTableButton.disabled = false;
+        button.disabled = false; document.getElementById('cancel-changes-button').disabled = false; tableInput.disabled = false;
+        loadTableButton.disabled = !!pendingImportId || !currentUser || currentRole !== 'admin' || (window.misReviewCount > 0 && !document.getElementById('review-confirm').checked);
         importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || !!pendingImportId;
       }
     });
@@ -541,6 +557,8 @@
       if (id) { try { await invokeImport({ action: 'abort', importId: id }); } catch (_) {} }
       tableInput.disabled = false; loadTableButton.disabled = false;
       setStatus('MIS comparison cancelled. The existing active MIS was not changed.', '');
+      loadTableButton.textContent = 'Compare prepared MIS';
+      loadTableButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || (window.misReviewCount > 0 && !document.getElementById('review-confirm').checked);
       importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded;
     });
 

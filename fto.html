@@ -123,32 +123,47 @@ tbody tr:last-child td{border-bottom:0}
 .history-table-wrap{overflow-x:visible;overflow-y:auto}
 #fto-history-table{table-layout:fixed}
 #fto-history-table th,#fto-history-table td{min-width:0;padding:11px 12px}
-#fto-history-table .col-fto{width:27%}
-#fto-history-table .col-period{width:17%}
-#fto-history-table .col-status{width:24%}
-#fto-history-table .col-updated{width:22%}
+#fto-history-table .col-fto{width:30%}
+#fto-history-table .col-period{width:16%}
+#fto-history-table .col-status{width:23%}
+#fto-history-table .col-updated{width:21%}
 #fto-history-table .col-action{width:10%}
 .history-action-cell{position:relative;min-width:0;overflow:visible}
 .history-action-menu{position:fixed;left:0;top:0;z-index:20;min-width:160px;padding:5px;background:#fff;border:1px solid #dfe5ee;border-radius:10px;box-shadow:0 8px 24px rgb(23 32 51 / 14%)}
 .history-action-menu button{display:flex;width:100%;justify-content:flex-start;min-height:38px;padding:8px 10px;border:0;background:transparent;color:#344054;text-align:left}
 .history-action-menu button:hover{background:#f0f4fa}
 @media(max-width:700px){
- .history-table-wrap{overflow-x:visible}
- #fto-history-table{font-size:.76rem}
- #fto-history-table th,#fto-history-table td{padding:9px 6px}
- #fto-history-table .col-fto{width:29%}
- #fto-history-table .col-period{width:18%}
- #fto-history-table .col-status{width:24%}
- #fto-history-table .col-updated{width:17%}
- #fto-history-table .col-action{width:12%}
- #fto-history-table .history-statuses{gap:3px}
- #fto-history-table .history-status{font-size:.66rem;padding:3px 5px;white-space:normal}
- #fto-history-table .history-action-cell>button{font-size:.72rem;min-height:36px;padding:6px}
+ .history-table-wrap{overflow:visible;max-height:none;border:0;background:transparent;box-shadow:none}
+ #fto-history-table{display:block;width:100%;font-size:.88rem}
+ #fto-history-table thead{display:none}
+ #fto-history-table tbody{display:grid;gap:12px}
+ #fto-history-table tbody>tr.fto-history-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0;background:#fff;border:1px solid #e1e7f0;border-radius:12px;overflow:visible;box-shadow:0 2px 8px rgb(23 32 51 / 4%)}
+ #fto-history-table tbody>tr.fto-history-row>td{display:block;min-width:0;max-width:none;width:auto!important;padding:10px 12px;border:0;overflow-wrap:anywhere}
+ #fto-history-table tbody>tr.fto-history-row>td:before{content:attr(data-label);display:block;margin-bottom:4px;color:#667085;font-size:.67rem;font-weight:750;letter-spacing:.035em;text-transform:uppercase}
+ #fto-history-table tbody>tr.fto-history-row>td:nth-child(1){grid-column:1;grid-row:1;padding-bottom:5px;font-weight:750;font-size:.9rem;overflow-wrap:anywhere;word-break:break-word}
+ #fto-history-table tbody>tr.fto-history-row>td:nth-child(2){grid-column:1;grid-row:2;padding-top:5px;padding-bottom:8px}
+ #fto-history-table tbody>tr.fto-history-row>td:nth-child(3){grid-column:1/-1;grid-row:3;padding-top:8px;padding-bottom:8px}
+ #fto-history-table tbody>tr.fto-history-row>td:nth-child(4){grid-column:1;grid-row:4;padding-top:8px;color:#475467;font-size:.8rem}
+ #fto-history-table tbody>tr.fto-history-row>td.history-action-cell{grid-column:2;grid-row:1;align-self:start;padding:10px 10px 0 0}
+ #fto-history-table .history-statuses{gap:5px}
+ #fto-history-table .history-status{font-size:.72rem;padding:4px 7px;white-space:normal}
+ #fto-history-table .history-action-cell>button{font-size:.76rem;min-height:36px;padding:7px 9px}
+ #fto-history-table tbody>tr.history-detail{display:block;background:transparent}
+ #fto-history-table tbody>tr.history-detail>td{display:block;padding:8px 0;border:0;background:transparent}
+ #fto-history-table tbody>tr:not(.fto-history-row):not(.history-detail){display:block;background:#fff;border:1px solid #e1e7f0;border-radius:10px}
+ #fto-history-table tbody>tr:not(.fto-history-row):not(.history-detail)>td{display:block;padding:14px;border:0}
 }
 .history-detail td{padding:14px;background:#f8fafd}
 .history-detail .table-wrap{max-height:55vh}
-.history-detail table{min-width:1100px;font-size:.82rem}
+.history-detail table{min-width:1280px;font-size:.82rem}
 .history-detail th,.history-detail td{min-width:105px;padding:9px 10px}
+.history-detail .fto-transaction-table th:nth-child(1),.history-detail .fto-transaction-table td:nth-child(1){min-width:230px;width:230px}
+.history-detail .fto-transaction-table th:nth-child(2),.history-detail .fto-transaction-table td:nth-child(2){min-width:160px;width:160px}
+.history-detail .fto-transaction-table th:nth-child(3),.history-detail .fto-transaction-table td:nth-child(3){min-width:190px;width:190px}
+.history-detail .fto-transaction-table th:nth-child(4),.history-detail .fto-transaction-table td:nth-child(4){min-width:135px;width:135px}
+.history-detail .fto-transaction-table th:nth-child(5),.history-detail .fto-transaction-table td:nth-child(5){min-width:105px;width:105px}
+.history-detail .fto-transaction-table th:nth-child(6),.history-detail .fto-transaction-table td:nth-child(6){min-width:135px;width:135px}
+.history-detail .fto-transaction-table th:nth-child(7),.history-detail .fto-transaction-table td:nth-child(7){min-width:150px;width:150px}
 .history-detail th{position:sticky;top:0}
 .history-detail .detail-heading{font-size:.84rem;font-weight:700;color:#344054;margin:0 0 10px}
 .history-detail .detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
@@ -314,7 +329,7 @@ function renderHistoryTransactions(batch){
  const heading=document.createElement("p");heading.className="detail-heading";heading.textContent="Imported transactions for New Serchhip North · "+(batch.transactions||[]).length+" rows";wrapper.appendChild(heading);
  const coreHeaders=[
   "Job Card No. (Panchayat Name)","Reference No.","Applicant Name","Credit Amount (In Rs.)",
-  "Status","Processed Date","UTR No.","Rejection Reason"
+  "Status","Processed Date"
  ];
  const detailHeaders=FTO_HEADERS.filter(label=>!coreHeaders.includes(label));
  const fallback={
@@ -334,7 +349,7 @@ function renderHistoryTransactions(batch){
   return value===undefined||value===null||String(value)===""?"—":String(value).replace(/<br\s*\/?>/gi," ");
  };
  const wrap=document.createElement("div");wrap.className="table-wrap";
- const table=document.createElement("table");const thead=document.createElement("thead"),headRow=document.createElement("tr");
+ const table=document.createElement("table");table.className="fto-transaction-table";const thead=document.createElement("thead"),headRow=document.createElement("tr");
  [...coreHeaders,"More details"].forEach(label=>{const th=document.createElement("th");th.textContent=label==="Job Card No. (Panchayat Name)"?"Job Card No.":label;headRow.appendChild(th)});
  thead.appendChild(headRow);table.appendChild(thead);
  const tbody=document.createElement("tbody");
@@ -370,9 +385,12 @@ function renderFtoHistory(){
  const search=$("fto-history-search").value.trim().toLowerCase(),period=$("fto-history-period").value;
  const filtered=ftoHistoryRows.filter(batch=>(!period||batch.contribution_period===period)&&(!search||String(batch.fto_number||"").toLowerCase().includes(search)||String(batch.contribution_period||"").toLowerCase().includes(search)));
  for(const batch of filtered){
-  const tr=document.createElement("tr");
-  addHistoryCell(tr,batch.fto_number);addHistoryCell(tr,batch.contribution_period);addHistoryCell(tr,statusSummary(batch.status_counts));addHistoryCell(tr,fmtHistoryDate(batch.last_checked_at||batch.first_imported_at));
-  const actionCell=document.createElement("td");actionCell.className="history-action-cell";
+  const tr=document.createElement("tr");tr.className="fto-history-row";
+  const ftoCell=addHistoryCell(tr,batch.fto_number);ftoCell.dataset.label="FTO number";
+  const periodCell=addHistoryCell(tr,batch.contribution_period);periodCell.dataset.label="Contribution period";
+  const statusCell=addHistoryCell(tr,statusSummary(batch.status_counts));statusCell.dataset.label="Status summary";
+  const updatedCell=addHistoryCell(tr,fmtHistoryDate(batch.last_checked_at||batch.first_imported_at));updatedCell.dataset.label="Last imported / checked";
+  const actionCell=document.createElement("td");actionCell.className="history-action-cell";actionCell.dataset.label="Action";
   const actionButton=document.createElement("button");actionButton.type="button";actionButton.className="secondary";actionButton.textContent="Action";actionButton.setAttribute("aria-haspopup","menu");actionButton.setAttribute("aria-expanded","false");
   const menu=document.createElement("div");menu.className="history-action-menu hidden";menu.setAttribute("role","menu");
   const viewButton=document.createElement("button");viewButton.type="button";viewButton.textContent="View";viewButton.setAttribute("role","menuitem");viewButton.addEventListener("click",()=>{expandedFtoId=expandedFtoId===batch.id?null:batch.id;renderFtoHistory()});

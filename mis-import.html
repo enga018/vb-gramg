@@ -376,8 +376,7 @@
       const headersIndex = rows.findIndex(row => {
         const keys = row.map(headerKey);
         return keys.some(v => v === 'job card number' || v === 'jobcard number') &&
-          keys.some(v => v === 'name of applicant' || v === 'applicant name') &&
-          (keys.some(v => v === 'unique id') || keys.some(v => v === 's no' || v === 's no.'));
+          keys.some(v => v === 'name of applicant' || v === 'applicant name');
       });
       if (headersIndex < 0) {
         throw new Error('Could not find the MIS table headings. Copy the table with its column headings, including Job Card Number and Name of Applicant.');

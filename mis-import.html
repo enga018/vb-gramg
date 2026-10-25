@@ -189,7 +189,7 @@
       const footer = /^(villages?\s*:|no\.?\s*of\s*registrants\s*:|total\s+no\.?\s+of\s+registered\s+applicants|#\s*end\s+of\s+report|report\s+completed|if\s+any\s+.*denotes|excel\s+view)/i;
       while (result.length > 1) {
         const values = result[result.length - 1].map(v => String(v || '').trim()).filter(Boolean);
-        if (!values.length || values.every(v => footer.test(v))) result.pop();
+        if (!values.length || values.some(v => footer.test(v))) result.pop();
         else break;
       }
       return result;

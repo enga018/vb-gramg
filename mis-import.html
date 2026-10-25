@@ -52,15 +52,11 @@
     <div class="paste-box">
       <label class="file-label" for="table-input">Paste table copied from the MIS page</label>
       <textarea id="table-input" rows="8" placeholder="Copy the MIS table, then paste it here…"></textarea>
-      <p class="hint">Step 1: load the pasted report to inspect every parsed row. Nothing is filtered or sent to Supabase at this step.</p>
-      <button type="button" id="load-table-button">Load data</button>
-      <p id="source-table-summary" class="hint hidden"></p>
-      <label style="display:block;margin:12px 0;font-weight:600"><input id="exclude-deleted" type="checkbox" checked> Exclude applicants marked deleted (asterisk in household/applicant name or deletion remarks)</label>
-      <button type="button" id="prepare-table-button" class="secondary" disabled>Prepare table for comparison</button>
+      <p class="hint">Tab-separated data copied from a webpage or spreadsheet is supported. Header row is required. The pasted data is previewed locally before any upload.</p>
+      <button type="button" id="load-table-button">Load pasted table</button>
     </div>
     <button type="button" id="import-button" disabled>Compare pasted MIS</button>
     <div id="status" class="status" aria-live="polite">Checking administrator access…</div>
-    <section id="filter-summary" class="diff-panel hidden"><h2>Filtering summary</h2><p id="filter-counts"></p><h3>Rows excluded and reasons</h3><ul id="filter-removed" class="diff-list"></ul><h3>Rows requiring manual review</h3><ul id="filter-review" class="diff-list"></ul><label id="review-confirm-wrap" class="hidden"><input id="review-confirm" type="checkbox"> I reviewed these uncertain rows and agree to leave them out of this import.</label></section>
     <section id="diff-panel" class="diff-panel hidden" aria-live="polite">
       <h2 id="diff-title">Review MIS changes</h2>
       <p id="diff-intro">Compare the uploaded file with the current active MIS before applying changes.</p>
@@ -100,13 +96,10 @@
     let currentUser = null;
     let currentRole = null;
     let importedRows = [];
-    let sourceRowsLoaded = [];
-    let sourceTableLoaded = false;
     let pastedTableLoaded = false;
     let importedFileName = 'Pasted MIS';
     let pendingImportId = null;
     let pendingComparison = null;
-    let uncertainRowsCount = 0;
 
     function setStatus(message, type) {
       statusBox.textContent = message;
@@ -122,14 +115,7 @@
         window.location.replace('./');
         return;
       }
-      setStatus('Signed in. Verifying administrator access…', '');
-      let access, error;
-      try {
-        ({ data: access, error } = await supabaseClient.functions.invoke('vbgramg-app-access', { body: {} }));
-      } catch (err) {
-        setStatus('Could not verify administrator access: ' + (err && err.message ? err.message : String(err)) + '. Check your connection and reload this page.', 'error');
-        return;
-      }
+      const { data: access, error } = await supabaseClient.functions.invoke('vbgramg-app-access', { body: {} });
       if (error || !access || access.approved !== true || access.role !== 'admin') {
         setStatus('Administrator access is required. Returning to the main app…', 'error');
         window.location.replace('./');
@@ -137,8 +123,7 @@
       }
       currentUser = user;
       currentRole = access.role;
-      importButton.disabled = !pastedTableLoaded || (uncertainRowsCount > 0 && !document.getElementById('review-confirm').checked);
-      setStatus('Administrator access verified. Paste the MIS report, then select “Load data” to inspect the parsed source table.', 'success');
+      importButton.disabled = !pastedTableLoaded;
     }
 
     function renderRows(rows) {
@@ -146,16 +131,15 @@
       const tbody = preview.querySelector('tbody');
       thead.replaceChildren();
       tbody.replaceChildren();
-      const headers = rows[0] || [];
-      const maxCols = rows.reduce((max, row) => Math.max(max, row.length), headers.length);
+      const maxCols = rows.reduce((max, row) => Math.max(max, row.length), 0);
       const header = document.createElement('tr');
       for (let i = 0; i < maxCols; i++) {
         const th = document.createElement('th');
-        th.textContent = headers[i] == null ? 'Column ' + (i + 1) : String(headers[i]);
+        th.textContent = 'Column ' + (i + 1);
         header.appendChild(th);
       }
       thead.appendChild(header);
-      rows.slice(1).forEach(function (row) {
+      rows.slice(0, 500).forEach(function (row) {
         const tr = document.createElement('tr');
         for (let i = 0; i < maxCols; i++) {
           const td = document.createElement('td');
@@ -173,27 +157,7 @@
       if (event === 'SIGNED_OUT') window.location.replace('./');
       else if (event === 'TOKEN_REFRESHED' && session) Promise.resolve().then(() => updateAuthUI(session.user));
     });
-    supabaseClient.auth.getSession().then(({ data, error }) => {
-      if (error) { setStatus('Could not read your sign-in session: ' + error.message + '. Reload the page and sign in again.', 'error'); return; }
-      return updateAuthUI(data && data.session ? data.session.user : null);
-    }).catch(error => setStatus('Could not check your sign-in session: ' + (error && error.message ? error.message : String(error)) + '. Reload the page and sign in again.', 'error'));
-
-    function trimNonDataEnvelope(rows) {
-      const key = v => String(v || '').toLowerCase().replace(/&amp;/g, '&').replace(/[^a-z0-9]+/g, ' ').trim();
-      const headerAt = rows.findIndex(row =>
-        row.some(v => ['job card number','jobcard number'].includes(key(v))) &&
-        row.some(v => ['name of applicant','applicant name'].includes(key(v)))
-      );
-      if (headerAt < 0) return rows;
-      const result = rows.slice(headerAt).map(row => row.slice());
-      const footer = /^(villages?\s*:|no\.?\s*of\s*registrants\s*:|total\s+no\.?\s+of\s+registered\s+applicants|#\s*end\s+of\s+report|report\s+completed|if\s+any\s+.*denotes|excel\s+view)/i;
-      while (result.length > 1) {
-        const values = result[result.length - 1].map(v => String(v || '').trim()).filter(Boolean);
-        if (!values.length || values.some(v => footer.test(v))) result.pop();
-        else break;
-      }
-      return result;
-    }
+    supabaseClient.auth.getSession().then(({ data }) => updateAuthUI(data.session ? data.session.user : null));
 
     function parsePastedTable(raw) {
       const text = String(raw || '').replace(/\r/g, '').trim();
@@ -220,336 +184,21 @@
       });
     }
 
-    function parseReportLines(raw) {
-      // Parse the government report's copied plain-text layout. Empty cells are
-      // omitted by text copy, so infer the household fields from the position
-      // of Gender, Age, receipt date and Job Card Number rather than column gaps.
-      const cleanLine = value => String(value || '').replace(/\u00a0/g, ' ').trim()
-        .replace(/^\*\*(.*?)\*\*$/u, '$1')
-        .replace(/^__(.*?)__$/u, '$1')
-        .replace(/^\\([*#])/, '$1')
-        .replace(/&amp;/g, '&');
-      const lines = String(raw || '').replace(/\r/g, '').split('\n').map(cleanLine).filter(Boolean);
-      const key = v => cleanLine(v).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-      // Recognize this government report even when copied text changes the heading formatting.
-      const startExact = lines.findIndex(v => ['s no','s no serial no','serial no'].includes(key(v)));
-      const hasJobHeading = lines.some(v => key(v).includes('job card number'));
-      const hasApplicantHeading = lines.some(v => key(v).includes('name of applicant'));
-      if (!hasJobHeading || !hasApplicantHeading) return null;
-      const start = startExact >= 0 ? startExact : lines.findIndex(v => key(v).includes('registration application register'));
-      if (start < 0) return null;
-      const headers = ['S.No.','Head of HouseHold','Caste','Name of Applicant','Father/Husband Name','Gender','Age','Date of receipt of application/Request for Registration','Job Card Number','Job-card issue date','Reasons, if Job Card NOT issued & any other remarks','Disabled','Minority','Job Card Verified on Date'];
-      const villageSummary = lines.findIndex((v, i) => i > start && /^villages?\s*:/i.test(v));
-      // Skip the separate 1–14 column-key row. Applicant serial 1 follows the village summary.
-      const firstApplicantSerial = lines.findIndex((v, i) => i > start && /^1$/.test(v) && (villageSummary < 0 || i > villageSummary));
-      const dataStart = villageSummary >= 0 ? villageSummary + 1 : (firstApplicantSerial >= 0 ? firstApplicantSerial : start + 1);
-      const blocks = [];
-      let current = null, expectedSerial = 1;
-      const flush = () => { if (current) blocks.push(current); current = null; };
-      for (const line of lines.slice(dataStart)) {
-        if (/^(total\s+no\.?\s+of\s+registered\s+applicants|if\s+any\s+['"]?\\?\*|#\s*end\s+of\s+report|report\s+completed|\\?\[?excel\s+view)/i.test(line)) {
-          flush(); continue;
-        }
-        const n = /^\d{1,4}$/.test(line) ? Number(line) : 0;
-        if (n === expectedSerial) {
-          flush(); current = [line]; expectedSerial++; continue;
-        }
-        if (current) current.push(line);
-      }
-      flush();
-      if (!blocks.some(b => b.some(v => /^MZ-[A-Z0-9-]+\/\d+$/i.test(v)))) return null;
-
-      const result = [headers];
-      const dateRe = /^\d{1,2}[/-]\d{1,2}[/-]\d{4}$/;
-      const jobRe = /^MZ-[A-Z0-9-]+\/\d+$/i;
-      for (const block of blocks) {
-        const vals = block.slice(1);
-        const ji = vals.findIndex(v => jobRe.test(v));
-        if (ji < 0) {
-          result.push([block[0], ...vals]);
-          continue;
-        }
-        const before = vals.slice(0, ji);
-        const after = vals.slice(ji + 1);
-        const genderIndex = before.findIndex(v => /^(M|F)$/i.test(v));
-        const ageIndex = genderIndex >= 0 && /^\d{1,3}$/.test(before[genderIndex + 1] || '') ? genderIndex + 1 : -1;
-        const receiptIndex = ageIndex >= 0 && dateRe.test(before[ageIndex + 1] || '') ? ageIndex + 1 : -1;
-        let household = '', caste = '', name = '', father = '';
-        if (genderIndex >= 0) {
-          const leading = before.slice(0, genderIndex);
-          // Head rows have household, caste, applicant name and father/husband.
-          // Other family members usually have only their applicant name.
-          if (leading.length >= 4) [household, caste, name, father] = leading.slice(0, 4);
-          else if (leading.length === 3) [household, caste, name] = leading;
-          else if (leading.length === 2) [name, father] = leading;
-          else if (leading.length === 1) name = leading[0];
-        } else if (before.length) {
-          name = before[0];
-        }
-        const dates = after.filter(v => dateRe.test(v));
-        const issueDate = dates[0] || '';
-        const verified = dates.length > 1 ? dates[dates.length - 1] : '';
-        const remarks = after.find(v => /deleted|reason:|not willing|shifted|surrender|duplicate applicant|non-existent/i.test(v)) || '';
-        const flags = after.filter(v => /^(Y|N)$/i.test(v));
-        result.push([
-          block[0], household, caste, name, father,
-          genderIndex >= 0 ? before[genderIndex] : '',
-          ageIndex >= 0 ? before[ageIndex] : '',
-          receiptIndex >= 0 ? before[receiptIndex] : '',
-          vals[ji], issueDate, remarks, flags[0] || '', flags[1] || '', verified
-        ]);
-      }
-      return result;
-    }
-
-    function headerKey(value) {
-      return String(value == null ? '' : value).toLowerCase().replace(/&amp;/g, '&').replace(/[^a-z0-9]+/g, ' ').trim();
-    }
-
-    function fillDownHouseholdFields(rows, headerIndex) {
-      const key = v => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-      const header = rows[headerIndex].map(key);
-      const jobIndex = header.findIndex(v => v === 'job card number' || v === 'jobcard number');
-      const householdIndex = header.findIndex(v => v === 'head of household' || v === 'head of household name');
-      const casteIndex = header.findIndex(v => v === 'caste');
-      let activeJobCard = '', activeHousehold = '', activeCaste = '';
-      for (const row of rows.slice(headerIndex + 1)) {
-        const jobCard = String(row[jobIndex] || '').trim();
-        if (!jobCard) continue;
-        if (jobCard !== activeJobCard) {
-          activeJobCard = jobCard;
-          activeHousehold = householdIndex >= 0 ? String(row[householdIndex] || '').trim() : '';
-          activeCaste = casteIndex >= 0 ? String(row[casteIndex] || '').trim() : '';
-        } else {
-          if (householdIndex >= 0 && String(row[householdIndex] || '').trim()) activeHousehold = String(row[householdIndex]).trim();
-          if (casteIndex >= 0 && String(row[casteIndex] || '').trim()) activeCaste = String(row[casteIndex]).trim();
-          if (householdIndex >= 0 && !String(row[householdIndex] || '').trim()) row[householdIndex] = activeHousehold;
-          if (casteIndex >= 0 && !String(row[casteIndex] || '').trim()) row[casteIndex] = activeCaste;
-        }
-      }
-      return rows;
-    }
-
-    function filterPastedRows(rows, excludeFlagged) {
-      const key = v => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-      const isJobHeader = v => { const k = key(v); return k === 'job card number' || k === 'jobcard number' || k.includes('job card number'); };
-      const isNameHeader = v => { const k = key(v); return k === 'name of applicant' || k === 'applicant name' || k.includes('name of applicant'); };
-      const hi = rows.findIndex(row => row.some(isJobHeader) && row.some(isNameHeader));
-      if (hi < 0) throw new Error('Could not find Job Card Number and Name of Applicant headings.');
-      fillDownHouseholdFields(rows, hi);
-      const h = rows[hi].map(key), ix = (...n) => h.findIndex(v => n.includes(v));
-      const ji = ix('job card number'), ni = ix('name of applicant'), hh = ix('head of household'), ri = ix('remarks','reasons if job card not issued any other remarks');
-      const kept = [rows[hi]], removed = rows.slice(0, hi).map(row => {
-        const text = row.map(v => String(v || '').trim()).filter(Boolean).join(' · ');
-        return 'Report heading/metadata before applicant table: ' + (text || '(blank row)');
-      }), review = [], sourceApplicantCounts = new Map();
-      for (const row of rows.slice(hi + 1)) {
-        const text = row.map(v => String(v || '').trim()).filter(Boolean).join(' · ');
-        const firstCell = String(row[0] || '').trim();
-        // Government report rows are applicants only when column 1 contains a numeric S.No.
-        // Accept 1, 2, ... and 3000+; there is deliberately no upper limit.
-        if (!/^\d+$/.test(firstCell) || Number(firstCell) < 1) {
-          removed.push('First column is not a positive row number: ' + (text || '(blank row)'));
-          continue;
-        }
-        const jc = String(row[ji] || '').trim(), name = String(row[ni] || '').trim();
-        const valid = jc.startsWith('MZ-') && jc.includes('/') && /^MZ-[A-Z0-9-]+\/\d+$/i.test(jc);
-        if (!text || /^(total|villages|report completed|no\.?\s*of\s*registrants|total\s+no\.?\s+of\s+registered\s+applicants|#\s*end\s+of\s+report|excel\s+view)\b/i.test(text)) { removed.push('Non-applicant heading/total: ' + (text || '(blank row)')); continue; }
-        if (!valid && !name) { removed.push('No job card or applicant name: ' + text); continue; }
-        if (!valid || !name) { review.push((!valid ? 'Missing/invalid job card' : 'Missing applicant name') + ': ' + text); continue; }
-        // Assign database identity against the complete source register BEFORE filtering.
-        // Deleted applicants still consume their original Applicant No. so later applicants'
-        // IDs remain aligned with the government register.
-        const sourceApplicantNo = (sourceApplicantCounts.get(jc) || 0) + 1;
-        sourceApplicantCounts.set(jc, sourceApplicantNo);
-        row.__sourceApplicantNo = String(sourceApplicantNo);
-        row.__sourceUniqueId = jc + '/' + sourceApplicantNo;
-        const remarks = String(ri >= 0 ? row[ri] || '' : '');
-        const flagged = String(hh >= 0 ? row[hh] || '' : '').includes('*') || name.includes('*') || remarks.toLowerCase().includes('deleted');
-        if (excludeFlagged && flagged) { removed.push('Marked deleted: ' + jc + ' · ' + name); continue; }
-        kept.push(row);
-      }
-      return { rows: kept, removed, review };
-    }
-
-    function detectMisColumns(rows) {
-      const key = headerKey;
-      const headerIndex = rows.findIndex(row => {
-        const keys = row.map(key);
-        return keys.some(v => v === 'job card number' || v === 'jobcard number') &&
-          keys.some(v => v === 'name of applicant' || v === 'applicant name');
-      });
-      if (headerIndex < 0) throw new Error('Could not identify the column-heading row. Paste the complete report, including its headings.');
-      const headers = rows[headerIndex].map(v => String(v || '').trim());
-      const keys = headers.map(key);
-      const find = (...names) => keys.findIndex(v => names.includes(v));
-      const required = [
-        { label: 'Job Card Number', names: ['job card number','jobcard number'] },
-        { label: 'Name of Applicant', names: ['name of applicant','applicant name'] }
-      ];
-      const optional = [
-        { label: 'Head of HouseHold', names: ['head of household','head of household name'] },
-        { label: 'S.No. / Sl. No.', names: ['s no','sl no','s no.'] },
-        { label: 'Applicant No.', names: ['applicant no','applicant no.'] },
-        { label: 'Unique ID', names: ['unique id'] },
-        { label: 'JC No.', names: ['jc no','jc no.'] }
-      ];
-      const missing = required.filter(col => find(...col.names) < 0);
-      if (missing.length) throw new Error('Missing required column(s): ' + missing.map(v => v.label).join(', ') + '. Copy the full MIS report including column headings.');
-      return { headers, found: required.concat(optional.filter(col => find(...col.names) >= 0)).map(col => col.label), generated: optional.filter(col => find(...col.names) < 0).map(col => col.label) };
-    }
-
-    function normalizeMisTable(rows) {
-      const headersIndex = rows.findIndex(row => {
-        const keys = row.map(headerKey);
-        return keys.some(v => v === 'job card number' || v === 'jobcard number') &&
-          keys.some(v => v === 'name of applicant' || v === 'applicant name');
-      });
-      if (headersIndex < 0) {
-        throw new Error('Could not find the MIS table headings. Copy the table with its column headings, including Job Card Number and Name of Applicant.');
-      }
-
-      const header = rows[headersIndex].map(headerKey);
-      const find = (...names) => header.findIndex(value => names.includes(value));
-      const jobIndex = find('job card number', 'jobcard number');
-      const nameIndex = find('name of applicant', 'applicant name');
-      const householdIndex = find('head of household', 'head of household name');
-      const slIndex = find('sl no', 's no', 's no.');
-      const applicantNoIndex = find('applicant no', 'applicant no.');
-      const uidIndex = find('unique id');
-      const jcNoIndex = find('jc no', 'jc no.');
-      if (jobIndex < 0 || nameIndex < 0) throw new Error('The pasted table must contain Job Card Number and Name of Applicant.');
-
-      const canonicalHeader = ['Sl. No.', 'Job Card Number', 'JC No.', 'Head of HouseHold', 'Name of Applicant', 'Applicant No.', 'Unique ID'];
-      const isDatabaseShape = uidIndex >= 0;
-      const result = [canonicalHeader];
-      const applicantCounts = new Map();
-      let lastHousehold = '';
-      let lastJobCard = '';
-      let serial = 0;
-
-      for (const row of rows.slice(headersIndex + 1)) {
-        const jobCard = String(row[jobIndex] || '').trim();
-        if (!/^MZ-[A-Z0-9-]+\/\d+$/i.test(jobCard)) continue;
-        const applicantName = String(row[nameIndex] || '').trim();
-        if (!applicantName) continue;
-
-        serial++;
-        let applicantNo = applicantNoIndex >= 0 ? String(row[applicantNoIndex] || '').trim() : '';
-        let household = householdIndex >= 0 ? String(row[householdIndex] || '').trim() : '';
-        if (jobCard !== lastJobCard) {
-          lastJobCard = jobCard;
-          lastHousehold = household;
-        } else if (!household) {
-          household = lastHousehold;
-        } else {
-          lastHousehold = household;
-        }
-
-        if (isDatabaseShape) {
-          applicantNo = applicantNo || String(row[applicantNoIndex] || '').trim();
-          const uniqueId = String(row[uidIndex] || '').trim();
-          const jcNo = jcNoIndex >= 0 ? String(row[jcNoIndex] || '').trim() : (jobCard.match(/\/(\d+)$/) || [])[1] || '';
-          result.push([
-            slIndex >= 0 && String(row[slIndex] || '').trim() ? String(row[slIndex]).trim() : String(serial),
-            jobCard, jcNo, household, applicantName, applicantNo, uniqueId
-          ]);
-          continue;
-        }
-
-        const match = jobCard.match(/\/(\d+)$/);
-        const jcNo = match ? match[1] : '';
-        applicantNo = String(row.__sourceApplicantNo || (applicantCounts.get(jobCard) || 0) + 1);
-        applicantCounts.set(jobCard, Number(applicantNo));
-        const uniqueId = String(row.__sourceUniqueId || (jobCard + '/' + applicantNo));
-        result.push([
-          slIndex >= 0 && String(row[slIndex] || '').trim() ? String(row[slIndex]).trim() : String(serial),
-          jobCard, jcNo, household, applicantName, applicantNo, uniqueId
-        ]);
-      }
-      if (result.length < 2) throw new Error('Found the table headings, but no applicant rows with valid job card numbers. Copy the complete applicant table.');
-      return result;
-    }
-
     loadTableButton.addEventListener('click', function () {
-      importButton.disabled = true; pastedTableLoaded = false; importedRows = []; uncertainRowsCount = 0;
-      sourceRowsLoaded = []; sourceTableLoaded = false;
-      previewWrap.classList.add('hidden'); document.getElementById('filter-summary').classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
-      document.getElementById('source-table-summary').classList.add('hidden');
-      document.getElementById('filter-counts').textContent = '';
-      document.getElementById('filter-removed').replaceChildren();
-      document.getElementById('filter-review').replaceChildren();
-      document.getElementById('review-confirm').checked = false;
-      document.getElementById('prepare-table-button').disabled = true;
+      importButton.disabled = true; pastedTableLoaded = false; importedRows = [];
+      previewWrap.classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
       pendingImportId = null; pendingComparison = null;
-      try {
-        const reportRows = parseReportLines(tableInput.value);
-        const parsedRows = parsePastedTable(tableInput.value);
-        const hasApplicantHeader = candidate => Array.isArray(candidate) && candidate.some(row => {
-          const keys = row.map(headerKey);
-          return keys.some(v => v.includes('job card number')) && keys.some(v => v.includes('name of applicant'));
-        });
-        // Prefer the line-oriented government report parser only when it produced
-        // a real applicant-table header; otherwise use the tabular clipboard parser.
-        const sourceCandidate = hasApplicantHeader(reportRows) ? reportRows : parsedRows;
-        const rows = trimNonDataEnvelope(sourceCandidate);
-        if (!rows.length) throw new Error('Paste the MIS report or table first.');
-        if (!hasApplicantHeader(rows)) throw new Error('The pasted content does not contain a recognizable applicant-table header. Copy the complete Registration Application Register table, including Job Card Number and Name of Applicant headings. Do not use a partial selection.');
-        if (rows.length > 100001) throw new Error('The pasted MIS exceeds the 100,000-row limit.');
-        sourceRowsLoaded = rows.map(row => row.slice());
-        sourceTableLoaded = true;
-        renderRows(sourceRowsLoaded);
-        const count = Math.max(0, sourceRowsLoaded.length - 1);
-        const summary = document.getElementById('source-table-summary');
-        summary.textContent = 'Loaded ' + count.toLocaleString() + ' source rows. This is the unfiltered parsed table; review it before preparing the database-shaped table.';
-        summary.classList.remove('hidden');
-        document.getElementById('prepare-table-button').disabled = false;
-        setStatus('Source data loaded into the table. No rows have been filtered, normalized, compared, or sent to Supabase.', 'success');
-      } catch (error) { setStatus(error.message || String(error), 'error'); }
-    });
-
-    document.getElementById('prepare-table-button').addEventListener('click', function () {
-      if (!sourceTableLoaded || !sourceRowsLoaded.length) { setStatus('Load the source data first.', 'error'); return; }
-      importButton.disabled = true; pastedTableLoaded = false; importedRows = []; uncertainRowsCount = 0;
-      document.getElementById('diff-panel').classList.add('hidden');
-      pendingImportId = null; pendingComparison = null;
-      try {
-        // Work on a copy so the original parsed source table remains intact.
-        const workingRows = sourceRowsLoaded.map(row => row.slice());
-        const filtered = filterPastedRows(workingRows, document.getElementById('exclude-deleted').checked);
-        const columnAudit = detectMisColumns(filtered.rows);
-        const rows = normalizeMisTable(filtered.rows);
-        if (rows.length > 100001) throw new Error('The prepared MIS exceeds the 100,000-row import limit.');
-        importedRows = rows; pastedTableLoaded = true; renderRows(rows);
-        document.getElementById('filter-counts').textContent = 'Kept: ' + (rows.length - 1) + ' applicants · Excluded: ' + filtered.removed.length + ' rows · Manual review: ' + filtered.review.length + ' rows. Columns found: ' + columnAudit.found.join(', ') + '. Generated from the source: ' + (columnAudit.generated.length ? columnAudit.generated.join(', ') : 'none') + '.';
-        const renderReasonList = (id, values, emptyText) => {
-          const list = document.getElementById(id); list.replaceChildren();
-          (values.length ? values.slice(0, 500) : [emptyText]).forEach(v => {
-            const li = document.createElement('li'); li.textContent = v; list.appendChild(li);
-          });
-          if (values.length > 500) {
-            const li = document.createElement('li'); li.textContent = (values.length - 500) + ' more rows not displayed.'; list.appendChild(li);
-          }
-        };
-        renderReasonList('filter-removed', filtered.removed, 'No rows excluded.');
-        renderReasonList('filter-review', filtered.review, 'No uncertain rows found.');
-        document.getElementById('review-confirm-wrap').classList.toggle('hidden', !filtered.review.length);
-        document.getElementById('review-confirm').checked = false;
-        document.getElementById('filter-summary').classList.remove('hidden');
-        uncertainRowsCount = filtered.review.length;
-        importButton.disabled = !currentUser || currentRole !== 'admin' || uncertainRowsCount > 0;
-        setStatus('Prepared database-shaped table. Review the results; nothing has been sent to Supabase yet.', 'success');
-      } catch (error) { setStatus(error.message || String(error), 'error'); }
-    });
-    document.getElementById('review-confirm').addEventListener('change', function () {
-      importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || (uncertainRowsCount > 0 && !this.checked);
+      const rows = parsePastedTable(tableInput.value);
+      if (!rows.length) { setStatus('Paste the copied MIS table first, then select Load pasted table.', 'error'); return; }
+      if (rows.length > 100000) { setStatus('The pasted MIS contains more than 100,000 rows. The import limit is 100,000 rows.', 'error'); return; }
+      if (!rows[0].some(cell => String(cell || '').trim())) { setStatus('The pasted table has no header row. Copy the MIS table including its column headings.', 'error'); return; }
+      importedRows = rows; pastedTableLoaded = true; renderRows(importedRows);
+      importButton.disabled = !currentUser || currentRole !== 'admin';
+      setStatus('Loaded ' + importedRows.length + ' pasted rows. Review the preview, then select Compare pasted MIS. Nothing has been sent to Supabase yet.', 'success');
     });
     tableInput.addEventListener('input', function () {
-      pastedTableLoaded = false; importedRows = []; uncertainRowsCount = 0;
-      sourceRowsLoaded = []; sourceTableLoaded = false; importButton.disabled = true;
-      document.getElementById('prepare-table-button').disabled = true;
-      previewWrap.classList.add('hidden'); document.getElementById('source-table-summary').classList.add('hidden');
-      document.getElementById('filter-summary').classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
+      pastedTableLoaded = false; importedRows = []; importButton.disabled = true;
+      previewWrap.classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
     });
 
     async function invokeImport(payload) {
@@ -593,8 +242,8 @@
     }
 
     importButton.addEventListener('click', async function () {
-      if (!currentUser || currentRole !== 'admin' || !pastedTableLoaded || !Array.isArray(importedRows) || !importedRows.length || (uncertainRowsCount > 0 && !document.getElementById('review-confirm').checked)) {
-        setStatus('Sign in as an administrator, prepare the table, and review/confirm uncertain rows first.', 'error'); return;
+      if (!currentUser || currentRole !== 'admin' || !pastedTableLoaded || !Array.isArray(importedRows) || !importedRows.length) {
+        setStatus('Sign in as an administrator, paste the MIS table, and select Load pasted table first.', 'error'); return;
       }
       if (importedRows.length > 100000) { setStatus('This workbook contains more than 100,000 rows. Import limit is 100,000 rows.', 'error'); return; }
       importButton.disabled = true; tableInput.disabled = true; loadTableButton.disabled = true;
@@ -623,7 +272,7 @@
         setStatus('Comparison failed: ' + (error && error.message ? error.message : String(error)) + '\nThe existing active MIS has not been changed.', 'error');
       } finally {
         tableInput.disabled = !!pendingImportId; loadTableButton.disabled = !!pendingImportId;
-        importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || !!pendingImportId || (uncertainRowsCount > 0 && !document.getElementById('review-confirm').checked);
+        importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || !!pendingImportId;
       }
     });
 
@@ -647,7 +296,7 @@
         setStatus('Could not apply changes: ' + (error && error.message ? error.message : String(error)) + '\nPlease compare again before retrying.', 'error');
       } finally {
         button.disabled = false; document.getElementById('cancel-changes-button').disabled = false; tableInput.disabled = false; loadTableButton.disabled = false;
-        importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || !!pendingImportId || (uncertainRowsCount > 0 && !document.getElementById('review-confirm').checked);
+        importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || !!pendingImportId;
       }
     });
 
@@ -660,7 +309,7 @@
       if (id) { try { await invokeImport({ action: 'abort', importId: id }); } catch (_) {} }
       tableInput.disabled = false; loadTableButton.disabled = false;
       setStatus('MIS comparison cancelled. The existing active MIS was not changed.', '');
-      importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || (uncertainRowsCount > 0 && !document.getElementById('review-confirm').checked);
+      importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded;
     });
 
   </script>

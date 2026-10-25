@@ -268,6 +268,7 @@
         const matchKey=card.toLowerCase()+'|'+cleanName(name);
         const matches=existingByMatch.get(matchKey)||[];
         let match=matches.shift();
+        if(match && !match.uid){review.push('Row '+(i+1)+' — matched an existing applicant but that record has no Unique ID: '+card+' · '+name);continue;}
         if(match && match.uid) matchedCount++;
         let applicantNo=match?.no||'';
         if(!applicantNo){

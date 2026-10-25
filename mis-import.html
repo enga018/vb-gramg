@@ -78,7 +78,6 @@
       <button type="button" id="load-table-button">Analyze and compare</button>
     </div>
     <div id="status" class="status" aria-live="polite">Checking administrator access…</div>
-    <section id="filter-summary" class="diff-panel hidden"><h2>Input filtering summary</h2><p id="filter-counts"></p><h3>Removed rows and reasons</h3><ul id="filter-removed" class="diff-list"></ul><h3>Uncertain rows held out for manual review</h3><ul id="filter-review" class="diff-list"></ul></section>
     <section id="diff-panel" class="diff-panel hidden" aria-live="polite">
       <h2 id="diff-title">Review MIS changes</h2>
       <p id="diff-intro">Compare the uploaded file with the current active MIS before applying changes.</p>
@@ -330,7 +329,6 @@
       if (pendingImportId) { setStatus('A comparison is already waiting for confirmation. Confirm or cancel it first.', 'error'); return; }
       loadTableButton.disabled = true;
       pastedTableLoaded = false; importedRows = [];
-      document.getElementById('filter-summary').classList.add('hidden');
       document.getElementById('diff-panel').classList.add('hidden');
       pendingComparison = null;
       const parsedRows = parsePastedTable(tableInput.value);
@@ -343,16 +341,6 @@
         importedRows = prepared.output;
         pastedTableLoaded = true;
         window.misReviewCount = prepared.review.length;
-        document.getElementById('filter-counts').textContent =
-          'Source rows parsed: ' + parsedRows.length +
-          ' · Applicants prepared for comparison: ' + Math.max(0, importedRows.length - 1) +
-          ' · Removed rows: ' + prepared.removed.length +
-          ' · Uncertain rows held out: ' + prepared.review.length +
-          ' · Existing Unique IDs preserved: ' + prepared.matchedCount +
-          ' · New Unique IDs generated: ' + prepared.generatedIdCount;
-        rowList('filter-removed', prepared.removed, 'No rows removed.');
-        rowList('filter-review', prepared.review, 'No uncertain rows found.');
-        document.getElementById('filter-summary').classList.remove('hidden');
         if (prepared.review.length > 0) {
           setStatus('Comparison paused: ' + prepared.review.length + ' uncertain row(s) need manual review. They are listed above and have not been compared. This pause prevents existing applicants from being incorrectly marked deleted because a source row could not be matched. Correct the source/paste and run Analyze and compare again. The active MIS has not changed.', 'error');
           return;
@@ -382,7 +370,6 @@
     });
     tableInput.addEventListener('input', function () {
       pastedTableLoaded = false; importedRows = [];
-      document.getElementById('filter-summary').classList.add('hidden');
       document.getElementById('diff-panel').classList.add('hidden');
     });
 
@@ -423,7 +410,13 @@
       fillDiffList('diff-deleted-list', diff.deleted, applicantLabel);
       fillDiffList('diff-updated-list', diff.updated, item => applicantLabel(item.before) + ' → ' + applicantLabel(item.after));
       document.getElementById('diff-panel').classList.remove('hidden');
-      document.getElementById('apply-changes-button').disabled = false;
+      const hasChanges = diff.added.length > 0 || diff.deleted.length > 0 || diff.updated.length > 0;
+      document.querySelector('.diff-actions').classList.toggle('hidden', !hasChanges);
+      document.getElementById('apply-changes-button').disabled = !hasChanges;
+      document.getElementById('cancel-changes-button').disabled = !hasChanges;
+      document.getElementById('diff-intro').textContent = hasChanges
+        ? 'Current applicants: ' + diff.oldCount + '. Prepared applicants: ' + diff.newCount + '. Review the changes below before applying.'
+        : 'No changes detected. The active MIS is already up to date; no import or cancellation is needed.';
     }
 
     document.getElementById('apply-changes-button').addEventListener('click', async function () {

@@ -178,6 +178,23 @@
       return updateAuthUI(data && data.session ? data.session.user : null);
     }).catch(error => setStatus('Could not check your sign-in session: ' + (error && error.message ? error.message : String(error)) + '. Reload the page and sign in again.', 'error'));
 
+    function trimNonDataEnvelope(rows) {
+      const key = v => String(v || '').toLowerCase().replace(/&amp;/g, '&').replace(/[^a-z0-9]+/g, ' ').trim();
+      const headerAt = rows.findIndex(row =>
+        row.some(v => ['job card number','jobcard number'].includes(key(v))) &&
+        row.some(v => ['name of applicant','applicant name'].includes(key(v)))
+      );
+      if (headerAt < 0) return rows;
+      const result = rows.slice(headerAt).map(row => row.slice());
+      const footer = /^(villages?\s*:|no\.?\s*of\s*registrants\s*:|total\s+no\.?\s+of\s+registered\s+applicants|#\s*end\s+of\s+report|report\s+completed|if\s+any\s+.*denotes|excel\s+view)/i;
+      while (result.length > 1) {
+        const values = result[result.length - 1].map(v => String(v || '').trim()).filter(Boolean);
+        if (!values.length || values.every(v => footer.test(v))) result.pop();
+        else break;
+      }
+      return result;
+    }
+
     function parsePastedTable(raw) {
       const text = String(raw || '').replace(/\r/g, '').trim();
       if (!text) return [];
@@ -226,12 +243,12 @@
       // Skip the separate 1–14 column-key row. Applicant serial 1 follows the village summary.
       const firstApplicantSerial = lines.findIndex((v, i) => i > start && /^1$/.test(v) && (villageSummary < 0 || i > villageSummary));
       const dataStart = villageSummary >= 0 ? villageSummary + 1 : (firstApplicantSerial >= 0 ? firstApplicantSerial : start + 1);
-      const blocks = [], footerRows = [];
+      const blocks = [];
       let current = null, expectedSerial = 1;
       const flush = () => { if (current) blocks.push(current); current = null; };
       for (const line of lines.slice(dataStart)) {
         if (/^(total\s+no\.?\s+of\s+registered\s+applicants|if\s+any\s+['"]?\\?\*|#\s*end\s+of\s+report|report\s+completed|\\?\[?excel\s+view)/i.test(line)) {
-          flush(); footerRows.push([line]); continue;
+          flush(); continue;
         }
         const n = /^\d{1,4}$/.test(line) ? Number(line) : 0;
         if (n === expectedSerial) {
@@ -282,7 +299,6 @@
           vals[ji], issueDate, remarks, flags[0] || '', flags[1] || '', verified
         ]);
       }
-      result.push(...footerRows);
       return result;
     }
 
@@ -462,7 +478,7 @@
       try {
         const reportRows = parseReportLines(tableInput.value);
         const parsedRows = parsePastedTable(tableInput.value);
-        const rows = reportRows || parsedRows;
+        const rows = trimNonDataEnvelope(reportRows || parsedRows);
         if (!rows.length) throw new Error('Paste the MIS report or table first.');
         if (rows.length > 100001) throw new Error('The pasted MIS exceeds the 100,000-row limit.');
         sourceRowsLoaded = rows.map(row => row.slice());

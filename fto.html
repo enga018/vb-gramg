@@ -300,7 +300,7 @@ function buildImportGroups(){
   const rowStatus=rawStatus==='processed'?'processed':rawStatus==='rejected'?'rejected':rawStatus===''?'blank':'other';
   if(!map.has(jobCard))map.set(jobCard,{job_card_number:jobCard,person_name:personName||'Name needs review',amount:0,row_count:0,invalid_amount_rows:0,statuses:new Set(),reference_numbers:[]});
   const group=map.get(jobCard);if(!group.person_name||group.person_name==='Name needs review')group.person_name=personName||group.person_name;
-  group.row_count++;group.statuses.add(rowStatus);const reference=String(row[3]||'').replace(/<br\\s*\\/?>/gi,' ').replace(/\\s+/g,' ').trim();if(reference&&!group.reference_numbers.includes(reference))group.reference_numbers.push(reference);if(amount>0)group.amount+=amount;else group.invalid_amount_rows++;
+  group.row_count++;group.statuses.add(rowStatus);const reference=String(row[3]||'').replace(/<br\s*\/?>/gi,' ').replace(/\s+/g,' ').trim();if(reference&&!group.reference_numbers.includes(reference))group.reference_numbers.push(reference);if(amount>0)group.amount+=amount;else group.invalid_amount_rows++;
  }
  importGroups=[...map.values()].map(g=>({...g,status:g.statuses.size===1?[...g.statuses][0]:'mixed'})).sort((a,b)=>a.job_card_number.localeCompare(b.job_card_number));
  for(const group of importGroups)if(!deferredCards.has(group.job_card_number))deferredCards.set(group.job_card_number,group.status==='blank');

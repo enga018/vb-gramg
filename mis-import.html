@@ -80,6 +80,10 @@
     <div id="preview-wrap" class="table-wrap hidden">
       <table id="preview"><thead></thead><tbody></tbody></table>
     </div>
+    <div id="preview-pagination" class="table-foot hidden">
+      <span id="preview-page-label" class="muted"></span>
+      <div class="actions"><button type="button" id="preview-prev" class="secondary">Previous</button><button type="button" id="preview-next" class="secondary">Next</button></div>
+    </div>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -128,33 +132,63 @@
       importButton.disabled = !pastedTableLoaded;
     }
 
+    let previewPage = 0, previewPageSize = 50;
+    const expandedPreviewCards = new Set();
     function renderRows(rows) {
-      const thead = preview.querySelector('thead');
-      const tbody = preview.querySelector('tbody');
-      thead.replaceChildren();
-      tbody.replaceChildren();
-      const maxCols = rows.reduce((max, row) => Math.max(max, row.length), 0);
-      const header = document.createElement('tr');
-      for (let i = 0; i < maxCols; i++) {
-        const th = document.createElement('th');
-        th.textContent = rows[0] && rows[0][i] != null ? String(rows[0][i]) : ('Column ' + (i + 1));
-        header.appendChild(th);
-      }
-      thead.appendChild(header);
-      rows.slice(1, 501).forEach(function (row) {
-        const tr = document.createElement('tr');
-        for (let i = 0; i < maxCols; i++) {
-          const td = document.createElement('td');
-          const value = row[i] == null ? '' : String(row[i]);
-          td.textContent = value;
-          td.title = value;
-          tr.appendChild(td);
-        }
-        tbody.appendChild(tr);
+      const thead = preview.querySelector('thead'), tbody = preview.querySelector('tbody');
+      thead.replaceChildren(); tbody.replaceChildren();
+      const headers = (rows[0] || []).map(normText);
+      const col = aliases => findColumn(headers, aliases);
+      const jobIx = col(['job card number','jobcard number']), hhIx = col(['head of household','head of household name']);
+      const nameIx = col(['name of applicant','applicant name']), noIx = col(['applicant no','applicant no.']);
+      const cards = [], byCard = new Map();
+      rows.slice(1).forEach(row => {
+        const key = normText(row[jobIx]) || '(Missing job card)';
+        let group = byCard.get(key);
+        if (!group) { group = {key, household:normText(row[hhIx]), applicants:[]}; byCard.set(key,group); cards.push(group); }
+        group.applicants.push({name:normText(row[nameIx]), no:normText(row[noIx])});
       });
+      const pages = Math.max(1, Math.ceil(cards.length / previewPageSize));
+      previewPage = Math.min(previewPage, pages - 1);
+      const headRow = document.createElement('tr');
+      (['Sl. No.','Job Card Number','Head of Household','Applicants']).forEach(label => {
+        const th=document.createElement('th'); th.textContent=label; headRow.appendChild(th);
+      });
+      thead.appendChild(headRow);
+      cards.slice(previewPage*previewPageSize,(previewPage+1)*previewPageSize).forEach((group,offset) => {
+        const tr=document.createElement('tr'); tr.className='jobcard-row'; tr.tabIndex=0;
+        const toggle=()=>{ if(expandedPreviewCards.has(group.key)) expandedPreviewCards.delete(group.key); else expandedPreviewCards.add(group.key); renderRows(rows); };
+        tr.setAttribute('aria-expanded',String(expandedPreviewCards.has(group.key)));
+        tr.setAttribute('aria-label',(expandedPreviewCards.has(group.key)?'Collapse ':'Expand ')+'applicants for '+group.key);
+        tr.addEventListener('click',toggle);
+        tr.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();toggle();}});
+        [String(previewPage*previewPageSize+offset+1),group.key,group.household||'—',String(group.applicants.length)].forEach((value,i)=>{
+          const td=document.createElement('td'); td.textContent=value;
+          if(i===1||i===3)td.style.fontWeight='700';
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+        if(expandedPreviewCards.has(group.key)){
+          const detail=document.createElement('tr'); detail.className='applicant-detail';
+          const cell=document.createElement('td'); cell.colSpan=4; cell.style.padding='12px 14px 16px'; cell.style.background='#f8fafc';
+          const sub=document.createElement('table'); sub.style.width='100%'; sub.style.tableLayout='fixed';
+          const sh=document.createElement('thead'), shr=document.createElement('tr');
+          ['Name of Applicant','Applicant No.'].forEach(label=>{const th=document.createElement('th');th.textContent=label;th.style.position='static';th.style.background='#e2e8f0';shr.appendChild(th);});
+          sh.appendChild(shr);sub.appendChild(sh);
+          const sb=document.createElement('tbody');
+          group.applicants.forEach(app=>{const ar=document.createElement('tr');[app.name||'—',app.no||'—'].forEach(value=>{const td=document.createElement('td');td.textContent=value;ar.appendChild(td);});sb.appendChild(ar);});
+          sub.appendChild(sb);cell.appendChild(sub);detail.appendChild(cell);tbody.appendChild(detail);
+        }
+      });
+      document.getElementById('preview-page-label').textContent = cards.length ? 'Job cards ' + (previewPage*previewPageSize+1) + '–' + Math.min((previewPage+1)*previewPageSize,cards.length) + ' of ' + cards.length + ' · ' + (rows.length-1) + ' applicants' : 'No applicants';
+      document.getElementById('preview-prev').disabled = previewPage===0;
+      document.getElementById('preview-next').disabled = previewPage>=pages-1;
       previewWrap.classList.remove('hidden');
+      document.getElementById('preview-pagination').classList.remove('hidden');
     }
 
+    document.getElementById('preview-prev').addEventListener('click',()=>{previewPage=Math.max(0,previewPage-1);if(importedRows.length)renderRows(importedRows);});
+    document.getElementById('preview-next').addEventListener('click',()=>{previewPage++;if(importedRows.length)renderRows(importedRows);});
     supabaseClient.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') window.location.replace('./');
       else if (event === 'TOKEN_REFRESHED' && session) Promise.resolve().then(() => updateAuthUI(session.user));

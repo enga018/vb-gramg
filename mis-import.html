@@ -345,6 +345,13 @@
       }), review = [], sourceApplicantCounts = new Map();
       for (const row of rows.slice(hi + 1)) {
         const text = row.map(v => String(v || '').trim()).filter(Boolean).join(' · ');
+        const firstCell = String(row[0] || '').trim();
+        // Government report rows are applicants only when column 1 contains a numeric S.No.
+        // Accept 1, 2, ... and 3000+; there is deliberately no upper limit.
+        if (!/^\d+$/.test(firstCell) || Number(firstCell) < 1) {
+          removed.push('First column is not a positive row number: ' + (text || '(blank row)'));
+          continue;
+        }
         const jc = String(row[ji] || '').trim(), name = String(row[ni] || '').trim();
         const valid = jc.startsWith('MZ-') && jc.includes('/') && /^MZ-[A-Z0-9-]+\/\d+$/i.test(jc);
         if (!text || /^(total|villages|report completed|no\.?\s*of\s*registrants|total\s+no\.?\s+of\s+registered\s+applicants|#\s*end\s+of\s+report|excel\s+view)\b/i.test(text)) { removed.push('Non-applicant heading/total: ' + (text || '(blank row)')); continue; }

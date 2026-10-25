@@ -200,8 +200,15 @@
     }
 
     function parseReportLines(raw) {
-      const lines = String(raw || '').replace(/\r/g, '').split('\n').map(v => v.replace(/\u00a0/g, ' ').trim()).filter(Boolean);
-      const key = v => String(v || '').toLowerCase().replace(/&amp;/g, '&').replace(/[^a-z0-9]+/g, ' ').trim();
+      // Accept copied report text and Markdown-rendered text.
+      // Strip formatting wrappers but preserve asterisks inside names as deletion markers.
+      const cleanLine = value => String(value || '').replace(/\u00a0/g, ' ').trim()
+        .replace(/^\*\*(.*?)\*\*$/u, '$1')
+        .replace(/^__(.*?)__$/u, '$1')
+        .replace(/^\\([*#])/, '$1')
+        .replace(/&amp;/g, '&');
+      const lines = String(raw || '').replace(/\r/g, '').split('\n').map(cleanLine).filter(Boolean);
+      const key = v => cleanLine(v).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
       const start = lines.findIndex(v => key(v) === 's no');
       if (start < 0) return null;
       const headers = ['S.No.','Head of HouseHold','Caste','Name of Applicant','Father/Husband Name','Gender','Age','Date of receipt of application/Request for Registration','Job Card Number','Job-card issue date','Reasons, if Job Card NOT issued & any other remarks','Disabled','Minority','Job Card Verified on Date'];
@@ -213,7 +220,8 @@
       let current = null, expectedSerial = 1, previousLine = '';
       const flush = () => { if (current) blocks.push(current); };
       for (const line of lines.slice(dataStart)) {
-        const n = /^\d{1,4}$/.test(line) ? Number(line) : 0;
+        const serialLine = cleanLine(line).trim();
+        const n = /^\d{1,4}$/.test(serialLine) ? Number(serialLine) : 0;
         if (n === expectedSerial && !/^(M|F)$/i.test(previousLine)) {
           flush(); current = [line]; expectedSerial++; previousLine = line; continue;
         }

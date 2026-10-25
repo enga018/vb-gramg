@@ -382,11 +382,11 @@ async function load(){
  try{
   const {data:sessionData,error:sessionError}=await supabaseClient.auth.getSession();
   if(sessionError||!sessionData.session){status('Sign in from the VBGRAMG home page first.');$('app').classList.add('hidden');return;}
-  const {data:access,error:accessError}=await supabaseClient.functions.invoke('vbgramg-app-access',{body:{}});
-  if(accessError||!access||access.approved!==true){status((access&&access.error)||(accessError&&accessError.message)||'This account is not approved.','err');$('app').classList.add('hidden');return;}
+  // The protected list action independently validates the verified session and approved-user record.
+  // Avoid a redundant access-function network round trip during startup.
   status('Loading active MIS and contribution ledger…');
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}});
-  if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
+  if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
   appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");entries=data.entries||[];extraCharges=data.extras||[];citizenRegistry=data.citizens||[];applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];deriveCitizens();renderExemptions();
   $('app').classList.remove('hidden');status('Loaded active MIS job cards and '+entries.length.toLocaleString('en-IN')+' contribution ledger entries. Job card details come from active MIS; balances and history come from the ledger.');
   render();

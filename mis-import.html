@@ -138,15 +138,16 @@
       const tbody = preview.querySelector('tbody');
       thead.replaceChildren();
       tbody.replaceChildren();
+      const headerRow = Array.isArray(rows[0]) ? rows[0] : [];
       const maxCols = rows.reduce((max, row) => Math.max(max, row.length), 0);
       const header = document.createElement('tr');
       for (let i = 0; i < maxCols; i++) {
         const th = document.createElement('th');
-        th.textContent = 'Column ' + (i + 1);
+        th.textContent = String(headerRow[i] == null ? ('Column ' + (i + 1)) : headerRow[i]);
         header.appendChild(th);
       }
       thead.appendChild(header);
-      rows.slice(0, 500).forEach(function (row) {
+      rows.slice(1, 501).forEach(function (row) {
         const tr = document.createElement('tr');
         for (let i = 0; i < maxCols; i++) {
           const td = document.createElement('td');

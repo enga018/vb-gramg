@@ -485,8 +485,16 @@
       try {
         const reportRows = parseReportLines(tableInput.value);
         const parsedRows = parsePastedTable(tableInput.value);
-        const rows = trimNonDataEnvelope(reportRows || parsedRows);
+        const hasApplicantHeader = candidate => Array.isArray(candidate) && candidate.some(row => {
+          const keys = row.map(headerKey);
+          return keys.some(v => v.includes('job card number')) && keys.some(v => v.includes('name of applicant'));
+        });
+        // Prefer the line-oriented government report parser only when it produced
+        // a real applicant-table header; otherwise use the tabular clipboard parser.
+        const sourceCandidate = hasApplicantHeader(reportRows) ? reportRows : parsedRows;
+        const rows = trimNonDataEnvelope(sourceCandidate);
         if (!rows.length) throw new Error('Paste the MIS report or table first.');
+        if (!hasApplicantHeader(rows)) throw new Error('The pasted content does not contain a recognizable applicant-table header. Copy the complete Registration Application Register table, including Job Card Number and Name of Applicant headings. Do not use a partial selection.');
         if (rows.length > 100001) throw new Error('The pasted MIS exceeds the 100,000-row limit.');
         sourceRowsLoaded = rows.map(row => row.slice());
         sourceTableLoaded = true;

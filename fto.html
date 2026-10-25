@@ -104,6 +104,15 @@ tbody tr:last-child td{border-bottom:0}
 .import-table input[type=checkbox]{width:19px;height:19px;min-height:19px;accent-color:#2457c5;vertical-align:middle}
 .import-table .review-cell{min-width:180px}
 #fto-import-button{min-width:190px}
+.applicant-review{margin-top:16px;padding:18px;border:1px solid #d7e3fa;border-radius:12px;background:#f8faff}
+.applicant-review h3{margin:0 0 6px;font-size:1rem;color:var(--ink)}
+.applicant-review p{margin:0 0 12px;font-size:.88rem}
+.applicant-review-table-wrap{max-height:42vh;margin-top:10px}
+.applicant-review-table{min-width:720px}
+.applicant-review-table select{min-width:300px}
+.applicant-review-table td:nth-child(1){min-width:190px}
+.applicant-review-table td:nth-child(2){min-width:180px}
+@media(max-width:700px){.applicant-review{padding:12px}.applicant-review .table-foot{align-items:stretch}.applicant-review .table-foot button{width:100%}.applicant-review-table select{min-width:260px}}
 @media(max-width:700px){.import-grid{grid-template-columns:minmax(0,1fr)}.import-table-wrap{max-height:52vh}.import-controls .actions{align-items:stretch}.import-controls .actions button{width:100%}}
 
 .history-section{margin-top:24px;padding-top:22px;border-top:1px solid var(--line)}
@@ -205,6 +214,12 @@ tbody tr:last-child td{border-bottom:0}
  <p class="import-help">Statuses are synchronized automatically per reference number: blank becomes deferred, Processed activates the matching charge, and Rejected removes only a matching FTO charge when no active transaction remains. The system records status history and does not delete unrelated charges. Mixed statuses under one job card are reconciled from individual reference numbers.</p>
  <div class="table-foot"><span id="import-count" class="muted"></span><div class="actions"><button id="fto-import-button" type="button" disabled>Synchronize FTO</button></div></div>
   <div id="sync-status" class="status hidden" aria-live="polite" role="status"></div>
+  <section id="applicant-review" class="applicant-review hidden" aria-labelledby="applicant-review-title">
+   <h3 id="applicant-review-title">Review applicant matches</h3>
+   <p>These FTO names did not match one active MIS applicant automatically. Choose the correct applicant from the same job card. No transactions or contribution charges are changed until all matches are confirmed and synchronization succeeds.</p>
+   <div class="table-wrap applicant-review-table-wrap"><table id="applicant-review-table"><thead><tr><th>Job card</th><th>FTO name</th><th>Suggested active MIS applicant</th></tr></thead><tbody></tbody></table></div>
+   <div class="table-foot"><span id="applicant-review-count" class="muted"></span><button id="save-applicant-matches" type="button" disabled>Save matches and continue</button></div>
+  </section>
 </div>
 <div id="fto-history" class="history-section">
  <div class="section-head"><div><h2>Imported FTO history</h2><p>Each FTO is listed once. Use Change period in its row to move every transaction in that FTO—including deferred, processed, rejected, and other statuses—to another period. Contribution charges are recalculated for affected job cards.</p></div><button id="refresh-fto-history" type="button" class="secondary">Refresh history</button></div>
@@ -467,11 +482,80 @@ $('charge-period').addEventListener('input',()=>{reviewedCards=new Set();updateI
 $('charge-period').addEventListener('change',()=>{reviewedCards=new Set();refreshDuplicates()});
 $('amount-divisor').addEventListener('input',()=>buildImportGroups());
 $('amount-multiplier').addEventListener('input',()=>buildImportGroups());
+let pendingSyncPayload=null;
+function hideApplicantReview(){
+ $('applicant-review').classList.add('hidden');
+ $('applicant-review-table').querySelector('tbody').replaceChildren();
+ pendingSyncPayload=null;
+}
+function renderApplicantReview(items,payload){
+ pendingSyncPayload=payload;
+ const section=$('applicant-review'),tbody=$('applicant-review-table').querySelector('tbody');
+ tbody.replaceChildren();
+ for(let i=0;i<items.length;i++){
+  const item=items[i],tr=document.createElement('tr');
+  const card=document.createElement('td');card.textContent=item.job_card_number;tr.appendChild(card);
+  const name=document.createElement('td');name.textContent=item.fto_name;tr.appendChild(name);
+  const pick=document.createElement('td'),select=document.createElement('select');
+  select.dataset.reviewIndex=String(i);
+  const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Choose the correct MIS applicant';select.appendChild(placeholder);
+  for(const candidate of (item.candidates||[])){
+   const option=document.createElement('option');option.value=String(candidate.applicant_unique_id||'');
+   option.textContent='Applicant No. '+String(candidate.applicant_number||'—')+' · '+String(candidate.applicant_name||'Name unavailable')+' · '+String(candidate.applicant_unique_id||'');
+   select.appendChild(option);
+  }
+  if(!item.candidates||!item.candidates.length){select.disabled=true;const none=document.createElement('div');none.className='muted';none.textContent='No applicant with a Unique ID was found under this job card in active MIS.';pick.appendChild(none);}
+  pick.appendChild(select);tr.appendChild(pick);tbody.appendChild(tr);
+ }
+ $('applicant-review-count').textContent=items.length+' FTO name(s) need manual confirmation. Confirm only applicants you can identify reliably.';
+ const save=$('save-applicant-matches');
+ const refresh=()=>{save.disabled=[...tbody.querySelectorAll('select')].some(s=>!s.value)||[...tbody.querySelectorAll('select')].length!==items.length;};
+ tbody.querySelectorAll('select').forEach(s=>s.addEventListener('change',refresh));
+ save.onclick=async()=>{
+  if(save.disabled||!pendingSyncPayload)return;
+  save.disabled=true;save.textContent='Saving matches…';
+  try{
+   const matches=items.map((item,i)=>({job_card_number:item.job_card_number,fto_name:item.fto_name,applicant_unique_id:tbody.querySelector('select[data-review-index="'+i+'"]')?.value||''}));
+   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'save-fto-applicant-matches',matches}});
+   if(error||!data||data.error)throw new Error((data&&data.error)||await edgeFunctionErrorMessage(error,'Could not save applicant matches.'));
+   syncStatus(data.saved+' applicant match(es) saved. Retrying synchronization with the confirmed matches…','');
+   const mainButton=$('fto-import-button');mainButton.disabled=true;mainButton.textContent='Synchronizing FTO…';
+   await executeFtoSync(pendingSyncPayload,mainButton);
+  }catch(err){
+   syncStatus(err.message||'Could not save applicant matches. Try again.','error');
+  }finally{
+   save.textContent='Save matches and continue';save.disabled=[...tbody.querySelectorAll('select')].some(s=>!s.value)||!tbody.querySelectorAll('select').length;
+   const mainButton=$('fto-import-button');if(mainButton.textContent!=='Synchronization completed')mainButton.disabled=false;
+  }
+ };
+ section.classList.remove('hidden');
+ refresh();
+ section.scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function executeFtoSync(payload,button){
+ const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:payload});
+ if(data&&data.needs_manual_review){
+  renderApplicantReview(data.manual_review||[],payload);
+  syncStatus('Manual applicant review is required. No FTO transactions or contribution charges were changed.','');
+  button.textContent='Review applicant matches';
+  return false;
+ }
+ if(error||!data||data.error){
+  if(data&&Array.isArray(data.duplicates)){duplicateCards=new Map(data.duplicates.map(row=>[String(row.job_card_number),row]));reviewedCards=new Set();}
+  if(data&&Array.isArray(data.unknown_job_cards)){unknownCards=new Set(data.unknown_job_cards.map(String));reviewedNewCards=new Set();}
+  if(data&&(Array.isArray(data.duplicates)||Array.isArray(data.unknown_job_cards)))renderImportPreview();
+  throw new Error((data&&data.error)||await edgeFunctionErrorMessage(error,'FTO synchronization failed.'));
+ }
+ hideApplicantReview();
+ const syncMessage='FTO '+data.fto_number+' synchronized. Saved period: '+data.contribution_period+'. Rows checked: '+data.rows_seen+'. Local transactions: '+data.local_transactions+'. Other-village/unclear transactions excluded: '+data.excluded_other_village+'. Charges created: '+data.inserted+', updated: '+data.updated+', matching rejected charges removed: '+data.deleted+'. Calculated local total: ₹'+Number(data.total_amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'.';
+ syncStatus(syncMessage,'success');button.textContent='Synchronization completed';
+ await lookupFtoBatch();await loadFtoHistory();return true;
+}
 $('fto-import-button').addEventListener('click',async()=>{
  if($('fto-import-button').disabled)return;
  const button=$('fto-import-button'),ftoNumber=$('fto-number').value.trim(),periodLabel=$('charge-period').value.trim(),period=periodToDate(periodLabel);
  if(!window.confirm('Synchronize FTO '+ftoNumber+' for contribution period "'+periodLabel+'"? Only New Serchhip North records will affect charges. Status changes will be recorded, and unrelated charges will not be deleted.'))return;
- button.disabled=true;button.textContent='Synchronizing FTO…';$('sync-status').textContent='';$('sync-status').classList.add('hidden');$('sync-status').classList.remove('error','success');
+ button.disabled=true;button.textContent='Synchronizing FTO…';$('sync-status').textContent='';$('sync-status').classList.add('hidden');$('sync-status').classList.remove('error','success');hideApplicantReview();
  try{
   const divisor=Number($('amount-divisor').value),multiplier=Number($('amount-multiplier').value);
   const payloadRows=parsedDataRows.map(row=>{
@@ -482,17 +566,8 @@ $('fto-import-button').addEventListener('click',async()=>{
    return {reference_no:String(row[3]||'').replace(/\s+/g,' ').trim(),job_card_number:jobCardFromRow(row),village_name:villageFromRow(row),person_name:String(row[7]||row[5]||'').replace(/\s+/g,' ').trim(),transaction_date:dateMatch?dateMatch[3]+'-'+dateMatch[2]+'-'+dateMatch[1]:'',processed_date:processedDateMatch?processedDateMatch[3]+'-'+processedDateMatch[2]+'-'+processedDateMatch[1]:'',amount_to_be_credited:amountToCredit,credit_amount:creditAmount,status:statusValue,calculated_charge:Number(calculatedCharge.toFixed(2)),rejection_reason:String(row[16]||'').trim(),source_row:row};
   });
   const sourceSha=await sha256(JSON.stringify({raw:$('table-input').value,ftoNumber,periodLabel,period,divisor,multiplier,rows:payloadRows}));
-  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'sync-fto-batch',fto_number:ftoNumber,contribution_period:periodLabel,charge_period:period,rows:payloadRows,source_sha256:sourceSha,reviewed_duplicates:[...reviewedCards],reviewed_new_job_cards:[...reviewedNewCards]}});
-  if(error||!data||data.error){
-   if(data&&Array.isArray(data.duplicates)){duplicateCards=new Map(data.duplicates.map(row=>[String(row.job_card_number),row]));reviewedCards=new Set();}
-   if(data&&Array.isArray(data.unknown_job_cards)){unknownCards=new Set(data.unknown_job_cards.map(String));reviewedNewCards=new Set();}
-   if(data&&(Array.isArray(data.duplicates)||Array.isArray(data.unknown_job_cards)))renderImportPreview();
-   throw new Error((data&&data.error)||await edgeFunctionErrorMessage(error,'FTO synchronization failed.'));
-  }
-  const syncMessage='FTO '+data.fto_number+' synchronized. Saved period: '+data.contribution_period+'. Rows checked: '+data.rows_seen+'. Local transactions: '+data.local_transactions+'. Other-village/unclear transactions excluded: '+data.excluded_other_village+'. Charges created: '+data.inserted+', updated: '+data.updated+', matching rejected charges removed: '+data.deleted+'. Calculated local total: ₹'+Number(data.total_amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'.';syncStatus(syncMessage,'success');
-  button.textContent='Synchronization completed';
-  await lookupFtoBatch();
-  await loadFtoHistory();
+  const payload={action:'sync-fto-batch',fto_number:ftoNumber,contribution_period:periodLabel,charge_period:period,rows:payloadRows,source_sha256:sourceSha,reviewed_duplicates:[...reviewedCards],reviewed_new_job_cards:[...reviewedNewCards]};
+  await executeFtoSync(payload,button);
  }catch(err){const message=err.message||'FTO synchronization failed. Review the preview and try again.';syncStatus(message,'error');button.textContent='Synchronize FTO statuses';checkingDuplicates=false;updateImportButton()}
  finally{if(button.textContent!=='Synchronization completed')button.disabled=false}
 });

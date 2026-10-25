@@ -26,11 +26,33 @@
     .status { margin-top: 16px; padding: 12px 14px; background: #f8fafc; border-radius: 10px; font-size: .9rem; white-space: pre-wrap; overflow-wrap: anywhere; }
     .status.error { background: #fef2f2; color: #991b1b; }
     .status.success { background: #f0fdf4; color: #166534; }
-    .table-wrap { overflow: auto; max-height: 560px; margin-top: 16px; border: 1px solid #e2e8f0; border-radius: 10px; }
-    table { width: 100%; border-collapse: collapse; font-size: .85rem; white-space: pre; }
-    th, td { padding: 9px 11px; border: 1px solid #cbd5e1; text-align: left; }
-    th { position: sticky; top: 0; background: #dbeafe; z-index: 1; }
+    .table-wrap { overflow: auto; overscroll-behavior: contain; max-height: 68vh; margin-top: 16px; border: 1px solid #dfe5ee; border-radius: 12px; background: #fff; }
+    table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .9rem; white-space: normal; }
+    th, td { padding: 12px 14px; border-bottom: 1px solid #edf0f5; text-align: left; vertical-align: middle; min-width: 100px; max-width: 420px; overflow-wrap: anywhere; }
+    th { position: sticky; top: 0; background: #f5f7fb; color: #5b6577; z-index: 1; font-size: .72rem; letter-spacing: .055em; text-transform: uppercase; font-weight: 750; }
+    tbody tr:last-child td { border-bottom: 0; }
+    .jobcard-row { background: #fff; cursor: pointer; }
+    .jobcard-row:hover { background: #f6f9ff; }
+    .jobcard-row:focus-visible { outline: 2px solid #3972df; outline-offset: -2px; }
+    .applicant-detail td { background: #f8fafd; }
+    .applicant-detail table { width: 100%; table-layout: fixed; border: 1px solid #e3e8f0; border-radius: 9px; }
+    .applicant-detail th { position: static; background: #edf2f8; }
+    .applicant-detail tbody tr:nth-child(even) { background: #fff; }
+    .table-foot { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:14px; }
+    .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .table-foot .actions button { width:auto; min-height:42px; margin:0; background:#e2e8f0; color:#0f172a; }
     .hidden { display: none !important; }
+    @media(max-width:700px) {
+      body { padding:10px; }
+      main { padding:16px; border-radius:13px; }
+      .table-wrap { max-height:65vh; }
+      table { font-size:.84rem; }
+      th,td { padding:11px 10px; }
+      th { font-size:.68rem; }
+      .table-foot { align-items:stretch; }
+      .table-foot .actions { display:grid; grid-template-columns:1fr 1fr; width:100%; }
+      .table-foot .actions button { width:100%; }
+    }
     .signed-in { font-size: .9rem; overflow-wrap: anywhere; margin: 0 0 12px; }
     .diff-panel { margin-top: 18px; padding: 16px; border: 1px solid #cbd5e1; border-radius: 12px; background: #f8fafc; }
     .diff-summary { display: grid; grid-template-columns: repeat(auto-fit,minmax(130px,1fr)); gap: 10px; margin: 12px 0; }
@@ -391,7 +413,7 @@
         setStatus('Filtering locally and matching applicants against the active MIS…','');
         const prepared=await prepareGovernmentRegister(parsedRows);
         importedRows=prepared.output; pastedTableLoaded=true; window.misReviewCount=prepared.review.length;
-        renderRows(importedRows);
+        previewPage=0; expandedPreviewCards.clear(); renderRows(importedRows);
         document.getElementById('filter-counts').textContent='Source rows parsed: '+parsedRows.length+' · Kept for comparison: '+Math.max(0,importedRows.length-1)+' · Removed: '+prepared.removed.length+' · Manual review / held out: '+prepared.review.length+' · Existing Unique IDs preserved: '+prepared.matchedCount+' · New Unique IDs generated: '+prepared.generatedIdCount;
         rowList('filter-removed',prepared.removed,'No rows removed.');
         rowList('filter-review',prepared.review,'No uncertain rows found.');

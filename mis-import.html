@@ -75,7 +75,6 @@
       <label class="file-label" for="table-input">Paste table copied from the MIS page</label>
       <textarea id="table-input" rows="8" placeholder="Copy the MIS table, then paste it here…"></textarea>
       <p class="hint">Original pasted text is retained unchanged. The app filters report headings/deleted applicants locally, maps the government register into the active database columns, and preserves existing Unique IDs when matched.</p>
-      <label style="display:flex;gap:8px;align-items:flex-start;margin:12px 0;font-weight:600"><input id="exclude-deleted" type="checkbox" checked style="width:auto;min-height:0;margin-top:4px"> Exclude applicants marked deleted (asterisk in household/applicant name or deletion remarks)</label>
       <button type="button" id="load-table-button">Analyze and compare</button>
     </div>
     <div id="status" class="status" aria-live="polite">Checking administrator access…</div>
@@ -297,7 +296,7 @@
         const rawHousehold=normText(row[si.household]);
         if(rawHousehold) previousHousehold=rawHousehold.replace(/\*/g,'').trim();
         const household=rawHousehold ? rawHousehold.replace(/\*/g,'').trim() : previousHousehold;
-        if(document.getElementById('exclude-deleted').checked && isDeletedRow(row,si)){removed.push('Marked deleted: '+card+' · '+name);continue;}
+        if(isDeletedRow(row,si)){removed.push('Marked deleted: '+card+' · '+name);continue;}
         if(!household){review.push('Row '+(i+1)+' — no household head available within job card '+card+': '+name);continue;}
         const matchKey=card.toLowerCase()+'|'+cleanName(name);
         const matches=existingByMatch.get(matchKey)||[];
@@ -461,6 +460,25 @@
       tableInput.disabled = false; loadTableButton.disabled = false;
       setStatus('MIS comparison cancelled. The existing active MIS was not changed.', '');
       loadTableButton.disabled = !currentUser || currentRole !== 'admin';
+    });
+
+    // Resolve the existing session immediately, then refresh access on sign-in/sign-out.
+    // The MIS page remains protected by the server-side admin access check.
+    setStatus('Checking your sign-in session…', '');
+    (async function initializeAdminAccess() {
+      try {
+        const { data, error } = await supabaseClient.auth.getSession();
+        if (error) throw error;
+        setStatus('Verifying administrator permissions…', '');
+        await updateAuthUI(data.session ? data.session.user : null);
+      } catch (error) {
+        setStatus('Could not verify administrator access: ' + (error.message || String(error)) + '. Reload the page or sign in again.', 'error');
+      }
+    })();
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+        updateAuthUI(session ? session.user : null);
+      }
     });
 
   </script>

@@ -33,12 +33,18 @@ table{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem;white
 </style>
 </head>
 <body>
-<header class="topbar"><div class="brand"><h1>Contribution</h1><p><a href="./">← Main menu</a></p></div><div class="top-actions"><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk bank payment</button><button class="btn ghost small" id="refreshBtn" type="button">Refresh</button></div></header>
+<header class="topbar"><div class="brand"><h1>Contribution</h1><p><a href="./">← Main menu</a></p></div><div class="top-actions"><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Manage exempt job cards</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk bank payment</button><button class="btn ghost small" id="refreshBtn" type="button">Refresh</button></div></header>
 <main>
 <section class="panel"><div id="status" class="notice info">Checking your approved account…</div></section>
 <div id="app" class="hidden">
 <section class="panel">
 <div class="stats"><div class="stat"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred total</div><div class="v" id="deferred">—</div></div></div>
+<section class="panel hidden" id="exemptionPanel" style="margin-bottom:16px">
+ <h1>Exempt job cards</h1><p class="sub">Exempt job cards remain visible in FTO history, but their contribution charges are excluded from the Contribution page. This setting does not delete their FTO transactions or ledger history.</p>
+ <div class="grid2"><div class="field"><label for="exemptJobCard">Full job card number</label><input id="exemptJobCard" maxlength="100" placeholder="Enter full job card number" autocomplete="off"></div><div class="field"><label for="exemptNote">Reason / note (optional)</label><input id="exemptNote" maxlength="300" placeholder="Reason for exemption"></div></div>
+ <button class="btn" id="saveExemptionBtn" type="button">Add exemption</button><div id="exemptionStatus" class="muted" style="margin-top:8px"></div>
+ <div class="section-title">Current exemptions</div><div id="exemptionList"></div>
+</section>
 <div class="toolbar"><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="deferred">Has deferred charges</option></select></div><button id="clearSearch" class="btn ghost" type="button">Clear</button></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button></div></div>
 </section>
 </div>
@@ -53,7 +59,8 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let entries=[], citizens=[], citizenRegistry=[], extraCharges=[], currentCitizen=null, busy=false, currentPage=0, pageSize=50, appRole="";
+let entries=[], citizens=[], citizenRegistry=[], extraCharges=[], exemptions=[], currentCitizen=null, busy=false, currentPage=0, pageSize=50, appRole="";
+const exemptCardSet=()=>new Set(exemptions.map(x=>String(x.job_card_number||"").trim()));
 const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const day=s=>s?new Date(s+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'Date not recorded';
@@ -72,11 +79,45 @@ function calculateLedgerState(ledger){
  let credit=Math.min(waived,charged);for(let i=0;i<active.length&&credit>0;i++){const x=Math.min(credit,active[i]);active[i]-=x;credit-=x}
  return {charged,paid,returned,waived,deferred,balance:active.reduce((sum,n)=>sum+n,0)-paid+returned};
 }
+function renderExemptions(){
+ const host=$('exemptionList');if(!host)return;
+ if(!exemptions.length){host.innerHTML='<div class="empty">No exempt job cards added.</div>';return;}
+ host.innerHTML=exemptions.map(x=>'<div class="entry"><div class="desc"><b>'+esc(x.job_card_number)+'</b>'+(x.note?'<small>'+esc(x.note)+'</small>':'')+'</div><button class="btn ghost small" type="button" data-remove-exemption="'+esc(x.job_card_number)+'">Remove exemption</button></div>').join('');
+}
+async function saveExemption(){
+ if(appRole!=="admin"||busy)return;
+ const jobCard=$('exemptJobCard').value.trim(),note=$('exemptNote').value.trim();
+ if(!jobCard){$('exemptionStatus').textContent='Enter the full job card number.';$('exemptJobCard').focus();return;}
+ busy=true;$('saveExemptionBtn').disabled=true;$('saveExemptionBtn').textContent='Saving…';
+ try{
+  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'save-exemption',job_card_number:jobCard,exempt:true,note}});
+  if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save exemption.');
+  exemptions=data.exemptions||[];deriveCitizens();renderExemptions();render();
+  $('exemptJobCard').value='';$('exemptNote').value='';$('exemptionStatus').textContent=jobCard+' is now exempt. Its FTO history is retained and contribution balance is excluded.';
+  if(currentCitizen&&currentCitizen.id===jobCard)$('overlay').classList.add('hidden');
+  status('Exemption saved. Contribution totals recalculated.');
+ }catch(err){$('exemptionStatus').textContent=err.message||'Could not save exemption.';}
+ finally{busy=false;$('saveExemptionBtn').disabled=false;$('saveExemptionBtn').textContent='Add exemption';}
+}
+async function removeExemption(jobCard){
+ if(appRole!=="admin"||busy)return;
+ if(!window.confirm('Remove the contribution exemption for '+jobCard+'? Existing ledger history will remain; its contribution balance will count again.'))return;
+ busy=true;
+ try{
+  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'save-exemption',job_card_number:jobCard,exempt:false}});
+  if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not remove exemption.');
+  exemptions=data.exemptions||[];deriveCitizens();renderExemptions();render();
+  $('exemptionStatus').textContent='Exemption removed for '+jobCard+'. Its existing contribution ledger now counts again.';
+  status('Exemption removed. Contribution totals recalculated.');
+ }catch(err){$('exemptionStatus').textContent=err.message||'Could not remove exemption.';}
+ finally{busy=false;}
+}
 function deriveCitizens(){
- const map=new Map(),make=(id,name)=>({id,jobCard:id,name:name||'Unnamed',charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,ledger:[]});
+ const exemptSet=exemptCardSet();
+ const map=new Map(),make=(id,name)=>({id,jobCard:id,name:name||'Unnamed',exempt:exemptSet.has(id),charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,ledger:[]});
  for(const r of citizenRegistry){const id=String(r.job_card_number||'').trim();if(id)map.set(id,make(id,r.person_name))}
  for(const e of entries){const id=String(e.job_card_number||'').trim();if(!id||!map.has(id))continue;map.get(id).ledger.push(e)}
- citizens=[...map.values()].map(c=>{const x=calculateLedgerState(c.ledger);let gross=0;for(const e of c.ledger){if((e.entry_type==='charge'||e.entry_type==='sanitationFee')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return'))gross+=Math.max(0,Number(e.amount)||0)}return {...c,charges:gross,activeCharges:x.charged,deferred:x.deferred,paid:x.paid,waived:x.waived,returns:x.returned,totalCharged:Math.max(0,gross-Math.min(gross,x.waived)),balance:x.balance}}).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
+ citizens=[...map.values()].map(c=>{const x=calculateLedgerState(c.ledger);let gross=0;for(const e of c.ledger){if((e.entry_type==='charge'||e.entry_type==='sanitationFee')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return'))gross+=Math.max(0,Number(e.amount)||0)}return c.exempt?{...c,charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,totalCharged:0,balance:0}:{...c,charges:gross,activeCharges:x.charged,deferred:x.deferred,paid:x.paid,waived:x.waived,returns:x.returned,totalCharged:Math.max(0,gross-Math.min(gross,x.waived)),balance:x.balance}}).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
 }
 function jobCardSuffixNumber(jobCard){
  const match=String(jobCard||'').match(/\/([^/]+)$/);
@@ -105,11 +146,11 @@ function render(){
   if(isMobile){
    const detail=cell('','');const number=document.createElement('div');number.textContent=c.id;number.className='jobcard';number.style.whiteSpace='normal';number.style.overflowWrap='anywhere';detail.appendChild(number);
    const secondary=document.createElement('div');secondary.className='mobile-secondary';secondary.style.cssText='display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:5px;font-size:.8rem;color:#64748b;font-weight:400';
-   const name=document.createElement('span');name.textContent=c.name;secondary.appendChild(name);
+   const name=document.createElement('span');name.textContent=c.name;secondary.appendChild(name);if(c.exempt){const exemptTag=document.createElement('span');exemptTag.textContent='EXEMPT';exemptTag.style.cssText='font-weight:800;color:#166534';secondary.appendChild(exemptTag);}
    const balance=document.createElement('span');if(c.balance>0){balance.textContent='Outstanding: '+fmt(c.balance);secondary.appendChild(balance);}
    detail.appendChild(secondary);
   }else{
-   cell(c.id,'jobcard');cell(c.name,'person');cell(c.balance>0?fmt(c.balance):'','balance');
+   cell(c.id,'jobcard');cell(c.name+(c.exempt?' · EXEMPT':''),'person');cell(c.balance>0?fmt(c.balance):'','balance');
   }
   tr.addEventListener('click',()=>openCitizen(c.id));tr.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();openCitizen(c.id)}});tbody.appendChild(tr);
  });
@@ -152,11 +193,11 @@ function openCitizen(id){
   const displayNote=type==='payment'&&looksLikePeriod?'':noteText;
   const transactionDate=String(e.entry_date||'').slice(0,10)>='2026-06-01'?day(e.entry_date):'';
   const extraReason=isExtra?(extraCharges.find(x=>String(x.job_card_number)===String(c.id)&&String(x.charge_period||"")===String(e.charge_period||""))?.reason||String(e.note||"").replace(/^FTO EXTRA:\\s*/i,"")):"";
-  return '<div class="entry"><div class="desc"><b>'+esc(label)+(isExtra&&extraReason?' · '+esc(extraReason):type!=='charge'&&displayNote?' · '+esc(displayNote):'')+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+(appRole==='admin'&&!isExtra?'<div class="entry-actions"><button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button></div>':'')+'</div>';
+  return '<div class="entry"><div class="desc"><b>'+esc(label)+(isExtra&&extraReason?' · '+esc(extraReason):type!=='charge'&&displayNote?' · '+esc(displayNote):'')+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+(appRole==='admin'&&!isExtra&&!c.exempt?'<div class="entry-actions"><button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button></div>':'')+'</div>';
  }).join('');
- $('sheetBody').innerHTML='<div class="balance"><div class="label">Current outstanding balance</div><div class="amount '+(c.balance<=0?'zero':'owing')+'">'+fmt(Math.max(0,c.balance))+'</div><div class="sub" style="margin:0">Full job card: '+esc(c.id)+'</div></div><div class="split"><div><div class="k">Charges incl. fees</div><div class="v">'+fmt(c.charges)+'</div></div><div><div class="k">Payments</div><div class="v" style="color:var(--paid)">'+fmt(c.paid)+'</div></div><div><div class="k">Waivers / returns</div><div class="v">'+fmt(c.waived+c.returns)+'</div></div><div><div class="k">Deferred</div><div class="v">'+fmt(c.deferred)+'</div></div></div><div class="transaction-actions"><button class="btn" type="button" id="addPaymentBtn">Record payment</button>'+(c.balance>0?'<button class="btn" type="button" id="payFullBtn">Pay in full</button>':'')+(appRole==='admin'?'<button class="btn ghost" type="button" id="extraChargeBtn">Add / edit extra amount</button><button class="btn ghost" type="button" id="waiveBtn">Waive</button><button class="btn ghost" type="button" id="returnBtn">Return</button>':'')+'</div><div class="section-title">Ledger history</div>'+(lines||'<div class="empty">No ledger entries.</div>');
+ $('sheetBody').innerHTML=(c.exempt?'<div class="notice info"><b>Exempt job card.</b> Contribution charges are not counted while this exemption is active. Historical ledger entries below are retained for audit purposes.</div>':'')+'<div class="balance"><div class="label">Current outstanding balance</div><div class="amount '+(c.balance<=0?'zero':'owing')+'">'+fmt(Math.max(0,c.balance))+'</div><div class="sub" style="margin:0">Full job card: '+esc(c.id)+'</div></div><div class="split"><div><div class="k">Charges incl. fees</div><div class="v">'+fmt(c.charges)+'</div></div><div><div class="k">Payments</div><div class="v" style="color:var(--paid)">'+fmt(c.paid)+'</div></div><div><div class="k">Waivers / returns</div><div class="v">'+fmt(c.waived+c.returns)+'</div></div><div><div class="k">Deferred</div><div class="v">'+fmt(c.deferred)+'</div></div></div>'+(c.exempt?'<div class="section-title">Historical ledger entries (not counted while exempt)</div>':'<div class="transaction-actions"><button class="btn" type="button" id="addPaymentBtn">Record payment</button>'+(c.balance>0?'<button class="btn" type="button" id="payFullBtn">Pay in full</button>':'')+(appRole==='admin'?'<button class="btn ghost" type="button" id="extraChargeBtn">Add / edit extra amount</button><button class="btn ghost" type="button" id="waiveBtn">Waive</button><button class="btn ghost" type="button" id="returnBtn">Return</button>':'')+'</div><div class="section-title">Ledger history</div>')+(lines||'<div class="empty">No ledger entries.</div>');
  $('overlay').classList.remove('hidden');
- $('addPaymentBtn').addEventListener('click',showPaymentForm);
+ const addPayment=$('addPaymentBtn');if(addPayment)addPayment.addEventListener('click',showPaymentForm);
  const payFull=$('payFullBtn');if(payFull)payFull.addEventListener('click',payInFull);
  const waive=$('waiveBtn');if(waive)waive.addEventListener('click',()=>showAdjustmentForm('add-waiver'));
  const ret=$('returnBtn');if(ret)ret.addEventListener('click',()=>showAdjustmentForm('add-return'));
@@ -329,7 +370,7 @@ async function load(){
   status('Loading active MIS and contribution ledger…');
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
-  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");entries=data.entries||[];extraCharges=data.extras||[];citizenRegistry=data.citizens||[];deriveCitizens();
+  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");entries=data.entries||[];extraCharges=data.extras||[];citizenRegistry=data.citizens||[];exemptions=data.exemptions||[];deriveCitizens();renderExemptions();
   $('app').classList.remove('hidden');status('Loaded active MIS job cards and '+entries.length.toLocaleString('en-IN')+' contribution ledger entries. Job card details come from active MIS; balances and history come from the ledger.');
   render();
  }catch(err){status(err.message||'Could not load contribution data.','err');}
@@ -343,6 +384,9 @@ $('prev-button').addEventListener('click',()=>{currentPage--;render()});$('next-
 window.addEventListener('resize',()=>render());
 $('refreshBtn').addEventListener('click',load);
 $('bulkPaymentBtn').addEventListener('click',showBulkPaymentForm);
+$('manageExemptionsBtn').addEventListener('click',()=>{$('exemptionPanel').classList.toggle('hidden');if(!$('exemptionPanel').classList.contains('hidden')){$('exemptJobCard').focus();$('exemptionPanel').scrollIntoView({behavior:'smooth',block:'start'});}});
+$('saveExemptionBtn').addEventListener('click',saveExemption);
+$('exemptionList').addEventListener('click',async ev=>{const btn=ev.target.closest('[data-remove-exemption]');if(!btn)return;await removeExemption(btn.dataset.removeExemption);});
 $('closeSheet').addEventListener('click',()=>$('overlay').classList.add('hidden'));
 $('overlay').addEventListener('click',e=>{if(e.target===$('overlay'))$('overlay').classList.add('hidden');});
 supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'||!session){$('app').classList.add('hidden');status('Sign in from the VBGRAMG home page first.');}});

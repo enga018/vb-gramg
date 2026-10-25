@@ -347,7 +347,7 @@ function renderHistoryTransactions(batch){
   const actionTd=document.createElement("td");actionTd.dataset.label="Details";
   const more=document.createElement("button");more.type="button";more.className="secondary more-details";more.textContent="More details";more.setAttribute("aria-expanded","false");
   const detailTr=document.createElement("tr");detailTr.className="transaction-more-row hidden";
-  const detailTd=document.createElement("td");detailTd.colSpan=9;
+  const detailTd=document.createElement("td");detailTd.colSpan=7;
   const grid=document.createElement("div");grid.className="detail-grid";
   for(const label of detailHeaders){
    const item=document.createElement("div");item.className="detail-item";
@@ -362,7 +362,7 @@ function renderHistoryTransactions(batch){
   });
   actionTd.appendChild(more);tr.appendChild(actionTd);tbody.append(tr,detailTr);
  }
- if(!(batch.transactions||[]).length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=9;td.textContent="No local transaction rows are saved for this FTO.";tr.appendChild(td);tbody.appendChild(tr);}
+ if(!(batch.transactions||[]).length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=7;td.textContent="No local transaction rows are saved for this FTO.";tr.appendChild(td);tbody.appendChild(tr);}
  table.appendChild(tbody);wrap.appendChild(table);wrapper.appendChild(wrap);return wrapper;
 }
 function renderFtoHistory(){

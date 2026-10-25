@@ -177,6 +177,7 @@ function render(){
    chargeName=String(matched?.applicant_name||matched?.name||'').trim();
   }
   const lastPeriod=lastCharge?(lastCharge.charge_period?formatPeriod(lastCharge.charge_period):lastCharge.entry_date?day(lastCharge.entry_date):'—'):'—';
+  const lastPeriodShort=lastCharge?(lastCharge.charge_period?(()=>{const m=String(lastCharge.charge_period).match(/^(\\d{4})-(\\d{2})/);const months=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];return m&&Number(m[2])>=1&&Number(m[2])<=12?months[Number(m[2])-1]+m[1].slice(-2):lastPeriod;})():lastPeriod):'—';
   if(isMobile){
    const detail=cell('','mobile-details');
    const topLine=document.createElement('div');topLine.className='mobile-jobcard-line';
@@ -186,7 +187,7 @@ function render(){
    topLine.append(document.createTextNode(' • '+c.name));detail.appendChild(topLine);
    const secondLine=document.createElement('div');secondLine.className='mobile-subline';
    const chargeLine=document.createElement('div');chargeLine.className='mobile-charge-line';
-   chargeLine.textContent='Last charges • '+(lastCharge?fmt(lastCharge.amount)+(lastCharge.is_deferred?' · Deferred':''):'—');
+   chargeLine.textContent='Last charges period • '+lastPeriodShort;
    if(lastCharge&&lastCharge.is_deferred)chargeLine.style.color='var(--partial)';
    secondLine.appendChild(chargeLine);
    if(c.balance>0){

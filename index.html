@@ -68,6 +68,6 @@ $('login-form').addEventListener('submit',async e=>{e.preventDefault();$('login-
  await verifyAccess(data.user);
  }catch(error){showLoggedOut();setStatus($('login-status'),'Sign-in failed: '+(error&&error.message?error.message:String(error)),'error')}finally{$('login-button').disabled=false}});
 $('logout-button').addEventListener('click',async()=>{const {error}=await supabaseClient.auth.signOut();showLoggedOut();setStatus($('login-status'),error?'Sign-out error: '+error.message:'You are signed out.',error?'error':'')});
-supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){authSequence++;showLoggedOut();setStatus($('login-status'),'You are signed out.')}else if((event==='SIGNED_IN'||event==='TOKEN_REFRESHED')&&session)Promise.resolve().then(()=>verifyAccess(session.user))});
+supabaseClient.auth.onAuthStateChange((event)=>{if(event==='SIGNED_OUT'){authSequence++;showLoggedOut();setStatus($('login-status'),'You are signed out.')}else if(event==='TOKEN_REFRESHED')Promise.resolve().then(()=>supabaseClient.auth.getSession()).then(({data})=>data&&data.session?verifyAccess(data.session.user):false)});
 supabaseClient.auth.getSession().then(({data,error})=>{if(error){showLoggedOut();setStatus($('login-status'),error.message,'error');return}return verifyAccess(data.session?data.session.user:null)});
 </script></body></html>

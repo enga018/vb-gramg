@@ -201,7 +201,7 @@ function openCitizen(id){
    }
    chargeApplicantName=String(matchedApplicant?.applicant_name||e.applicant_name||'').trim();
   }
-  const label=isExtra?'Extra charge • '+formatPeriod(e.charge_period):type==='charge'?'Charges • '+periodLabel+(chargeApplicantName?' • '+chargeApplicantName:'')+(e.is_deferred?' • Deferred':''):type==='sanitationFee'?'Sanitation fee':type==='payment'?'Payment':type==='forgive'?'Waiver':type==='return'?'Return':type;
+  const label=isExtra?'Extra charge • '+formatPeriod(e.charge_period):type==='charge'?'Charges • '+periodLabel+(e.is_deferred?' • Deferred':(chargeApplicantName?' • '+chargeApplicantName:'')):type==='sanitationFee'?'Sanitation fee':type==='payment'?'Payment':type==='forgive'?'Waiver':type==='return'?'Return':type;
   const noteText=String(e.note||'').trim();
   const looksLikePeriod=/^(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)(\s*[-/]?\s*\d{0,4})?$/i.test(noteText)||/^MAY\s*1$/i.test(noteText)||/^MAY1$/i.test(noteText);
   const displayNote=type==='payment'&&looksLikePeriod?'':noteText;

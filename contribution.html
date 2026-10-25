@@ -51,14 +51,37 @@ table{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem;white
 </main>
 <div id="overlay" class="overlay hidden" role="dialog" aria-modal="true"><div class="sheet"><div class="sheet-head"><h2 id="sheetTitle">Contribution statement</h2><button class="x" id="closeSheet" aria-label="Close">×</button></div><div id="sheetBody" class="sheet-body"></div></div></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-(() => {
+(async () => {
 'use strict';
+const $=id=>document.getElementById(id);
+function setStartupError(message){
+ const node=$('status');
+ if(node){node.className='notice err';node.textContent=message;}
+}
+function loadSupabaseLibrary(url){
+ return new Promise((resolve,reject)=>{
+  const script=document.createElement('script');
+  let settled=false;
+  const timer=window.setTimeout(()=>{if(settled)return;settled=true;script.remove();reject(new Error('Library request timed out'));},10000);
+  script.src=url;
+  script.onload=()=>{if(settled)return;settled=true;window.clearTimeout(timer);window.supabase&&window.supabase.createClient?resolve():reject(new Error('Supabase library did not initialize'));};
+  script.onerror=()=>{if(settled)return;settled=true;window.clearTimeout(timer);script.remove();reject(new Error('Could not download Supabase library'));};
+  document.head.appendChild(script);
+ });
+}
+try{
+ if(!window.supabase||!window.supabase.createClient){
+  try{await loadSupabaseLibrary('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2');}
+  catch(firstError){await loadSupabaseLibrary('https://unpkg.com/@supabase/supabase-js@2');}
+ }
+}catch(libraryError){
+ setStartupError('Could not load the connection library. Check your internet connection and tap Refresh to try again.');
+ return;
+}
 const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
-const $=id=>document.getElementById(id);
 let entries=[], citizens=[], citizenRegistry=[], applicantsByCard={}, extraCharges=[], exemptions=[], currentCitizen=null, busy=false, currentPage=0, pageSize=50, appRole="";
 const exemptCardSet=()=>new Set(exemptions.map(x=>String(x.job_card_number||"").trim()));
 const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
@@ -438,8 +461,11 @@ $('exemptionList').addEventListener('click',async ev=>{const btn=ev.target.close
 $('closeSheet').addEventListener('click',()=>$('overlay').classList.add('hidden'));
 $('overlay').addEventListener('click',e=>{if(e.target===$('overlay'))$('overlay').classList.add('hidden');});
 supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'||!session){$('app').classList.add('hidden');status('Sign in from the VBGRAMG home page first.');}});
-load();
-})();
+load().catch(err=>setStartupError(err&&err.message?err.message:'Could not start the Contribution page.'));
+})().catch(err=>{
+ const node=document.getElementById('status');
+ if(node){node.className='notice err';node.textContent='Could not start the Contribution page. Tap Refresh or return to the main menu and reopen it.';}
+});
 </script>
 </body>
 </html>

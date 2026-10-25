@@ -434,7 +434,13 @@ async function load(){
  if(busy)return;
  $('refreshBtn').disabled=true;
  try{
-  const {data:sessionData,error:sessionError}=await supabaseClient.auth.getSession();
+  status('Restoring your sign-in session…');
+  // Never leave the page on its initial account-check message if session storage stalls.
+  const sessionResult=await Promise.race([
+   supabaseClient.auth.getSession(),
+   new Promise((_,reject)=>window.setTimeout(()=>reject(new Error('Session check timed out. Return to the main menu, sign in again, then reopen Contribution.')),12000))
+  ]);
+  const {data:sessionData,error:sessionError}=sessionResult;
   if(sessionError||!sessionData.session){status('Sign in from the VBGRAMG home page first.');$('app').classList.add('hidden');return;}
   // The protected list action independently validates the verified session and approved-user record.
   // Avoid a redundant access-function network round trip during startup.

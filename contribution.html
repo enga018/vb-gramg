@@ -35,7 +35,7 @@ table{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem;white
 <body>
 <header class="topbar"><div class="brand"><h1>Contribution</h1><p><a href="./">← Main menu</a></p></div><div class="top-actions"><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Manage exempt job cards</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk bank payment</button><button class="btn ghost small" id="refreshBtn" type="button">Refresh</button></div></header>
 <main>
-<section class="panel"><div id="status" class="notice info">Checking your approved account…</div></section>
+<section class="panel"><div id="status" class="notice info">Starting Contribution page…</div></section>
 <div id="app" class="hidden">
 <section class="panel">
 <div class="stats"><div class="stat"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred total</div><div class="v" id="deferred">—</div></div></div>
@@ -55,6 +55,8 @@ table{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem;white
 (async () => {
 'use strict';
 const $=id=>document.getElementById(id);
+const startupNode=$('status');
+if(startupNode)startupNode.textContent='Starting Contribution page…';
 function setStartupError(message){
  const node=$('status');
  if(node){node.className='notice err';node.textContent=message;}

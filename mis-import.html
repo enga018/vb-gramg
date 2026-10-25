@@ -144,7 +144,8 @@
       });
       // Government reports are sometimes copied as one value per line instead of a grid.
       // Keep the line-oriented shape so the report adapter can detect this format later.
-      if (!nonblank.some(line => line.includes(','))) return lines.map(line => [line.trim()]);
+      const commaLines = nonblank.filter(line => line.includes(',')).length;
+      if (commaLines < Math.max(3, nonblank.length * 0.2)) return lines.map(line => [line.trim()]);
       return nonblank.map(line => {
         const cells = []; let cell = '', quoted = false;
         for (let i = 0; i < line.length; i++) {
@@ -163,25 +164,62 @@
       const norm = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
       const isJobHeader = value => /^(job\s*card\s*number|jobcard\s*number)$/.test(norm(value));
       const isNameHeader = value => /^(name\s*of\s*applicant|applicant\s*name)$/.test(norm(value));
-      const headerIndex = rawRows.findIndex(row => row.some(isJobHeader) && row.some(isNameHeader));
-      if (headerIndex < 0) {
-        // Provide a format-specific message rather than silently treating report text as applicant rows.
-        const sample = rawRows.slice(0, 18).map(row => row.map(clean).filter(Boolean).join(' | ')).filter(Boolean).join(' / ');
-        throw new Error('The pasted content is not being read as a table with column headings. Copy the report table itself (so columns are separated by tabs), not the whole webpage text. Detected beginning: ' + sample.slice(0, 260));
+      let sourceRows = rawRows;
+      let headerIndex = rawRows.findIndex(row => row.some(isJobHeader) && row.some(isNameHeader));
+      if (headerIndex < 0 && rawRows.every(row => row.length <= 1)) {
+        // Government report copied as one value per line. Preserve blank lines as empty cells.
+        const lines = rawRows.map(row => clean(row[0]));
+        const lineNorm = lines.map(norm);
+        const jobLine = lineNorm.findIndex(v => v === 'job card number');
+        const nameLine = lineNorm.findIndex(v => v === 'name of applicant');
+        const headerEnd = lineNorm.findIndex((v, i) => i > Math.max(jobLine, nameLine) && v === 'job card verified on date');
+        if (jobLine >= 0 && nameLine >= 0 && headerEnd >= 0) {
+          let dataStart = -1;
+          for (let i = headerEnd + 1; i + 14 < lines.length; i++) {
+            let isNumberRow = true;
+            for (let n = 1; n <= 15; n++) if (lines[i + n - 1] !== String(n)) { isNumberRow = false; break; }
+            if (!isNumberRow) continue;
+            for (let j = i + 15; j < lines.length; j++) {
+              if (lines[j] === '1' && lines.slice(j + 1, j + 14).length === 13) { dataStart = j; break; }
+            }
+            break;
+          }
+          if (dataStart >= 0) {
+            const govHeaders = ['S.No.','Head of HouseHold','Caste','Name of Applicant','Father/Husband Name','Gender','Age','Date of receipt of application/Request for Registration','Job card number','Job-card issue date','Reasons, if Job Card NOT issued & any other remarks','Disabled','Minority','Job Card Verified on Date'];
+            const rebuilt = [govHeaders];
+            let cursor = dataStart, expected = 1, safety = 0;
+            while (cursor < lines.length && safety++ < 100000 && lines[cursor] === String(expected)) {
+              if (cursor + 14 > lines.length) break;
+              rebuilt.push(lines.slice(cursor, cursor + 14));
+              cursor += 14; expected++;
+              if (lines[cursor] !== String(expected)) {
+                let next = cursor;
+                while (next < Math.min(lines.length, cursor + 4) && lines[next] !== String(expected)) next++;
+                if (lines[next] === String(expected)) cursor = next;
+                else break;
+              }
+            }
+            if (rebuilt.length > 1) { sourceRows = rebuilt; headerIndex = 0; }
+          }
+        }
       }
-      const header = rawRows[headerIndex].map(clean);
+      if (headerIndex < 0) {
+        const sample = rawRows.slice(0, 18).map(row => row.map(clean).filter(Boolean).join(' | ')).filter(Boolean).join(' / ');
+        throw new Error('Could not recognise the copied Registration Application Register table. Copy the table grid if possible. Detected beginning: ' + sample.slice(0, 260));
+      }
+      const header = sourceRows[headerIndex].map(clean);
       const keys = header.map(norm);
       const findColumn = (...names) => keys.findIndex(k => names.includes(k));
       const jobIndex = findColumn('job card number', 'jobcard number');
       const nameIndex = findColumn('name of applicant', 'applicant name');
       const householdIndex = findColumn('head of household');
       const remarksIndex = findColumn('reasons if job card not issued any other remarks', 'reasons if job card not issued', 'remarks', 'reason');
-      const kept = [header], removed = rawRows.slice(0, headerIndex).map(row => {
+      const kept = [header], removed = sourceRows.slice(0, headerIndex).map(row => {
         const text = row.map(clean).filter(Boolean).join(' | ');
         return text ? 'Report heading/metadata omitted before applicant table: ' + text.slice(0, 240) : '';
       }).filter(Boolean), review = [];
       const isReportText = text => /^(villages?\b|no\.?\s*of registrants\b|total\b|total no\.?\s*of registered applicants\b|#\s*end of report\b|report completed\b|govt\.?\s*of india\b|ministry of rural development\b|department of rural development\b|viksit bharat\b|registration application register\b|state\s*:|district\s*:|block\s*:|panchayat\s*:|s\.?\s*no\.?$)/i.test(text);
-      for (const original of rawRows.slice(headerIndex + 1)) {
+      for (const original of sourceRows.slice(headerIndex + 1)) {
         const row = original.map(clean);
         const text = row.filter(Boolean).join(' | ');
         if (!text) continue;

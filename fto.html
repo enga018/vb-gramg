@@ -196,7 +196,28 @@ tbody tr:last-child td{border-bottom:0}
 .fto-view-modal-content{padding:16px 20px 20px;overflow:auto;overscroll-behavior:contain}
 .fto-view-modal-content .detail-heading{margin-top:0}
 .fto-view-modal-content .table-wrap{max-height:none;overflow:auto}
-.fto-view-modal-content .fto-transaction-table{min-width:1280px}
+.fto-view-modal-content .fto-transaction-table{min-width:2200px;width:100%;font-size:.78rem;table-layout:auto}
+.fto-view-modal-content .fto-transaction-table th,.fto-view-modal-content .fto-transaction-table td{padding:10px 12px;vertical-align:top}
+.fto-view-modal-content .fto-transaction-table th{white-space:normal;min-width:105px;max-width:240px}
+.fto-view-modal-content .fto-transaction-table td{min-width:105px;max-width:300px;overflow-wrap:anywhere;white-space:normal}
+.fto-view-modal-content .fto-transaction-table th:nth-child(1),.fto-view-modal-content .fto-transaction-table td:nth-child(1){min-width:60px;width:60px}
+.fto-view-modal-content .fto-transaction-table th:nth-child(2),.fto-view-modal-content .fto-transaction-table td:nth-child(2){min-width:140px;width:140px}
+.fto-view-modal-content .fto-transaction-table th:nth-child(3),.fto-view-modal-content .fto-transaction-table td:nth-child(3){min-width:240px;width:240px}
+.fto-view-modal-content .fto-transaction-table th:nth-child(4),.fto-view-modal-content .fto-transaction-table td:nth-child(4){min-width:230px;width:230px}
+.fto-view-modal-content .fto-transaction-table th:nth-child(5),.fto-view-modal-content .fto-transaction-table td:nth-child(5){min-width:125px;width:125px}
+.fto-view-modal-content .fto-transaction-table th:nth-child(6),.fto-view-modal-content .fto-transaction-table td:nth-child(6){min-width:210px;width:210px}
+.fto-view-modal-content .fto-transaction-table th:nth-child(7),.fto-view-modal-content .fto-transaction-table td:nth-child(7){min-width:180px;width:180px}
+.fto-view-modal-content .fto-transaction-table th:nth-child(8),.fto-view-modal-content .fto-transaction-table td:nth-child(8){min-width:220px;width:220px}
+.fto-view-modal-content .fto-transaction-table th:nth-child(9),.fto-view-modal-content .fto-transaction-table td:nth-child(9){min-width:140px;width:140px}
+.fto-view-modal-content .fto-transaction-table th:nth-child(10),.fto-view-modal-content .fto-transaction-table td:nth-child(10){min-width:150px;width:150px}
+.fto-view-modal-content .fto-transaction-table th:nth-child(11),.fto-view-modal-content .fto-transaction-table td:nth-child(11){min-width:190px;width:190px}
+.fto-view-modal-content .fto-transaction-table th:nth-child(12),.fto-view-modal-content .fto-transaction-table td:nth-child(12){min-width:155px;width:155px}
+.fto-view-modal-content .fto-transaction-table th:nth-child(13),.fto-view-modal-content .fto-transaction-table td:nth-child(13){min-width:105px;width:105px}
+.fto-view-modal-content .fto-transaction-table th:nth-child(14),.fto-view-modal-content .fto-transaction-table td:nth-child(14){min-width:135px;width:135px}
+.fto-view-modal-content .fto-transaction-table th:nth-child(15),.fto-view-modal-content .fto-transaction-table td:nth-child(15){min-width:230px;width:230px}
+.fto-view-modal-content .fto-transaction-table th:nth-child(16),.fto-view-modal-content .fto-transaction-table td:nth-child(16){min-width:160px;width:160px}
+.fto-view-modal-content .fto-transaction-table th:nth-child(17),.fto-view-modal-content .fto-transaction-table td:nth-child(17){min-width:260px;width:260px}
+.fto-view-modal-content .fto-transaction-table th:nth-child(18),.fto-view-modal-content .fto-transaction-table td:nth-child(18),.fto-view-modal-content .fto-transaction-table th:nth-child(19),.fto-view-modal-content .fto-transaction-table td:nth-child(19){min-width:190px;width:190px}
 @media(max-width:700px){
  .fto-view-modal-backdrop{padding:0;align-items:stretch}
  .fto-view-modal{width:100%;max-height:100dvh;height:100%;border-radius:0;border:0}
@@ -204,7 +225,7 @@ tbody tr:last-child td{border-bottom:0}
  .fto-view-modal-header h2{font-size:1rem}
  .fto-view-modal-header button{min-height:38px;padding:8px 11px}
  .fto-view-modal-content{padding:12px}
- .fto-view-modal-content .fto-transaction-table{min-width:0!important}
+ .fto-view-modal-content .fto-transaction-table{min-width:2200px!important;width:max-content;display:table} .fto-view-modal-content .table-wrap{overflow:auto!important}
  .fto-view-modal-content .table-wrap{border:0;box-shadow:none;overflow:visible}
 }
 
@@ -357,11 +378,6 @@ function addHistoryCell(row,value){
 function renderHistoryTransactions(batch){
  const wrapper=document.createElement("div");
  const heading=document.createElement("p");heading.className="detail-heading";heading.textContent="Imported transactions for New Serchhip North · "+(batch.transactions||[]).length+" rows";wrapper.appendChild(heading);
- const coreHeaders=[
-  "Job Card No. (Panchayat Name)","Reference No.","Applicant Name","Credit Amount (In Rs.)",
-  "Status","Processed Date"
- ];
- const detailHeaders=FTO_HEADERS.filter(label=>!coreHeaders.includes(label));
  const fallback={
   "Reference No.":tx=>tx.reference_no,
   "Job Card No. (Panchayat Name)":tx=>tx.job_card_number,
@@ -380,34 +396,18 @@ function renderHistoryTransactions(batch){
  };
  const wrap=document.createElement("div");wrap.className="table-wrap";
  const table=document.createElement("table");table.className="fto-transaction-table";const thead=document.createElement("thead"),headRow=document.createElement("tr");
- [...coreHeaders,"More details"].forEach(label=>{const th=document.createElement("th");th.textContent=label==="Job Card No. (Panchayat Name)"?"Job Card No.":label;headRow.appendChild(th)});
+ FTO_HEADERS.forEach(label=>{const th=document.createElement("th");th.textContent=label==="Job Card No. (Panchayat Name)"?"Job Card No.":label;headRow.appendChild(th)});
  thead.appendChild(headRow);table.appendChild(thead);
  const tbody=document.createElement("tbody");
  for(const tx of (batch.transactions||[])){
   const tr=document.createElement("tr");
-  for(const label of coreHeaders){
+  for(const label of FTO_HEADERS){
    const td=document.createElement("td");td.dataset.label=label==="Job Card No. (Panchayat Name)"?"Job Card No.":label;
    td.textContent=cellValue(tx,label);tr.appendChild(td);
   }
-  const actionTd=document.createElement("td");actionTd.dataset.label="Details";
-  const more=document.createElement("button");more.type="button";more.className="secondary more-details";more.textContent="More details";more.setAttribute("aria-expanded","false");
-  const detailTr=document.createElement("tr");detailTr.className="transaction-more-row hidden";
-  const detailTd=document.createElement("td");detailTd.colSpan=7;
-  const grid=document.createElement("div");grid.className="detail-grid";
-  for(const label of detailHeaders){
-   const item=document.createElement("div");item.className="detail-item";
-   const name=document.createElement("strong");name.textContent=label;
-   const value=document.createElement("span");value.textContent=cellValue(tx,label);
-   item.append(name,value);grid.appendChild(item);
-  }
-  detailTd.appendChild(grid);detailTr.appendChild(detailTd);
-  more.addEventListener("click",()=>{
-   const opening=detailTr.classList.contains("hidden");
-   detailTr.classList.toggle("hidden",!opening);more.textContent=opening?"Hide details":"More details";more.setAttribute("aria-expanded",String(opening));
-  });
-  actionTd.appendChild(more);tr.appendChild(actionTd);tbody.append(tr,detailTr);
+  tbody.appendChild(tr);
  }
- if(!(batch.transactions||[]).length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=7;td.textContent="No local transaction rows are saved for this FTO.";tr.appendChild(td);tbody.appendChild(tr);}
+ if(!(batch.transactions||[]).length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=FTO_HEADERS.length;td.textContent="No local transaction rows are saved for this FTO.";tr.appendChild(td);tbody.appendChild(tr);}
  table.appendChild(tbody);wrap.appendChild(table);wrapper.appendChild(wrap);return wrapper;
 }
 function openFtoViewModal(batch){

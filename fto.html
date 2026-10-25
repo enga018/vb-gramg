@@ -156,6 +156,19 @@ tbody tr:last-child td{border-bottom:0}
 .history-status.processed{background:#eaf8ef;color:#17663a}
 .history-status.rejected{background:#fff0ed;color:#9b2c20}
 .history-status.blank{background:#fff4d9;color:#8a4b08}
+
+.period-modal-backdrop{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgb(15 23 42 / 48%);backdrop-filter:blur(3px)}
+.period-modal{width:min(100%,440px);padding:24px;background:#fff;border:1px solid #e3e8f0;border-radius:18px;box-shadow:0 24px 70px rgb(15 23 42 / 24%)}
+.period-modal h2{margin:0 0 7px;font-size:1.2rem}
+.period-modal .period-modal-description{margin:0 0 22px;color:#667085;font-size:.9rem;line-height:1.5}
+.period-modal .period-modal-field{margin-bottom:22px}
+.period-modal .period-modal-field input{font-size:1rem}
+.period-modal .period-modal-actions{display:flex;justify-content:flex-end;gap:10px}
+.period-modal .period-modal-actions button{min-width:100px}
+.period-modal .period-modal-actions .save-period{background:#2457c5}
+.period-modal .period-modal-actions .save-period:hover{background:#1d46a0}
+@media(max-width:480px){.period-modal{padding:20px;border-radius:15px}.period-modal .period-modal-actions button{flex:1}}
+
 @media(max-width:700px){.history-toolbar{grid-template-columns:minmax(0,1fr)}.history-section .section-head{align-items:stretch}.history-section .section-head button{width:100%}.history-table-wrap{max-height:62vh}.history-detail td{padding:8px}.history-detail table{min-width:1450px}}
 
 
@@ -222,6 +235,16 @@ tbody tr:last-child td{border-bottom:0}
  <div class="table-wrap history-table-wrap"><table id="fto-history-table"><thead><tr><th class="col-fto">FTO number</th><th class="col-period">Contribution period</th><th class="col-status">Status summary</th><th class="col-updated">Last imported / checked</th><th class="col-action">Action</th></tr></thead><tbody></tbody></table></div>
  <div class="table-foot"><span id="fto-history-count" class="muted"></span></div>
 </section>
+</div>
+<div id="period-modal-backdrop" class="period-modal-backdrop hidden" role="presentation">
+ <section class="period-modal" role="dialog" aria-modal="true" aria-labelledby="period-modal-title" aria-describedby="period-modal-description">
+  <h2 id="period-modal-title">Change contribution period</h2>
+  <p id="period-modal-description" class="period-modal-description">Edit the contribution period for this FTO. All transactions in the FTO will move to the saved period and contribution charges will be recalculated.</p>
+  <form id="period-modal-form">
+   <div class="period-modal-field"><label for="period-modal-value">Contribution period</label><input id="period-modal-value" name="contribution-period" type="text" placeholder="e.g. June 2026" autocomplete="off" required></div>
+   <div class="period-modal-actions"><button id="period-modal-cancel" type="button" class="secondary">Cancel</button><button id="period-modal-save" type="submit" class="save-period">Save</button></div>
+  </form>
+ </section>
 </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -312,23 +335,43 @@ function renderFtoHistory(){
  $("fto-history-count").textContent=filtered.length+" of "+ftoHistoryRows.length+" imported FTOs";
  if(!filtered.length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=5;td.textContent=ftoHistoryRows.length?"No FTOs match this search/filter.":"No FTOs have been imported yet.";td.style.padding="20px";tr.appendChild(td);tbody.appendChild(tr);}
 }
-async function changeFtoPeriod(batch){
- const current=String(batch.contribution_period||"");
- const next=window.prompt("Change the period for FTO "+String(batch.fto_number||"")+" and all its transactions.\nEnter month and year (for example, June 2026):",current);
- if(next===null)return;
- const label=String(next).trim(),chargePeriod=periodToDate(label);
- if(!chargePeriod){historyMessage("Enter a valid month and year, such as June 2026.","error");return;}
- if(label.toLowerCase()===current.toLowerCase()){historyMessage("The period is unchanged.");return;}
+let pendingPeriodBatch=null;
+function changeFtoPeriod(batch){
+ pendingPeriodBatch=batch;
+ $("period-modal-value").value=String(batch.contribution_period||"");
+ $("period-modal-backdrop").classList.remove("hidden");
+ requestAnimationFrame(()=>{$("period-modal-value").focus();$("period-modal-value").select();});
+}
+function closePeriodModal(){
+ $("period-modal-backdrop").classList.add("hidden");
+ pendingPeriodBatch=null;
+ $("period-modal-save").disabled=false;
+ $("period-modal-cancel").disabled=false;
+ $("period-modal-save").textContent="Save";
+}
+async function saveFtoPeriod(event){
+ event.preventDefault();
+ const batch=pendingPeriodBatch;
+ if(!batch)return;
+ const current=String(batch.contribution_period||""),label=$("period-modal-value").value.trim(),chargePeriod=periodToDate(label);
+ if(!chargePeriod){historyMessage("Enter a valid month and year, such as June 2026.","error");$("period-modal-value").focus();return;}
  const monthNames=["January","February","March","April","May","June","July","August","September","October","November","December"],parts=chargePeriod.match(/^(\d{4})-(\d{2})-01$/);
  const normalizedLabel=monthNames[Number(parts[2])-1]+" "+parts[1];
- if(!window.confirm("Move every transaction in FTO "+String(batch.fto_number||"")+" from "+current+" to "+normalizedLabel+"? This includes blank/deferred, processed, rejected, and other statuses. Contribution charges for affected job cards will be recalculated."))return;
+ if(normalizedLabel.toLowerCase()===current.toLowerCase()){
+  closePeriodModal();historyMessage("The period is unchanged.");return;
+ }
+ $("period-modal-save").disabled=true;$("period-modal-cancel").disabled=true;$("period-modal-save").textContent="Saving…";
  historyMessage("Changing FTO period and recalculating contribution charges…");
  try{
   const {data,error}=await supabaseClient.functions.invoke("vbgramg-contribution-data",{body:{action:"change-fto-period",batch_id:batch.id,contribution_period:normalizedLabel,charge_period:chargePeriod}});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||"Could not change the FTO period.");
+  closePeriodModal();
   await loadFtoHistory();
   historyMessage(data.unchanged?"This FTO already uses that period.":"Updated FTO "+String(batch.fto_number||"")+" to "+normalizedLabel+". "+Number(data.transactions_changed||0)+" transactions retained; "+Number(data.job_cards_recalculated||0)+" job cards recalculated. Ledger charges updated: "+Number(data.ledger_updated||0)+", added: "+Number(data.ledger_inserted||0)+", removed: "+Number(data.ledger_deleted||0)+".","success");
- }catch(err){historyMessage(err.message||"Could not change the FTO period.","error");}
+ }catch(err){
+  historyMessage(err.message||"Could not change the FTO period.","error");
+  $("period-modal-save").disabled=false;$("period-modal-cancel").disabled=false;$("period-modal-save").textContent="Save";
+ }
 }
 async function loadFtoHistory(){
  const seq=++historyLoadSequence;
@@ -349,6 +392,11 @@ async function loadFtoHistory(){
 $("refresh-fto-history").addEventListener("click",loadFtoHistory);
 $("fto-history-search").addEventListener("input",renderFtoHistory);
 $("fto-history-period").addEventListener("change",renderFtoHistory);
+$("period-modal-form").addEventListener("submit",saveFtoPeriod);
+$("period-modal-cancel").addEventListener("click",closePeriodModal);
+$("period-modal-backdrop").addEventListener("click",event=>{if(event.target===$("period-modal-backdrop"))closePeriodModal();});
+document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!$("period-modal-backdrop").classList.contains("hidden"))closePeriodModal();});
+
 
 async function verifyAccess(user){
  const seq=++authSequence;

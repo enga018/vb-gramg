@@ -298,6 +298,9 @@ tbody tr:last-child td{border-bottom:0}
  .stat strong{font-size:.94rem}
  th,td{padding:9px 8px}
 }
+
+#fto-history-table .empty-state-cell{width:100%;padding:32px 24px!important;text-align:center;white-space:normal;overflow-wrap:anywhere;line-height:1.55;color:var(--muted);font-size:.98rem}
+@media(max-width:700px){#fto-history-table tbody>tr.empty-state-row{display:block;width:100%}#fto-history-table tbody>tr.empty-state-row>td.empty-state-cell{display:block;width:100%;box-sizing:border-box;padding:28px 18px!important;text-align:center}}
 </style>
 </head>
 <body>
@@ -450,7 +453,7 @@ function closeFtoViewModal(){
   if(expandedFtoId===batch.id){const detailTr=document.createElement("tr");detailTr.className="history-detail";const td=document.createElement("td");td.colSpan=5;td.appendChild(renderHistoryTransactions(batch));detailTr.appendChild(td);tbody.appendChild(detailTr);}
  }
  $("fto-history-count").textContent=filtered.length+" of "+ftoHistoryRows.length+" imported FTOs";
- if(!filtered.length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=5;td.textContent=ftoHistoryRows.length?"No FTOs match this search/filter.":"No FTOs have been imported yet.";td.style.padding="20px";tr.appendChild(td);tbody.appendChild(tr);}
+ if(!filtered.length){const tr=document.createElement("tr"),td=document.createElement("td");tr.className="empty-state-row";td.className="empty-state-cell";td.colSpan=5;td.textContent=ftoHistoryRows.length?"No FTOs match this search/filter.":"No FTOs have been imported yet.";tr.appendChild(td);tbody.appendChild(tr);}
 }
 let pendingPeriodBatch=null;
 function changeFtoPeriod(batch){

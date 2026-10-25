@@ -161,7 +161,8 @@ function render(){
      const matched=applicants.find(a=>String(a.applicant_number||'').trim()===String(lastCharge.applicant_number||'').trim());
      chargeName=String(matched?.applicant_name||matched?.name||'').trim();
     }
-    chargeLine.textContent=lastCharge?(chargeName?chargeName+' • ':'')+fmt(lastCharge.amount):'No charges recorded';
+    chargeLine.textContent=lastCharge?(chargeName?chargeName+' • ':'')+fmt(lastCharge.amount)+(lastCharge.is_deferred?' · Deferred':''):'No charges recorded';
+    if(lastCharge&&lastCharge.is_deferred)chargeLine.style.color='var(--partial)';
     subline.appendChild(chargeLine);
     const balance=document.createElement('div');balance.className='mobile-outstanding';balance.textContent=fmt(c.balance);balance.style.color='#e9a23b';subline.appendChild(balance);
     detail.appendChild(subline);

@@ -57,7 +57,7 @@ let entries=[], citizens=[], citizenRegistry=[], currentCitizen=null, busy=false
 const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const day=s=>s?new Date(s+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'Date not recorded';
-const formatPeriod=s=>{const m=String(s||'').match(/^(\\d{4})-(\\d{2})/);if(!m)return s||'Monthly charge';const months=['January','February','March','April','May','June','July','August','September','October','November','December'];const n=Number(m[2]);return n>=1&&n<=12?months[n-1]+' '+m[1]:(s||'Monthly charge')};
+const formatPeriod=s=>{const m=String(s||'').match(/^(\d{4})-(\d{2})/);if(!m)return s||'Monthly charge';const months=['January','February','March','April','May','June','July','August','September','October','November','December'];const n=Number(m[2]);return n>=1&&n<=12?months[n-1]+' '+m[1]:(s||'Monthly charge')};
 function status(message,type='info'){ $('status').className='notice '+(type==='err'?'err':'info');$('status').textContent=message; }
 function calculateLedgerState(ledger){
  let charged=0,paid=0,returned=0,waived=0,deferred=0;const active=[];
@@ -79,7 +79,7 @@ function deriveCitizens(){
  citizens=[...map.values()].map(c=>{const x=calculateLedgerState(c.ledger);let gross=0;for(const e of c.ledger){if((e.entry_type==='charge'||e.entry_type==='sanitationFee')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return'))gross+=Math.max(0,Number(e.amount)||0)}return {...c,charges:gross,activeCharges:x.charged,deferred:x.deferred,paid:x.paid,waived:x.waived,returns:x.returned,totalCharged:Math.max(0,gross-Math.min(gross,x.waived)),balance:x.balance}}).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
 }
 function jobCardSuffixNumber(jobCard){
- const match=String(jobCard||'').match(/\\/([^/]+)$/);
+ const match=String(jobCard||'').match(/\/([^/]+)$/);
  if(!match)return Number.POSITIVE_INFINITY;
  const n=Number(match[1].trim());
  return Number.isFinite(n)?n:Number.POSITIVE_INFINITY;

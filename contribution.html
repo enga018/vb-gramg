@@ -125,7 +125,7 @@ function openCitizen(id){
  const chronological=[...c.ledger].sort((a,b)=>(a.entry_date||'').localeCompare(b.entry_date||'')||(a.created_at||'').localeCompare(b.created_at||''));
  const periodChargeCounts=new Map(),periodChargeIndexes=new Map(),chargeOccurrenceIndex=new Map();
  for(const e of chronological){
-  if(e.entry_type==='charge'&&e.charge_period){
+  if(e.entry_type==='charge'&&e.charge_period&&!/^FTO EXTRA:/i.test(String(e.note||''))){
    periodChargeCounts.set(e.charge_period,(periodChargeCounts.get(e.charge_period)||0)+1);
    const next=(periodChargeIndexes.get(e.charge_period)||0)+1;
    periodChargeIndexes.set(e.charge_period,next);

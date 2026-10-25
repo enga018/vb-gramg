@@ -210,11 +210,18 @@
         .replace(/&amp;/g, '&');
       const lines = String(raw || '').replace(/\r/g, '').split('\n').map(cleanLine).filter(Boolean);
       const key = v => cleanLine(v).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-      const start = lines.findIndex(v => key(v) === 's no');
+      // Recognize this government report even when copied text changes the heading formatting.
+      const startExact = lines.findIndex(v => ['s no','s no serial no','serial no'].includes(key(v)));
+      const hasJobHeading = lines.some(v => key(v).includes('job card number'));
+      const hasApplicantHeading = lines.some(v => key(v).includes('name of applicant'));
+      if (!hasJobHeading || !hasApplicantHeading) return null;
+      const start = startExact >= 0 ? startExact : lines.findIndex(v => key(v).includes('registration application register'));
       if (start < 0) return null;
       const headers = ['S.No.','Head of HouseHold','Caste','Name of Applicant','Father/Husband Name','Gender','Age','Date of receipt of application/Request for Registration','Job Card Number','Job-card issue date','Reasons, if Job Card NOT issued & any other remarks','Disabled','Minority','Job Card Verified on Date'];
       const villageSummary = lines.findIndex((v, i) => i > start && /^villages?\s*:/i.test(v));
-      const dataStart = villageSummary >= 0 ? villageSummary + 1 : start + 1;
+      // Skip the separate 1–14 column-key row. Applicant serial 1 follows the village summary.
+      const firstApplicantSerial = lines.findIndex((v, i) => i > start && /^1$/.test(v) && (villageSummary < 0 || i > villageSummary));
+      const dataStart = villageSummary >= 0 ? villageSummary + 1 : (firstApplicantSerial >= 0 ? firstApplicantSerial : start + 1);
       const blocks = [], footerRows = [];
       let current = null, expectedSerial = 1;
       const flush = () => { if (current) blocks.push(current); current = null; };

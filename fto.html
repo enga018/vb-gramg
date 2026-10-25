@@ -410,7 +410,6 @@ function renderHistoryTransactions(batch){
  if(!(batch.transactions||[]).length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=7;td.textContent="No local transaction rows are saved for this FTO.";tr.appendChild(td);tbody.appendChild(tr);}
  table.appendChild(tbody);wrap.appendChild(table);wrapper.appendChild(wrap);return wrapper;
 }
-function renderFtoHistory(){
 function openFtoViewModal(batch){
  $("fto-view-modal-title").textContent="FTO "+String(batch.fto_number||"transactions");
  $("fto-view-modal-subtitle").textContent=String(batch.contribution_period||"No contribution period")+" · "+(batch.transactions||[]).length+" transactions";
@@ -424,6 +423,7 @@ function closeFtoViewModal(){
  $("fto-view-modal-content").replaceChildren();
 }
 
+ function renderFtoHistory(){
  const tbody=$("fto-history-table").querySelector("tbody");tbody.replaceChildren();
  const search=$("fto-history-search").value.trim().toLowerCase(),period=$("fto-history-period").value;
  const filtered=ftoHistoryRows.filter(batch=>(!period||batch.contribution_period===period)&&(!search||String(batch.fto_number||"").toLowerCase().includes(search)||String(batch.contribution_period||"").toLowerCase().includes(search)));

@@ -244,7 +244,7 @@
         const all=existingByCard.get(card)||[];all.push(entry);existingByCard.set(card,all);
         const numeric=Number(no);if(no && Number.isFinite(numeric))nextNoByCard.set(card,Math.max(nextNoByCard.get(card)||0,numeric));
       });
-      const removed=[], review=[], output=[targetHeader], usedIds=new Set(), nextApplicantNo=new Map();
+      const removed=[], review=[], output=[targetHeader], usedIds=new Set(), nextApplicantNo=new Map(); let matchedCount=0, generatedIdCount=0;
       let previousCard='', previousHousehold='';
       for(let i=headerAt+1;i<parsedRows.length;i++){
         const row=parsedRows[i], text=row.map(normText).filter(Boolean).join(' · ');
@@ -264,18 +264,19 @@
         const rawHousehold=normText(row[si.household]);
         if(rawHousehold) previousHousehold=rawHousehold.replace(/\*/g,'').trim();
         const household=rawHousehold ? rawHousehold.replace(/\*/g,'').trim() : previousHousehold;
-        if(!household) review.push('Row '+(i+1)+' — no household head available within job card '+card+': '+name);
+        if(!household){review.push('Row '+(i+1)+' — no household head available within job card '+card+': '+name);continue;}
         const matchKey=card.toLowerCase()+'|'+cleanName(name);
         const matches=existingByMatch.get(matchKey)||[];
         let match=matches.shift();
+        if(match && match.uid) matchedCount++;
         let applicantNo=match?.no||'';
         if(!applicantNo){
           const next=(nextNoByCard.get(card)||0)+(nextApplicantNo.get(card)||0)+1;
           applicantNo=String(next);nextApplicantNo.set(card,(nextApplicantNo.get(card)||0)+1);
         }
         let uniqueId=match?.uid||'';
-        if(uniqueId && usedIds.has(uniqueId)) { review.push('Row '+(i+1)+' — duplicate existing Unique ID matched: '+uniqueId+' ('+card+' · '+name+')'); uniqueId=''; }
-        if(!uniqueId) uniqueId=crypto.randomUUID();
+        if(uniqueId && usedIds.has(uniqueId)) { review.push('Row '+(i+1)+' — duplicate existing Unique ID matched: '+uniqueId+' ('+card+' · '+name+')'); continue; }
+        if(!uniqueId) { uniqueId=crypto.randomUUID(); generatedIdCount++; }
         usedIds.add(uniqueId);
         const targetRow=targetHeader.map(()=> '');
         if(ti.serial>=0) targetRow[ti.serial]=normText(row[si.serial])||String(output.length);
@@ -287,7 +288,7 @@
         output.push(targetRow);
       }
       const uniqueReview=[...new Set(review)];
-      return {output,removed,review:uniqueReview,activeCount:active.activeRowCount||activeRows.length-1,matched:output.slice(1).filter(row=>existingByCard.get(normText(row[ti.job]))).length};
+      return {output,removed,review:uniqueReview,activeCount:active.activeRowCount||activeRows.length-1,matchedCount,generatedIdCount};
     }
 
     loadTableButton.addEventListener('click', async function () {
@@ -303,7 +304,7 @@
         const prepared=await prepareGovernmentRegister(parsedRows);
         importedRows=prepared.output; pastedTableLoaded=true; window.misReviewCount=prepared.review.length;
         renderRows(importedRows);
-        document.getElementById('filter-counts').textContent='Source rows parsed: '+parsedRows.length+' · Kept for comparison: '+Math.max(0,importedRows.length-1)+' · Removed: '+prepared.removed.length+' · Manual review: '+prepared.review.length+' · Existing IDs preserved: '+prepared.output.slice(1).filter(row=>row[prepared.output[0].findIndex(v=>headerKey(v)==='unique id')] && false).length;
+        document.getElementById('filter-counts').textContent='Source rows parsed: '+parsedRows.length+' · Kept for comparison: '+Math.max(0,importedRows.length-1)+' · Removed: '+prepared.removed.length+' · Manual review / held out: '+prepared.review.length+' · Existing Unique IDs preserved: '+prepared.matchedCount+' · New Unique IDs generated: '+prepared.generatedIdCount;
         rowList('filter-removed',prepared.removed,'No rows removed.');
         rowList('filter-review',prepared.review,'No uncertain rows found.');
         document.getElementById('review-confirm-wrap').classList.toggle('hidden',!prepared.review.length);

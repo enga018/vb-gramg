@@ -206,13 +206,13 @@ tbody tr:last-child td{border-bottom:0}
  <div class="table-foot"><span id="import-count" class="muted"></span><div class="actions"><button id="fto-import-button" type="button" disabled>Synchronize FTO</button></div></div>
 </div>
 <div id="fto-history" class="history-section">
- <div class="section-head"><div><h2>Imported FTO history</h2><p>Every saved FTO appears once with its contribution period. Expand a row to inspect all locally imported source fields. Re-imports update the same FTO and keep its original period.</p></div><button id="refresh-fto-history" type="button" class="secondary">Refresh history</button></div>
+ <div class="section-head"><div><h2>Imported FTO history</h2><p>Each FTO is listed once. Use Change period in its row to move every transaction in that FTO—including deferred, processed, rejected, and other statuses—to another period. Contribution charges are recalculated for affected job cards.</p></div><button id="refresh-fto-history" type="button" class="secondary">Refresh history</button></div>
  <div class="history-toolbar">
   <div class="field"><label for="fto-history-search">Search FTO / period</label><input id="fto-history-search" type="search" placeholder="Search FTO number or period"></div>
   <div class="field"><label for="fto-history-period">Contribution period</label><select id="fto-history-period"><option value="">All periods</option></select></div>
  </div>
  <div id="fto-history-status" class="status" aria-live="polite">Loading imported FTO history…</div>
- <div class="table-wrap history-table-wrap"><table id="fto-history-table"><thead><tr><th></th><th>FTO number</th><th>Contribution period</th><th>Transactions</th><th>Status summary</th><th>Last imported / checked</th></tr></thead><tbody></tbody></table></div>
+ <div class="table-wrap history-table-wrap"><table id="fto-history-table"><thead><tr><th></th><th>FTO number</th><th>Contribution period</th><th>Transactions</th><th>Status summary</th><th>Last imported / checked</th><th>Period action</th></tr></thead><tbody></tbody></table></div>
  <div class="table-foot"><span id="fto-history-count" class="muted"></span></div>
 </div>
 </div>
@@ -550,11 +550,30 @@ function renderFtoHistory(){
  for(const batch of filtered){
   const tr=document.createElement("tr");
   const toggle=document.createElement("button");toggle.type="button";toggle.className="history-expand secondary";toggle.textContent=expandedFtoId===batch.id?"Hide":"View";toggle.setAttribute("aria-expanded",String(expandedFtoId===batch.id));toggle.addEventListener("click",()=>{expandedFtoId=expandedFtoId===batch.id?null:batch.id;renderFtoHistory()});
-  addHistoryCell(tr,toggle);addHistoryCell(tr,batch.fto_number);addHistoryCell(tr,batch.contribution_period);addHistoryCell(tr,Number(batch.transaction_count||0));addHistoryCell(tr,statusSummary(batch.status_counts));addHistoryCell(tr,fmtHistoryDate(batch.last_checked_at||batch.first_imported_at));tbody.appendChild(tr);
-  if(expandedFtoId===batch.id){const detailTr=document.createElement("tr");detailTr.className="history-detail";const td=document.createElement("td");td.colSpan=6;td.appendChild(renderHistoryTransactions(batch));detailTr.appendChild(td);tbody.appendChild(detailTr);}
+  addHistoryCell(tr,toggle);addHistoryCell(tr,batch.fto_number);addHistoryCell(tr,batch.contribution_period);addHistoryCell(tr,Number(batch.transaction_count||0));addHistoryCell(tr,statusSummary(batch.status_counts));addHistoryCell(tr,fmtHistoryDate(batch.last_checked_at||batch.first_imported_at));
+  const actionCell=document.createElement("td");const editPeriod=document.createElement("button");editPeriod.type="button";editPeriod.className="secondary";editPeriod.textContent="Change period";editPeriod.addEventListener("click",()=>changeFtoPeriod(batch));actionCell.appendChild(editPeriod);tr.appendChild(actionCell);tbody.appendChild(tr);
+  if(expandedFtoId===batch.id){const detailTr=document.createElement("tr");detailTr.className="history-detail";const td=document.createElement("td");td.colSpan=7;td.appendChild(renderHistoryTransactions(batch));detailTr.appendChild(td);tbody.appendChild(detailTr);}
  }
  $("fto-history-count").textContent=filtered.length+" of "+ftoHistoryRows.length+" imported FTOs";
- if(!filtered.length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=6;td.textContent=ftoHistoryRows.length?"No FTOs match this search/filter.":"No FTOs have been imported yet.";td.style.padding="20px";tr.appendChild(td);tbody.appendChild(tr);}
+ if(!filtered.length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=7;td.textContent=ftoHistoryRows.length?"No FTOs match this search/filter.":"No FTOs have been imported yet.";td.style.padding="20px";tr.appendChild(td);tbody.appendChild(tr);}
+}
+async function changeFtoPeriod(batch){
+ const current=String(batch.contribution_period||"");
+ const next=window.prompt("Change the period for FTO "+String(batch.fto_number||"")+" and all its transactions.\nEnter month and year (for example, June 2026):",current);
+ if(next===null)return;
+ const label=String(next).trim(),chargePeriod=periodToDate(label);
+ if(!chargePeriod){historyMessage("Enter a valid month and year, such as June 2026.","error");return;}
+ if(label.toLowerCase()===current.toLowerCase()){historyMessage("The period is unchanged.");return;}
+ const monthNames=["January","February","March","April","May","June","July","August","September","October","November","December"],parts=chargePeriod.match(/^(\d{4})-(\d{2})-01$/);
+ const normalizedLabel=monthNames[Number(parts[2])-1]+" "+parts[1];
+ if(!window.confirm("Move every transaction in FTO "+String(batch.fto_number||"")+" from "+current+" to "+normalizedLabel+"? This includes blank/deferred, processed, rejected, and other statuses. Contribution charges for affected job cards will be recalculated."))return;
+ historyMessage("Changing FTO period and recalculating contribution charges…");
+ try{
+  const {data,error}=await supabaseClient.functions.invoke("vbgramg-contribution-data",{body:{action:"change-fto-period",batch_id:batch.id,contribution_period:normalizedLabel,charge_period:chargePeriod}});
+  if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||"Could not change the FTO period.");
+  await loadFtoHistory();
+  historyMessage(data.unchanged?"This FTO already uses that period.":"Updated FTO "+String(batch.fto_number||"")+" to "+normalizedLabel+". "+Number(data.transactions_changed||0)+" transactions retained; "+Number(data.job_cards_recalculated||0)+" job cards recalculated. Ledger charges updated: "+Number(data.ledger_updated||0)+", added: "+Number(data.ledger_inserted||0)+", removed: "+Number(data.ledger_deleted||0)+".","success");
+ }catch(err){historyMessage(err.message||"Could not change the FTO period.","error");}
 }
 async function loadFtoHistory(){
  const seq=++historyLoadSequence;

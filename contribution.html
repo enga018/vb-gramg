@@ -53,7 +53,7 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let entries=[], citizens=[], citizenRegistry=[], currentCitizen=null, busy=false, currentPage=0, pageSize=50, appRole="";
+let entries=[], citizens=[], citizenRegistry=[], extraCharges=[], currentCitizen=null, busy=false, currentPage=0, pageSize=50, appRole="";
 const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const day=s=>s?new Date(s+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'Date not recorded';
@@ -145,20 +145,55 @@ function openCitizen(id){
   if(type==='charge'&&e.charge_period&&(periodChargeCounts.get(e.charge_period)||0)>1&&!/\(\d+\)$/.test(chargeTag)){
    periodLabel+='('+chargeOccurrenceIndex.get(e)+')';
   }
-  const label=type==='charge'?'Charges • '+periodLabel+(e.is_deferred?' • Deferred':''):type==='sanitationFee'?'Sanitation fee':type==='payment'?'Payment':type==='forgive'?'Waiver':type==='return'?'Return':type;
+  const isExtra=type==='charge'&&/^FTO EXTRA:/i.test(String(e.note||''));
+  const label=isExtra?'Extra charge • '+formatPeriod(e.charge_period):type==='charge'?'Charges • '+periodLabel+(e.is_deferred?' • Deferred':''):type==='sanitationFee'?'Sanitation fee':type==='payment'?'Payment':type==='forgive'?'Waiver':type==='return'?'Return':type;
   const noteText=String(e.note||'').trim();
   const looksLikePeriod=/^(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)(\s*[-/]?\s*\d{0,4})?$/i.test(noteText)||/^MAY\s*1$/i.test(noteText)||/^MAY1$/i.test(noteText);
   const displayNote=type==='payment'&&looksLikePeriod?'':noteText;
   const transactionDate=String(e.entry_date||'').slice(0,10)>='2026-06-01'?day(e.entry_date):'';
-  return '<div class="entry"><div class="desc"><b>'+esc(label)+(type!=='charge'&&displayNote?' · '+esc(displayNote):'')+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+(appRole==='admin'?'<div class="entry-actions"><button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button></div>':'')+'</div>';
+  return '<div class="entry"><div class="desc"><b>'+esc(label)+(isExtra&&displayNote?' · '+esc(String(e.note||'').replace(/^FTO EXTRA:\\s*/i,'')):type!=='charge'&&displayNote?' · '+esc(displayNote):'')+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+(appRole==='admin'&&!isExtra?'<div class="entry-actions"><button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button></div>':'')+'</div>';
  }).join('');
- $('sheetBody').innerHTML='<div class="balance"><div class="label">Current outstanding balance</div><div class="amount '+(c.balance<=0?'zero':'owing')+'">'+fmt(Math.max(0,c.balance))+'</div><div class="sub" style="margin:0">Full job card: '+esc(c.id)+'</div></div><div class="split"><div><div class="k">Charges incl. fees</div><div class="v">'+fmt(c.charges)+'</div></div><div><div class="k">Payments</div><div class="v" style="color:var(--paid)">'+fmt(c.paid)+'</div></div><div><div class="k">Waivers / returns</div><div class="v">'+fmt(c.waived+c.returns)+'</div></div><div><div class="k">Deferred</div><div class="v">'+fmt(c.deferred)+'</div></div></div><div class="transaction-actions"><button class="btn" type="button" id="addPaymentBtn">Record payment</button>'+(c.balance>0?'<button class="btn" type="button" id="payFullBtn">Pay in full</button>':'')+(appRole==='admin'?'<button class="btn ghost" type="button" id="waiveBtn">Waive</button><button class="btn ghost" type="button" id="returnBtn">Return</button>':'')+'</div><div class="section-title">Ledger history</div>'+(lines||'<div class="empty">No ledger entries.</div>');
+ $('sheetBody').innerHTML='<div class="balance"><div class="label">Current outstanding balance</div><div class="amount '+(c.balance<=0?'zero':'owing')+'">'+fmt(Math.max(0,c.balance))+'</div><div class="sub" style="margin:0">Full job card: '+esc(c.id)+'</div></div><div class="split"><div><div class="k">Charges incl. fees</div><div class="v">'+fmt(c.charges)+'</div></div><div><div class="k">Payments</div><div class="v" style="color:var(--paid)">'+fmt(c.paid)+'</div></div><div><div class="k">Waivers / returns</div><div class="v">'+fmt(c.waived+c.returns)+'</div></div><div><div class="k">Deferred</div><div class="v">'+fmt(c.deferred)+'</div></div></div><div class="transaction-actions"><button class="btn" type="button" id="addPaymentBtn">Record payment</button>'+(c.balance>0?'<button class="btn" type="button" id="payFullBtn">Pay in full</button>':'')+(appRole==='admin'?'<button class="btn ghost" type="button" id="extraChargeBtn">Add / edit extra amount</button><button class="btn ghost" type="button" id="waiveBtn">Waive</button><button class="btn ghost" type="button" id="returnBtn">Return</button>':'')+'</div><div class="section-title">Ledger history</div>'+(lines||'<div class="empty">No ledger entries.</div>');
  $('overlay').classList.remove('hidden');
  $('addPaymentBtn').addEventListener('click',showPaymentForm);
  const payFull=$('payFullBtn');if(payFull)payFull.addEventListener('click',payInFull);
  const waive=$('waiveBtn');if(waive)waive.addEventListener('click',()=>showAdjustmentForm('add-waiver'));
  const ret=$('returnBtn');if(ret)ret.addEventListener('click',()=>showAdjustmentForm('add-return'));
+ const extraBtn=$('extraChargeBtn');if(extraBtn)extraBtn.addEventListener('click',showExtraChargeForm);
  document.querySelectorAll('[data-edit-entry]').forEach(btn=>btn.addEventListener('click',()=>showEditForm(btn.dataset.editEntry)));
+}
+
+function showExtraChargeForm(){
+ const c=currentCitizen;if(!c||appRole!=="admin")return;
+ const existingForCard=extraCharges.filter(x=>String(x.job_card_number)===String(c.id));
+ const currentMonth=new Date().toISOString().slice(0,7);
+ const defaultExtra=existingForCard.find(x=>String(x.charge_period||"").slice(0,7)===currentMonth);
+ $('sheetBody').innerHTML='<div class="notice info">Add an extra amount for this job card and contribution month. The formula-generated charge is not changed. One extra amount is stored per job card per month; saving again for the same month updates that extra amount instead of adding a duplicate.</div><form id="extraChargeForm"><div class="field"><label for="extraPeriod">Contribution month</label><input id="extraPeriod" type="month" required value="'+esc(currentMonth)+'"></div><div class="field"><label for="extraAmount">Extra amount (₹)</label><input id="extraAmount" type="number" min="0.01" max="10000000" step="0.01" required inputmode="decimal" value="'+(defaultExtra?esc(defaultExtra.amount):'')+'" placeholder="Enter additional amount"></div><div class="field"><label for="extraReason">Reason</label><textarea id="extraReason" rows="3" maxlength="500" required placeholder="Why is this extra amount needed?">'+(defaultExtra?esc(defaultExtra.reason):'')+'</textarea></div><button class="btn" id="saveExtraAmount" type="submit">Save extra amount</button> <button class="btn ghost" id="cancelExtraAmount" type="button">Cancel</button><div id="extraAmountError"></div></form>';
+ const syncFormForPeriod=()=>{
+  const month=$('extraPeriod').value;
+  const old=existingForCard.find(x=>String(x.charge_period||"").slice(0,7)===month);
+  $('extraAmount').value=old?String(old.amount):'';
+  $('extraReason').value=old?String(old.reason||''):'';
+ };
+ $('extraPeriod').addEventListener('change',syncFormForPeriod);
+ $('cancelExtraAmount').addEventListener('click',()=>openCitizen(c.id));
+ $('extraChargeForm').addEventListener('submit',async ev=>{
+  ev.preventDefault();if(busy)return;
+  const month=$('extraPeriod').value,amount=Number($('extraAmount').value),reason=$('extraReason').value.trim();
+  if(!month||!Number.isFinite(amount)||amount<=0){$('extraAmountError').innerHTML='<div class="notice err">Enter a contribution month and an extra amount greater than zero.</div>';return;}
+  if(!reason){$('extraAmountError').innerHTML='<div class="notice err">Enter a reason for the extra amount.</div>';return;}
+  busy=true;$('saveExtraAmount').disabled=true;$('saveExtraAmount').textContent='Saving…';
+  try{
+   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'save-contribution-extra',job_card_number:c.id,charge_period:month+'-01',amount,reason}});
+   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save extra amount.');
+   updateEntryInMemory(data.entry);
+   extraCharges=extraCharges.filter(x=>!(String(x.job_card_number)===String(data.extra.job_card_number)&&String(x.charge_period)===String(data.extra.charge_period)));
+   extraCharges.push(data.extra);
+   openCitizen(c.id);
+   status((data.updated?'Extra amount updated.':'Extra amount saved.')+' Formula-generated charges remain unchanged.','info');
+  }catch(err){$('extraAmountError').innerHTML='<div class="notice err">'+esc(err.message||'Could not save extra amount.')+'</div>';}
+  finally{busy=false;if($('saveExtraAmount')){$('saveExtraAmount').disabled=false;$('saveExtraAmount').textContent='Save extra amount';}}
+ });
 }
 function showPaymentForm(){
  const c=currentCitizen;if(!c)return;
@@ -293,7 +328,7 @@ async function load(){
   status('Loading active MIS and contribution ledger…');
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
-  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");entries=data.entries||[];citizenRegistry=data.citizens||[];deriveCitizens();
+  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");entries=data.entries||[];extraCharges=data.extras||[];citizenRegistry=data.citizens||[];deriveCitizens();
   $('app').classList.remove('hidden');status('Loaded active MIS job cards and '+entries.length.toLocaleString('en-IN')+' contribution ledger entries. Job card details come from active MIS; balances and history come from the ledger.');
   render();
  }catch(err){status(err.message||'Could not load contribution data.','err');}

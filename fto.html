@@ -299,8 +299,26 @@ tbody tr:last-child td{border-bottom:0}
  th,td{padding:9px 8px}
 }
 
-#fto-history-table .empty-state-cell{width:100%;padding:32px 24px!important;text-align:center;white-space:normal;overflow-wrap:anywhere;line-height:1.55;color:var(--muted);font-size:.98rem}
-@media(max-width:700px){#fto-history-table tbody>tr.empty-state-row{display:block;width:100%}#fto-history-table tbody>tr.empty-state-row>td.empty-state-cell{display:block;width:100%;box-sizing:border-box;padding:28px 18px!important;text-align:center}}
+#fto-history-table{width:100%}
+#fto-history-table tbody>tr.empty-state-row>td.empty-state-cell{
+ padding:40px 24px!important;
+ text-align:center;
+ vertical-align:middle;
+ white-space:normal;
+ overflow-wrap:anywhere;
+ line-height:1.55;
+ color:var(--muted);
+ font-size:.98rem;
+ min-width:0;
+ max-width:none;
+ border-bottom:0
+}
+@media(max-width:700px){
+ #fto-history-table tbody>tr.empty-state-row>td.empty-state-cell{
+  padding:32px 16px!important;
+  text-align:center
+ }
+}
 </style>
 </head>
 <body>

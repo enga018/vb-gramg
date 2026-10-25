@@ -52,13 +52,11 @@
     <div class="paste-box">
       <label class="file-label" for="table-input">Paste table copied from the MIS page</label>
       <textarea id="table-input" rows="8" placeholder="Copy the MIS table, then paste it here…"></textarea>
-      <p class="hint">Paste a large table directly here. The original text remains unchanged; filtering and table preparation happen locally before staging.</p>
-      <label style="display:flex;gap:8px;align-items:center;margin:12px 0;font-weight:650"><input id="exclude-deleted" type="checkbox" checked style="width:auto;min-height:auto"> Exclude applicants marked deleted (* in household/applicant name or deletion remarks)</label>
-      <button type="button" id="load-table-button">Filter and prepare table</button>
+      <p class="hint">Tab-separated data copied from a webpage or spreadsheet is supported. Header row is required. The pasted data is previewed locally before any upload.</p>
+      <button type="button" id="load-table-button">Load pasted table</button>
     </div>
     <button type="button" id="import-button" disabled>Compare pasted MIS</button>
     <div id="status" class="status" aria-live="polite">Checking administrator access…</div>
-    <section id="filter-summary" class="diff-panel hidden" aria-live="polite"><h2>Local filtering summary</h2><p id="filter-counts"></p><h3>Removed rows and reasons</h3><ul id="filter-removed" class="diff-list"></ul><h3>Uncertain rows — retained for manual review</h3><ul id="filter-review" class="diff-list"></ul><label id="review-confirm-wrap" class="hidden"><input id="review-confirm" type="checkbox" style="width:auto;min-height:auto"> I reviewed the uncertain rows; keep them in the comparison.</label></section>
     <section id="diff-panel" class="diff-panel hidden" aria-live="polite">
       <h2 id="diff-title">Review MIS changes</h2>
       <p id="diff-intro">Compare the uploaded file with the current active MIS before applying changes.</p>
@@ -186,82 +184,21 @@
       });
     }
 
-    function filterPastedRows(rows, excludeDeleted) {
-      const key = v => String(v || '').toLowerCase().replace(/&amp;/g, '&').replace(/[^a-z0-9]+/g, ' ').trim();
-      const headerIndex = rows.findIndex(row =>
-        row.some(v => ['job card number','jobcard number'].includes(key(v))) &&
-        row.some(v => ['name of applicant','applicant name'].includes(key(v)))
-      );
-      if (headerIndex < 0) throw new Error('Could not find the Job Card Number and Name of Applicant headings. Copy the actual table with its column headings.');
-      const header = rows[headerIndex].map(key);
-      const find = (...names) => header.findIndex(v => names.includes(v));
-      const jobIndex = find('job card number','jobcard number');
-      const nameIndex = find('name of applicant','applicant name');
-      const householdIndex = find('head of household','head of household name');
-      const remarksIndex = find('reasons if job card not issued any other remarks','reasons if job card not issued','remarks','reason');
-      const kept = [rows[headerIndex]], removed = [], review = [];
-      for (const row of rows.slice(headerIndex + 1)) {
-        const text = row.map(v => String(v || '').trim()).filter(Boolean).join(' · ');
-        if (!text) continue;
-        if (/^(villages?\s*:|no\.\s*of\s*registrants\s*:|total\s+no\.?\s+of\s+registered\s+applicants|#\s*end\s+of\s+report|report\s+completed|excel\s+view)/i.test(text)) {
-          removed.push({ reason:'Non-applicant report heading/total', text }); continue;
-        }
-        const jobCard = String(row[jobIndex] || '').trim();
-        const name = String(row[nameIndex] || '').trim();
-        const validJobCard = /^MZ-[A-Z0-9-]+\/\d+$/i.test(jobCard);
-        if (!validJobCard && !name) {
-          removed.push({ reason:'Non-applicant/report row (no job card and no applicant name)', text }); continue;
-        }
-        const remarks = String(remarksIndex >= 0 ? row[remarksIndex] || '' : '');
-        const household = String(householdIndex >= 0 ? row[householdIndex] || '' : '');
-        const markedDeleted = household.includes('*') || name.includes('*') || /\bdeleted\b/i.test(remarks);
-        if (excludeDeleted && markedDeleted) {
-          removed.push({ reason:'Applicant marked deleted', text }); continue;
-        }
-        if (!validJobCard || !name) {
-          review.push({ reason:!validJobCard ? 'Missing or unrecognized job card number' : 'Missing applicant name', text });
-        }
-        kept.push(row);
-      }
-      return { rows:kept, removed, review };
-    }
-
-    function renderFilterList(id, entries, emptyText) {
-      const list = document.getElementById(id); list.replaceChildren();
-      const shown = entries.slice(0, 500);
-      if (!shown.length) { const li=document.createElement('li'); li.textContent=emptyText; list.appendChild(li); return; }
-      shown.forEach(entry => { const li=document.createElement('li'); li.textContent=entry.reason + ': ' + entry.text; list.appendChild(li); });
-      if (entries.length > shown.length) { const li=document.createElement('li'); li.textContent=(entries.length-shown.length)+' additional rows not shown'; list.appendChild(li); }
-    }
-
     loadTableButton.addEventListener('click', function () {
       importButton.disabled = true; pastedTableLoaded = false; importedRows = [];
       previewWrap.classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
-      document.getElementById('filter-summary').classList.add('hidden');
-      pendingImportId = null; pendingComparison = null; window.misReviewCount = 0;
-      try {
-        const parsed = parsePastedTable(tableInput.value);
-        if (!parsed.length) throw new Error('Paste the copied MIS table first.');
-        const filtered = filterPastedRows(parsed, document.getElementById('exclude-deleted').checked);
-        if (filtered.rows.length > 100000) throw new Error('The prepared MIS exceeds the 100,000-row import limit.');
-        importedRows = filtered.rows; pastedTableLoaded = true; renderRows(importedRows);
-        document.getElementById('filter-counts').textContent = 'Kept: ' + (importedRows.length - 1) + ' applicant rows · Removed: ' + filtered.removed.length + ' rows · Manual review: ' + filtered.review.length + ' rows.';
-        renderFilterList('filter-removed', filtered.removed, 'No rows were excluded.');
-        renderFilterList('filter-review', filtered.review, 'No uncertain rows detected.');
-        window.misReviewCount = filtered.review.length;
-        document.getElementById('review-confirm-wrap').classList.toggle('hidden', !filtered.review.length);
-        document.getElementById('review-confirm').checked = false;
-        document.getElementById('filter-summary').classList.remove('hidden');
-        importButton.disabled = !currentUser || currentRole !== 'admin' || filtered.review.length > 0;
-        setStatus('Prepared locally. Original pasted text is unchanged; no rows have been sent to Supabase. Review the preview and filtering summary.', 'success');
-      } catch (error) { setStatus(error.message || String(error), 'error'); }
-    });
-    document.getElementById('review-confirm').addEventListener('change', function () {
-      importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || (window.misReviewCount > 0 && !this.checked);
+      pendingImportId = null; pendingComparison = null;
+      const rows = parsePastedTable(tableInput.value);
+      if (!rows.length) { setStatus('Paste the copied MIS table first, then select Load pasted table.', 'error'); return; }
+      if (rows.length > 100000) { setStatus('The pasted MIS contains more than 100,000 rows. The import limit is 100,000 rows.', 'error'); return; }
+      if (!rows[0].some(cell => String(cell || '').trim())) { setStatus('The pasted table has no header row. Copy the MIS table including its column headings.', 'error'); return; }
+      importedRows = rows; pastedTableLoaded = true; renderRows(importedRows);
+      importButton.disabled = !currentUser || currentRole !== 'admin';
+      setStatus('Loaded ' + importedRows.length + ' pasted rows. Review the preview, then select Compare pasted MIS. Nothing has been sent to Supabase yet.', 'success');
     });
     tableInput.addEventListener('input', function () {
-      pastedTableLoaded = false; importedRows = []; importButton.disabled = true; window.misReviewCount = 0;
-      previewWrap.classList.add('hidden'); document.getElementById('filter-summary').classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
+      pastedTableLoaded = false; importedRows = []; importButton.disabled = true;
+      previewWrap.classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
     });
 
     async function invokeImport(payload) {
@@ -305,8 +242,8 @@
     }
 
     importButton.addEventListener('click', async function () {
-      if (!currentUser || currentRole !== 'admin' || !pastedTableLoaded || !Array.isArray(importedRows) || !importedRows.length || (window.misReviewCount > 0 && !document.getElementById('review-confirm').checked)) {
-        setStatus('Sign in as an administrator, prepare the MIS table, and review/confirm uncertain rows first.', 'error'); return;
+      if (!currentUser || currentRole !== 'admin' || !pastedTableLoaded || !Array.isArray(importedRows) || !importedRows.length) {
+        setStatus('Sign in as an administrator, paste the MIS table, and select Load pasted table first.', 'error'); return;
       }
       if (importedRows.length > 100000) { setStatus('This workbook contains more than 100,000 rows. Import limit is 100,000 rows.', 'error'); return; }
       importButton.disabled = true; tableInput.disabled = true; loadTableButton.disabled = true;

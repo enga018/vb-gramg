@@ -59,7 +59,7 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let entries=[], citizens=[], citizenRegistry=[], extraCharges=[], exemptions=[], currentCitizen=null, busy=false, currentPage=0, pageSize=50, appRole="";
+let entries=[], citizens=[], citizenRegistry=[], applicantsByCard={}, extraCharges=[], exemptions=[], currentCitizen=null, busy=false, currentPage=0, pageSize=50, appRole="";
 const exemptCardSet=()=>new Set(exemptions.map(x=>String(x.job_card_number||"").trim()));
 const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -173,6 +173,23 @@ function openCitizen(id){
    chargeOccurrenceIndex.set(e,next);
   }
  }
+ const activeApplicants=(Array.isArray(applicantsByCard[c.id])?applicantsByCard[c.id]:[]).slice().sort((a,b)=>String(a.applicant_number||"").localeCompare(String(b.applicant_number||""),undefined,{numeric:true})||String(a.applicant_name||"").localeCompare(String(b.applicant_name||"")));
+ const normalizeName=value=>String(value||"").normalize("NFKC").replace(/\s+/g," ").trim().toLocaleLowerCase();
+ const assignedCharges=activeApplicants.map(()=>[]);
+ const unassignedCharges=[];
+ const chargeEntries=chronological.filter(e=>e.entry_type==="charge");
+ for(const e of chargeEntries){
+  let matchIndex=-1;
+  if(e.applicant_unique_id)matchIndex=activeApplicants.findIndex(a=>a.applicant_unique_id&&String(a.applicant_unique_id)===String(e.applicant_unique_id));
+  if(matchIndex<0&&e.applicant_number)matchIndex=activeApplicants.findIndex(a=>a.applicant_number&&String(a.applicant_number)===String(e.applicant_number));
+  if(matchIndex<0&&e.applicant_name){const name=normalizeName(e.applicant_name),matches=activeApplicants.map((a,i)=>normalizeName(a.applicant_name)===name?i:-1).filter(i=>i>=0);if(matches.length===1)matchIndex=matches[0];}
+  if(matchIndex>=0&&!/^FTO EXTRA:/i.test(String(e.note||"")))assignedCharges[matchIndex].push(e);else unassignedCharges.push(e);
+ }
+ const applicantPanel='<div class="section-title">Applicants &amp; linked charges</div><div style="display:grid;gap:9px;margin-bottom:16px">'+(activeApplicants.length?activeApplicants.map((a,i)=>{
+  const charges=assignedCharges[i],total=charges.reduce((sum,e)=>sum+(Number(e.amount)||0),0);
+  const meta=[a.applicant_number?'Applicant No. '+a.applicant_number:'',a.applicant_unique_id?'ID '+a.applicant_unique_id:''].filter(Boolean).join(' · ');
+  return '<div style="border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:var(--surface-soft)"><div style="display:flex;justify-content:space-between;align-items:start;gap:10px"><div style="min-width:0"><b>'+esc(a.applicant_name||'Unnamed applicant')+'</b>'+(meta?'<div class="muted" style="font-size:.8rem">'+esc(meta)+'</div>':'')+'</div><b style="white-space:nowrap">'+fmt(total)+'</b></div>'+(charges.length?'<div style="margin-top:8px;display:grid;gap:5px">'+charges.map(e=>'<div style="display:flex;justify-content:space-between;gap:10px;font-size:.86rem"><span>'+esc(formatPeriod(e.charge_period)||e.note||'Charge')+(e.is_deferred?' · Deferred':'')+'</span><span style="white-space:nowrap">'+fmt(e.amount)+'</span></div>').join('')+'</div>':'<div class="muted" style="font-size:.83rem;margin-top:5px">No applicant-linked charges recorded.</div>')+'</div>';
+ }).join(''):'<div class="empty">No applicants were found in the active MIS for this job card.</div>')+'</div>'+(unassignedCharges.length?'<div style="border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin-bottom:16px"><b>Historical / job-card-level charges</b><div class="muted" style="font-size:.83rem;margin:3px 0 8px">These charges have no reliable applicant match and have not been reassigned.</div>'+unassignedCharges.map(e=>'<div style="display:flex;justify-content:space-between;gap:10px;font-size:.86rem;padding:5px 0"><span>'+esc(formatPeriod(e.charge_period)||e.note||'Charge')+'</span><span style="white-space:nowrap">'+fmt(e.amount)+'</span></div>').join('')+'<div style="border-top:1px solid var(--line);padding-top:7px;margin-top:5px;display:flex;justify-content:space-between"><b>Unassigned charges total</b><b>'+fmt(unassignedCharges.reduce((sum,e)=>sum+(Number(e.amount)||0),0))+'</b></div></div>':'');
  const sorted=[...chronological].reverse();
  const lines=sorted.map(e=>{
   const type=e.entry_type, amount=Number(e.amount)||0, isPayment=type==='payment';
@@ -195,7 +212,7 @@ function openCitizen(id){
   const extraReason=isExtra?(extraCharges.find(x=>String(x.job_card_number)===String(c.id)&&String(x.charge_period||"")===String(e.charge_period||""))?.reason||String(e.note||"").replace(/^FTO EXTRA:\\s*/i,"")):"";
   return '<div class="entry"><div class="desc"><b>'+esc(label)+(isExtra&&extraReason?' · '+esc(extraReason):type!=='charge'&&displayNote?' · '+esc(displayNote):'')+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+(appRole==='admin'&&!isExtra&&!c.exempt?'<div class="entry-actions"><button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button></div>':'')+'</div>';
  }).join('');
- $('sheetBody').innerHTML=(c.exempt?'<div class="notice info"><b>Exempt job card.</b> This job card is exempt. Contribution ledger entries are removed while exempt; its FTO transactions remain available in FTO history.</div>':'')+'<div class="balance"><div class="label">Current outstanding balance</div><div class="amount '+(c.balance<=0?'zero':'owing')+'">'+fmt(Math.max(0,c.balance))+'</div><div class="sub" style="margin:0">Full job card: '+esc(c.id)+'</div></div><div class="split"><div><div class="k">Charges incl. fees</div><div class="v">'+fmt(c.charges)+'</div></div><div><div class="k">Payments</div><div class="v" style="color:var(--paid)">'+fmt(c.paid)+'</div></div><div><div class="k">Waivers / returns</div><div class="v">'+fmt(c.waived+c.returns)+'</div></div><div><div class="k">Deferred</div><div class="v">'+fmt(c.deferred)+'</div></div></div>'+(c.exempt?'<div class="section-title">Contribution ledger (empty while exempt)</div>':'<div class="transaction-actions"><button class="btn" type="button" id="addPaymentBtn">Record payment</button>'+(c.balance>0?'<button class="btn" type="button" id="payFullBtn">Pay in full</button>':'')+(appRole==='admin'?'<button class="btn ghost" type="button" id="extraChargeBtn">Add / edit extra amount</button><button class="btn ghost" type="button" id="waiveBtn">Waive</button><button class="btn ghost" type="button" id="returnBtn">Return</button>':'')+'</div><div class="section-title">Ledger history</div>')+(lines||'<div class="empty">No ledger entries.</div>');
+ $('sheetBody').innerHTML=(c.exempt?'<div class="notice info"><b>Exempt job card.</b> This job card is exempt. Contribution ledger entries are removed while exempt; its FTO transactions remain available in FTO history.</div>':'')+applicantPanel+'<div class="balance"><div class="label">Current outstanding balance</div><div class="amount '+(c.balance<=0?'zero':'owing')+'">'+fmt(Math.max(0,c.balance))+'</div><div class="sub" style="margin:0">Full job card: '+esc(c.id)+'</div></div><div class="split"><div><div class="k">Charges incl. fees</div><div class="v">'+fmt(c.charges)+'</div></div><div><div class="k">Payments</div><div class="v" style="color:var(--paid)">'+fmt(c.paid)+'</div></div><div><div class="k">Waivers / returns</div><div class="v">'+fmt(c.waived+c.returns)+'</div></div><div><div class="k">Deferred</div><div class="v">'+fmt(c.deferred)+'</div></div></div>'+(c.exempt?'<div class="section-title">Contribution ledger (empty while exempt)</div>':'<div class="transaction-actions"><button class="btn" type="button" id="addPaymentBtn">Record payment</button>'+(c.balance>0?'<button class="btn" type="button" id="payFullBtn">Pay in full</button>':'')+(appRole==='admin'?'<button class="btn ghost" type="button" id="extraChargeBtn">Add / edit extra amount</button><button class="btn ghost" type="button" id="waiveBtn">Waive</button><button class="btn ghost" type="button" id="returnBtn">Return</button>':'')+'</div><div class="section-title">Ledger history</div>')+(lines||'<div class="empty">No ledger entries.</div>');
  $('overlay').classList.remove('hidden');
  const addPayment=$('addPaymentBtn');if(addPayment)addPayment.addEventListener('click',showPaymentForm);
  const payFull=$('payFullBtn');if(payFull)payFull.addEventListener('click',payInFull);
@@ -370,7 +387,7 @@ async function load(){
   status('Loading active MIS and contribution ledger…');
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
-  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");entries=data.entries||[];extraCharges=data.extras||[];citizenRegistry=data.citizens||[];exemptions=data.exemptions||[];deriveCitizens();renderExemptions();
+  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");entries=data.entries||[];extraCharges=data.extras||[];citizenRegistry=data.citizens||[];applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];deriveCitizens();renderExemptions();
   $('app').classList.remove('hidden');status('Loaded active MIS job cards and '+entries.length.toLocaleString('en-IN')+' contribution ledger entries. Job card details come from active MIS; balances and history come from the ledger.');
   render();
  }catch(err){status(err.message||'Could not load contribution data.','err');}

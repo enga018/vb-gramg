@@ -224,6 +224,29 @@
       if (kept.length < 2) throw new Error('No applicant rows remain after filtering. Check that you copied the full table with its headings.');
       return {rows:kept,removed,review};
     }
+    function normalizeMisTable(rows) {
+      const clean = v => String(v == null ? '' : v).replace(/\u00a0/g, ' ').replace(/&amp;/gi, '&').trim();
+      const key = v => clean(v).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      const hi = rows.findIndex(row => row.some(v => ['job card number','jobcard number','jc no'].includes(key(v))) && row.some(v => ['name of applicant','applicant name'].includes(key(v))));
+      if (hi < 0) throw new Error('Could not find Job Card Number and Name of Applicant headings.');
+      const header = rows[hi].map(key);
+      const col = (...names) => header.findIndex(v => names.includes(v));
+      const job = col('job card number','jobcard number','jc no');
+      const household = col('head of household','head of household name');
+      const name = col('name of applicant','applicant name');
+      const sl = col('sl no','s no');
+      const applicantNo = col('applicant no','applicant no.');
+      const uid = col('unique id');
+      const dbHeader = ['Sl. No.','Job Card Number','JC No.','Head of HouseHold','Name of Applicant','Applicant No.','Unique ID'];
+      const normalized = [dbHeader];
+      for (const row of rows.slice(hi + 1)) {
+        const text = row.map(clean).filter(Boolean).join(' ');
+        if (!text) continue;
+        const jobCard = job >= 0 ? clean(row[job]) : '';
+        normalized.push([sl >= 0 ? clean(row[sl]) : String(normalized.length), jobCard, jobCard, household >= 0 ? clean(row[household]) : '', name >= 0 ? clean(row[name]) : '', applicantNo >= 0 ? clean(row[applicantNo]) : '', uid >= 0 ? clean(row[uid]) : '']);
+      }
+      return normalized;
+    }
     function showFilterItems(id, items) {
       const list = document.getElementById(id); list.replaceChildren();
       if (!items.length) { const li=document.createElement('li'); li.textContent='None'; list.appendChild(li); return; }
@@ -240,8 +263,8 @@
         if (!parsed.length) throw new Error('Paste the copied MIS table first.');
         const result = filterPastedRows(parsed, document.getElementById('exclude-deleted').checked);
         if (result.rows.length > 100000) throw new Error('The prepared MIS exceeds the 100,000-row import limit.');
-        importedRows = result.rows; pastedTableLoaded = true; renderRows(importedRows);
-        document.getElementById('filter-counts').textContent = 'Applicant rows kept: ' + (result.rows.length - 1) + ' · Rows removed: ' + result.removed.length + ' · Rows flagged for manual review (kept): ' + result.review.length + '. Original pasted text has not been changed.';
+        importedRows = normalizeMisTable(result.rows); pastedTableLoaded = true; renderRows(importedRows);
+        document.getElementById('filter-counts').textContent = 'Database-format applicant rows prepared: ' + (importedRows.length - 1) + ' · Rows removed: ' + result.removed.length + ' · Rows flagged for manual review (kept): ' + result.review.length + '. Government S.No. is used only as Sl. No.; Applicant No. and Unique ID remain blank unless already supplied. Original pasted text has not been changed.';
         showFilterItems('filter-removed', result.removed);
         showFilterItems('filter-review', result.review);
         document.getElementById('filter-summary').classList.remove('hidden');

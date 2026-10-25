@@ -354,6 +354,10 @@
         rowList('filter-removed', prepared.removed, 'No rows removed.');
         rowList('filter-review', prepared.review, 'No uncertain rows found.');
         document.getElementById('filter-summary').classList.remove('hidden');
+        if (prepared.review.length > 0) {
+          setStatus('Comparison paused: ' + prepared.review.length + ' uncertain row(s) need manual review. They are listed above and have not been compared. This pause prevents existing applicants from being incorrectly marked deleted because a source row could not be matched. Correct the source/paste and run Analyze and compare again. The active MIS has not changed.', 'error');
+          return;
+        }
         if (importedRows.length < 2) throw new Error('Filtering produced no applicant rows to compare.');
         setStatus('Filtering complete. Sending rows to temporary staging; active MIS remains unchanged…', '');
         const started = await invokeImport({ action: 'begin', filename: importedFileName, rowCount: importedRows.length });

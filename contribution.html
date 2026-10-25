@@ -45,7 +45,7 @@ table{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem;white
  <button class="btn" id="saveExemptionBtn" type="button">Add exemption</button><div id="exemptionStatus" class="muted" style="margin-top:8px"></div>
  <div class="section-title">Current exemptions</div><div id="exemptionList"></div>
 </section>
-<div class="toolbar"><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="deferred">Has deferred charges</option></select></div><button id="clearSearch" class="btn ghost" type="button">Clear</button></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button></div></div>
+<div class="toolbar"><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="deferred">Has deferred charges</option></select></div></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button></div></div>
 </section>
 </div>
 </main>
@@ -470,7 +470,7 @@ async function load(){
 
 $('search').addEventListener('input',()=>{currentPage=0;render()});
 $('statusFilter').addEventListener('change',()=>{currentPage=0;render()});
-$('clearSearch').addEventListener('click',()=>{$('search').value='';$('statusFilter').value='due';currentPage=0;render();$('search').focus();});
+
 $('prev-button').addEventListener('click',()=>{currentPage--;render()});$('next-button').addEventListener('click',()=>{currentPage++;render()});
 window.addEventListener('resize',()=>render());
 $('refreshBtn').addEventListener('click',load);

@@ -307,11 +307,13 @@
           if(!card && !name){removed.push('Non-applicant/report row: '+text);continue;}
           review.push('Row '+(i+1)+' — '+(!card?'missing job card number; ':'')+(!name?'missing applicant name; ':'')+text);continue;
         }
-        if(document.getElementById('exclude-deleted').checked && isDeletedRow(row,si)){removed.push('Marked deleted: '+card+' · '+name);continue;}
+        // Carry forward the household head within this job card before filtering deleted rows.
+        // This preserves the household context when the head's own row is marked deleted.
         if(card!==previousCard){previousCard=card;previousHousehold='';}
         const rawHousehold=normText(row[si.household]);
         if(rawHousehold) previousHousehold=rawHousehold.replace(/\*/g,'').trim();
         const household=rawHousehold ? rawHousehold.replace(/\*/g,'').trim() : previousHousehold;
+        if(document.getElementById('exclude-deleted').checked && isDeletedRow(row,si)){removed.push('Marked deleted: '+card+' · '+name);continue;}
         if(!household){review.push('Row '+(i+1)+' — no household head available within job card '+card+': '+name);continue;}
         const matchKey=card.toLowerCase()+'|'+cleanName(name);
         const matches=existingByMatch.get(matchKey)||[];

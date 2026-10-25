@@ -33,14 +33,14 @@ table{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem;white
 </style>
 </head>
 <body>
-<header class="topbar"><div class="brand"><h1>Contribution</h1><p><a href="./">← Main menu</a></p></div><div class="top-actions"><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Manage exempt job cards</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk bank payment</button><button class="btn ghost small" id="refreshBtn" type="button">Refresh</button></div></header>
+<header class="topbar"><div class="brand"><h1>Contribution</h1><p><a href="./">← Main menu</a></p></div><div class="top-actions"><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bank Payment</button><button class="btn ghost small" id="refreshBtn" type="button">Refresh</button></div></header>
 <main>
-<section class="panel"><div id="status" class="notice info">Starting Contribution page…</div></section>
+<div id="status" class="notice info hidden" role="status" aria-live="polite"></div>
 <div id="app" class="hidden">
 <section class="panel">
 <div class="stats"><div class="stat"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred total</div><div class="v" id="deferred">—</div></div></div>
 <section class="panel hidden" id="exemptionPanel" style="margin-bottom:16px">
- <h1>Exempt job cards</h1><p class="sub">Exempt job cards remain visible in FTO history. Their Contribution ledger entries, extra charges, and contribution-citizen records are removed while exempt; FTO transactions and FTO status history are preserved.</p>
+ <h1>Exemptions</h1><p class="sub">Exempt job cards remain visible in FTO history. Their Contribution ledger entries, extra charges, and contribution-citizen records are removed while exempt; FTO transactions and FTO status history are preserved.</p>
  <div class="grid2"><div class="field"><label for="exemptJobCard">Full job card number</label><input id="exemptJobCard" maxlength="100" placeholder="Enter full job card number" autocomplete="off"></div><div class="field"><label for="exemptNote">Reason / note (optional)</label><input id="exemptNote" maxlength="300" placeholder="Reason for exemption"></div></div>
  <button class="btn" id="saveExemptionBtn" type="button">Add exemption</button><div id="exemptionStatus" class="muted" style="margin-top:8px"></div>
  <div class="section-title">Current exemptions</div><div id="exemptionList"></div>
@@ -90,7 +90,7 @@ const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const day=s=>s?new Date(s+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'Date not recorded';
 const formatPeriod=s=>{const m=String(s||'').match(/^(\d{4})-(\d{2})/);if(!m)return s||'Monthly charge';const months=['January','February','March','April','May','June','July','August','September','October','November','December'];const n=Number(m[2]);return n>=1&&n<=12?months[n-1]+' '+m[1]:(s||'Monthly charge')};
-function status(message,type='info'){ $('status').className='notice '+(type==='err'?'err':'info');$('status').textContent=message; }
+function status(message,type='info'){ const el=$('status');el.className='notice '+(type==='err'?'err':'info');el.textContent=message;el.classList.remove('hidden'); }
 function calculateLedgerState(ledger){
  let charged=0,paid=0,returned=0,waived=0,deferred=0;const active=[];
  for(const e of ledger||[]){if(!e)continue;const n=Math.max(0,Number(e.amount)||0),t=e.entry_type;
@@ -462,7 +462,7 @@ async function load(){
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}});
   if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
   appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");entries=data.entries||[];extraCharges=data.extras||[];citizenRegistry=data.citizens||[];applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];deriveCitizens();renderExemptions();
-  $('app').classList.remove('hidden');status('Loaded active MIS job cards and '+entries.length.toLocaleString('en-IN')+' contribution ledger entries. Job card details come from active MIS; balances and history come from the ledger.');
+  $('app').classList.remove('hidden');$('status').classList.add('hidden');
   render();
  }catch(err){status(err.message||'Could not load contribution data.','err');}
  finally{$('refreshBtn').disabled=false;}

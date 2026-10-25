@@ -150,8 +150,28 @@ tbody tr:last-child td{border-bottom:0}
  #fto-history-table .history-action-cell>button{font-size:.76rem;min-height:36px;padding:7px 9px}
  #fto-history-table tbody>tr.history-detail{display:block;background:transparent}
  #fto-history-table tbody>tr.history-detail>td{display:block;padding:8px 0;border:0;background:transparent}
- #fto-history-table tbody>tr:not(.fto-history-row):not(.history-detail){display:block;background:#fff;border:1px solid #e1e7f0;border-radius:10px}
- #fto-history-table tbody>tr:not(.fto-history-row):not(.history-detail)>td{display:block;padding:14px;border:0}
+ #fto-history-table tbody>tr.empty-state-row{
+  display:block;
+  width:100%;
+  background:#fff;
+  border:1px solid #e1e7f0;
+  border-radius:12px;
+ }
+ #fto-history-table tbody>tr.empty-state-row>td.empty-state-cell{
+  display:block;
+  width:100%;
+  min-width:0!important;
+  max-width:none;
+  padding:32px 16px!important;
+  text-align:center;
+  white-space:normal;
+  overflow-wrap:break-word;
+  word-break:normal;
+  line-height:1.55;
+  border:0;
+ }
+ #fto-history-table tbody>tr:not(.fto-history-row):not(.history-detail):not(.empty-state-row){display:block;background:#fff;border:1px solid #e1e7f0;border-radius:10px}
+ #fto-history-table tbody>tr:not(.fto-history-row):not(.history-detail):not(.empty-state-row)>td{display:block;padding:14px;border:0}
 }
 .history-detail td{padding:14px;background:#f8fafd}
 .history-detail .table-wrap{max-height:55vh}
@@ -524,7 +544,10 @@ async function loadFtoHistory(){
   for(const value of periods){const option=document.createElement("option");option.value=value;option.textContent=value;select.appendChild(option);}
   if(periods.includes(old))select.value=old;
   if(expandedFtoId&&!ftoHistoryRows.some(b=>b.id===expandedFtoId))expandedFtoId=null;
-  renderFtoHistory();historyMessage(ftoHistoryRows.length?ftoHistoryRows.length+" imported FTO(s) loaded.":"No FTOs imported yet. Imported FTOs will appear here.");
+  renderFtoHistory();
+  const historyStatus=$("fto-history-status");
+  if(ftoHistoryRows.length){historyMessage(ftoHistoryRows.length+" imported FTO(s) loaded.");}
+  else{historyStatus.textContent="";historyStatus.classList.add("hidden");historyStatus.classList.remove("error","success");}
  }catch(err){if(seq!==historyLoadSequence)return;historyMessage(err.message||"Could not load FTO history.","error");}
 }
 $("refresh-fto-history").addEventListener("click",loadFtoHistory);

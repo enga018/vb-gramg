@@ -203,8 +203,21 @@
       if(values.length>1000){const li=document.createElement('li');li.textContent=(values.length-1000)+' more rows not displayed';list.appendChild(li);}
     }
     async function prepareGovernmentRegister(parsedRows) {
-      const headerAt=parsedRows.findIndex(row=>findColumn(row,['job card number','jobcard number'])>=0 && findColumn(row,['name of applicant','applicant name'])>=0);
-      if(headerAt<0) throw new Error('Could not find the Job Card Number and Name of Applicant headings in the pasted table.');
+      const label = value => headerKey(value).replace(/\\bno\\b/g, 'number');
+      const hasJobHeading = row => row.some(v => {
+        const k=label(v);
+        return k==='job card number'||k==='jobcard number'||k==='job card no'||k==='job card number 9'||k==='jc number';
+      });
+      const hasNameHeading = row => row.some(v => {
+        const k=label(v);
+        return k==='name of applicant'||k==='applicant name'||k==='name applicant';
+      });
+      // Clipboard formats vary: allow punctuation/wrapping variations in the heading cells.
+      const headerAt=parsedRows.findIndex(row=>hasJobHeading(row)&&hasNameHeading(row));
+      if(headerAt<0) {
+        const preview=parsedRows.slice(0,12).map(row=>row.map(normText).filter(Boolean).join(' | ')).filter(Boolean).join(' / ').slice(0,500);
+        throw new Error('Could not identify a single header row containing both Job Card Number and Name of Applicant. Make sure the copied table includes its column headings and uses the table-copy action (tab-separated cells). Parsed start: '+(preview||'(no readable rows)'));
+      }
       const sourceHeader=parsedRows[headerAt];
       const si={
         serial:findColumn(sourceHeader,['s no','s no.','s no','serial no','serial number']),

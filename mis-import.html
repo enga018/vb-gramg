@@ -130,18 +130,22 @@
     supabaseClient.auth.getSession().then(({ data }) => updateAuthUI(data.session ? data.session.user : null));
 
     function parsePastedTable(raw) {
-      const text = String(raw || '').replace(/\r/g, '').trim();
+      const text = String(raw || '').replace(/\r/g, '').replace(/\u00a0/g, ' ').trim();
       if (!text) return [];
-      const lines = text.split('\n').filter(line => line.trim().length > 0);
-      const delimiter = lines.some(line => line.includes('\t')) ? '\t' : lines.some(line => line.includes('|')) ? '|' : ',';
-      return lines.map(line => {
-        if (delimiter === '\t') return line.split('\t').map(cell => cell.trim());
-        if (delimiter === '|') {
-          const cells = line.split('|').map(cell => cell.trim());
-          if (cells.length && cells[0] === '') cells.shift();
-          if (cells.length && cells[cells.length - 1] === '') cells.pop();
-          return cells;
-        }
+      const lines = text.split('\n');
+      const nonblank = lines.filter(line => line.trim());
+      const delimiter = nonblank.some(line => line.includes('\t')) ? '\t' : nonblank.some(line => line.includes('|')) ? '|' : ',';
+      if (delimiter === '\t') return lines.filter(line => line.trim()).map(line => line.split('\t').map(cell => cell.trim()));
+      if (delimiter === '|') return lines.filter(line => line.trim()).map(line => {
+        const cells = line.split('|').map(cell => cell.trim());
+        if (cells[0] === '') cells.shift();
+        if (cells[cells.length - 1] === '') cells.pop();
+        return cells;
+      });
+      // Government reports are sometimes copied as one value per line instead of a grid.
+      // Keep the line-oriented shape so the report adapter can detect this format later.
+      if (!nonblank.some(line => line.includes(','))) return lines.map(line => [line.trim()]);
+      return nonblank.map(line => {
         const cells = []; let cell = '', quoted = false;
         for (let i = 0; i < line.length; i++) {
           const ch = line[i];
@@ -157,12 +161,14 @@
     function prepareMisRows(rawRows, excludeDeleted) {
       const clean = value => String(value == null ? '' : value).replace(/&amp;/gi, '&').replace(/\u00a0/g, ' ').trim();
       const norm = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-      const headerIndex = rawRows.findIndex(row => {
-        const cells = row.map(norm);
-        return cells.some(v => v === 'job card number' || v === 'jobcard number') &&
-          cells.some(v => v === 'name of applicant' || v === 'applicant name');
-      });
-      if (headerIndex < 0) throw new Error('Could not find the Job Card Number and Name of Applicant headings. Copy the table with its column headings.');
+      const isJobHeader = value => /^(job\s*card\s*number|jobcard\s*number)$/.test(norm(value));
+      const isNameHeader = value => /^(name\s*of\s*applicant|applicant\s*name)$/.test(norm(value));
+      const headerIndex = rawRows.findIndex(row => row.some(isJobHeader) && row.some(isNameHeader));
+      if (headerIndex < 0) {
+        // Provide a format-specific message rather than silently treating report text as applicant rows.
+        const sample = rawRows.slice(0, 18).map(row => row.map(clean).filter(Boolean).join(' | ')).filter(Boolean).join(' / ');
+        throw new Error('The pasted content is not being read as a table with column headings. Copy the report table itself (so columns are separated by tabs), not the whole webpage text. Detected beginning: ' + sample.slice(0, 260));
+      }
       const header = rawRows[headerIndex].map(clean);
       const keys = header.map(norm);
       const findColumn = (...names) => keys.findIndex(k => names.includes(k));

@@ -191,7 +191,7 @@ function render(){
    metaLine.appendChild(chargeLine);detail.appendChild(metaLine);
    const balanceLine=document.createElement('div');balanceLine.className='mobile-subline';
    if(c.balance>0){
-    const balance=document.createElement('div');balance.className='mobile-outstanding';balance.textContent=fmt(c.balance);balance.style.color='#e9a23b';balanceLine.appendChild(balance);
+    const balance=document.createElement('div');balance.className='mobile-outstanding';balance.textContent='Outstanding: '+fmt(c.balance);balance.style.color='#e9a23b';balanceLine.appendChild(balance);
    }else{
     const settled=document.createElement('div');settled.className='mobile-settled';settled.textContent='SETTLED';settled.style.color='#16a34a';balanceLine.appendChild(settled);
    }

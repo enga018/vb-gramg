@@ -78,6 +78,19 @@
       <button type="button" id="load-table-button">Analyze and compare</button>
     </div>
     <div id="status" class="status" aria-live="polite">Checking administrator access…</div>
+    <section id="filter-summary" class="diff-panel hidden" aria-live="polite">
+      <h2>Local filtering results</h2>
+      <div class="diff-summary">
+        <div class="diff-count"><strong id="filter-kept-count">0</strong>Applicants prepared</div>
+        <div class="diff-count"><strong id="filter-removed-count">0</strong>Rows excluded</div>
+        <div class="diff-count"><strong id="filter-review-count">0</strong>Rows needing review</div>
+        <div class="diff-count"><strong id="filter-matched-count">0</strong>Existing records matched</div>
+        <div class="diff-count"><strong id="filter-newid-count">0</strong>New IDs generated</div>
+      </div>
+      <p class="hint">The original pasted text above is not modified. Excluded rows and uncertain rows are not included in the comparison. Nothing is written to the active MIS until you confirm the comparison.</p>
+      <h3>Excluded rows and reasons</h3><ul id="filter-removed-list" class="diff-list"></ul>
+      <h3>Rows requiring manual review</h3><ul id="filter-review-list" class="diff-list"></ul>
+    </section>
     <section id="diff-panel" class="diff-panel hidden" aria-live="polite">
       <h2 id="diff-title">Review MIS changes</h2>
       <p id="diff-intro">Compare the uploaded file with the current active MIS before applying changes.</p>
@@ -330,6 +343,7 @@
       loadTableButton.disabled = true;
       pastedTableLoaded = false; importedRows = [];
       document.getElementById('diff-panel').classList.add('hidden');
+      document.getElementById('filter-summary').classList.add('hidden');
       pendingComparison = null;
       const parsedRows = parsePastedTable(tableInput.value);
       if (!parsedRows.length) { setStatus('Paste the copied MIS table first.', 'error'); loadTableButton.disabled = false; return; }
@@ -341,8 +355,16 @@
         importedRows = prepared.output;
         pastedTableLoaded = true;
         window.misReviewCount = prepared.review.length;
+        document.getElementById('filter-kept-count').textContent = Math.max(0, prepared.output.length - 1).toLocaleString();
+        document.getElementById('filter-removed-count').textContent = prepared.removed.length.toLocaleString();
+        document.getElementById('filter-review-count').textContent = prepared.review.length.toLocaleString();
+        document.getElementById('filter-matched-count').textContent = prepared.matchedCount.toLocaleString();
+        document.getElementById('filter-newid-count').textContent = prepared.generatedIdCount.toLocaleString();
+        rowList('filter-removed-list', prepared.removed, 'No rows excluded.');
+        rowList('filter-review-list', prepared.review, 'No uncertain rows found.');
+        document.getElementById('filter-summary').classList.remove('hidden');
         if (prepared.review.length > 0) {
-          setStatus('Comparison paused: ' + prepared.review.length + ' uncertain row(s) need manual review. They are listed above and have not been compared. This pause prevents existing applicants from being incorrectly marked deleted because a source row could not be matched. Correct the source/paste and run Analyze and compare again. The active MIS has not changed.', 'error');
+          setStatus('Comparison paused: ' + prepared.review.length + ' uncertain row(s) need manual review. See the list above. These rows have not been compared, and the active MIS has not changed. Correct the source/paste and run Analyze and compare again.', 'error');
           return;
         }
         if (importedRows.length < 2) throw new Error('Filtering produced no applicant rows to compare.');
@@ -378,6 +400,7 @@
     tableInput.addEventListener('input', function () {
       pastedTableLoaded = false; importedRows = [];
       document.getElementById('diff-panel').classList.add('hidden');
+      document.getElementById('filter-summary').classList.add('hidden');
     });
 
     async function invokeImport(payload) {

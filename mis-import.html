@@ -147,7 +147,7 @@
       thead.replaceChildren();
       tbody.replaceChildren();
       const headers = rows[0] || [];
-      const maxCols = Math.max(headers.length, ...rows.slice(1).map(row => row.length), 0);
+      const maxCols = rows.reduce((max, row) => Math.max(max, row.length), headers.length);
       const header = document.createElement('tr');
       for (let i = 0; i < maxCols; i++) {
         const th = document.createElement('th');
@@ -514,8 +514,11 @@
       importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || (uncertainRowsCount > 0 && !this.checked);
     });
     tableInput.addEventListener('input', function () {
-      pastedTableLoaded = false; importedRows = []; uncertainRowsCount = 0; importButton.disabled = true;
-      previewWrap.classList.add('hidden'); document.getElementById('filter-summary').classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
+      pastedTableLoaded = false; importedRows = []; uncertainRowsCount = 0;
+      sourceRowsLoaded = []; sourceTableLoaded = false; importButton.disabled = true;
+      document.getElementById('prepare-table-button').disabled = true;
+      previewWrap.classList.add('hidden'); document.getElementById('source-table-summary').classList.add('hidden');
+      document.getElementById('filter-summary').classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
     });
 
     async function invokeImport(payload) {

@@ -216,11 +216,18 @@
       // Begin after the village summary so those column numbers are never mistaken for applicants.
       const villageSummary = lines.findIndex((v, i) => i > start && /^villages?\s*:/i.test(v));
       const dataStart = villageSummary >= 0 ? villageSummary + 1 : start + 1;
-      const blocks = [];
+      const blocks = [], footerRows = [];
       let current = null, expectedSerial = 1, previousLine = '';
-      const flush = () => { if (current) blocks.push(current); };
+      const flush = () => { if (current) blocks.push(current); current = null; };
       for (const line of lines.slice(dataStart)) {
-        const serialLine = cleanLine(line).trim();
+        const normalized = cleanLine(line);
+        if (/^(total\s+no\.?\s+of\s+registered\s+applicants|if\s+any\s+['"]?\\?\*|#\s*end\s+of\s+report|report\s+completed|\\?\[?excel\s+view)/i.test(normalized)) {
+          flush();
+          footerRows.push([normalized]);
+          previousLine = normalized;
+          continue;
+        }
+        const serialLine = normalized.trim();
         const n = /^\d{1,4}$/.test(serialLine) ? Number(serialLine) : 0;
         if (n === expectedSerial && !/^(M|F)$/i.test(previousLine)) {
           flush(); current = [line]; expectedSerial++; previousLine = line; continue;
@@ -255,6 +262,7 @@
         const flags = after.filter(v => /^(Y|N)$/i.test(v));
         result.push([b[0], household, caste, name, father, gi >= 0 ? before[gi] : '', ai >= 0 ? before[ai] : '', receiptDate, vals[ji], issueDate, remarks, flags[0] || '', flags[1] || '', verified]);
       }
+      result.push(...footerRows);
       return result;
     }
 

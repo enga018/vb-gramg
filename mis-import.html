@@ -260,8 +260,8 @@
       importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || (window.misReviewCount > 0 && !this.checked);
     });
     tableInput.addEventListener('input', function () {
-      pastedTableLoaded = false; importedRows = []; importButton.disabled = true;
-      previewWrap.classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
+      pastedTableLoaded = false; importedRows = []; importButton.disabled = true; window.misReviewCount = 0;
+      previewWrap.classList.add('hidden'); document.getElementById('filter-summary').classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
     });
 
     async function invokeImport(payload) {
@@ -305,8 +305,8 @@
     }
 
     importButton.addEventListener('click', async function () {
-      if (!currentUser || currentRole !== 'admin' || !pastedTableLoaded || !Array.isArray(importedRows) || !importedRows.length) {
-        setStatus('Sign in as an administrator, paste the MIS table, and select Load pasted table first.', 'error'); return;
+      if (!currentUser || currentRole !== 'admin' || !pastedTableLoaded || !Array.isArray(importedRows) || !importedRows.length || (window.misReviewCount > 0 && !document.getElementById('review-confirm').checked)) {
+        setStatus('Sign in as an administrator, prepare the MIS table, and review/confirm uncertain rows first.', 'error'); return;
       }
       if (importedRows.length > 100000) { setStatus('This workbook contains more than 100,000 rows. Import limit is 100,000 rows.', 'error'); return; }
       importButton.disabled = true; tableInput.disabled = true; loadTableButton.disabled = true;

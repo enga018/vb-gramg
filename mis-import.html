@@ -188,13 +188,16 @@
       importButton.disabled = true; pastedTableLoaded = false; importedRows = [];
       previewWrap.classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
       pendingImportId = null; pendingComparison = null;
-      const rows = parsePastedTable(tableInput.value);
-      if (!rows.length) { setStatus('Paste the copied MIS table first, then select Load pasted table.', 'error'); return; }
-      if (rows.length > 100000) { setStatus('The pasted MIS contains more than 100,000 rows. The import limit is 100,000 rows.', 'error'); return; }
-      if (!rows[0].some(cell => String(cell || '').trim())) { setStatus('The pasted table has no header row. Copy the MIS table including its column headings.', 'error'); return; }
+      const parsedRows = parsePastedTable(tableInput.value);
+      if (!parsedRows.length) { setStatus('Paste the copied MIS table first, then select Load pasted table.', 'error'); return; }
+      if (parsedRows.length > 100000) { setStatus('The pasted MIS contains more than 100,000 rows. The import limit is 100,000 rows.', 'error'); return; }
+      // Parse the complete pasted content first, then omit the first 12 report rows from preview and import processing.
+      const rows = parsedRows.slice(12);
+      if (!rows.length) { setStatus('No rows remain after excluding the first 12 report rows. Check the pasted content.', 'error'); return; }
+      if (!rows[0].some(cell => String(cell || '').trim())) { setStatus('The remaining table has no usable row. Check that the pasted report includes applicant rows.', 'error'); return; }
       importedRows = rows; pastedTableLoaded = true; renderRows(importedRows);
       importButton.disabled = !currentUser || currentRole !== 'admin';
-      setStatus('Loaded ' + importedRows.length + ' pasted rows. Review the preview, then select Compare pasted MIS. Nothing has been sent to Supabase yet.', 'success');
+      setStatus('Prepared ' + importedRows.length + ' rows after excluding the first 12 report rows. Only these rows are shown and will be compared. Nothing has been sent to Supabase yet.', 'success');
     });
     tableInput.addEventListener('input', function () {
       pastedTableLoaded = false; importedRows = []; importButton.disabled = true;

@@ -173,20 +173,26 @@ async function loadData(){
  const seq=++loadSequence;
  status($('data-status'),'Loading current MIS data…');
  try{
-  const first=await supabaseClient.functions.invoke('vbgramg-mis-data',{body:{page:0,pageSize:200}});
+  const fetchPageSize=1000,concurrentPageRequests=4;
+  const first=await supabaseClient.functions.invoke('vbgramg-mis-data',{body:{page:0,pageSize:fetchPageSize}});
   if(first.error)throw new Error(first.error.message||'Could not load MIS data.');
   const data=first.data;if(!data||data.approved!==true)throw new Error((data&&data.error)||'MIS data access was denied.');
   if(seq!==loadSequence)return;
   $('updated-at').textContent=data.updatedAt?new Date(data.updatedAt).toLocaleString():'—';
   if(!data.hasData||!data.totalRows){allRows=[];headers=[];jobCards=[];selectedApplicants=new Map();renderTable();status($('data-status'),'No MIS data has been imported yet. An administrator can import the MIS worksheet.');return}
-  let rows=(data.rows||[]).map(r=>({rowNumber:r.rowNumber,values:Array.isArray(r.values)?r.values:[]}));
-  for(let page=1;page<Math.ceil(data.totalRows/200);page++){
-   const next=await supabaseClient.functions.invoke('vbgramg-mis-data',{body:{page,pageSize:200}});
-   if(next.error)throw new Error(next.error.message||'Could not load all MIS rows.');
-   if(!next.data||next.data.approved!==true)throw new Error((next.data&&next.data.error)||'MIS data access was denied.');
-   rows=rows.concat((next.data.rows||[]).map(r=>({rowNumber:r.rowNumber,values:Array.isArray(r.values)?r.values:[]})));
+  const rows=(data.rows||[]).map(r=>({rowNumber:r.rowNumber,values:Array.isArray(r.values)?r.values:[]}));
+  const totalPages=Math.ceil(data.totalRows/fetchPageSize);
+  for(let firstPage=1;firstPage<totalPages;firstPage+=concurrentPageRequests){
+   const pages=Array.from({length:Math.min(concurrentPageRequests,totalPages-firstPage)},(_,index)=>firstPage+index);
+   const results=await Promise.all(pages.map(page=>supabaseClient.functions.invoke('vbgramg-mis-data',{body:{page,pageSize:fetchPageSize}})));
+   if(seq!==loadSequence)return;
+   for(let index=0;index<results.length;index++){
+    const next=results[index];
+    if(next.error)throw new Error(next.error.message||'Could not load all MIS rows.');
+    if(!next.data||next.data.approved!==true)throw new Error((next.data&&next.data.error)||'MIS data access was denied.');
+    rows.push(...(next.data.rows||[]).map(r=>({rowNumber:r.rowNumber,values:Array.isArray(r.values)?r.values:[]})));
+   }
   }
-  if(seq!==loadSequence)return;
   const sourceHeader=rows.length?rows[0].values:[];
   headers=sourceHeader.map((v,i)=>String(v==null||String(v).trim()===''?'Column '+(i+1):v));
   allRows=rows.slice(1);

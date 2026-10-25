@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0f172a">
+<title>FTO — VBGRAMG</title>
+<style>
+:root{
+ color-scheme:light;
+ font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+ color:#172033;
+ background:#f3f6fb;
+ --ink:#172033;
+ --muted:#667085;
+ --line:#e3e8f0;
+ --surface:#fff;
+ --surface-soft:#f7f9fc;
+ --accent:#2457c5;
+ --radius:16px;
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;padding:20px;background:#f3f6fb}
+main{width:min(100%,1440px);margin:0 auto}
+.topbar,.panel{
+ background:var(--surface);
+ border:1px solid var(--line);
+ border-radius:var(--radius);
+ box-shadow:0 4px 18px rgb(23 32 51 / 4%);
+}
+.topbar{
+ display:flex;gap:18px;align-items:center;justify-content:space-between;
+ padding:18px 22px;margin-bottom:18px;flex-wrap:wrap;
+}
+.brand h1{font-size:1.45rem;letter-spacing:-.035em;margin:0 0 5px;color:var(--ink)}
+.brand p{margin:0;color:var(--muted);font-size:.88rem;line-height:1.45}
+.brand a{text-decoration:none}
+.brand a:hover{text-decoration:underline}
+.header-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex:0 1 auto;min-width:0;flex-wrap:wrap}
+.header-actions-label{font-size:.86rem;color:#475467;overflow-wrap:anywhere}
+.panel{padding:clamp(18px,2.5vw,28px)}
+h2{margin:0 0 6px;font-size:1.18rem;letter-spacing:-.02em;color:var(--ink)}
+p{color:var(--muted);line-height:1.5}
+label{display:block;font-size:.88rem;font-weight:650;margin:0 0 7px;color:#344054}
+input,select,textarea{font:inherit;min-height:44px;padding:10px 12px;border:1px solid #cfd7e4;border-radius:10px;width:100%;background:#fff;color:var(--ink)}\ntextarea{resize:vertical;line-height:1.5}\ntextarea:focus{outline:3px solid rgb(36 87 197 / 15%);border-color:#6f91dc}
+input:focus,select:focus{outline:3px solid rgb(36 87 197 / 15%);border-color:#6f91dc}
+button,.link-button{
+ font:inherit;font-size:.9rem;font-weight:650;border:1px solid transparent;border-radius:10px;
+ min-height:42px;padding:10px 15px;background:var(--ink);color:#fff;cursor:pointer;
+ text-decoration:none;display:inline-flex;align-items:center;justify-content:center;
+ transition:background .15s,border-color .15s,transform .15s;
+}
+button:hover,.link-button:hover{background:#2c3b55}
+button.secondary,.link-button.secondary{background:#f0f3f8;color:#344054;border-color:#e0e6ef}
+button.secondary:hover,.link-button.secondary:hover{background:#e6ebf3}
+button:focus-visible,.link-button:focus-visible{outline:3px solid rgb(36 87 197 / 25%);outline-offset:2px}
+button:disabled{opacity:.48;cursor:not-allowed}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.login-card{max-width:460px;margin:7vh auto}
+.hidden{display:none!important}
+.status{margin:14px 0 0;padding:11px 13px;border:1px solid #e5eaf2;border-radius:10px;background:#f7f9fc;color:#475467;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.88rem;line-height:1.45}
+.status.error{background:#fff4f2;border-color:#ffd8d2;color:#a12b20}
+.status.success{background:#effaf3;border-color:#ccebd7;color:#17663a}
+.toolbar{display:flex;gap:14px;align-items:end;justify-content:space-between;flex-wrap:wrap;margin:22px 0 14px}
+.search{flex:1;min-width:220px;max-width:620px}
+.filter-control{min-width:180px}
+.filter-control select{padding-right:34px}
+.meta{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:18px 0}
+.stat{min-width:0;padding:13px 15px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.stat small{display:block;color:var(--muted);font-size:.78rem;font-weight:600;margin-bottom:7px;line-height:1.3}
+.stat strong{display:block;font-size:1.08rem;font-weight:750;letter-spacing:-.02em;line-height:1.35;overflow-wrap:anywhere;color:var(--ink)}
+#updated-at{font-size:.88rem;font-weight:650;letter-spacing:0}
+.muted{font-size:.84rem;color:var(--muted);line-height:1.45}
+.table-wrap{overflow:auto;overscroll-behavior:contain;max-height:68vh;border:1px solid #dfe5ee;border-radius:12px;background:#fff;box-shadow:0 2px 8px rgb(23 32 51 / 3%)}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem;white-space:normal}
+th,td{padding:12px 14px;text-align:left;border-bottom:1px solid #edf0f5;vertical-align:middle;min-width:100px;max-width:420px;overflow-wrap:anywhere}
+th{position:sticky;top:0;z-index:1;background:#f5f7fb;color:#5b6577;font-size:.72rem;letter-spacing:.055em;text-transform:uppercase;font-weight:750}
+td:first-child,th:first-child{min-width:58px;width:58px;color:#667085}
+tbody tr:last-child td{border-bottom:0}
+.jobcard-row{background:#fff;cursor:pointer;transition:background .15s}
+.jobcard-row:hover{background:#f6f9ff}
+.jobcard-row:active{background:#edf3ff}
+.jobcard-row:focus-visible{outline:2px solid #3972df;outline-offset:-2px}
+.jobcard-row.has-selection{box-shadow:inset 3px 0 #16a34a}
+.jobcard-row.no-selection{box-shadow:inset 3px 0 #e9a23b}
+.applicant-detail td{background:#f8fafd}
+.applicant-detail table{border:1px solid #e3e8f0;border-radius:9px;overflow:hidden}
+.applicant-detail th{background:#edf2f8}
+.applicant-detail tbody tr:nth-child(even){background:#fff}
+.applicant-detail tbody tr:hover{background:#f3f7ff}
+.applicant-detail input[type=checkbox]{accent-color:#2457c5;cursor:pointer}
+.table-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px}
+.section-head{display:flex;align-items:start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.section-head p{margin:4px 0 0;max-width:780px;font-size:.91rem}
+
+.import-controls{margin-top:22px;padding-top:20px;border-top:1px solid var(--line)}
+.import-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}
+.import-grid .field{min-width:0}
+.import-help{font-size:.86rem;color:var(--muted);line-height:1.5;margin:8px 0}
+.import-table-wrap{max-height:52vh;margin-top:12px}
+.import-table{min-width:900px}
+.import-table th,.import-table td{min-width:100px}
+.import-table td:first-child,.import-table th:first-child{min-width:48px;width:48px}
+.import-table .flag{display:inline-block;padding:4px 8px;border-radius:7px;background:#fff2d9;color:#8a4b08;font-size:.78rem;font-weight:750}
+.import-table .clear{display:inline-block;padding:4px 8px;border-radius:7px;background:#eaf8ef;color:#17663a;font-size:.78rem;font-weight:750}
+.import-table input[type=checkbox]{width:19px;height:19px;min-height:19px;accent-color:#2457c5;vertical-align:middle}
+.import-table .review-cell{min-width:180px}
+#fto-import-button{min-width:190px}
+.applicant-review{margin-top:16px;padding:18px;border:1px solid #d7e3fa;border-radius:12px;background:#f8faff}
+.applicant-review h3{margin:0 0 6px;font-size:1rem;color:var(--ink)}
+.applicant-review p{margin:0 0 12px;font-size:.88rem}
+.applicant-review-table-wrap{max-height:42vh;margin-top:10px}
+.applicant-review-table{min-width:720px}
+.applicant-review-table select{min-width:300px}
+.applicant-review-table td:nth-child(1){min-width:190px}
+.applicant-review-table td:nth-child(2){min-width:180px}
+@media(max-width:700px){.applicant-review{padding:12px}.applicant-review .table-foot{align-items:stretch}.applicant-review .table-foot button{width:100%}.applicant-review-table select{min-width:260px}}
+@media(max-width:700px){.import-grid{grid-template-columns:minmax(0,1fr)}.import-table-wrap{max-height:52vh}.import-controls .actions{align-items:stretch}.import-controls .actions button{width:100%}}
+
+.history-section{margin-top:24px;padding-top:22px;border-top:1px solid var(--line)}
+.history-toolbar{display:grid;grid-template-columns:minmax(220px,1.4fr) minmax(180px,1fr);gap:12px;margin:16px 0}
+.history-table-wrap{max-height:72vh;margin-top:12px}
+.history-expand{min-height:34px;padding:6px 10px;background:#f0f3f8;color:#344054;border-color:#e0e6ef}
+.history-expand:hover{background:#e6ebf3}
+.history-detail td{padding:14px;background:#f8fafd}
+.history-detail .table-wrap{max-height:55vh}
+.history-detail table{min-width:1550px;font-size:.82rem}
+.history-detail th,.history-detail td{min-width:105px;padding:9px 10px}
+.history-detail th{position:sticky;top:0}
+.history-detail .detail-heading{font-size:.84rem;font-weight:700;color:#344054;margin:0 0 10px}
+.history-statuses{display:flex;flex-wrap:wrap;gap:6px}
+.history-status{font-size:.75rem;padding:4px 7px;border-radius:7px;background:#f0f3f8;color:#344054;white-space:nowrap}
+.history-status.processed{background:#eaf8ef;color:#17663a}
+.history-status.rejected{background:#fff0ed;color:#9b2c20}
+.history-status.blank{background:#fff4d9;color:#8a4b08}
+@media(max-width:700px){.history-toolbar{grid-template-columns:minmax(0,1fr)}.history-section .section-head{align-items:stretch}.history-section .section-head button{width:100%}.history-table-wrap{max-height:62vh}.history-detail td{padding:8px}.history-detail table{min-width:1450px}}
+
+
+@media(max-width:900px){
+ .meta{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .stat:last-child{grid-column:span 1}
+}
+@media(max-width:700px){
+ body{padding:10px}
+ .topbar{padding:15px;gap:14px;border-radius:13px;margin-bottom:12px}
+ .brand h1{font-size:1.3rem}
+ .brand p{font-size:.82rem}
+ .header-actions{width:100%;justify-content:flex-start;gap:8px}
+ .header-actions-label{flex:1;min-width:0;font-size:.8rem}
+ .header-actions .link-button,.header-actions button{flex:0 0 auto;min-height:40px;padding:9px 12px}
+ .panel{padding:14px;border-radius:13px}
+ .section-head p{font-size:.86rem}
+ .meta{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:15px 0}
+ .stat{padding:11px 12px;border-radius:10px}
+ .stat small{font-size:.74rem;margin-bottom:5px}
+ .stat strong{font-size:1rem}
+ .stat:last-child{grid-column:span 2}
+ #updated-at{font-size:.82rem}
+ .toolbar{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin:18px 0 12px}
+ .search,.filter-control{min-width:0;max-width:none;width:100%}
+ .toolbar label{margin-bottom:6px}
+ #result-count{margin-top:0}
+ .table-wrap{max-height:65vh;border-radius:10px}
+ table{font-size:.84rem}
+ th,td{padding:11px 10px}
+ th{font-size:.68rem}
+ td:first-child,th:first-child{min-width:60px;width:60px}
+ .jobcard-row td{padding-top:12px;padding-bottom:12px}
+ .applicant-detail td{padding:10px!important}
+ .applicant-detail th{font-size:.64rem;letter-spacing:.025em}
+ .applicant-detail td{font-size:.8rem}
+ .applicant-detail input[type=checkbox]{width:20px!important;height:20px;min-height:20px!important}
+ .table-foot{align-items:stretch;margin-top:12px}
+ .table-foot .actions{display:grid;grid-template-columns:1fr 1fr;width:100%}
+ .table-foot .actions button{width:100%}
+}
+@media(max-width:360px){
+ body{padding:7px}
+ .panel{padding:11px}
+ .header-actions .link-button,.header-actions button{padding:8px 9px;font-size:.82rem}
+ .stat{padding:10px}
+ .stat strong{font-size:.94rem}
+ th,td{padding:9px 8px}
+}
+</style>
+</head>
+<body>
+<main>
+<div id="app-panel" class="hidden">
+<header class="topbar"><div class="brand"><h1>FTO</h1><p><a href="./" style="color:inherit">← Main menu</a></p></div>
+<div class="header-actions"><a class="link-button secondary" href="./fto.html">← FTO history</a></div></header><section class="panel">
+<div>
+<label for="table-input">Paste table copied from the FTO page</label>
+<textarea id="table-input" rows="7" placeholder="Copy the table from the FTO page, then paste it here…"></textarea>
+<div class="actions" style="margin-top:10px"><button id="load-table-button" type="button">Load table</button></div>
+</div>
+<div id="data-status" class="status" aria-live="polite">Paste the copied table above, then select Load table.</div>
+<div id="table-output" class="hidden" style="margin-top:18px">
+<div style="margin-bottom:12px"><div class="section-head"><div><h2>FTO transactions</h2><p id="table-summary"></p></div></div></div>
+<div class="table-wrap"><table id="parsed-table"><thead></thead><tbody></tbody></table></div>
+</div>
+
+<div id="import-controls" class="import-controls hidden">
+ <div class="section-head"><div><h2>Prepare contribution import</h2><p>The FTO number and text period are saved on the first import. Re-importing the same FTO reuses its saved period and synchronizes status changes. Only New Serchhip North transactions are saved; rows from other villages are excluded.</p></div></div>
+ <div class="import-grid">
+  <div class="field"><label for="fto-number">FTO number</label><input id="fto-number" type="text" maxlength="100" placeholder="Detected from pasted table or enter it" required></div>
+  <div class="field"><label for="charge-period">Contribution period (text)</label><input id="charge-period" type="text" maxlength="100" placeholder="August 2026" required></div>
+  <div class="field"><label for="amount-divisor">Input 1 (divide by)</label><input id="amount-divisor" type="number" min="0.01" step="any" value="300" required></div>
+  <div class="field"><label for="amount-multiplier">Input 2 (multiply by)</label><input id="amount-multiplier" type="number" min="0.01" step="any" value="100" required></div>
+
+ </div>
+ <p class="import-help">If a job card already has a charge for the selected period, it will be flagged. Check the existing charge before marking that duplicate as reviewed. Reviewed duplicates can be imported only when you explicitly tick the review checkbox.</p>
+ <div id="import-summary" class="status" aria-live="polite">Enter the FTO number and contribution period.</div>
+ <div class="table-wrap import-table-wrap"><table id="import-preview-table" class="import-table"><thead><tr><th>#</th><th>Job card</th><th>Village</th><th>Account holder / applicant</th><th>FTO rows</th><th>Reference numbers</th><th>Current status</th><th>Calculated charge</th><th>Duplicate check</th><th>Manual review</th></tr></thead><tbody></tbody></table></div>
+ <p class="import-help">Statuses are synchronized automatically per reference number: blank becomes deferred, Processed activates the matching charge, and Rejected removes only a matching FTO charge when no active transaction remains. The system records status history and does not delete unrelated charges. Mixed statuses under one job card are reconciled from individual reference numbers.</p>
+ <div class="table-foot"><span id="import-count" class="muted"></span><div class="actions"><button id="fto-import-button" type="button" disabled>Synchronize FTO</button></div></div>
+  <div id="sync-status" class="status hidden" aria-live="polite" role="status"></div>
+  <section id="applicant-review" class="applicant-review hidden" aria-labelledby="applicant-review-title">
+   <h3 id="applicant-review-title">Review applicant matches</h3>
+   <p>These FTO names did not match one active MIS applicant automatically. Choose the correct applicant from the same job card. No transactions or contribution charges are changed until all matches are confirmed and synchronization succeeds.</p>
+   <div class="table-wrap applicant-review-table-wrap"><table id="applicant-review-table"><thead><tr><th>Job card</th><th>FTO name</th><th>Suggested active MIS applicant</th></tr></thead><tbody></tbody></table></div>
+   <div class="table-foot"><span id="applicant-review-count" class="muted"></span><button id="save-applicant-matches" type="button" disabled>Save matches and continue</button></div>
+  </section>
+</div>
+
+</section>
+</div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+const $=id=>document.getElementById(id);
+let authSequence=0,parsedDataRows=[],importGroups=[],duplicateCards=new Map(),duplicateReferences=new Map(),reviewedCards=new Set(),unknownCards=new Set(),reviewedNewCards=new Set(),deferredCards=new Map(),duplicateCheckSequence=0,checkingDuplicates=false,duplicateCheckFailed=false;
+function status(msg,type){$('data-status').textContent=msg;$('data-status').classList.toggle('error',type==='error');$('data-status').classList.toggle('success',type==='success')}
+function syncStatus(msg,type){const el=$('sync-status');el.textContent=msg;el.classList.remove('hidden');el.classList.toggle('error',type==='error');el.classList.toggle('success',type==='success')}
+async function edgeFunctionErrorMessage(error,fallback){if(error&&error.context){try{const response=error.context.clone?error.context.clone():error.context;let body=null;if(response&&typeof response.json==='function')body=await response.json();else if(response&&typeof response.text==='function'){const raw=await response.text();try{body=JSON.parse(raw)}catch{body={message:raw}}}if(body&&typeof body==='object'&&(body.error||body.message||body.msg))return String(body.error||body.message||body.msg);if(typeof body==='string'&&body.trim())return body.trim()}catch(_){}}return (error&&error.message)||fallback}
+const FTO_HEADERS=[
+ 'S.No','Block Name','Job Card No. (Panchayat Name)','Reference No.','Transaction Date',
+ 'Applicant Name','Wagelist No.','Name of Primary Account Holder','Bank Code','IFSC code',
+ 'Amount to be credited (In Rs.)','Credit Amount (In Rs.)','Status','Processed Date',
+ 'Bank To co-operative/postoffice Processed Date','UTR No.','Rejection Reason',
+ 'Paid in account of (in case of ABP)','Paid in Bank (in case of ABP)'
+];
+function parsePastedTable(raw){
+ const text=raw.replace(/\r/g,'').trim();
+ if(!text)return [];
+ const lines=text.split('\n').filter(line=>line.trim().length>0);
+ const delimiter=lines.some(line=>line.includes('\t'))?'\t':lines.some(line=>line.includes('|'))?'|':',';
+ const parsed=lines.map(line=>{
+  let cells;
+  if(delimiter==='|') {
+   cells=line.split('|').map(cell=>cell.trim());
+   if(cells.length&&cells[0]==='')cells.shift();
+   if(cells.length&&cells[cells.length-1]==='')cells.pop();
+  } else if(delimiter==='\t') cells=line.split('\t').map(cell=>cell.trim());
+  else{
+   cells=[];let cell='',quoted=false;
+   for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(ch==='"'&&line[i+1]==='"'&&quoted){cell+='"';i++}
+    else if(ch==='"')quoted=!quoted;
+    else if(ch===','&&!quoted){cells.push(cell.trim());cell=''}
+    else cell+=ch;
+   }
+   cells.push(cell.trim());
+  }
+  return cells;
+ });
+ if(delimiter==='\t'){
+  const merged=[];
+  for(const cells of parsed){
+   const continuation=(cells[0]||'').startsWith('(')&&merged.length&&merged[merged.length-1].length===3;
+   if(continuation){
+    const previous=merged[merged.length-1];
+    previous[2]+='\n'+cells[0];
+    previous.push(...cells.slice(1));
+   }else merged.push(cells);
+  }
+  return merged;
+ }
+ return parsed;
+}
+function isHeaderOrSeparator(row){
+ const normalized=row.map(cell=>cell.replace(/\*\*/g,'').replace(/<br\s*\/?>/gi,' ').replace(/\s+/g,' ').trim().toLowerCase());
+ if(normalized.some(cell=>cell.includes('block name'))&&normalized.some(cell=>cell.includes('job card no')))return true;
+ return normalized.length>0&&normalized.every(cell=>/^:?-+:?$/.test(cell));
+}
+function renderPastedTable(rows){
+ const table=$('parsed-table'),thead=table.querySelector('thead'),tbody=table.querySelector('tbody');
+ thead.replaceChildren();tbody.replaceChildren();
+ const headerRow=document.createElement('tr');
+ FTO_HEADERS.forEach(value=>{const th=document.createElement('th');th.textContent=value;headerRow.appendChild(th)});
+ thead.appendChild(headerRow);
+ const dataRows=rows.filter(row=>{if(isHeaderOrSeparator(row))return false;const cells=row.map(cell=>String(cell||'').replace(/<br\s*\/?>/gi,' ').replace(/\s+/g,' ').trim());return /^\d+$/.test(cells[0]||'')&&cells.length>=13&&/^MZ-\d{2}-/i.test(cells[2]||'')&&String(cells[3]||'').trim().length>0&&/^\d{2}\/\d{2}\/\d{4}$/.test(cells[4]||'')});
+ if(!dataRows.length){$('table-output').classList.add('hidden');$('import-controls').classList.add('hidden');parsedDataRows=[];return null}
+ dataRows.forEach(row=>{
+  const tr=document.createElement('tr');
+  FTO_HEADERS.forEach((_,index)=>{const td=document.createElement('td');td.textContent=(row[index]||'').replace(/<br\s*\/?>/gi,'\n');td.style.whiteSpace='pre-line';tr.appendChild(td)});
+  tbody.appendChild(tr);
+ });
+ $('table-summary').textContent=dataRows.length+' data rows · '+FTO_HEADERS.length+' predefined columns';
+ $('table-output').classList.remove('hidden');
+ parsedDataRows=dataRows;
+ $('import-controls').classList.remove('hidden');
+ buildImportGroups();
+ return {rowCount:dataRows.length,columnCount:FTO_HEADERS.length};
+}
+$('load-table-button').addEventListener('click',()=>{
+ const pasted=$('table-input').value;
+ const rows=parsePastedTable(pasted);
+ if(!rows.length){status('Paste the copied FTO table first, then select Load table.','error');return}
+ const ftoMatch=pasted.match(/FTO\s*No\.?\s*[:：]?\s*([A-Z0-9_-]+)/i);
+ if(ftoMatch&&ftoMatch[1])$('fto-number').value=ftoMatch[1].trim();
+ const result=renderPastedTable(rows);
+ if(!result){status('No data rows detected. Paste the FTO table including its data.','error');return}
+ if($('fto-number').value.trim())lookupFtoBatch();
+ status('Loaded '+result.rowCount+' FTO rows. Review village filtering and status changes, then select Synchronize FTO.','success');
+});
+
+function jobCardFromRow(row){
+ const text=String(row[2]||'').replace(/<br\s*\/?>/gi,' ').replace(/\s+/g,' ').trim();
+ const match=text.match(/MZ-\d{2}-[A-Z0-9/-]+/i);
+ return match?match[0].toUpperCase():'';
+}
+function villageFromRow(row){
+ const text=String(row[2]||'').replace(/<br\s*\/?>/gi,' ');
+ const match=text.match(/\(([^)]+)\)/);
+ return match?match[1].replace(/\s+/g,' ').trim():'';
+}
+function normalizeVillage(value){return String(value||'').toUpperCase().replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim()}
+function parseAmount(value){
+ const cleaned=String(value||'').replace(/[₹,\s]/g,'').replace(/[^\d.-]/g,'');
+ const amount=Number(cleaned);
+ return Number.isFinite(amount)&&amount>0?amount:0;
+}
+function periodToDate(value){
+ const text=String(value||'').trim();
+ let m=text.match(/^(\d{4})-(\d{1,2})(?:-01)?$/);
+ if(m&&Number(m[2])>=1&&Number(m[2])<=12)return m[1]+'-'+String(Number(m[2])).padStart(2,'0')+'-01';
+ const monthMap={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12,jan:1,feb:2,mar:3,apr:4,jun:6,jul:7,aug:8,sep:9,sept:9,oct:10,nov:11,dec:12};
+ m=text.toLowerCase().match(/^([a-z]+)[\s,/-]+(\d{4})$/);
+ if(!m||!monthMap[m[1]])return '';
+ return m[2]+'-'+String(monthMap[m[1]]).padStart(2,'0')+'-01';
+}
+function currentStatusAction(){return 'all'}
+function actionGroups(){return importGroups.filter(g=>g.inScope)}
+function rawStatus(row){
+ const value=String(row[12]||'').replace(/<br\s*\/?>/gi,' ').trim().toLowerCase();
+ return value==='processed'?'processed':value==='rejected'?'rejected':value===''?'blank':'other';
+}
+function buildImportGroups(){
+ const divisor=Number($('amount-divisor').value),multiplier=Number($('amount-multiplier').value);
+ const validFormula=Number.isFinite(divisor)&&divisor>0&&Number.isFinite(multiplier)&&multiplier>0;
+ const map=new Map();
+ for(const row of parsedDataRows){
+  const jobCard=jobCardFromRow(row);if(!jobCard)continue;
+  const village=villageFromRow(row),local=normalizeVillage(village)===normalizeVillage('NEW SERCHHIP North');
+  const creditAmount=parseAmount(row[11]),amount=validFormula&&creditAmount>0?(creditAmount/divisor)*multiplier:0;
+  const personName=String(row[7]||row[5]||'').replace(/<br\s*\/?>/gi,' ').replace(/\s+/g,' ').trim();
+  const rowState=rawStatus(row),reference=String(row[3]||'').replace(/<br\s*\/?>/gi,' ').replace(/\s+/g,' ').trim();
+  if(!map.has(jobCard))map.set(jobCard,{job_card_number:jobCard,person_name:personName||'Name needs review',amount:0,row_count:0,invalid_amount_rows:0,statuses:new Set(),villages:new Set(),references:[],allLocal:true});
+  const group=map.get(jobCard);
+  if(!group.person_name||group.person_name==='Name needs review')group.person_name=personName||group.person_name;
+  group.row_count++;group.statuses.add(rowState);group.villages.add(village||'Village unknown');group.allLocal=group.allLocal&&local;
+  if(reference&&!group.references.includes(reference))group.references.push(reference);
+  if(local&&(rowState==='blank'||rowState==='processed')&&amount>0)group.amount+=amount;
+  if((rowState==='blank'||rowState==='processed')&&amount<=0)group.invalid_amount_rows++;
+ }
+ importGroups=[...map.values()].map(g=>({...g,status:g.statuses.size===1?[...g.statuses][0]:'mixed',village:[...g.villages].join(' / '),inScope:g.allLocal&&g.villages.size===1&&normalizeVillage([...g.villages][0])===normalizeVillage('NEW SERCHHIP North'),reference_numbers:g.references})).sort((a,b)=>a.job_card_number.localeCompare(b.job_card_number));
+ duplicateCards=new Map();duplicateReferences=new Map();reviewedCards=new Set();unknownCards=new Set();reviewedNewCards=new Set();
+ renderImportPreview();refreshDuplicates();
+}
+function renderImportPreview(){
+ $('import-summary').classList.remove('error');
+ const tbody=$('import-preview-table').querySelector('tbody');tbody.replaceChildren();
+ let total=0,invalid=0,excluded=0,localCards=0;
+ importGroups.forEach((group,index)=>{
+  if(group.inScope){total+=group.amount;localCards++}else excluded++;
+  invalid+=group.invalid_amount_rows;
+  const tr=document.createElement('tr');
+  if(!group.inScope)tr.style.background='#fff8ed';
+  const addCell=(value,cls)=>{const td=document.createElement('td');td.textContent=value;if(cls)td.className=cls;tr.appendChild(td);return td};
+  addCell(String(index+1));addCell(group.job_card_number);
+  const villageCell=addCell(group.village||'Village unknown');
+  if(group.inScope){villageCell.style.color='#17663a';villageCell.style.fontWeight='700'}else{villageCell.style.color='#9a5b10';villageCell.style.fontWeight='700'}
+  addCell(group.person_name);addCell(String(group.row_count));addCell(group.reference_numbers.join(', ')||'Missing reference');
+  addCell(group.status==='blank'?'Blank':group.status==='processed'?'Processed':group.status==='rejected'?'Rejected':group.status==='mixed'?'Mixed statuses':'Other / unknown');
+  addCell(group.inScope&&group.amount>0?'₹'+group.amount.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}):'—');
+  const duplicate=duplicateCards.get(group.job_card_number),repeatedRefs=duplicateReferences.get(group.job_card_number)||[],isUnknown=unknownCards.has(group.job_card_number);
+  const duplicateCell=addCell('');
+  if(!group.inScope){
+   const flag=document.createElement('span');flag.className='flag';flag.textContent='Excluded from charges';duplicateCell.appendChild(flag);
+   const detail=document.createElement('div');detail.className='muted';detail.textContent='Village does not match New Serchhip North';duplicateCell.appendChild(detail);
+  }else if(duplicate){
+   const flag=document.createElement('span');flag.className='flag';flag.textContent='Existing charge';duplicateCell.appendChild(flag);
+   const detail=document.createElement('div');detail.className='muted';detail.textContent='₹'+Number(duplicate.amount||0).toLocaleString('en-IN',{maximumFractionDigits:2})+(duplicate.is_deferred?' · deferred':' · active');duplicateCell.appendChild(detail);
+  }else if(isUnknown){
+   const flag=document.createElement('span');flag.className='flag';flag.textContent='New job card';duplicateCell.appendChild(flag);
+   const detail=document.createElement('div');detail.className='muted';detail.textContent='Not in contribution records';duplicateCell.appendChild(detail);
+  }else{
+   const clear=document.createElement('span');clear.className='clear';clear.textContent=group.inScope?'No match':'Review village';duplicateCell.appendChild(clear);
+  }
+  if(repeatedRefs.length){const flag=document.createElement('div');flag.className='flag';flag.style.marginTop='6px';flag.textContent='Duplicate reference';duplicateCell.appendChild(flag);const detail=document.createElement('div');detail.className='muted';detail.textContent=repeatedRefs.join(', ');duplicateCell.appendChild(detail);}
+  const reviewCell=addCell('', 'review-cell');
+  if(!group.inScope){reviewCell.textContent='Not imported';}
+  else if(duplicate){
+   const label=document.createElement('label');label.style.display='flex';label.style.gap='8px';label.style.alignItems='center';label.style.margin='0';
+   const check=document.createElement('input');check.type='checkbox';check.checked=reviewedCards.has(group.job_card_number);check.setAttribute('aria-label','I reviewed duplicate '+group.job_card_number);
+   check.addEventListener('change',()=>{if(check.checked)reviewedCards.add(group.job_card_number);else reviewedCards.delete(group.job_card_number);renderImportPreview()});
+   label.appendChild(check);const t=document.createElement('span');t.textContent='Reviewed; continue';label.appendChild(t);reviewCell.appendChild(label);
+  }else if(isUnknown){
+   const label=document.createElement('label');label.style.display='flex';label.style.gap='8px';label.style.alignItems='center';label.style.margin='0';
+   const check=document.createElement('input');check.type='checkbox';check.checked=reviewedNewCards.has(group.job_card_number);check.setAttribute('aria-label','Verify new job card '+group.job_card_number);
+   check.addEventListener('change',()=>{if(check.checked)reviewedNewCards.add(group.job_card_number);else reviewedNewCards.delete(group.job_card_number);renderImportPreview()});
+   label.appendChild(check);const t=document.createElement('span');t.textContent='Verified new card';label.appendChild(t);reviewCell.appendChild(label);
+  }else reviewCell.textContent=group.inScope?'—':'Review village';
+  tbody.appendChild(tr);
+ });
+ const period=$('charge-period').value,excludedRows=parsedDataRows.filter(row=>normalizeVillage(villageFromRow(row))!==normalizeVillage('NEW SERCHHIP North')).length;
+ $('import-count').textContent=localCards+' local job cards · '+parsedDataRows.length+' FTO rows · '+excludedRows+' rows outside/unclear village';
+ $('import-summary').textContent=(period?'Period label: '+period:'Enter contribution period, e.g. August 2026')+' · Local calculated charges: ₹'+total.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+' · Excluded job-card groups: '+excluded+(invalid?' · '+invalid+' local row(s) have a missing/invalid credit amount':'');
+ updateImportButton();
+}
+async function refreshDuplicates(){
+ const seq=++duplicateCheckSequence;duplicateCards=new Map();duplicateReferences=new Map();unknownCards=new Set();
+ const period=periodToDate($('charge-period').value);
+ if(!period||!actionGroups().length){checkingDuplicates=false;duplicateCheckFailed=false;renderImportPreview();return}
+ checkingDuplicates=true;duplicateCheckFailed=false;renderImportPreview();
+ try{
+  const groups=actionGroups();
+  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'check-fto-duplicates',charge_period:period,job_cards:groups.map(g=>g.job_card_number),reference_rows:groups.map(g=>({job_card_number:g.job_card_number,reference_numbers:g.reference_numbers}))}});
+  if(seq!==duplicateCheckSequence)return;
+  if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not check for duplicate charges.');
+  duplicateCards=new Map((data.duplicates||[]).map(row=>[String(row.job_card_number),row]));
+  duplicateReferences=new Map((data.duplicate_references||[]).map(row=>[String(row.job_card_number),row.reference_numbers||[]]));
+  unknownCards=new Set((data.unknown_job_cards||[]).map(String));
+  checkingDuplicates=false;duplicateCheckFailed=false;renderImportPreview();
+ }catch(err){
+  if(seq!==duplicateCheckSequence)return;
+  checkingDuplicates=false;duplicateCheckFailed=true;$('import-summary').classList.add('error');
+  $('import-summary').textContent='Could not verify duplicates: '+(err.message||'check failed')+'. Synchronization is disabled until the check succeeds.';
+  updateImportButton();
+ }
+}
+function updateImportButton(){
+ const ftoNumber=$('fto-number').value.trim(),period=periodToDate($('charge-period').value),selected=actionGroups();
+ const invalid=parsedDataRows.some(row=>!String(row[3]||'').trim()||!jobCardFromRow(row)||!String(row[7]||row[5]||'').trim()||(['blank','processed'].includes(rawStatus(row))&&parseAmount(row[11])<=0));
+ const unreviewed=[...duplicateCards.keys()].some(card=>!reviewedCards.has(card));
+ const unverifiedNew=[...unknownCards].some(card=>!reviewedNewCards.has(card));
+ const hasDuplicateReferences=[...duplicateReferences.values()].some(refs=>refs.length>0);
+ $('fto-import-button').textContent='Synchronize FTO statuses';
+ $('fto-import-button').disabled=!ftoNumber||!period||!parsedDataRows.length||!selected.length||invalid||checkingDuplicates||duplicateCheckFailed||unreviewed||unverifiedNew||hasDuplicateReferences;
+}
+function bytesToHex(bytes){return [...new Uint8Array(bytes)].map(b=>b.toString(16).padStart(2,'0')).join('')}
+async function sha256(text){return bytesToHex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)))}
+async function lookupFtoBatch(){
+ const ftoNumber=$('fto-number').value.trim();if(!ftoNumber)return;
+ try{
+  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'get-fto-batch',fto_number:ftoNumber}});
+  if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not look up the FTO.');
+  if(data.found&&data.batch){
+   $('charge-period').value=String(data.batch.contribution_period||'');
+   status('Known FTO found. Its saved text period "'+data.batch.contribution_period+'" has been restored automatically.','success');
+   reviewedCards=new Set();reviewedNewCards=new Set();refreshDuplicates();
+  }else{
+   status('New FTO number. Enter its contribution period as text, for example August 2026.','');
+   updateImportButton();
+  }
+ }catch(err){status('Could not look up saved FTO details: '+(err.message||'unknown error'),'error')}
+}
+$('fto-number').addEventListener('change',lookupFtoBatch);
+$('charge-period').addEventListener('input',()=>{reviewedCards=new Set();updateImportButton()});
+$('charge-period').addEventListener('change',()=>{reviewedCards=new Set();refreshDuplicates()});
+$('amount-divisor').addEventListener('input',()=>buildImportGroups());
+$('amount-multiplier').addEventListener('input',()=>buildImportGroups());
+let pendingSyncPayload=null;
+function hideApplicantReview(){
+ $('applicant-review').classList.add('hidden');
+ $('applicant-review-table').querySelector('tbody').replaceChildren();
+ pendingSyncPayload=null;
+}
+function renderApplicantReview(items,payload){
+ pendingSyncPayload=payload;
+ const section=$('applicant-review'),tbody=$('applicant-review-table').querySelector('tbody');
+ tbody.replaceChildren();
+ for(let i=0;i<items.length;i++){
+  const item=items[i],tr=document.createElement('tr');
+  const card=document.createElement('td');card.textContent=item.job_card_number;tr.appendChild(card);
+  const name=document.createElement('td');name.textContent=item.fto_name;tr.appendChild(name);
+  const pick=document.createElement('td'),select=document.createElement('select');
+  select.dataset.reviewIndex=String(i);
+  const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Choose the correct MIS applicant';select.appendChild(placeholder);
+  for(const candidate of (item.candidates||[])){
+   const option=document.createElement('option');option.value=String(candidate.applicant_unique_id||'');
+   option.textContent='Applicant No. '+String(candidate.applicant_number||'—')+' · '+String(candidate.applicant_name||'Name unavailable')+' · '+String(candidate.applicant_unique_id||'');
+   select.appendChild(option);
+  }
+  if(!item.candidates||!item.candidates.length){select.disabled=true;const none=document.createElement('div');none.className='muted';none.textContent='No applicant with a Unique ID was found under this job card in active MIS.';pick.appendChild(none);}
+  pick.appendChild(select);tr.appendChild(pick);tbody.appendChild(tr);
+ }
+ $('applicant-review-count').textContent=items.length+' FTO name(s) need manual confirmation. Confirm only applicants you can identify reliably.';
+ const save=$('save-applicant-matches');
+ const refresh=()=>{save.disabled=[...tbody.querySelectorAll('select')].some(s=>!s.value)||[...tbody.querySelectorAll('select')].length!==items.length;};
+ tbody.querySelectorAll('select').forEach(s=>s.addEventListener('change',refresh));
+ save.onclick=async()=>{
+  if(save.disabled||!pendingSyncPayload)return;
+  save.disabled=true;save.textContent='Saving matches…';
+  try{
+   const matches=items.map((item,i)=>({job_card_number:item.job_card_number,fto_name:item.fto_name,applicant_unique_id:tbody.querySelector('select[data-review-index="'+i+'"]')?.value||''}));
+   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'save-fto-applicant-matches',matches}});
+   if(error||!data||data.error)throw new Error((data&&data.error)||await edgeFunctionErrorMessage(error,'Could not save applicant matches.'));
+   syncStatus(data.saved+' applicant match(es) saved. Retrying synchronization with the confirmed matches…','');
+   const mainButton=$('fto-import-button');mainButton.disabled=true;mainButton.textContent='Synchronizing FTO…';
+   await executeFtoSync(pendingSyncPayload,mainButton);
+  }catch(err){
+   syncStatus(err.message||'Could not save applicant matches. Try again.','error');
+  }finally{
+   save.textContent='Save matches and continue';save.disabled=[...tbody.querySelectorAll('select')].some(s=>!s.value)||!tbody.querySelectorAll('select').length;
+   const mainButton=$('fto-import-button');if(mainButton.textContent!=='Synchronization completed')mainButton.disabled=false;
+  }
+ };
+ section.classList.remove('hidden');
+ refresh();
+ section.scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function executeFtoSync(payload,button){
+ const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:payload});
+ if(data&&data.needs_manual_review){
+  renderApplicantReview(data.manual_review||[],payload);
+  syncStatus('Manual applicant review is required. No FTO transactions or contribution charges were changed.','');
+  button.textContent='Review applicant matches';
+  return false;
+ }
+ if(error||!data||data.error){
+  if(data&&Array.isArray(data.duplicates)){duplicateCards=new Map(data.duplicates.map(row=>[String(row.job_card_number),row]));reviewedCards=new Set();}
+  if(data&&Array.isArray(data.unknown_job_cards)){unknownCards=new Set(data.unknown_job_cards.map(String));reviewedNewCards=new Set();}
+  if(data&&(Array.isArray(data.duplicates)||Array.isArray(data.unknown_job_cards)))renderImportPreview();
+  throw new Error((data&&data.error)||await edgeFunctionErrorMessage(error,'FTO synchronization failed.'));
+ }
+ hideApplicantReview();
+ const syncMessage='FTO '+data.fto_number+' synchronized. Saved period: '+data.contribution_period+'. Rows checked: '+data.rows_seen+'. Local transactions: '+data.local_transactions+'. Other-village/unclear transactions excluded: '+data.excluded_other_village+'. Charges created: '+data.inserted+', updated: '+data.updated+', matching rejected charges removed: '+data.deleted+'. Calculated local total: ₹'+Number(data.total_amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'.';
+ syncStatus(syncMessage,'success');button.textContent='Synchronization completed';
+ await lookupFtoBatch();await loadFtoHistory();return true;
+}
+$('fto-import-button').addEventListener('click',async()=>{
+ if($('fto-import-button').disabled)return;
+ const button=$('fto-import-button'),ftoNumber=$('fto-number').value.trim(),periodLabel=$('charge-period').value.trim(),period=periodToDate(periodLabel);
+ if(!window.confirm('Synchronize FTO '+ftoNumber+' for contribution period "'+periodLabel+'"? Only New Serchhip North records will affect charges. Status changes will be recorded, and unrelated charges will not be deleted.'))return;
+ button.disabled=true;button.textContent='Synchronizing FTO…';$('sync-status').textContent='';$('sync-status').classList.add('hidden');$('sync-status').classList.remove('error','success');hideApplicantReview();
+ try{
+  const divisor=Number($('amount-divisor').value),multiplier=Number($('amount-multiplier').value);
+  const payloadRows=parsedDataRows.map(row=>{
+   const creditAmount=parseAmount(row[11]),amountToCredit=parseAmount(row[10]),statusValue=rawStatus(row);
+   const calculatedCharge=creditAmount>0&&Number.isFinite(divisor)&&divisor>0&&Number.isFinite(multiplier)&&multiplier>0&&(statusValue==='blank'||statusValue==='processed')?(creditAmount/divisor)*multiplier:0;
+   const dateMatch=String(row[4]||'').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+   const processedDateMatch=String(row[13]||'').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+   return {reference_no:String(row[3]||'').replace(/\s+/g,' ').trim(),job_card_number:jobCardFromRow(row),village_name:villageFromRow(row),person_name:String(row[7]||row[5]||'').replace(/\s+/g,' ').trim(),transaction_date:dateMatch?dateMatch[3]+'-'+dateMatch[2]+'-'+dateMatch[1]:'',processed_date:processedDateMatch?processedDateMatch[3]+'-'+processedDateMatch[2]+'-'+processedDateMatch[1]:'',amount_to_be_credited:amountToCredit,credit_amount:creditAmount,status:statusValue,calculated_charge:Number(calculatedCharge.toFixed(2)),rejection_reason:String(row[16]||'').trim(),source_row:row};
+  });
+  const sourceSha=await sha256(JSON.stringify({raw:$('table-input').value,ftoNumber,periodLabel,period,divisor,multiplier,rows:payloadRows}));
+  const payload={action:'sync-fto-batch',fto_number:ftoNumber,contribution_period:periodLabel,charge_period:period,rows:payloadRows,source_sha256:sourceSha,reviewed_duplicates:[...reviewedCards],reviewed_new_job_cards:[...reviewedNewCards]};
+  await executeFtoSync(payload,button);
+ }catch(err){const message=err.message||'FTO synchronization failed. Review the preview and try again.';syncStatus(message,'error');button.textContent='Synchronize FTO statuses';checkingDuplicates=false;updateImportButton()}
+ finally{if(button.textContent!=='Synchronization completed')button.disabled=false}
+});
+$('table-input').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')$('load-table-button').click()});
+
+
+async function verifyAccess(user){
+ const seq=++authSequence;
+ if(!user){window.location.replace('./');return false}
+ const {data,error}=await supabaseClient.functions.invoke('vbgramg-app-access',{body:{}});
+ if(seq!==authSequence)return false;
+ if(error||!data||data.approved!==true){await supabaseClient.auth.signOut();window.location.replace('./');return false}
+ $('app-panel').classList.remove('hidden');
+  // FTO history is shown on fto.html.
+ return true;
+}
+supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){authSequence++;window.location.replace('./')}else if(event==='TOKEN_REFRESHED'&&session)Promise.resolve().then(()=>verifyAccess(session.user))});
+supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){window.location.replace('./');return}return verifyAccess(data.session.user)});
+
+</script>
+</body>
+</html>

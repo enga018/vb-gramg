@@ -187,7 +187,7 @@ function render(){
    topLine.append(document.createTextNode(' • '+c.name));detail.appendChild(topLine);
    const secondLine=document.createElement('div');secondLine.className='mobile-subline';
    const chargeLine=document.createElement('div');chargeLine.className='mobile-charge-line';
-   chargeLine.textContent='Last charges period • '+lastPeriodShort;
+   chargeLine.textContent=lastPeriodShort+' • '+(lastCharge?fmt(lastCharge.amount)+(lastCharge.is_deferred?' · Deferred':''):'—');
    if(lastCharge&&lastCharge.is_deferred)chargeLine.style.color='var(--partial)';
    secondLine.appendChild(chargeLine);
    if(c.balance>0){

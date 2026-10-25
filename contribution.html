@@ -197,10 +197,6 @@ function render(){
     detail.appendChild(subline);
    }
   }else{
-    const settledCell=cell('SETTLED','mobile-settled');
-    settledCell.style.color='#16a34a';
-   }
-  }else{
    cell(c.id,'jobcard');cell(c.name+(c.exempt?' · EXEMPT':''),'person');
    const desktopChargeEntries=c.ledger.filter(e=>(e.entry_type==='charge'||e.entry_type==='sanitationFee')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return')).sort((a,b)=>String(b.entry_date||'').localeCompare(String(a.entry_date||''))||String(b.created_at||'').localeCompare(String(a.created_at||'')));
    const desktopLastCharge=desktopChargeEntries[0];

@@ -52,11 +52,18 @@
     <div class="paste-box">
       <label class="file-label" for="table-input">Paste table copied from the MIS page</label>
       <textarea id="table-input" rows="8" placeholder="Copy the MIS table, then paste it here…"></textarea>
-      <p class="hint">Tab-separated data copied from a webpage or spreadsheet is supported. Header row is required. The pasted data is previewed locally before any upload.</p>
-      <button type="button" id="load-table-button">Load pasted table</button>
+      <p class="hint">The original paste stays untouched. Filtering is performed in this browser before staging or comparison.</p>
+      <label class="file-label"><input id="exclude-deleted" type="checkbox" checked> Exclude applicants marked deleted (* beside household/applicant name or deletion remarks)</label>
+      <button type="button" id="load-table-button">Filter and prepare table</button>
     </div>
     <button type="button" id="import-button" disabled>Compare pasted MIS</button>
     <div id="status" class="status" aria-live="polite">Checking administrator access…</div>
+    <section id="filter-summary" class="diff-panel hidden">
+      <h2>Local filtering summary</h2>
+      <p id="filter-counts"></p>
+      <h3>Removed rows and reasons</h3><ul id="filter-removed" class="diff-list"></ul>
+      <h3>Rows kept for manual review</h3><ul id="filter-review" class="diff-list"></ul>
+    </section>
     <section id="diff-panel" class="diff-panel hidden" aria-live="polite">
       <h2 id="diff-title">Review MIS changes</h2>
       <p id="diff-intro">Compare the uploaded file with the current active MIS before applying changes.</p>
@@ -184,21 +191,67 @@
       });
     }
 
+    function filterPastedRows(rows, excludeDeleted) {
+      const clean = v => String(v == null ? '' : v).replace(/\u00a0/g, ' ').replace(/&amp;/gi, '&').trim();
+      const key = v => clean(v).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      const headerIndex = rows.findIndex(row => row.some(v => ['job card number','jobcard number'].includes(key(v))) && row.some(v => ['name of applicant','applicant name'].includes(key(v))));
+      if (headerIndex < 0) throw new Error('Could not find both “Job card number” and “Name of Applicant” in the pasted table. Copy the table with its column headings.');
+      const header = rows[headerIndex].map(key);
+      const findCol = (...names) => header.findIndex(v => names.includes(v));
+      const jobCol = findCol('job card number','jobcard number');
+      const nameCol = findCol('name of applicant','applicant name');
+      const householdCol = findCol('head of household','head of household name');
+      const remarksCol = findCol('reasons if job card not issued any other remarks','reasons if job card not issued','remarks','reason');
+      const kept = [rows[headerIndex]], removed = [], review = [];
+      const isReportLine = text => /^(?:villages?\s*:|no\.\s*of\s*registrants\s*:|total\s+no\.\s+of\s+registered applicants|total\b|#\s*end of report|end of report|report completed|excel view\b)/i.test(text);
+      for (let i = headerIndex + 1; i < rows.length; i++) {
+        const row = rows[i], values = row.map(clean), text = values.filter(Boolean).join(' · ');
+        if (!text) { removed.push({reason:'Blank row',text:'(blank row)'}); continue; }
+        if (isReportLine(text)) { removed.push({reason:'Report heading or total',text}); continue; }
+        const jobCard = clean(row[jobCol]), applicant = clean(row[nameCol]);
+        const household = householdCol >= 0 ? clean(row[householdCol]) : '';
+        const remarks = remarksCol >= 0 ? clean(row[remarksCol]) : '';
+        const isApplicantLike = /^\d+$/.test(clean(row[0])) || !!jobCard || !!applicant;
+        if (!isApplicantLike) { removed.push({reason:'Non-applicant report text',text}); continue; }
+        const deleted = household.includes('*') || applicant.includes('*') || /\bdeleted\b/i.test(remarks);
+        if (excludeDeleted && deleted) { removed.push({reason:'Applicant marked deleted',text:[jobCard,applicant].filter(Boolean).join(' · ') || text}); continue; }
+        const issues = [];
+        if (!jobCard || !/^MZ-[A-Z0-9-]+\/\d+$/i.test(jobCard)) issues.push('missing/unclear job card number');
+        if (!applicant) issues.push('missing applicant name');
+        if (issues.length) review.push({reason:issues.join('; '),text});
+        kept.push(row);
+      }
+      if (kept.length < 2) throw new Error('No applicant rows remain after filtering. Check that you copied the full table with its headings.');
+      return {rows:kept,removed,review};
+    }
+    function showFilterItems(id, items) {
+      const list = document.getElementById(id); list.replaceChildren();
+      if (!items.length) { const li=document.createElement('li'); li.textContent='None'; list.appendChild(li); return; }
+      items.slice(0,1000).forEach(item => { const li=document.createElement('li'); li.textContent=item.reason + ': ' + item.text; list.appendChild(li); });
+      if (items.length > 1000) { const li=document.createElement('li'); li.textContent=(items.length-1000)+' additional rows not shown'; list.appendChild(li); }
+    }
+
     loadTableButton.addEventListener('click', function () {
       importButton.disabled = true; pastedTableLoaded = false; importedRows = [];
-      previewWrap.classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
+      previewWrap.classList.add('hidden'); document.getElementById('filter-summary').classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
       pendingImportId = null; pendingComparison = null;
-      const rows = parsePastedTable(tableInput.value);
-      if (!rows.length) { setStatus('Paste the copied MIS table first, then select Load pasted table.', 'error'); return; }
-      if (rows.length > 100000) { setStatus('The pasted MIS contains more than 100,000 rows. The import limit is 100,000 rows.', 'error'); return; }
-      if (!rows[0].some(cell => String(cell || '').trim())) { setStatus('The pasted table has no header row. Copy the MIS table including its column headings.', 'error'); return; }
-      importedRows = rows; pastedTableLoaded = true; renderRows(importedRows);
-      importButton.disabled = !currentUser || currentRole !== 'admin';
-      setStatus('Loaded ' + importedRows.length + ' pasted rows. Review the preview, then select Compare pasted MIS. Nothing has been sent to Supabase yet.', 'success');
+      try {
+        const parsed = parsePastedTable(tableInput.value);
+        if (!parsed.length) throw new Error('Paste the copied MIS table first.');
+        const result = filterPastedRows(parsed, document.getElementById('exclude-deleted').checked);
+        if (result.rows.length > 100000) throw new Error('The prepared MIS exceeds the 100,000-row import limit.');
+        importedRows = result.rows; pastedTableLoaded = true; renderRows(importedRows);
+        document.getElementById('filter-counts').textContent = 'Applicant rows kept: ' + (result.rows.length - 1) + ' · Rows removed: ' + result.removed.length + ' · Rows flagged for manual review (kept): ' + result.review.length + '. Original pasted text has not been changed.';
+        showFilterItems('filter-removed', result.removed);
+        showFilterItems('filter-review', result.review);
+        document.getElementById('filter-summary').classList.remove('hidden');
+        importButton.disabled = !currentUser || currentRole !== 'admin';
+        setStatus('Filtered and prepared locally. Nothing has been sent to Supabase. Review the kept table and removed-row reasons, then select Compare pasted MIS.', 'success');
+      } catch (error) { setStatus(error.message || String(error), 'error'); }
     });
     tableInput.addEventListener('input', function () {
       pastedTableLoaded = false; importedRows = []; importButton.disabled = true;
-      previewWrap.classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
+      previewWrap.classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden'); document.getElementById('filter-summary').classList.add('hidden');
     });
 
     async function invokeImport(payload) {

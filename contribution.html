@@ -225,7 +225,7 @@ function openCitizen(id){
  $('toggleEditMode').classList.remove('hidden');
  $('toggleEditMode').textContent='Edit';
  $('toggleEditMode').setAttribute('aria-pressed','false');
- const chronological=[...c.ledger].sort((a,b)=>(a.entry_date||'').localeCompare(b.entry_date||'')||(a.created_at||'').localeCompare(b.created_at||''));
+ const chronological=[...c.ledger].sort((a,b)=>{const dateA=String(a.entry_date||'').slice(0,10),dateB=String(b.entry_date||'').slice(0,10);if(!dateA&&!dateB)return String(a.created_at||'').localeCompare(String(b.created_at||''));if(!dateA)return 1;if(!dateB)return -1;return dateA.localeCompare(dateB)||String(a.created_at||'').localeCompare(String(b.created_at||''));});
  const periodChargeCounts=new Map(),periodChargeIndexes=new Map(),chargeOccurrenceIndex=new Map();
  for(const e of chronological){
   if(e.entry_type==='charge'&&e.charge_period&&!/^FTO EXTRA:/i.test(String(e.note||''))){

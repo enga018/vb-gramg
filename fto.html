@@ -227,6 +227,7 @@ const $=id=>document.getElementById(id);
 let authSequence=0,parsedDataRows=[],importGroups=[],duplicateCards=new Map(),duplicateReferences=new Map(),reviewedCards=new Set(),unknownCards=new Set(),reviewedNewCards=new Set(),deferredCards=new Map(),duplicateCheckSequence=0,checkingDuplicates=false,duplicateCheckFailed=false;
 function status(msg,type){$('data-status').textContent=msg;$('data-status').classList.toggle('error',type==='error');$('data-status').classList.toggle('success',type==='success')}
 function syncStatus(msg,type){const el=$('sync-status');el.textContent=msg;el.classList.remove('hidden');el.classList.toggle('error',type==='error');el.classList.toggle('success',type==='success')}
+async function edgeFunctionErrorMessage(error,fallback){if(error&&error.context){try{const response=error.context.clone?error.context.clone():error.context;let body=null;if(response&&typeof response.json==='function')body=await response.json();else if(response&&typeof response.text==='function'){const raw=await response.text();try{body=JSON.parse(raw)}catch{body={message:raw}}}if(body&&typeof body==='object'&&(body.error||body.message||body.msg))return String(body.error||body.message||body.msg);if(typeof body==='string'&&body.trim())return body.trim()}catch(_){}}return (error&&error.message)||fallback}
 const FTO_HEADERS=[
  'S.No','Block Name','Job Card No. (Panchayat Name)','Reference No.','Transaction Date',
  'Applicant Name','Wagelist No.','Name of Primary Account Holder','Bank Code','IFSC code',
@@ -486,13 +487,13 @@ $('fto-import-button').addEventListener('click',async()=>{
    if(data&&Array.isArray(data.duplicates)){duplicateCards=new Map(data.duplicates.map(row=>[String(row.job_card_number),row]));reviewedCards=new Set();}
    if(data&&Array.isArray(data.unknown_job_cards)){unknownCards=new Set(data.unknown_job_cards.map(String));reviewedNewCards=new Set();}
    if(data&&(Array.isArray(data.duplicates)||Array.isArray(data.unknown_job_cards)))renderImportPreview();
-   throw new Error((data&&data.error)||(error&&error.message)||'FTO synchronization failed.');
+   throw new Error((data&&data.error)||await edgeFunctionErrorMessage(error,'FTO synchronization failed.'));
   }
-  const syncMessage='FTO '+data.fto_number+' synchronized. Saved period: '+data.contribution_period+'. Rows checked: '+data.rows_seen+'. Local transactions: '+data.local_transactions+'. Other-village/unclear transactions excluded: '+data.excluded_other_village+'. Charges created: '+data.inserted+', updated: '+data.updated+', matching rejected charges removed: '+data.deleted+'. Calculated local total: ₹'+Number(data.total_amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'.';syncStatus(syncMessage,'success');status(syncMessage,'success');
+  const syncMessage='FTO '+data.fto_number+' synchronized. Saved period: '+data.contribution_period+'. Rows checked: '+data.rows_seen+'. Local transactions: '+data.local_transactions+'. Other-village/unclear transactions excluded: '+data.excluded_other_village+'. Charges created: '+data.inserted+', updated: '+data.updated+', matching rejected charges removed: '+data.deleted+'. Calculated local total: ₹'+Number(data.total_amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'.';syncStatus(syncMessage,'success');
   button.textContent='Synchronization completed';
   await lookupFtoBatch();
   await loadFtoHistory();
- }catch(err){const message=err.message||'FTO synchronization failed. Review the preview and try again.';syncStatus(message,'error');status(message,'error');button.textContent='Synchronize FTO statuses';checkingDuplicates=false;updateImportButton()}
+ }catch(err){const message=err.message||'FTO synchronization failed. Review the preview and try again.';syncStatus(message,'error');button.textContent='Synchronize FTO statuses';checkingDuplicates=false;updateImportButton()}
  finally{if(button.textContent!=='Synchronization completed')button.disabled=false}
 });
 $('table-input').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')$('load-table-button').click()});

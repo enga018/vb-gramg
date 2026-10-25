@@ -106,6 +106,25 @@ tbody tr:last-child td{border-bottom:0}
 #fto-import-button{min-width:190px}
 @media(max-width:700px){.import-grid{grid-template-columns:minmax(0,1fr)}.import-table-wrap{max-height:52vh}.import-controls .actions{align-items:stretch}.import-controls .actions button{width:100%}}
 
+.history-section{margin-top:24px;padding-top:22px;border-top:1px solid var(--line)}
+.history-toolbar{display:grid;grid-template-columns:minmax(220px,1.4fr) minmax(180px,1fr);gap:12px;margin:16px 0}
+.history-table-wrap{max-height:72vh;margin-top:12px}
+.history-expand{min-height:34px;padding:6px 10px;background:#f0f3f8;color:#344054;border-color:#e0e6ef}
+.history-expand:hover{background:#e6ebf3}
+.history-detail td{padding:14px;background:#f8fafd}
+.history-detail .table-wrap{max-height:55vh}
+.history-detail table{min-width:1550px;font-size:.82rem}
+.history-detail th,.history-detail td{min-width:105px;padding:9px 10px}
+.history-detail th{position:sticky;top:0}
+.history-detail .detail-heading{font-size:.84rem;font-weight:700;color:#344054;margin:0 0 10px}
+.history-statuses{display:flex;flex-wrap:wrap;gap:6px}
+.history-status{font-size:.75rem;padding:4px 7px;border-radius:7px;background:#f0f3f8;color:#344054;white-space:nowrap}
+.history-status.processed{background:#eaf8ef;color:#17663a}
+.history-status.rejected{background:#fff0ed;color:#9b2c20}
+.history-status.blank{background:#fff4d9;color:#8a4b08}
+@media(max-width:700px){.history-toolbar{grid-template-columns:minmax(0,1fr)}.history-section .section-head{align-items:stretch}.history-section .section-head button{width:100%}.history-table-wrap{max-height:62vh}.history-detail td{padding:8px}.history-detail table{min-width:1450px}}
+
+
 @media(max-width:900px){
  .meta{grid-template-columns:repeat(3,minmax(0,1fr))}
  .stat:last-child{grid-column:span 1}
@@ -172,7 +191,7 @@ tbody tr:last-child td{border-bottom:0}
 </div>
 
 <div id="import-controls" class="import-controls hidden">
- <div class="section-head"><div><h2>Prepare contribution import</h2><p>The FTO number and text period are saved on the first import. Re-importing the same FTO reuses its saved period and synchronizes status changes. Only New Serchhip North transactions affect Contribution; other villages are recorded for tracking but excluded from charges.</p></div></div>
+ <div class="section-head"><div><h2>Prepare contribution import</h2><p>The FTO number and text period are saved on the first import. Re-importing the same FTO reuses its saved period and synchronizes status changes. Only New Serchhip North transactions are saved; rows from other villages are excluded.</p></div></div>
  <div class="import-grid">
   <div class="field"><label for="fto-number">FTO number</label><input id="fto-number" type="text" maxlength="100" placeholder="Detected from pasted table or enter it" required></div>
   <div class="field"><label for="charge-period">Contribution period (text)</label><input id="charge-period" type="text" maxlength="100" placeholder="August 2026" required></div>
@@ -186,6 +205,15 @@ tbody tr:last-child td{border-bottom:0}
  <p class="import-help">Statuses are synchronized automatically per reference number: blank becomes deferred, Processed activates the matching charge, and Rejected removes only a matching FTO charge when no active transaction remains. The system records status history and does not delete unrelated charges. Mixed statuses under one job card are reconciled from individual reference numbers.</p>
  <div class="table-foot"><span id="import-count" class="muted"></span><div class="actions"><button id="fto-import-button" type="button" disabled>Synchronize FTO</button></div></div>
 </div>
+<div id="fto-history" class="history-section">
+ <div class="section-head"><div><h2>Imported FTO history</h2><p>Every saved FTO appears once with its contribution period. Expand a row to inspect all locally imported source fields. Re-imports update the same FTO and keep its original period.</p></div><button id="refresh-fto-history" type="button" class="secondary">Refresh history</button></div>
+ <div class="history-toolbar">
+  <div class="field"><label for="fto-history-search">Search FTO / period</label><input id="fto-history-search" type="search" placeholder="Search FTO number or period"></div>
+  <div class="field"><label for="fto-history-period">Contribution period</label><select id="fto-history-period"><option value="">All periods</option></select></div>
+ </div>
+ <div id="fto-history-status" class="status" aria-live="polite">Loading imported FTO history…</div>
+ <div class="table-wrap history-table-wrap"><table id="fto-history-table"><thead><tr><th></th><th>FTO number</th><th>Contribution period</th><th>Transactions</th><th>Status summary</th><th>Last imported / checked</th></tr></thead><tbody></tbody></table></div>
+ <div class="table-foot"><span id="fto-history-count" class="muted"></span></div>
 </section>
 </div>
 </main>
@@ -461,10 +489,92 @@ $('fto-import-button').addEventListener('click',async()=>{
   status('FTO '+data.fto_number+' synchronized. Saved period: '+data.contribution_period+'. Rows checked: '+data.rows_seen+'. Local transactions: '+data.local_transactions+'. Other-village/unclear transactions excluded: '+data.excluded_other_village+'. Charges created: '+data.inserted+', updated: '+data.updated+', matching rejected charges removed: '+data.deleted+'. Calculated local total: ₹'+Number(data.total_amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'.','success');
   button.textContent='Synchronization completed';
   await lookupFtoBatch();
+  await loadFtoHistory();
  }catch(err){status(err.message||'FTO synchronization failed. Review the preview and try again.','error');button.textContent='Synchronize FTO statuses';checkingDuplicates=false;updateImportButton()}
  finally{if(button.textContent!=='Synchronization completed')button.disabled=false}
 });
 $('table-input').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')$('load-table-button').click()});
+
+
+let ftoHistoryRows=[],expandedFtoId=null,historyLoadSequence=0;
+function historyMessage(message,type=""){
+ const el=$("fto-history-status");el.textContent=message;el.classList.toggle("error",type==="error");el.classList.toggle("success",type==="success");
+}
+function fmtHistoryDate(value){
+ if(!value)return "—";
+ const d=new Date(value);
+ if(Number.isNaN(d.getTime()))return String(value);
+ return d.toLocaleString("en-IN",{year:"numeric",month:"short",day:"2-digit",hour:"2-digit",minute:"2-digit"});
+}
+function statusSummary(counts={}){
+ const parts=[];
+ for(const key of ["processed","blank","rejected","other"]){const count=Number(counts[key]||0);if(count)parts.push({key,label:(key==="blank"?"Blank":key[0].toUpperCase()+key.slice(1))+" "+count});}
+ if(!parts.length)return "No transactions";
+ const wrap=document.createElement("div");wrap.className="history-statuses";
+ for(const part of parts){const span=document.createElement("span");span.className="history-status "+part.key;span.textContent=part.label;wrap.appendChild(span);}
+ return wrap;
+}
+function addHistoryCell(row,value){
+ const td=document.createElement("td");
+ if(value instanceof Node)td.appendChild(value);else td.textContent=String(value??"—");
+ row.appendChild(td);return td;
+}
+function renderHistoryTransactions(batch){
+ const wrapper=document.createElement("div");
+ const heading=document.createElement("p");heading.className="detail-heading";heading.textContent="Imported transactions for New Serchhip North · "+(batch.transactions||[]).length+" rows";wrapper.appendChild(heading);
+ const wrap=document.createElement("div");wrap.className="table-wrap";
+ const table=document.createElement("table");const thead=document.createElement("thead"),headRow=document.createElement("tr");
+ FTO_HEADERS.forEach(label=>{const th=document.createElement("th");th.textContent=label;headRow.appendChild(th)});thead.appendChild(headRow);table.appendChild(thead);
+ const tbody=document.createElement("tbody");
+ for(const tx of (batch.transactions||[])){
+  const tr=document.createElement("tr");
+  const source=Array.isArray(tx.source_row)?tx.source_row:[];
+  FTO_HEADERS.forEach((label,index)=>{
+   let value=source[index];
+   if(value===undefined||value===null||String(value)===""){
+    const fallback={ "Reference No.":tx.reference_no,"Job Card No. (Panchayat Name)":tx.job_card_number,"Applicant Name":tx.person_name,"Credit Amount (In Rs.)":tx.credit_amount,"Status":tx.status,"Processed Date":tx.processed_date,"Rejection Reason":tx.rejection_reason,"Transaction Date":tx.transaction_date };
+    value=fallback[label]??"";
+   }
+   const td=document.createElement("td");td.textContent=String(value??"").replace(/<br\s*\/?>/gi," ");
+   tr.appendChild(td);
+  });
+  tbody.appendChild(tr);
+ }
+ if(!(batch.transactions||[]).length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=FTO_HEADERS.length;td.textContent="No local transaction rows are saved for this FTO.";tr.appendChild(td);tbody.appendChild(tr);}
+ table.appendChild(tbody);wrap.appendChild(table);wrapper.appendChild(wrap);return wrapper;
+}
+function renderFtoHistory(){
+ const tbody=$("fto-history-table").querySelector("tbody");tbody.replaceChildren();
+ const search=$("fto-history-search").value.trim().toLowerCase(),period=$("fto-history-period").value;
+ const filtered=ftoHistoryRows.filter(batch=>(!period||batch.contribution_period===period)&&(!search||String(batch.fto_number||"").toLowerCase().includes(search)||String(batch.contribution_period||"").toLowerCase().includes(search)));
+ for(const batch of filtered){
+  const tr=document.createElement("tr");
+  const toggle=document.createElement("button");toggle.type="button";toggle.className="history-expand secondary";toggle.textContent=expandedFtoId===batch.id?"Hide":"View";toggle.setAttribute("aria-expanded",String(expandedFtoId===batch.id));toggle.addEventListener("click",()=>{expandedFtoId=expandedFtoId===batch.id?null:batch.id;renderFtoHistory()});
+  addHistoryCell(tr,toggle);addHistoryCell(tr,batch.fto_number);addHistoryCell(tr,batch.contribution_period);addHistoryCell(tr,Number(batch.transaction_count||0));addHistoryCell(tr,statusSummary(batch.status_counts));addHistoryCell(tr,fmtHistoryDate(batch.last_checked_at||batch.first_imported_at));tbody.appendChild(tr);
+  if(expandedFtoId===batch.id){const detailTr=document.createElement("tr");detailTr.className="history-detail";const td=document.createElement("td");td.colSpan=6;td.appendChild(renderHistoryTransactions(batch));detailTr.appendChild(td);tbody.appendChild(detailTr);}
+ }
+ $("fto-history-count").textContent=filtered.length+" of "+ftoHistoryRows.length+" imported FTOs";
+ if(!filtered.length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=6;td.textContent=ftoHistoryRows.length?"No FTOs match this search/filter.":"No FTOs have been imported yet.";td.style.padding="20px";tr.appendChild(td);tbody.appendChild(tr);}
+}
+async function loadFtoHistory(){
+ const seq=++historyLoadSequence;
+ historyMessage("Loading imported FTO history…");
+ try{
+  const {data,error}=await supabaseClient.functions.invoke("vbgramg-contribution-data",{body:{action:"list-fto-history"}});
+  if(seq!==historyLoadSequence)return;
+  if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||"Could not load FTO history.");
+  ftoHistoryRows=Array.isArray(data.batches)?data.batches:[];
+  const select=$("fto-history-period"),old=select.value,periods=[...new Set(ftoHistoryRows.map(b=>String(b.contribution_period||"")).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  select.replaceChildren();const all=document.createElement("option");all.value="";all.textContent="All periods";select.appendChild(all);
+  for(const value of periods){const option=document.createElement("option");option.value=value;option.textContent=value;select.appendChild(option);}
+  if(periods.includes(old))select.value=old;
+  if(expandedFtoId&&!ftoHistoryRows.some(b=>b.id===expandedFtoId))expandedFtoId=null;
+  renderFtoHistory();historyMessage(ftoHistoryRows.length?ftoHistoryRows.length+" imported FTO(s) loaded.":"No FTOs imported yet. Imported FTOs will appear here.");
+ }catch(err){if(seq!==historyLoadSequence)return;historyMessage(err.message||"Could not load FTO history.","error");}
+}
+$("refresh-fto-history").addEventListener("click",loadFtoHistory);
+$("fto-history-search").addEventListener("input",renderFtoHistory);
+$("fto-history-period").addEventListener("change",renderFtoHistory);
 
 async function verifyAccess(user){
  const seq=++authSequence;
@@ -473,6 +583,7 @@ async function verifyAccess(user){
  if(seq!==authSequence)return false;
  if(error||!data||data.approved!==true){await supabaseClient.auth.signOut();window.location.replace('./');return false}
  $('app-panel').classList.remove('hidden');
+ loadFtoHistory();
  return true;
 }
 supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){authSequence++;window.location.replace('./')}else if(event==='TOKEN_REFRESHED'&&session)Promise.resolve().then(()=>verifyAccess(session.user))});

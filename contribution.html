@@ -75,7 +75,7 @@ function calculateLedgerState(ledger){
 function deriveCitizens(){
  const map=new Map(),make=(id,name)=>({id,jobCard:id,name:name||'Unnamed',charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,ledger:[]});
  for(const r of citizenRegistry){const id=String(r.job_card_number||'').trim();if(id)map.set(id,make(id,r.person_name))}
- for(const e of entries){const id=String(e.job_card_number||'').trim();if(!id)continue;if(!map.has(id))map.set(id,make(id,e.person_name));map.get(id).ledger.push(e)}
+ for(const e of entries){const id=String(e.job_card_number||'').trim();if(!id||!map.has(id))continue;map.get(id).ledger.push(e)}
  citizens=[...map.values()].map(c=>{const x=calculateLedgerState(c.ledger);let gross=0;for(const e of c.ledger){if((e.entry_type==='charge'||e.entry_type==='sanitationFee')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return'))gross+=Math.max(0,Number(e.amount)||0)}return {...c,charges:gross,activeCharges:x.charged,deferred:x.deferred,paid:x.paid,waived:x.waived,returns:x.returned,totalCharged:Math.max(0,gross-Math.min(gross,x.waived)),balance:x.balance}}).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
 }
 function jobCardSuffixNumber(jobCard){
@@ -290,11 +290,11 @@ async function load(){
   if(sessionError||!sessionData.session){status('Sign in from the VBGRAMG home page first.');$('app').classList.add('hidden');return;}
   const {data:access,error:accessError}=await supabaseClient.functions.invoke('vbgramg-app-access',{body:{}});
   if(accessError||!access||access.approved!==true){status((access&&access.error)||(accessError&&accessError.message)||'This account is not approved.','err');$('app').classList.add('hidden');return;}
-  status('Loading contribution ledger…');
+  status('Loading active MIS and contribution ledger…');
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
   appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");entries=data.entries||[];citizenRegistry=data.citizens||[];deriveCitizens();
-  $('app').classList.remove('hidden');status('Signed in and approved. '+entries.length.toLocaleString('en-IN')+' ledger entries loaded.');
+  $('app').classList.remove('hidden');status('Loaded active MIS job cards and '+entries.length.toLocaleString('en-IN')+' contribution ledger entries. Job card details come from active MIS; balances and history come from the ledger.');
   render();
  }catch(err){status(err.message||'Could not load contribution data.','err');}
  finally{$('refreshBtn').disabled=false;}

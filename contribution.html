@@ -56,7 +56,7 @@ table{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem;white
 'use strict';
 const $=id=>document.getElementById(id);
 const startupNode=$('status');
-if(startupNode)startupNode.textContent='Starting Contribution page…';
+if(startupNode)startupNode.textContent='JavaScript started — loading connection library…';
 function setStartupError(message){
  const node=$('status');
  if(node){node.className='notice err';node.textContent=message;}

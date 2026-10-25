@@ -139,7 +139,7 @@ function render(){
  const start=currentPage*pageSize,shown=list.slice(start,start+pageSize),isMobile=window.matchMedia('(max-width: 700px)').matches;
  const thead=$('contribution-table').querySelector('thead'),tbody=$('contribution-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
  const head=document.createElement('tr');
- (isMobile?['Job Card Details','Outstanding']:['Job Card Number','Head of Household','Outstanding']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(isMobile&&label==='Outstanding')th.style.textAlign='right';head.appendChild(th)});thead.appendChild(head);
+ (isMobile?['Job Card Details','Outstanding']:['Job Card Number','Head of Household','Last Applicant','Last Charges','Outstanding']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Outstanding'||label==='Last Charges')th.style.textAlign='right';head.appendChild(th)});thead.appendChild(head);
  shown.forEach((c,index)=>{
   const state=c.balance<=0?'settled':'due',tr=document.createElement('tr');tr.className='contribution-row '+state;tr.tabIndex=0;tr.dataset.card=c.id;tr.setAttribute('role','button');tr.setAttribute('aria-label','Open contribution history for '+c.name+' job card '+c.id);
   const cell=(value,cls)=>{const td=document.createElement('td');td.textContent=value;if(cls)td.className=cls;tr.appendChild(td);return td};
@@ -160,7 +160,14 @@ function render(){
    const balanceCell=cell(c.balance>0?fmt(c.balance):'—','mobile-outstanding');
    if(c.balance<=0)balanceCell.style.color='var(--paid)';
   }else{
-   cell(c.id,'jobcard');cell(c.name+(c.exempt?' · EXEMPT':''),'person');cell(c.balance>0?fmt(c.balance):'','balance');
+   cell(c.id,'jobcard');cell(c.name+(c.exempt?' · EXEMPT':''),'person');
+   const desktopChargeEntries=c.ledger.filter(e=>(e.entry_type==='charge'||e.entry_type==='sanitationFee')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return')).sort((a,b)=>String(b.entry_date||'').localeCompare(String(a.entry_date||''))||String(b.created_at||'').localeCompare(String(a.created_at||'')));
+   const desktopLastCharge=desktopChargeEntries[0];
+   cell(desktopLastCharge?String(desktopLastCharge.applicant_name||'').trim():'—','person');
+   const desktopChargeCell=cell(desktopLastCharge?fmt(desktopLastCharge.amount):'—','amount');
+   if(desktopLastCharge&&desktopLastCharge.is_deferred){desktopChargeCell.textContent=fmt(desktopLastCharge.amount)+' · Deferred';desktopChargeCell.style.color='var(--partial)';}
+   else if(desktopLastCharge)desktopChargeCell.textContent=fmt(desktopLastCharge.amount)+' · Charges';
+   cell(c.balance>0?fmt(c.balance):'—','balance');
   }
   tr.addEventListener('click',()=>openCitizen(c.id));tr.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();openCitizen(c.id)}});tbody.appendChild(tr);
  });

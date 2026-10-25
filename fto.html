@@ -120,10 +120,32 @@ tbody tr:last-child td{border-bottom:0}
 .history-table-wrap{max-height:72vh;margin-top:12px}
 .history-expand{min-height:34px;padding:6px 10px;background:#f0f3f8;color:#344054;border-color:#e0e6ef}
 .history-expand:hover{background:#e6ebf3}
-.history-action-cell{position:relative;min-width:130px}
+.history-table-wrap{overflow-x:visible;overflow-y:auto}
+#fto-history-table{table-layout:fixed}
+#fto-history-table th,#fto-history-table td{min-width:0;padding:11px 12px}
+#fto-history-table .col-fto{width:27%}
+#fto-history-table .col-period{width:17%}
+#fto-history-table .col-status{width:24%}
+#fto-history-table .col-updated{width:22%}
+#fto-history-table .col-action{width:10%}
+.history-action-cell{position:relative;min-width:0;overflow:visible}
+.history-action-menu{position:fixed;right:auto;top:auto;z-index:20;min-width:160px;padding:5px;background:#fff;border:1px solid #dfe5ee;border-radius:10px;box-shadow:0 8px 24px rgb(23 32 51 / 14%)}
 .history-action-menu{position:absolute;right:10px;top:calc(100% - 5px);z-index:5;min-width:160px;padding:5px;background:#fff;border:1px solid #dfe5ee;border-radius:10px;box-shadow:0 8px 24px rgb(23 32 51 / 14%)}
 .history-action-menu button{display:flex;width:100%;justify-content:flex-start;min-height:38px;padding:8px 10px;border:0;background:transparent;color:#344054;text-align:left}
 .history-action-menu button:hover{background:#f0f4fa}
+@media(max-width:700px){
+ .history-table-wrap{overflow-x:visible}
+ #fto-history-table{font-size:.76rem}
+ #fto-history-table th,#fto-history-table td{padding:9px 6px}
+ #fto-history-table .col-fto{width:29%}
+ #fto-history-table .col-period{width:18%}
+ #fto-history-table .col-status{width:24%}
+ #fto-history-table .col-updated{width:17%}
+ #fto-history-table .col-action{width:12%}
+ #fto-history-table .history-statuses{gap:3px}
+ #fto-history-table .history-status{font-size:.66rem;padding:3px 5px;white-space:normal}
+ #fto-history-table .history-action-cell>button{font-size:.72rem;min-height:36px;padding:6px}
+}
 .history-detail td{padding:14px;background:#f8fafd}
 .history-detail .table-wrap{max-height:55vh}
 .history-detail table{min-width:1550px;font-size:.82rem}
@@ -198,7 +220,7 @@ tbody tr:last-child td{border-bottom:0}
   <div class="field"><label for="fto-history-period">Contribution period</label><select id="fto-history-period"><option value="">All periods</option></select></div>
  </div>
  <div id="fto-history-status" class="status" aria-live="polite">Loading imported FTO history…</div>
- <div class="table-wrap history-table-wrap"><table id="fto-history-table"><thead><tr><th>FTO number</th><th>Contribution period</th><th>Transactions</th><th>Status summary</th><th>Last imported / checked</th><th>Action</th></tr></thead><tbody></tbody></table></div>
+ <div class="table-wrap history-table-wrap"><table id="fto-history-table"><thead><tr><th class="col-fto">FTO number</th><th class="col-period">Contribution period</th><th class="col-status">Status summary</th><th class="col-updated">Last imported / checked</th><th class="col-action">Action</th></tr></thead><tbody></tbody></table></div>
  <div class="table-foot"><span id="fto-history-count" class="muted"></span></div>
 </section>
 </div>
@@ -278,18 +300,18 @@ function renderFtoHistory(){
  const filtered=ftoHistoryRows.filter(batch=>(!period||batch.contribution_period===period)&&(!search||String(batch.fto_number||"").toLowerCase().includes(search)||String(batch.contribution_period||"").toLowerCase().includes(search)));
  for(const batch of filtered){
   const tr=document.createElement("tr");
-  addHistoryCell(tr,batch.fto_number);addHistoryCell(tr,batch.contribution_period);addHistoryCell(tr,Number(batch.transaction_count||0));addHistoryCell(tr,statusSummary(batch.status_counts));addHistoryCell(tr,fmtHistoryDate(batch.last_checked_at||batch.first_imported_at));
+  addHistoryCell(tr,batch.fto_number);addHistoryCell(tr,batch.contribution_period);addHistoryCell(tr,statusSummary(batch.status_counts));addHistoryCell(tr,fmtHistoryDate(batch.last_checked_at||batch.first_imported_at));
   const actionCell=document.createElement("td");actionCell.className="history-action-cell";
   const actionButton=document.createElement("button");actionButton.type="button";actionButton.className="secondary";actionButton.textContent="Action";actionButton.setAttribute("aria-haspopup","menu");actionButton.setAttribute("aria-expanded","false");
   const menu=document.createElement("div");menu.className="history-action-menu hidden";menu.setAttribute("role","menu");
   const viewButton=document.createElement("button");viewButton.type="button";viewButton.textContent="View";viewButton.setAttribute("role","menuitem");viewButton.addEventListener("click",()=>{expandedFtoId=expandedFtoId===batch.id?null:batch.id;renderFtoHistory()});
   const editPeriod=document.createElement("button");editPeriod.type="button";editPeriod.textContent="Change period";editPeriod.setAttribute("role","menuitem");editPeriod.addEventListener("click",()=>{menu.classList.add("hidden");changeFtoPeriod(batch)});
-  menu.append(viewButton,editPeriod);actionButton.addEventListener("click",()=>{const open=menu.classList.contains("hidden");document.querySelectorAll(".history-action-menu").forEach(el=>el.classList.add("hidden"));document.querySelectorAll(".history-action-cell > button").forEach(el=>el.setAttribute("aria-expanded","false"));menu.classList.toggle("hidden",!open);actionButton.setAttribute("aria-expanded",String(open))});
+  menu.append(viewButton,editPeriod);actionButton.addEventListener("click",()=>{const open=menu.classList.contains("hidden");document.querySelectorAll(".history-action-menu").forEach(el=>el.classList.add("hidden"));document.querySelectorAll(".history-action-cell > button").forEach(el=>el.setAttribute("aria-expanded","false"));if(open){const rect=actionButton.getBoundingClientRect();menu.style.left=Math.max(8,Math.min(rect.right-160,window.innerWidth-168))+"px";menu.style.top=Math.max(8,Math.min(rect.bottom+4,window.innerHeight-100))+"px";}menu.classList.toggle("hidden",!open);actionButton.setAttribute("aria-expanded",String(open))});
   actionCell.append(actionButton,menu);tr.appendChild(actionCell);tbody.appendChild(tr);
-  if(expandedFtoId===batch.id){const detailTr=document.createElement("tr");detailTr.className="history-detail";const td=document.createElement("td");td.colSpan=6;td.appendChild(renderHistoryTransactions(batch));detailTr.appendChild(td);tbody.appendChild(detailTr);}
+  if(expandedFtoId===batch.id){const detailTr=document.createElement("tr");detailTr.className="history-detail";const td=document.createElement("td");td.colSpan=5;td.appendChild(renderHistoryTransactions(batch));detailTr.appendChild(td);tbody.appendChild(detailTr);}
  }
  $("fto-history-count").textContent=filtered.length+" of "+ftoHistoryRows.length+" imported FTOs";
- if(!filtered.length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=7;td.textContent=ftoHistoryRows.length?"No FTOs match this search/filter.":"No FTOs have been imported yet.";td.style.padding="20px";tr.appendChild(td);tbody.appendChild(tr);}
+ if(!filtered.length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=5;td.textContent=ftoHistoryRows.length?"No FTOs match this search/filter.":"No FTOs have been imported yet.";td.style.padding="20px";tr.appendChild(td);tbody.appendChild(tr);}
 }
 async function changeFtoPeriod(batch){
  const current=String(batch.contribution_period||"");

@@ -224,9 +224,9 @@ tbody tr:last-child td{border-bottom:0}
 <main>
 <div id="app-panel" class="hidden">
 <header class="topbar"><div class="brand"><h1>FTO</h1><p><a href="./" style="color:inherit">← Main menu</a></p></div>
-<div class="header-actions"><a class="link-button" href="./fto-import.html">Import FTO</a></div></header><section class="panel">
+<div class="header-actions"><button id="refresh-fto-history" type="button" class="secondary">Refresh</button><a class="link-button" href="./fto-import.html">Import FTO</a></div></header><section class="panel">
 <div id="fto-history" class="history-section">
- <div class="section-head"><div><h2>Imported FTO history</h2><p>Each FTO is listed once. Use the Action menu on an FTO row to view its transactions or change its contribution period. Changing the period moves every transaction in that FTO—including deferred, processed, rejected, and other statuses—and recalculates contribution charges. Contribution charges are recalculated for affected job cards.</p></div><button id="refresh-fto-history" type="button" class="secondary">Refresh history</button></div>
+ <div class="section-head"><div><h2>Imported FTO history</h2></div></div>
  <div class="history-toolbar">
   <div class="field"><label for="fto-history-search">Search FTO / period</label><input id="fto-history-search" type="search" placeholder="Search FTO number or period"></div>
   <div class="field"><label for="fto-history-period">Contribution period</label><select id="fto-history-period"><option value="">All periods</option></select></div>

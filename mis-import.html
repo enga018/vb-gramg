@@ -345,6 +345,33 @@
       return { rows: kept, removed, review };
     }
 
+    function detectMisColumns(rows) {
+      const key = headerKey;
+      const headerIndex = rows.findIndex(row => {
+        const keys = row.map(key);
+        return keys.some(v => v === 'job card number' || v === 'jobcard number') &&
+          keys.some(v => v === 'name of applicant' || v === 'applicant name');
+      });
+      if (headerIndex < 0) throw new Error('Could not identify the column-heading row. Paste the complete report, including its headings.');
+      const headers = rows[headerIndex].map(v => String(v || '').trim());
+      const keys = headers.map(key);
+      const find = (...names) => keys.findIndex(v => names.includes(v));
+      const required = [
+        { label: 'Job Card Number', names: ['job card number','jobcard number'] },
+        { label: 'Name of Applicant', names: ['name of applicant','applicant name'] }
+      ];
+      const optional = [
+        { label: 'Head of HouseHold', names: ['head of household','head of household name'] },
+        { label: 'S.No. / Sl. No.', names: ['s no','sl no','s no.'] },
+        { label: 'Applicant No.', names: ['applicant no','applicant no.'] },
+        { label: 'Unique ID', names: ['unique id'] },
+        { label: 'JC No.', names: ['jc no','jc no.'] }
+      ];
+      const missing = required.filter(col => find(...col.names) < 0);
+      if (missing.length) throw new Error('Missing required column(s): ' + missing.map(v => v.label).join(', ') + '. Copy the full MIS report including column headings.');
+      return { headers, found: required.concat(optional.filter(col => find(...col.names) >= 0)).map(col => col.label), generated: optional.filter(col => find(...col.names) < 0).map(col => col.label) };
+    }
+
     function normalizeMisTable(rows) {
       const headersIndex = rows.findIndex(row => {
         const keys = row.map(headerKey);
@@ -431,10 +458,11 @@
         const parsedRows = parsePastedTable(tableInput.value);
         const sourceRows = reportRows || parsedRows;
         const filtered = filterPastedRows(sourceRows, document.getElementById('exclude-deleted').checked);
+        const columnAudit = detectMisColumns(filtered.rows);
         const rows = normalizeMisTable(filtered.rows);
         if (rows.length > 100000) throw new Error('The pasted MIS exceeds the 100,000-row import limit.');
         importedRows = rows; pastedTableLoaded = true; renderRows(rows);
-        document.getElementById('filter-counts').textContent = 'Kept: ' + (rows.length - 1) + ' · Excluded: ' + filtered.removed.length + ' · Manual review: ' + filtered.review.length;
+        document.getElementById('filter-counts').textContent = 'Kept: ' + (rows.length - 1) + ' applicants · Excluded: ' + filtered.removed.length + ' rows · Manual review: ' + filtered.review.length + ' rows. Columns found: ' + columnAudit.found.join(', ') + '. Generated from the source: ' + (columnAudit.generated.length ? columnAudit.generated.join(', ') : 'none') + '.';
         const renderReasonList = (id, values, emptyText) => {
           const list = document.getElementById(id); list.replaceChildren();
           (values.length ? values.slice(0, 500) : [emptyText]).forEach(v => {

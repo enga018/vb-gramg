@@ -52,9 +52,11 @@
     <div class="paste-box">
       <label class="file-label" for="table-input">Paste table copied from the MIS page</label>
       <textarea id="table-input" rows="8" placeholder="Copy the MIS table, then paste it here…"></textarea>
-      <p class="hint">The original pasted text stays here. Filtering and conversion happen locally before anything is sent to Supabase.</p>
+      <p class="hint">Step 1: load the pasted report to inspect every parsed row. Nothing is filtered or sent to Supabase at this step.</p>
+      <button type="button" id="load-table-button">Load data</button>
+      <p id="source-table-summary" class="hint hidden"></p>
       <label style="display:block;margin:12px 0;font-weight:600"><input id="exclude-deleted" type="checkbox" checked> Exclude applicants marked deleted (asterisk in household/applicant name or deletion remarks)</label>
-      <button type="button" id="load-table-button">Filter and prepare table</button>
+      <button type="button" id="prepare-table-button" class="secondary" disabled>Prepare table for comparison</button>
     </div>
     <button type="button" id="import-button" disabled>Compare pasted MIS</button>
     <div id="status" class="status" aria-live="polite">Checking administrator access…</div>
@@ -98,6 +100,8 @@
     let currentUser = null;
     let currentRole = null;
     let importedRows = [];
+    let sourceRowsLoaded = [];
+    let sourceTableLoaded = false;
     let pastedTableLoaded = false;
     let importedFileName = 'Pasted MIS';
     let pendingImportId = null;
@@ -134,7 +138,7 @@
       currentUser = user;
       currentRole = access.role;
       importButton.disabled = !pastedTableLoaded || (uncertainRowsCount > 0 && !document.getElementById('review-confirm').checked);
-      setStatus('Administrator access verified. Paste the MIS table below, then select “Filter and prepare table”.', 'success');
+      setStatus('Administrator access verified. Paste the MIS report, then select “Load data” to inspect the parsed source table.', 'success');
     }
 
     function renderRows(rows) {
@@ -143,7 +147,7 @@
       thead.replaceChildren();
       tbody.replaceChildren();
       const headers = rows[0] || [];
-      const maxCols = Math.max(headers.length, ...rows.slice(1, 501).map(row => row.length), 0);
+      const maxCols = Math.max(headers.length, ...rows.slice(1).map(row => row.length), 0);
       const header = document.createElement('tr');
       for (let i = 0; i < maxCols; i++) {
         const th = document.createElement('th');
@@ -151,7 +155,7 @@
         header.appendChild(th);
       }
       thead.appendChild(header);
-      rows.slice(1, 501).forEach(function (row) {
+      rows.slice(1).forEach(function (row) {
         const tr = document.createElement('tr');
         for (let i = 0; i < maxCols; i++) {
           const td = document.createElement('td');
@@ -446,20 +450,45 @@
 
     loadTableButton.addEventListener('click', function () {
       importButton.disabled = true; pastedTableLoaded = false; importedRows = []; uncertainRowsCount = 0;
+      sourceRowsLoaded = []; sourceTableLoaded = false;
       previewWrap.classList.add('hidden'); document.getElementById('filter-summary').classList.add('hidden'); document.getElementById('diff-panel').classList.add('hidden');
+      document.getElementById('source-table-summary').classList.add('hidden');
       document.getElementById('filter-counts').textContent = '';
       document.getElementById('filter-removed').replaceChildren();
       document.getElementById('filter-review').replaceChildren();
       document.getElementById('review-confirm').checked = false;
+      document.getElementById('prepare-table-button').disabled = true;
       pendingImportId = null; pendingComparison = null;
       try {
         const reportRows = parseReportLines(tableInput.value);
         const parsedRows = parsePastedTable(tableInput.value);
-        const sourceRows = reportRows || parsedRows;
-        const filtered = filterPastedRows(sourceRows, document.getElementById('exclude-deleted').checked);
+        const rows = reportRows || parsedRows;
+        if (!rows.length) throw new Error('Paste the MIS report or table first.');
+        if (rows.length > 100001) throw new Error('The pasted MIS exceeds the 100,000-row limit.');
+        sourceRowsLoaded = rows.map(row => row.slice());
+        sourceTableLoaded = true;
+        renderRows(sourceRowsLoaded);
+        const count = Math.max(0, sourceRowsLoaded.length - 1);
+        const summary = document.getElementById('source-table-summary');
+        summary.textContent = 'Loaded ' + count.toLocaleString() + ' source rows. This is the unfiltered parsed table; review it before preparing the database-shaped table.';
+        summary.classList.remove('hidden');
+        document.getElementById('prepare-table-button').disabled = false;
+        setStatus('Source data loaded into the table. No rows have been filtered, normalized, compared, or sent to Supabase.', 'success');
+      } catch (error) { setStatus(error.message || String(error), 'error'); }
+    });
+
+    document.getElementById('prepare-table-button').addEventListener('click', function () {
+      if (!sourceTableLoaded || !sourceRowsLoaded.length) { setStatus('Load the source data first.', 'error'); return; }
+      importButton.disabled = true; pastedTableLoaded = false; importedRows = []; uncertainRowsCount = 0;
+      document.getElementById('diff-panel').classList.add('hidden');
+      pendingImportId = null; pendingComparison = null;
+      try {
+        // Work on a copy so the original parsed source table remains intact.
+        const workingRows = sourceRowsLoaded.map(row => row.slice());
+        const filtered = filterPastedRows(workingRows, document.getElementById('exclude-deleted').checked);
         const columnAudit = detectMisColumns(filtered.rows);
         const rows = normalizeMisTable(filtered.rows);
-        if (rows.length > 100000) throw new Error('The pasted MIS exceeds the 100,000-row import limit.');
+        if (rows.length > 100001) throw new Error('The prepared MIS exceeds the 100,000-row import limit.');
         importedRows = rows; pastedTableLoaded = true; renderRows(rows);
         document.getElementById('filter-counts').textContent = 'Kept: ' + (rows.length - 1) + ' applicants · Excluded: ' + filtered.removed.length + ' rows · Manual review: ' + filtered.review.length + ' rows. Columns found: ' + columnAudit.found.join(', ') + '. Generated from the source: ' + (columnAudit.generated.length ? columnAudit.generated.join(', ') : 'none') + '.';
         const renderReasonList = (id, values, emptyText) => {
@@ -478,7 +507,7 @@
         document.getElementById('filter-summary').classList.remove('hidden');
         uncertainRowsCount = filtered.review.length;
         importButton.disabled = !currentUser || currentRole !== 'admin' || uncertainRowsCount > 0;
-        setStatus('Prepared locally. Original pasted text is unchanged; nothing has been sent to Supabase.', 'success');
+        setStatus('Prepared database-shaped table. Review the results; nothing has been sent to Supabase yet.', 'success');
       } catch (error) { setStatus(error.message || String(error), 'error'); }
     });
     document.getElementById('review-confirm').addEventListener('change', function () {

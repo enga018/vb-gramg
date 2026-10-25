@@ -78,7 +78,6 @@
       <label style="display:flex;gap:8px;align-items:flex-start;margin:12px 0;font-weight:600"><input id="exclude-deleted" type="checkbox" checked style="width:auto;min-height:0;margin-top:4px"> Exclude applicants marked deleted (asterisk in household/applicant name or deletion remarks)</label>
       <button type="button" id="load-table-button">Analyze and compare</button>
     </div>
-    <button type="button" id="import-button" disabled hidden aria-hidden="true" tabindex="-1">Compare pasted MIS</button>
     <div id="status" class="status" aria-live="polite">Checking administrator access…</div>
     <section id="filter-summary" class="diff-panel hidden"><h2>Input filtering summary</h2><p id="filter-counts"></p><h3>Removed rows and reasons</h3><ul id="filter-removed" class="diff-list"></ul><h3>Uncertain rows held out for manual review</h3><ul id="filter-review" class="diff-list"></ul></section>
     <section id="diff-panel" class="diff-panel hidden" aria-live="polite">
@@ -110,7 +109,6 @@
 
     const tableInput = document.getElementById('table-input');
     const loadTableButton = document.getElementById('load-table-button');
-    const importButton = document.getElementById('import-button');
     const statusBox = document.getElementById('status');
     let currentUser = null;
     let currentRole = null;
@@ -142,7 +140,6 @@
       }
       currentUser = user;
       currentRole = access.role;
-      importButton.disabled = !pastedTableLoaded;
     }
 
     function parsePastedTable(raw) {
@@ -447,7 +444,6 @@
       } finally {
         button.disabled = false; document.getElementById('cancel-changes-button').disabled = false; tableInput.disabled = false;
         loadTableButton.disabled = !!pendingImportId || !currentUser || currentRole !== 'admin';
-        importButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || !!pendingImportId;
       }
     });
 
@@ -460,7 +456,7 @@
       if (id) { try { await invokeImport({ action: 'abort', importId: id }); } catch (_) {} }
       tableInput.disabled = false; loadTableButton.disabled = false;
       setStatus('MIS comparison cancelled. The existing active MIS was not changed.', '');
-      loadTableButton.disabled = !currentUser || currentRole !== 'admin' || !pastedTableLoaded || (window.misReviewCount > 0 && !document.getElementById('review-confirm').checked);
+      loadTableButton.disabled = !currentUser || currentRole !== 'admin';
     });
 
   </script>

@@ -432,7 +432,8 @@ async function lookupFtoBatch(){
  }catch(err){status('Could not look up saved FTO details: '+(err.message||'unknown error'),'error')}
 }
 $('fto-number').addEventListener('change',lookupFtoBatch);
-$('charge-period').addEventListener('input',()=>{reviewedCards=new Set();refreshDuplicates()});
+$('charge-period').addEventListener('input',()=>{reviewedCards=new Set();updateImportButton()});
+$('charge-period').addEventListener('change',()=>{reviewedCards=new Set();refreshDuplicates()});
 $('amount-divisor').addEventListener('input',()=>buildImportGroups());
 $('amount-multiplier').addEventListener('input',()=>buildImportGroups());
 $('fto-import-button').addEventListener('click',async()=>{

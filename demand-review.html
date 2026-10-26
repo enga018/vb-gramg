@@ -148,7 +148,8 @@ function getIncludedIds(id){try{return new Set(JSON.parse(localStorage.getItem(i
 function saveIncludedIds(id,ids){localStorage.setItem(includedKey(id),JSON.stringify([...ids]));}
 function applyWorkflowVisibility(){
  const setup=$("period-heading").closest("section");
- if(resultsMode){setup.classList.remove("hidden");$("reviewPanel").classList.add("hidden");$("demandPanel").classList.remove("hidden");$("unwillingPanel").classList.remove("hidden");$("continueReviewBtn").textContent="Review Again";}
+ if(reviewMode){setup.classList.add("hidden");$("reviewPanel").classList.remove("hidden");$("demandPanel").classList.add("hidden");$("unwillingPanel").classList.add("hidden");$("exportsPanel").classList.add("hidden");}
+ else if(resultsMode){setup.classList.remove("hidden");$("reviewPanel").classList.add("hidden");$("demandPanel").classList.remove("hidden");$("unwillingPanel").classList.remove("hidden");$("continueReviewBtn").textContent="Review Again";}
  else{$("reviewPanel").classList.add("hidden");$("demandPanel").classList.add("hidden");$("unwillingPanel").classList.add("hidden");$("exportsPanel").classList.add("hidden");}
 }
 const normalize=value=>String(value==null?'':value).trim();
@@ -278,7 +279,7 @@ async function load(){
   allReviewCandidates=reviewApplicants.map(a=>({...a}));
   const includedIds=getIncludedIds(currentPeriodId());
   for(const candidate of allReviewCandidates) if(includedIds.has(candidate.identity) && !demandApplicants.some(a=>a.identity===candidate.identity)) demandApplicants.push(candidate);
-  if(resultsMode) reviewApplicants=[];
+  if(resultsMode) reviewApplicants=[]; else if(reviewMode) reviewApplicants=allReviewCandidates.map(a=>({...a}));
   renderLists();
   status('MIS and Contribution data loaded.','success');
   $('generateBtn').disabled=false;

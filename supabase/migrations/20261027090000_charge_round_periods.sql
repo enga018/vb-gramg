@@ -62,16 +62,13 @@ update public.vbgramg_charge_ledger l
 set period_id = p.id
 from public.vbgramg_periods p
 where l.entry_type = 'charge'
-  and l.note ~* '^[A-Z]{3}[0-9]{2}(\([0-9]+\))?
-
+  and l.note ~* '^[A-Z]{3}[0-9]{2}(\([0-9]+\))?$'
   and p.contribution_month = date_trunc('month', to_date('01 ' || substring(l.note from 1 for 3) || ' 20' || substring(l.note from 4 for 2), 'DD MON YYYY'))::date
   and l.charge_period = p.contribution_month
   and lower(p.period_name) = lower(
     to_char(p.contribution_month, 'FMMonth YYYY') ||
     case
-      when coalesce(nullif(substring(l.note from '\(([0-9]+)\)
-), '')::integer, 1) = 1 then ''
-      else ' (' || substring(l.note from '\(([0-9]+)\)
-) || ')'
+      when coalesce(nullif(substring(l.note from '\(([0-9]+)\)$'), '')::integer, 1) = 1 then ''
+      else ' (' || substring(l.note from '\(([0-9]+)\)$') || ')'
     end
   );

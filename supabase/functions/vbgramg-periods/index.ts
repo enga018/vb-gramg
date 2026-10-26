@@ -18,7 +18,8 @@ function reply(req: Request, body: Record<string, unknown>, status = 200) {
 const clean = (v: unknown, max = 120) => typeof v === "string" ? v.trim().slice(0, max) : "";
 function monthName(date: string) {
   const [year, month] = date.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+  const shortMonth = new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }).toUpperCase();
+  return shortMonth + String(year).slice(-2);
 }
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: headers(req) });

@@ -81,6 +81,37 @@
 .app-header-actions>*{white-space:nowrap}
 .app-header-actions a{font:inherit;font-size:.9rem;font-weight:650;min-height:40px;padding:9px 13px;border:1px solid #e0e6ef;border-radius:10px;background:#f0f3f8;color:#344054;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
 @media(max-width:700px){body{padding:10px}.topbar{padding:14px 15px}.app-header-actions{width:100%;justify-content:flex-end}.app-header-actions>*{min-height:39px;padding:8px 11px;font-size:.84rem}main{padding:16px}}
+
+/* Keep every header action visually consistent with the standard Refresh button. */
+header .account > button,
+header .app-header-actions > a,
+header .app-header-actions > button,
+header .top-actions > a,
+header .top-actions > button {
+  box-sizing: border-box !important;
+  min-height: 40px !important;
+  padding: 9px 12px !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 10px !important;
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+  font-family: inherit !important;
+  font-size: .9rem !important;
+  font-weight: 650 !important;
+  line-height: 1.2 !important;
+  text-decoration: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+header .account > button:hover,
+header .app-header-actions > a:hover,
+header .app-header-actions > button:hover,
+header .top-actions > a:hover,
+header .top-actions > button:hover {
+  background: #d7e0ec !important;
+  color: #0f172a !important;
+}
+
 </style>
 </head>
 <body>

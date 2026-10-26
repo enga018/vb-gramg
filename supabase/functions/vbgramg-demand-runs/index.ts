@@ -51,14 +51,28 @@ Deno.serve(async (req: Request) => {
     catch { return reply(req, { error: "Invalid JSON request." }, 400); }
     if (body.action !== "save") return reply(req, { error: "Unsupported action." }, 400);
 
-    const periodId = textValue(body.periodId, 64);
+    let periodId = textValue(body.periodId, 64);
     const periodName = textValue(body.periodName, 120);
     const days = Number(body.days);
-    if (!periodId || !periodName || !Number.isInteger(days) || days < 1 || days > 365) {
-      return reply(req, { error: "Choose an open period and enter a valid number of days." }, 400);
+    if (!periodName || !Number.isInteger(days) || days < 1 || days > 365) {
+      return reply(req, { error: "Choose a period and enter a valid number of days." }, 400);
     }
-    const { data: period, error: periodError } = await admin.from("vbgramg_periods").select("id,period_name,status").eq("id", periodId).maybeSingle();
-    if (periodError) throw periodError;
+    let period: { id: string; period_name: string; status: string } | null = null;
+    if (periodId) {
+      const { data, error } = await admin.from("vbgramg_periods").select("id,period_name,status").eq("id", periodId).maybeSingle();
+      if (error) throw error;
+      period = data;
+    } else {
+      const { data, error } = await admin.from("vbgramg_periods").select("id,period_name,status").eq("period_name", periodName).eq("status", "open").maybeSingle();
+      if (error) throw error;
+      period = data;
+      if (!period) {
+        const { data: created, error: createError } = await admin.from("vbgramg_periods").insert({ period_name: periodName, status: "open", created_by: user.id }).select("id,period_name,status").single();
+        if (createError) throw createError;
+        period = created;
+      }
+      periodId = period.id;
+    }
     if (!period || period.status !== "open" || period.period_name !== periodName) {
       return reply(req, { error: "That period is no longer open. Refresh periods and try again." }, 409);
     }

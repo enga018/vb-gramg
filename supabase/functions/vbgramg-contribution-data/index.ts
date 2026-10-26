@@ -90,7 +90,7 @@ Deno.serve(async(req:Request)=>{
        const name=String(active[0]?.person_name||keeper?.person_name||"Name needs review");
        const isDeferred=active.every(tx=>String(tx.status)==="blank"),entryDate=ftoEntryDate(active,isDeferred);
        if(keeper){
-        const {error}=await admin.from("vbgramg_charge_ledger").update({person_name:name,amount,is_deferred:isDeferred,entry_date:entryDate,reference_numbers:refs,note:"FTO import"}).eq("id",keeper.id);
+        const {error}=await admin.from("vbgramg_charge_ledger").update({period_id:periodId,person_name:name,amount,is_deferred:isDeferred,entry_date:entryDate,reference_numbers:refs,note:"FTO import"}).eq("id",keeper.id);
         if(error)throw error;ledgerId=String(keeper.id);
        }else{
         const {data,error}=await admin.from("vbgramg_charge_ledger").insert({job_card_number:jobCard,person_name:name,entry_type:"charge",amount,charge_period:period,entry_date:entryDate,note:"FTO import",reference_numbers:refs,is_deferred:isDeferred,created_by:authData.user.id}).select("id").single();
@@ -294,7 +294,7 @@ Deno.serve(async(req:Request)=>{
    const exemptCards=new Set((exemptionRows||[]).map(r=>String(r.job_card_number)));
    const txByKey=new Map<string,Record<string,any>[]>();
    for(const tx of inScopeTxs){const p=batchPeriodMap.get(String(tx.batch_id))?.period||"";const key=String(tx.job_card_number)+"|"+p;if(!txByKey.has(key))txByKey.set(key,[]);txByKey.get(key)!.push(tx);}
-   const {data:oldLedger,error:oldLedgerError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,note,reference_numbers,import_id,charge_period").in("job_card_number",cards).eq("entry_type","charge").in("charge_period",periods);
+   const {data:oldLedger,error:oldLedgerError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,note,reference_numbers,import_id,charge_period,period_id").in("job_card_number",cards).eq("entry_type","charge").in("charge_period",periods);
    if(oldLedgerError)throw oldLedgerError;
    const ftoLedger=(row:Record<string,any>)=>/^FTO\b/i.test(String(row.note||""))&&!/^FTO EXTRA\b/i.test(String(row.note||""));
    const ftoRows=(oldLedger||[]).filter(ftoLedger),ledgerByKey=new Map<string,Record<string,any>[]>();
@@ -305,12 +305,12 @@ Deno.serve(async(req:Request)=>{
     const key=card+"|"+period,txRows=txByKey.get(key)||[];
     const active=txRows.filter(tx=>["blank","processed"].includes(String(tx.status))&&Number(tx.calculated_charge||0)>0);
     const refs=[...new Set(active.map(tx=>String(tx.reference_no)))],amount=Number(active.reduce((sum,tx)=>sum+Number(tx.calculated_charge||0),0).toFixed(2));
-    const existing=ledgerByKey.get(key)||[],keeper=existing.find(row=>(Array.isArray(row.reference_numbers)?row.reference_numbers:[]).some((ref:string)=>refs.includes(String(ref))))||existing[0]||null;
+    const existing=(ledgerByKey.get(key)||[]).filter(row=>String(row.period_id||"")===periodId||(!row.period_id&&(Array.isArray(row.reference_numbers)?row.reference_numbers:[]).some((ref:string)=>refs.includes(String(ref))))),keeper=existing.find(row=>(Array.isArray(row.reference_numbers)?row.reference_numbers:[]).some((ref:string)=>refs.includes(String(ref))))||existing[0]||null;
     let ledgerId="";
     if(amount>0){
      const name=String(active[0]?.person_name||keeper?.person_name||"Name needs review"),isDeferred=active.every(tx=>String(tx.status)==="blank"),entryDate=ftoEntryDate(active,isDeferred);
      if(keeper){const {error}=await admin.from("vbgramg_charge_ledger").update({person_name:name,amount,is_deferred:isDeferred,entry_date:entryDate,reference_numbers:refs,note:"FTO import"}).eq("id",keeper.id);if(error)throw error;ledgerId=String(keeper.id);ledgerUpdated++;}
-     else{const {data,error}=await admin.from("vbgramg_charge_ledger").insert({job_card_number:card,person_name:name,entry_type:"charge",amount,charge_period:period,entry_date:entryDate,note:"FTO import",reference_numbers:refs,is_deferred:isDeferred,created_by:authData.user.id}).select("id").single();if(error)throw error;ledgerId=String(data.id);ledgerInserted++;}
+     else{const {data,error}=await admin.from("vbgramg_charge_ledger").insert({job_card_number:card,person_name:name,entry_type:"charge",amount,charge_period:period,period_id:periodId,entry_date:entryDate,note:"FTO import",reference_numbers:refs,is_deferred:isDeferred,created_by:authData.user.id}).select("id").single();if(error)throw error;ledgerId=String(data.id);ledgerInserted++;}
      assignedLedger.set(key,ledgerId);
      const extras=existing.filter(row=>String(row.id)!==ledgerId);
      if(extras.length){const {error}=await admin.from("vbgramg_charge_ledger").delete().in("id",extras.map(row=>row.id));if(error)throw error;ledgerDeleted+=extras.length;}
@@ -631,12 +631,12 @@ Deno.serve(async(req:Request)=>{
       const applicantFields=applicantMatch?{applicant_name:applicantMatch.applicant_name,applicant_number:applicantMatch.applicant_number,applicant_unique_id:applicantMatch.applicant_unique_id}:{};
       let ledgerId="";
       if(keeper){
-       const {error:updateLedgerError}=await admin.from("vbgramg_charge_ledger").update({person_name:name||keeper.person_name,amount,is_deferred:isDeferred,entry_date:entryDate,reference_numbers:refs,note:"FTO import",...applicantFields}).eq("id",keeper.id);
+       const {error:updateLedgerError}=await admin.from("vbgramg_charge_ledger").update({period_id:periodId,person_name:name||keeper.person_name,amount,is_deferred:isDeferred,entry_date:entryDate,reference_numbers:refs,note:"FTO import",...applicantFields}).eq("id",keeper.id);
        if(updateLedgerError)throw updateLedgerError;ledgerId=String(keeper.id);updatedCount++;
       }else{
        const {data:newLedger,error:insertLedgerError}=await admin.from("vbgramg_charge_ledger").insert({
         job_card_number:card,person_name:name||"Name needs review",...applicantFields,entry_type:"charge",amount,
-        charge_period:chargePeriod,entry_date:entryDate,note:"FTO import",
+        charge_period:chargePeriod,period_id:periodId,entry_date:entryDate,note:"FTO import",
         reference_numbers:refs,is_deferred:isDeferred,created_by:authData.user.id,import_id:importId
        }).select("id").single();
        if(insertLedgerError)throw insertLedgerError;ledgerId=String(newLedger.id);insertedCount++;

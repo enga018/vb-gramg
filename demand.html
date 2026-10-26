@@ -44,7 +44,7 @@ button:hover,.link-button:hover{background:#2c3b55}button.secondary,.link-button
 <section class="panel" aria-labelledby="review-heading">
 <div class="section-heading"><h2 id="review-heading">Outstanding — Manual Review</h2><span id="reviewBadge" class="count">0</span></div>
 <p class="sub">Only MIS-selected applicants with an outstanding contribution balance appear here. Check the amount before using Include to add an applicant to Work Demand.</p>
-<div class="table-wrap"><table id="reviewTable"><thead><tr><th>Job Card No.</th><th>Name of Applicant</th><th>Applicant No.</th><th>Outstanding</th><th>Action</th></tr></thead><tbody id="reviewBody"><tr><td colspan="5" class="empty">Loading applicants…</td></tr></tbody></table></div>
+<div class="table-wrap"><table id="reviewTable"><thead><tr><th>Job Card No.</th><th>Head of Household</th><th>Outstanding Amount</th><th>Action</th></tr></thead><tbody id="reviewBody"><tr><td colspan="4" class="empty">Loading applicants…</td></tr></tbody></table></div>
 </section>
 
 <section class="panel" aria-labelledby="demand-heading">
@@ -145,7 +145,7 @@ function buildCards(headers,rows){
 async function load(){
  if(loading)return;
  loading=true;const seq=++loadSequence;$('refreshBtn').disabled=true;$('generateBtn').disabled=true;
- $('reviewBody').innerHTML='<tr><td colspan="5" class="empty">Loading applicants…</td></tr>';
+ $('reviewBody').innerHTML='<tr><td colspan="4" class="empty">Loading applicants…</td></tr>';
  $('demandBody').innerHTML='<tr><td colspan="3" class="empty">Loading applicants…</td></tr>';
  $('exportsPanel').classList.add('hidden');generated=null;
  try{
@@ -186,7 +186,7 @@ async function load(){
   $('generateBtn').disabled=false;
  }catch(error){
   status('Could not prepare Making Demand: '+(error&&error.message?error.message:String(error)),'error');
-  $('reviewBody').innerHTML='<tr><td colspan="5" class="empty">Could not load the review list.</td></tr>';
+  $('reviewBody').innerHTML='<tr><td colspan="4" class="empty">Could not load the review list.</td></tr>';
   $('demandBody').innerHTML='<tr><td colspan="3" class="empty">Could not load Work Demand.</td></tr>';
  }finally{loading=false;$('refreshBtn').disabled=false;$('generateBtn').disabled=!allCards.length;}
 }
@@ -195,10 +195,10 @@ function renderLists(){
  $('demandBadge').textContent=demandApplicants.length;$('demandCount').textContent=demandApplicants.length;
  $('jobCardCount').textContent=allCards.length;
  const reviewBody=$('reviewBody');reviewBody.replaceChildren();
- if(!reviewApplicants.length){reviewBody.innerHTML='<tr><td colspan="5" class="empty">No selected applicants with outstanding contributions need review.</td></tr>';}
+ if(!reviewApplicants.length){reviewBody.innerHTML='<tr><td colspan="4" class="empty">No selected applicants with outstanding contributions need review.</td></tr>';}
  else reviewApplicants.forEach((applicant,index)=>{
   const tr=document.createElement('tr');
-  tr.innerHTML='<td class="jobcard" data-label="Job Card No.">'+esc(applicant.jobCard)+'</td><td class="applicant" data-label="Applicant">'+esc(applicant.name||'—')+'</td><td data-label="Applicant No.">'+esc(applicant.number||'—')+'</td><td class="outstanding" data-label="Outstanding">'+esc(formatRupees(applicant.outstanding))+'</td><td class="action-cell" data-label="Action"><button type="button" class="include-btn" data-include="'+index+'">Include</button></td>';
+  tr.innerHTML='<td class="jobcard" data-label="Job Card No.">'+esc(applicant.jobCard)+'</td><td class="applicant" data-label="Head of Household">'+esc(applicant.household||'—')+'</td><td class="outstanding" data-label="Outstanding Amount">'+esc(formatRupees(applicant.outstanding))+'</td><td class="action-cell" data-label="Action"><button type="button" class="include-btn" data-include="'+index+'">Include</button></td>';
   reviewBody.appendChild(tr);
  });
  const demandBody=$('demandBody');demandBody.replaceChildren();

@@ -43,11 +43,12 @@ dialog#confirmDialog{width:min(92vw,520px);max-width:520px;border:1px solid var(
 
 <section class="panel" aria-labelledby="period-heading">
 <h2 id="period-heading">Demand details</h2>
-<p class="sub">Enter the period name and number of days for the documents you will export. The applicant lists load automatically.</p>
+<p class="sub">Select an open period from the shared list. Create, close, or reopen periods from Period Management. The applicant lists load automatically.</p>
 <div class="fields">
-<div class="field"><label for="periodName">Period Name</label><input id="periodName" type="text" maxlength="120" placeholder="Enter period name" autocomplete="off"></div>
+<div class="field"><label for="periodName">Period</label><select id="periodName" required><option value="">Loading open periods…</option></select></div>
 <div class="field"><label for="days">No. of Days</label><input id="days" type="number" min="1" max="365" step="1" inputmode="numeric" placeholder="Days"></div>
 </div>
+<div class="actions" style="margin-top:10px"><a class="link-button secondary" href="./periods.html">Manage periods</a></div>
 <div class="metrics">
 <div class="metric"><span>Work Demand applicants</span><strong id="demandCount">—</strong></div>
 <div class="metric"><span>Outstanding review</span><strong id="reviewCount">—</strong></div>
@@ -93,9 +94,19 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let allCards=[],selectedApplicants=new Map(),contributionData=null,reviewApplicants=[],demandApplicants=[],generated=null,pendingSnapshot=null,loading=false,loadSequence=0,saving=false;const pageSize=50;const tablePages={review:0,demand:0,unwilling:0};
+let allCards=[],selectedApplicants=new Map(),contributionData=null,reviewApplicants=[],demandApplicants=[],generated=null,pendingSnapshot=null,loading=false,loadSequence=0,saving=false,periods=[];const pageSize=50;const tablePages={review:0,demand:0,unwilling:0};
 const normalize=value=>String(value==null?'':value).trim();
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function selectedPeriod(){return periods.find(p=>p.id===$('periodName').value)||null;}
+async function loadPeriods(){
+ const {data,error}=await supabaseClient.functions.invoke('vbgramg-periods',{body:{action:'list'}});
+ if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||'Could not load shared periods.');
+ periods=(data.periods||[]).filter(p=>p.status==='open');
+ const select=$('periodName'),old=select.value;select.replaceChildren();
+ const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent=periods.length?'Select a period':'No open periods — create one in Period Management';select.appendChild(placeholder);
+ for(const p of periods){const option=document.createElement('option');option.value=p.id;option.textContent=p.period_name;option.dataset.name=p.period_name;option.dataset.days=p.days??'';select.appendChild(option);}
+ if(periods.some(p=>p.id===old))select.value=old;
+}
 function status(message,type='info'){const el=$('status');el.textContent=message;el.className='status'+(type==='error'?' error':type==='success'?' success':'');}
 function generatedStatus(message,type='info'){const el=$('generateStatus');el.textContent=message;el.className='status'+(type==='error'?' error':type==='success'?' success':'');}
 function invalidateGenerated(){generated=null;pendingSnapshot=null;if($('confirmDialog').open&&!saving)$('confirmDialog').close();$('exportsPanel').classList.add('hidden');$('generateBtn').disabled=loading||!allCards.length;}
@@ -269,14 +280,14 @@ $('reviewBody').addEventListener('click',event=>{
  demandApplicants.push(applicant);reviewApplicants.splice(index,1);tablePages.review=Math.min(tablePages.review,Math.max(0,Math.ceil(reviewApplicants.length/pageSize)-1));tablePages.demand=Math.max(0,Math.ceil(demandApplicants.length/pageSize)-1);invalidateGenerated();renderLists();
  status('Applicant included in Work Demand. Generate again before exporting.','success');
 });
-$('periodName').addEventListener('input',()=>{invalidateGenerated();});
+$('periodName').addEventListener('change',()=>{const p=selectedPeriod();if(p&&p.days&&!$('days').value)$('days').value=String(p.days);invalidateGenerated();});
 $('days').addEventListener('input',()=>{invalidateGenerated();});
 $('generateBtn').addEventListener('click',()=>{
- const period=$('periodName').value.trim(),days=Number($('days').value);
- if(!period){$('periodName').focus();generatedStatus('Enter the period name before generating.','error');$('generateStatus').classList.remove('hidden');return;}
+ const chosenPeriod=selectedPeriod(),period=chosenPeriod?.period_name||'',days=Number($('days').value);
+ if(!chosenPeriod){$('periodName').focus();generatedStatus('Select an open period before generating. If no period is available, create one in Period Management.','error');$('generateStatus').classList.remove('hidden');return;}
  if(!Number.isInteger(days)||days<1||days>365){$('days').focus();generatedStatus('Enter a whole number of days from 1 to 365.','error');$('generateStatus').classList.remove('hidden');return;}
  const unwilling=getUnwillingCards();
- pendingSnapshot={period,days,demand:demandApplicants.map(a=>({...a})),unwilling,createdAt:new Date().toISOString()};
+ pendingSnapshot={period,periodId:chosenPeriod.id,days,demand:demandApplicants.map(a=>({...a})),unwilling,createdAt:new Date().toISOString()};
  $('confirmPeriod').textContent=period;
  $('confirmDays').textContent=String(days);
  $('confirmDemandCount').textContent=String(pendingSnapshot.demand.length);
@@ -304,6 +315,7 @@ $('confirmSaveBtn').addEventListener('click',async()=>{
  try{
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-demand-runs',{body:{
    action:'save',
+   periodId:snapshot.periodId,
    periodName:snapshot.period,
    days:snapshot.days,
    workDemand:snapshot.demand.map(a=>({jobCard:a.jobCard,name:a.name||'',number:a.number||'',household:a.household||''})),

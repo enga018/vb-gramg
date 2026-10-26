@@ -1,24 +1,29 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "https://enga018.github.io",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Content-Type": "application/json",
-};
-function reply(body: Record<string, unknown>, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: corsHeaders });
+const allowedOrigins = new Set(["https://enga.in", "https://www.enga.in", "https://enga018.github.io"]);
+function cors(req: Request) {
+  const origin = req.headers.get("Origin") || "";
+  return {
+    "Access-Control-Allow-Origin": allowedOrigins.has(origin) ? origin : "https://enga.in",
+    "Vary": "Origin",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Content-Type": "application/json",
+  };
+}
+function reply(req: Request, body: Record<string, unknown>, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: cors(req) });
 }
 const textValue = (value: unknown, max = 300) =>
   typeof value === "string" ? value.trim().slice(0, max) : "";
 
 Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST") return reply({ error: "Method not allowed" }, 405);
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors(req) });
+  if (req.method !== "POST") return reply(req, { error: "Method not allowed" }, 405);
   const header = req.headers.get("Authorization") || "";
   const token = header.replace(/^Bearer\s+/i, "");
-  if (!token || token === header) return reply({ error: "Sign in required." }, 401);
+  if (!token || token === header) return reply(req, { error: "Sign in required." }, 401);
 
   const url = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
@@ -70,7 +75,7 @@ Deno.serve(async (req: Request) => {
     });
 
     const { data: saved, error: saveError } = await admin.from("vbgramg_demand_runs").insert({
-      period_name: periodName, days, village_scope: "New Serchhip North",
+      period_id: periodId, period_name: period.period_name, days, village_scope: "New Serchhip North",
       work_demand: workDemand, unwilling_to_work: unwillingToWork,
       work_demand_count: workDemand.length, unwilling_count: unwillingToWork.length,
       created_by: user.id, created_by_email: email,

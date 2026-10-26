@@ -239,16 +239,25 @@ Deno.serve(async(req:Request)=>{
   
   if(action==="change-fto-period"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can change an FTO period."},403);
-   const batchId=String(body.batch_id||"").trim(),periodId=String(body.period_id||"").trim(),contributionPeriod=String(body.contribution_period||"").trim().slice(0,100),chargePeriod=String(body.charge_period||"").trim();
+   const batchId=String(body.batch_id||"").trim(); let periodId=String(body.period_id||"").trim(); const contributionPeriod=String(body.contribution_period||"").trim().slice(0,100),chargePeriod=String(body.charge_period||"").trim();
    const periodMatch=chargePeriod.match(/^(\d{4})-(\d{2})-01$/);
    if(!batchId)return reply({error:"Select a saved FTO first."},400);
-    if(!periodId)return reply({error:"Select a shared period."},400);
    if(!contributionPeriod||!periodMatch||Number(periodMatch[2])<1||Number(periodMatch[2])>12)return reply({error:"Enter a valid month and year, such as June 2026."},400);
    const monthNames=["January","February","March","April","May","June","July","August","September","October","November","December"];
    const expectedLabel=monthNames[Number(periodMatch[2])-1]+" "+periodMatch[1];
    if(contributionPeriod.toLowerCase()!==expectedLabel.toLowerCase())return reply({error:"Period label and month/year do not match."},400);
    const {data:batch,error:batchError}=await admin.from("vbgramg_fto_batches").select("id,fto_number,contribution_period,ledger_charge_period,period_id").eq("id",batchId).maybeSingle();
    if(batchError)throw batchError;if(!batch)return reply({error:"The selected FTO was not found. Refresh history and try again."},404);
+   if(!periodId){
+    let {data:legacyPeriod,error:legacyPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,status").eq("period_date",chargePeriod).maybeSingle();
+    if(legacyPeriodError)throw legacyPeriodError;
+    if(!legacyPeriod){
+     const {data:createdPeriod,error:createPeriodError}=await admin.from("vbgramg_periods").insert({period_name:contributionPeriod,period_date:chargePeriod,status:"open",created_by:authData.user.id}).select("id,period_name,period_date,status").single();
+     if(createPeriodError)throw createPeriodError;
+     legacyPeriod=createdPeriod;
+    }
+    periodId=String(legacyPeriod.id);
+   }
    const oldPeriod=String(batch.ledger_charge_period||"");
    const {data:selectedPeriod,error:selectedPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,status").eq("id",periodId).maybeSingle();
     if(selectedPeriodError)throw selectedPeriodError;

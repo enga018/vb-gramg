@@ -339,13 +339,22 @@ tbody tr:last-child td{border-bottom:0}
   text-align:center
  }
 }
+
+/* Consistent page header: title left, navigation/actions right. */
+.app-header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.app-header .brand,.app-header .page-title{flex:0 1 auto;min-width:0}
+.app-header .brand h1,.app-header .page-title h1,.app-header>div:first-child h1{margin:0;font-size:1.35rem;line-height:1.25;letter-spacing:-.025em}
+.app-header .brand p,.app-header .page-title p,.app-header>div:first-child p{margin:3px 0 0}
+.app-header-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:0 0 auto;flex-wrap:wrap;margin-left:auto}
+.app-header-actions>*{white-space:nowrap}
+.app-header-actions .menu-link{order:0}
+@media(max-width:700px){.app-header{gap:12px;padding:14px 16px}.app-header-actions{width:100%;justify-content:flex-end;gap:7px}.app-header-actions>*{min-height:39px;padding:8px 11px;font-size:.84rem}.app-header .brand h1,.app-header .page-title h1,.app-header>div:first-child h1{font-size:1.25rem}}
 </style>
 </head>
 <body>
 <main>
 <div id="app-panel" class="hidden">
-<header class="topbar"><div class="brand"><h1>FTO</h1><p><a href="./" style="color:inherit">← Main menu</a></p></div>
-<div class="header-actions"><a class="link-button secondary" href="./periods.html">Manage periods</a><button id="refresh-fto-history" type="button" class="secondary">Refresh</button><a class="link-button" href="./fto-import.html">Import FTO</a></div></header><section class="panel">
+<header class="topbar app-header"><div class="brand"><h1>FTO</h1></div><div class="header-actions app-header-actions"><a class="link-button secondary menu-link" href="./">Back to menu</a><a class="link-button secondary" href="./periods.html">Manage periods</a><button id="refresh-fto-history" type="button" class="secondary">Refresh</button><a class="link-button" href="./fto-import.html">Import FTO</a></div></header><section class="panel">
 <div id="fto-history" class="history-section">
  <div class="section-head"><div><h2>Imported FTO history</h2></div></div>
  <div class="history-toolbar">

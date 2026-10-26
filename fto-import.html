@@ -186,7 +186,7 @@ tbody tr:last-child td{border-bottom:0}
 <main>
 <div id="app-panel" class="hidden">
 <header class="topbar"><div class="brand"><h1>FTO</h1><p><a href="./" style="color:inherit">← Main menu</a></p></div>
-<div class="header-actions"><a class="link-button secondary" href="./fto.html">← FTO history</a></div></header><section class="panel">
+<div class="header-actions"><a class="link-button secondary" href="./periods.html">Manage periods</a><a class="link-button secondary" href="./fto.html">← FTO history</a></div></header><section class="panel">
 <div>
 <label for="table-input">Paste table copied from the FTO page</label>
 <textarea id="table-input" rows="7" placeholder="Copy the table from the FTO page, then paste it here…"></textarea>
@@ -199,10 +199,10 @@ tbody tr:last-child td{border-bottom:0}
 </div>
 
 <div id="import-controls" class="import-controls hidden">
- <div class="section-head"><div><h2>Prepare contribution import</h2><p>The FTO number and text period are saved on the first import. Re-importing the same FTO reuses its saved period and synchronizes status changes. Only New Serchhip North transactions are saved; rows from other villages are excluded.</p></div></div>
+ <div class="section-head"><div><h2>Prepare contribution import</h2><p>The FTO number and selected shared period are saved on the first import. Re-importing the same FTO reuses its saved period and synchronizes status changes. Only New Serchhip North transactions are saved; rows from other villages are excluded.</p></div></div>
  <div class="import-grid">
   <div class="field"><label for="fto-number">FTO number</label><input id="fto-number" type="text" maxlength="100" placeholder="Detected from pasted table or enter it" required></div>
-  <div class="field"><label for="charge-period">Contribution period (text)</label><input id="charge-period" type="text" maxlength="100" placeholder="August 2026" required></div>
+  <div class="field"><label for="charge-period">Contribution period</label><select id="charge-period" required><option value="">Loading open periods…</option></select></div>
   <div class="field"><label for="amount-divisor">Input 1 (divide by)</label><input id="amount-divisor" type="number" min="0.01" step="any" value="300" required></div>
   <div class="field"><label for="amount-multiplier">Input 2 (multiply by)</label><input id="amount-multiplier" type="number" min="0.01" step="any" value="100" required></div>
 
@@ -230,7 +230,7 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let authSequence=0,parsedDataRows=[],importGroups=[],duplicateCards=new Map(),duplicateReferences=new Map(),reviewedCards=new Set(),unknownCards=new Set(),reviewedNewCards=new Set(),deferredCards=new Map(),duplicateCheckSequence=0,checkingDuplicates=false,duplicateCheckFailed=false;
+let authSequence=0,sharedPeriods=[],parsedDataRows=[],importGroups=[],duplicateCards=new Map(),duplicateReferences=new Map(),reviewedCards=new Set(),unknownCards=new Set(),reviewedNewCards=new Set(),deferredCards=new Map(),duplicateCheckSequence=0,checkingDuplicates=false,duplicateCheckFailed=false;
 function status(msg,type){$('data-status').textContent=msg;$('data-status').classList.toggle('error',type==='error');$('data-status').classList.toggle('success',type==='success')}
 function syncStatus(msg,type){const el=$('sync-status');el.textContent=msg;el.classList.remove('hidden');el.classList.toggle('error',type==='error');el.classList.toggle('success',type==='success')}
 async function edgeFunctionErrorMessage(error,fallback){if(error&&error.context){try{const response=error.context.clone?error.context.clone():error.context;let body=null;if(response&&typeof response.json==='function')body=await response.json();else if(response&&typeof response.text==='function'){const raw=await response.text();try{body=JSON.parse(raw)}catch{body={message:raw}}}if(body&&typeof body==='object'&&(body.error||body.message||body.msg))return String(body.error||body.message||body.msg);if(typeof body==='string'&&body.trim())return body.trim()}catch(_){}}return (error&&error.message)||fallback}
@@ -335,12 +335,20 @@ function parseAmount(value){
 }
 function periodToDate(value){
  const text=String(value||'').trim();
- let m=text.match(/^(\d{4})-(\d{1,2})(?:-01)?$/);
- if(m&&Number(m[2])>=1&&Number(m[2])<=12)return m[1]+'-'+String(Number(m[2])).padStart(2,'0')+'-01';
- const monthMap={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12,jan:1,feb:2,mar:3,apr:4,jun:6,jul:7,aug:8,sep:9,sept:9,oct:10,nov:11,dec:12};
- m=text.toLowerCase().match(/^([a-z]+)[\s,/-]+(\d{4})$/);
- if(!m||!monthMap[m[1]])return '';
- return m[2]+'-'+String(monthMap[m[1]]).padStart(2,'0')+'-01';
+ return /^\d{4}-\d{2}-01$/.test(text)?text:'';
+}
+function selectedPeriod(){return sharedPeriods.find(p=>p.id===$('charge-period').value)||null;}
+function selectedPeriodDate(){return selectedPeriod()?.period_date||'';}
+function selectedPeriodName(){return selectedPeriod()?.period_name||'';}
+async function loadSharedPeriods(selectedId=''){
+ const {data,error}=await supabaseClient.functions.invoke('vbgramg-periods',{body:{action:'list'}});
+ if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||'Could not load shared periods.');
+ sharedPeriods=data.periods||[];
+ const allowed=sharedPeriods.filter(p=>p.status==='open'||p.id===selectedId);
+ const select=$('charge-period'),old=selectedId||select.value;select.replaceChildren();
+ const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent=allowed.some(p=>p.status==='open')?'Select a contribution month':'No open contribution months — manage periods';select.appendChild(placeholder);
+ for(const p of allowed.filter(p=>p.period_date)){const option=document.createElement('option');option.value=p.id;option.textContent=p.period_name;option.dataset.date=p.period_date;option.dataset.status=p.status;select.appendChild(option);}
+ if([...select.options].some(o=>o.value===old))select.value=old;
 }
 function currentStatusAction(){return 'all'}
 function actionGroups(){return importGroups.filter(g=>g.inScope)}
@@ -416,14 +424,14 @@ function renderImportPreview(){
   }else reviewCell.textContent=group.inScope?'—':'Review village';
   tbody.appendChild(tr);
  });
- const period=$('charge-period').value,excludedRows=parsedDataRows.filter(row=>normalizeVillage(villageFromRow(row))!==normalizeVillage('NEW SERCHHIP North')).length;
+ const period=selectedPeriodName(),excludedRows=parsedDataRows.filter(row=>normalizeVillage(villageFromRow(row))!==normalizeVillage('NEW SERCHHIP North')).length;
  $('import-count').textContent=localCards+' local job cards · '+parsedDataRows.length+' FTO rows · '+excludedRows+' rows outside/unclear village';
- $('import-summary').textContent=(period?'Period label: '+period:'Enter contribution period, e.g. August 2026')+' · Local calculated charges: ₹'+total.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+' · Excluded job-card groups: '+excluded+(invalid?' · '+invalid+' local row(s) have a missing/invalid credit amount':'');
+ $('import-summary').textContent=(period?'Period label: '+period:'Select a contribution month')+' · Local calculated charges: ₹'+total.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+' · Excluded job-card groups: '+excluded+(invalid?' · '+invalid+' local row(s) have a missing/invalid credit amount':'');
  updateImportButton();
 }
 async function refreshDuplicates(){
  const seq=++duplicateCheckSequence;duplicateCards=new Map();duplicateReferences=new Map();unknownCards=new Set();
- const period=periodToDate($('charge-period').value);
+ const period=periodToDate(selectedPeriodDate());
  if(!period||!actionGroups().length){checkingDuplicates=false;duplicateCheckFailed=false;renderImportPreview();return}
  checkingDuplicates=true;duplicateCheckFailed=false;renderImportPreview();
  try{
@@ -443,7 +451,7 @@ async function refreshDuplicates(){
  }
 }
 function updateImportButton(){
- const ftoNumber=$('fto-number').value.trim(),period=periodToDate($('charge-period').value),selected=actionGroups();
+ const ftoNumber=$('fto-number').value.trim(),period=periodToDate(selectedPeriodDate()),selected=actionGroups();
  const invalid=parsedDataRows.some(row=>!String(row[3]||'').trim()||!jobCardFromRow(row)||!String(row[7]||row[5]||'').trim()||(['blank','processed'].includes(rawStatus(row))&&parseAmount(row[11])<=0));
  const unreviewed=[...duplicateCards.keys()].some(card=>!reviewedCards.has(card));
  const unverifiedNew=[...unknownCards].some(card=>!reviewedNewCards.has(card));
@@ -459,18 +467,18 @@ async function lookupFtoBatch(){
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'get-fto-batch',fto_number:ftoNumber}});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not look up the FTO.');
   if(data.found&&data.batch){
-   $('charge-period').value=String(data.batch.contribution_period||'');
-   status('Known FTO found. Its saved text period "'+data.batch.contribution_period+'" has been restored automatically.','success');
+   const savedPeriod=sharedPeriods.find(p=>p.id===data.batch.period_id)||sharedPeriods.find(p=>p.period_name.toLowerCase()===String(data.batch.contribution_period||'').toLowerCase())||sharedPeriods.find(p=>p.period_date===data.batch.ledger_charge_period);
+   if(savedPeriod){await loadSharedPeriods(savedPeriod.id);$('charge-period').value=savedPeriod.id;}
+   status('Known FTO found. Its saved period "'+data.batch.contribution_period+'" has been restored automatically.','success');
    reviewedCards=new Set();reviewedNewCards=new Set();refreshDuplicates();
   }else{
-   status('New FTO number. Enter its contribution period as text, for example August 2026.','');
+   status('New FTO number. Select its contribution month from the shared periods list.','');
    updateImportButton();
   }
  }catch(err){status('Could not look up saved FTO details: '+(err.message||'unknown error'),'error')}
 }
 $('fto-number').addEventListener('change',lookupFtoBatch);
-$('charge-period').addEventListener('input',()=>{reviewedCards=new Set();updateImportButton()});
-$('charge-period').addEventListener('change',()=>{reviewedCards=new Set();refreshDuplicates()});
+$('charge-period').addEventListener('change',()=>{reviewedCards=new Set();reviewedNewCards=new Set();refreshDuplicates()});
 $('amount-divisor').addEventListener('input',()=>buildImportGroups());
 $('amount-multiplier').addEventListener('input',()=>buildImportGroups());
 let pendingSyncPayload=null;
@@ -544,7 +552,7 @@ async function executeFtoSync(payload,button){
 }
 $('fto-import-button').addEventListener('click',async()=>{
  if($('fto-import-button').disabled)return;
- const button=$('fto-import-button'),ftoNumber=$('fto-number').value.trim(),periodLabel=$('charge-period').value.trim(),period=periodToDate(periodLabel);
+ const button=$('fto-import-button'),ftoNumber=$('fto-number').value.trim(),periodLabel=selectedPeriodName(),period=periodToDate(selectedPeriodDate()),periodId=$('charge-period').value;
  if(!window.confirm('Synchronize FTO '+ftoNumber+' for contribution period "'+periodLabel+'"? Only New Serchhip North records will affect charges. Status changes will be recorded, and unrelated charges will not be deleted.'))return;
  button.disabled=true;button.textContent='Synchronizing FTO…';$('sync-status').textContent='';$('sync-status').classList.add('hidden');$('sync-status').classList.remove('error','success');hideApplicantReview();
  try{
@@ -557,7 +565,7 @@ $('fto-import-button').addEventListener('click',async()=>{
    return {reference_no:String(row[3]||'').replace(/\s+/g,' ').trim(),job_card_number:jobCardFromRow(row),village_name:villageFromRow(row),person_name:String(row[7]||row[5]||'').replace(/\s+/g,' ').trim(),transaction_date:dateMatch?dateMatch[3]+'-'+dateMatch[2]+'-'+dateMatch[1]:'',processed_date:processedDateMatch?processedDateMatch[3]+'-'+processedDateMatch[2]+'-'+processedDateMatch[1]:'',amount_to_be_credited:amountToCredit,credit_amount:creditAmount,status:statusValue,calculated_charge:Number(calculatedCharge.toFixed(2)),rejection_reason:String(row[16]||'').trim(),source_row:row};
   });
   const sourceSha=await sha256(JSON.stringify({raw:$('table-input').value,ftoNumber,periodLabel,period,divisor,multiplier,rows:payloadRows}));
-  const payload={action:'sync-fto-batch',fto_number:ftoNumber,contribution_period:periodLabel,charge_period:period,rows:payloadRows,source_sha256:sourceSha,reviewed_duplicates:[...reviewedCards],reviewed_new_job_cards:[...reviewedNewCards]};
+  const payload={action:'sync-fto-batch',fto_number:ftoNumber,period_id:periodId,contribution_period:periodLabel,charge_period:period,rows:payloadRows,source_sha256:sourceSha,reviewed_duplicates:[...reviewedCards],reviewed_new_job_cards:[...reviewedNewCards]};
   await executeFtoSync(payload,button);
  }catch(err){const message=err.message||'FTO synchronization failed. Review the preview and try again.';syncStatus(message,'error');button.textContent='Synchronize FTO statuses';checkingDuplicates=false;updateImportButton()}
  finally{if(button.textContent!=='Synchronization completed')button.disabled=false}
@@ -571,8 +579,9 @@ async function verifyAccess(user){
  const {data,error}=await supabaseClient.functions.invoke('vbgramg-app-access',{body:{}});
  if(seq!==authSequence)return false;
  if(error||!data||data.approved!==true){await supabaseClient.auth.signOut();window.location.replace('./');return false}
+ try{await loadSharedPeriods();}catch(err){status('Could not load shared periods: '+(err.message||'unknown error'),'error');return false;}
  $('app-panel').classList.remove('hidden');
-  // FTO history is shown on fto.html.
+ // FTO history is shown on fto.html.
  return true;
 }
 supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){authSequence++;window.location.replace('./')}else if(event==='TOKEN_REFRESHED'&&session)Promise.resolve().then(()=>verifyAccess(session.user))});

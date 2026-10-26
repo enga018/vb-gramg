@@ -345,7 +345,7 @@ tbody tr:last-child td{border-bottom:0}
 <main>
 <div id="app-panel" class="hidden">
 <header class="topbar"><div class="brand"><h1>FTO</h1><p><a href="./" style="color:inherit">← Main menu</a></p></div>
-<div class="header-actions"><button id="refresh-fto-history" type="button" class="secondary">Refresh</button><a class="link-button" href="./fto-import.html">Import FTO</a></div></header><section class="panel">
+<div class="header-actions"><a class="link-button secondary" href="./periods.html">Manage periods</a><button id="refresh-fto-history" type="button" class="secondary">Refresh</button><a class="link-button" href="./fto-import.html">Import FTO</a></div></header><section class="panel">
 <div id="fto-history" class="history-section">
  <div class="section-head"><div><h2>Imported FTO history</h2></div></div>
  <div class="history-toolbar">
@@ -362,7 +362,7 @@ tbody tr:last-child td{border-bottom:0}
   <h2 id="period-modal-title">Change contribution period</h2>
   <p id="period-modal-description" class="period-modal-description">Edit the contribution period for this FTO. All transactions in the FTO will move to the saved period and contribution charges will be recalculated.</p>
   <form id="period-modal-form">
-   <div class="period-modal-field"><label for="period-modal-value">Contribution period</label><input id="period-modal-value" name="contribution-period" type="text" placeholder="e.g. June 2026" autocomplete="off" required></div>
+   <div class="period-modal-field"><label for="period-modal-value">Contribution period</label><select id="period-modal-value" name="contribution-period" required><option value="">Loading periods…</option></select></div>
    <div class="period-modal-actions"><button id="period-modal-cancel" type="button" class="secondary">Cancel</button><button id="period-modal-save" type="submit" class="save-period">Save</button></div>
   </form>
  </section>
@@ -383,7 +383,7 @@ tbody tr:last-child td{border-bottom:0}
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let authSequence=0;
+let authSequence=0,sharedPeriods=[];
 const FTO_HEADERS=[
  'S.No','Block Name','Job Card No. (Panchayat Name)','Reference No.','Transaction Date',
  'Applicant Name','Wagelist No.','Name of Primary Account Holder','Bank Code','IFSC code',
@@ -494,11 +494,27 @@ function closeFtoViewModal(){
  if(!filtered.length){const tr=document.createElement("tr"),td=document.createElement("td");tr.className="empty-state-row";td.className="empty-state-cell";td.colSpan=5;td.textContent=ftoHistoryRows.length?"No FTOs match this search/filter.":"No FTOs have been imported yet.";tr.appendChild(td);tbody.appendChild(tr);}
 }
 let pendingPeriodBatch=null;
-function changeFtoPeriod(batch){
+async function loadSharedPeriods(selectedId=""){
+ const {data,error}=await supabaseClient.functions.invoke("vbgramg-periods",{body:{action:"list"}});
+ if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||"Could not load shared periods.");
+ sharedPeriods=data.periods||[];
+ const allowed=sharedPeriods.filter(p=>p.period_date&&(p.status==="open"||p.id===selectedId));
+ const select=$("period-modal-value"),old=selectedId||select.value;select.replaceChildren();
+ const placeholder=document.createElement("option");placeholder.value="";placeholder.textContent="Select a contribution month";select.appendChild(placeholder);
+ for(const p of allowed){const option=document.createElement("option");option.value=p.id;option.textContent=p.period_name+(p.status==="closed"?" (Closed — current assignment)":"");option.dataset.date=p.period_date;select.appendChild(option);}
+ if(allowed.some(p=>p.id===old))select.value=old;
+}
+async function changeFtoPeriod(batch){
  pendingPeriodBatch=batch;
- $("period-modal-value").value=String(batch.contribution_period||"");
- $("period-modal-backdrop").classList.remove("hidden");
- requestAnimationFrame(()=>{$("period-modal-value").focus();$("period-modal-value").select();});
+ try{
+  await loadSharedPeriods(String(batch.period_id||""));
+  if(!batch.period_id){
+   const match=sharedPeriods.find(p=>p.period_name.toLowerCase()===String(batch.contribution_period||"").toLowerCase())||sharedPeriods.find(p=>p.period_date===batch.ledger_charge_period);
+   if(match){await loadSharedPeriods(match.id);$("period-modal-value").value=match.id;}
+  }else $("period-modal-value").value=String(batch.period_id);
+  $("period-modal-backdrop").classList.remove("hidden");
+  $("period-modal-value").focus();
+ }catch(err){historyMessage(err.message||"Could not load shared periods.","error");}
 }
 function closePeriodModal(){
  $("period-modal-backdrop").classList.add("hidden");
@@ -511,17 +527,17 @@ async function saveFtoPeriod(event){
  event.preventDefault();
  const batch=pendingPeriodBatch;
  if(!batch)return;
- const current=String(batch.contribution_period||""),label=$("period-modal-value").value.trim(),chargePeriod=periodToDate(label);
- if(!chargePeriod){historyMessage("Enter a valid month and year, such as June 2026.","error");$("period-modal-value").focus();return;}
- const monthNames=["January","February","March","April","May","June","July","August","September","October","November","December"],parts=chargePeriod.match(/^(\d{4})-(\d{2})-01$/);
- const normalizedLabel=monthNames[Number(parts[2])-1]+" "+parts[1];
- if(normalizedLabel.toLowerCase()===current.toLowerCase()){
+ const period=sharedPeriods.find(p=>p.id===$("period-modal-value").value);
+ if(!period||!period.period_date){historyMessage("Select a valid shared contribution month.","error");$("period-modal-value").focus();return;}
+ if(period.status==="closed"&&String(batch.period_id||"")!==period.id){historyMessage("That period is closed. Reopen it before assigning an FTO.","error");return;}
+ const current=String(batch.contribution_period||""),normalizedLabel=period.period_name,chargePeriod=period.period_date;
+ if(normalizedLabel.toLowerCase()===current.toLowerCase()&&String(batch.period_id||"")===period.id){
   closePeriodModal();historyMessage("The period is unchanged.");return;
  }
  $("period-modal-save").disabled=true;$("period-modal-cancel").disabled=true;$("period-modal-save").textContent="Saving…";
  historyMessage("Changing FTO period and recalculating contribution charges…");
  try{
-  const {data,error}=await supabaseClient.functions.invoke("vbgramg-contribution-data",{body:{action:"change-fto-period",batch_id:batch.id,contribution_period:normalizedLabel,charge_period:chargePeriod}});
+  const {data,error}=await supabaseClient.functions.invoke("vbgramg-contribution-data",{body:{action:"change-fto-period",batch_id:batch.id,period_id:period.id,contribution_period:normalizedLabel,charge_period:chargePeriod}});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||"Could not change the FTO period.");
   closePeriodModal();
   await loadFtoHistory();

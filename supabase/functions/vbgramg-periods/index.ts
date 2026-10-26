@@ -77,7 +77,7 @@ Deno.serve(async (req: Request) => {
     if (action === "create") {
       const month = clean(body.contributionMonth, 10);
       const days = body.days === null || body.days === "" || body.days === undefined ? null : Number(body.days);
-      if (!/^\\d{4}-\\d{2}-01$/.test(month) || Number.isNaN(Date.parse(month))) return reply(req, { error: "Choose a valid contribution month. It is required." }, 400);
+      if (!/^\d{4}-\d{2}-01$/.test(month) || Number.isNaN(Date.parse(month))) return reply(req, { error: "Choose a valid contribution month. It is required." }, 400);
       if (days !== null && (!Number.isInteger(days) || days < 1 || days > 365)) return reply(req, { error: "Days must be a whole number from 1 to 365, or blank." }, 400);
       const { data: existing, error: existingError } = await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status").eq("contribution_month", month).order("period_date", { ascending: true });
       if (existingError) throw existingError;

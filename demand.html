@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5">
+<meta name="theme-color" content="#f3f6fb">
+<title>Making Demand — VBGRAMG</title>
+<style>
+:root{color-scheme:light;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f3f6fb;--ink:#172033;--muted:#667085;--line:#e3e8f0;--surface:#fff;--soft:#f7f9fc;--accent:#2457c5;--radius:16px}
+*{box-sizing:border-box}html,body{margin:0;padding:0}body{min-height:100vh;padding:20px;background:#f3f6fb;color:var(--ink);line-height:1.45;-webkit-font-smoothing:antialiased}
+main{width:min(100%,1440px);margin:0 auto;padding-bottom:40px}.topbar,.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 4px 18px rgb(23 32 51 / 4%)}
+.topbar{display:flex;gap:14px;align-items:center;justify-content:space-between;padding:18px 22px;margin:0 auto 16px;flex-wrap:wrap}.brand h1{font-size:1.45rem;letter-spacing:-.035em;margin:0}.brand p{margin:4px 0 0;color:var(--muted);font-size:.88rem}.top-actions,.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.panel{padding:clamp(16px,2.5vw,26px);margin-bottom:16px}.panel h2{font-size:1.12rem;letter-spacing:-.02em;margin:0 0 6px}.sub{color:var(--muted);font-size:.87rem;line-height:1.5;margin:0 0 14px}
+button,.link-button{font:inherit;font-size:.9rem;font-weight:650;border:1px solid transparent;border-radius:10px;min-height:42px;padding:10px 15px;background:var(--ink);color:#fff;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+button:hover,.link-button:hover{background:#2c3b55}button.secondary,.link-button.secondary{background:#f0f3f8;color:#344054;border-color:#e0e6ef}button:disabled{opacity:.48;cursor:not-allowed}button:focus-visible,.link-button:focus-visible{outline:3px solid rgb(36 87 197 / 25%);outline-offset:2px}
+.fields{display:grid;grid-template-columns:minmax(0,2fr) minmax(150px,1fr);gap:12px;align-items:end}.field label{display:block;font-size:.85rem;font-weight:700;margin:0 0 6px;color:#344054}.field input{font:inherit;min-height:44px;padding:10px 12px;border:1px solid #cfd7e4;border-radius:10px;width:100%;background:#fff;color:var(--ink)}.field input:focus{outline:3px solid rgb(36 87 197 / 15%);border-color:#6f91dc}
+.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0 0}.metric{border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}.metric span{display:block;color:var(--muted);font-size:.78rem;font-weight:650}.metric strong{display:block;margin-top:4px;font-size:1.2rem;overflow-wrap:anywhere}
+.status{margin:12px 0 0;padding:11px 13px;border:1px solid #e5eaf2;border-radius:10px;background:#f7f9fc;color:#475467;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.88rem;line-height:1.45}.status.error{background:#fff4f2;border-color:#ffd8d2;color:#a12b20}.status.success{background:#effaf3;border-color:#ccebd7;color:#17663a}.hidden{display:none!important}
+.table-wrap{overflow:auto;overscroll-behavior:contain;max-height:52vh;border:1px solid #dfe5ee;border-radius:12px;background:#fff}table{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem;white-space:normal}th,td{padding:11px 13px;text-align:left;border-bottom:1px solid #edf0f5;vertical-align:middle;min-width:100px;max-width:460px;overflow-wrap:anywhere}th{position:sticky;top:0;z-index:1;background:#f5f7fb;color:#5b6577;font-size:.72rem;letter-spacing:.045em;text-transform:uppercase;font-weight:750}tbody tr:last-child td{border-bottom:0}.jobcard{font-weight:700;white-space:nowrap}.applicant{font-weight:600}.small-muted{color:var(--muted);font-size:.82rem}.include-btn{min-height:36px;padding:7px 11px;font-size:.82rem;white-space:nowrap}.empty{padding:24px 14px;text-align:center;color:var(--muted);font-size:.9rem}.section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}.section-heading h2{margin:0}.count{display:inline-flex;align-items:center;justify-content:center;min-width:28px;padding:3px 8px;border-radius:999px;background:#eef2f7;color:#475467;font-size:.78rem;font-weight:750}
+.export-actions{display:flex;gap:8px;flex-wrap:wrap}.export-group{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:12px 0}.export-group+.export-group{border-top:1px solid var(--line)}.export-title{font-weight:750;min-width:180px}.muted{color:var(--muted);font-size:.84rem;line-height:1.45}
+@media(max-width:700px){body{padding:10px}.topbar{padding:15px}.top-actions{width:100%}.top-actions>*{flex:1}.fields{grid-template-columns:1fr 120px}.metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.metric{padding:10px}.metric strong{font-size:1.05rem}th,td{padding:10px 9px;min-width:92px}.table-wrap{max-height:58vh}.export-title{width:100%;min-width:0}.export-group{align-items:stretch}.export-actions{width:100%}.export-actions button{flex:1}}
+@media(max-width:390px){.fields{grid-template-columns:1fr}.metrics{grid-template-columns:1fr}.metric{display:flex;justify-content:space-between;align-items:center;gap:10px}.metric strong{margin:0}}
+</style>
+</head>
+<body>
+<main>
+<header class="topbar"><div class="brand"><h1>Making Demand</h1><p>New Serchhip North</p></div><div class="top-actions"><a class="link-button secondary" href="./">Back to menu</a><button id="refreshBtn" class="secondary" type="button">Refresh data</button></div></header>
+
+<section class="panel" aria-labelledby="period-heading">
+<h2 id="period-heading">Demand details</h2>
+<p class="sub">Enter the period name and number of days for the documents you will export. The applicant lists load automatically.</p>
+<div class="fields">
+<div class="field"><label for="periodName">Period Name</label><input id="periodName" type="text" maxlength="120" placeholder="Enter period name" autocomplete="off"></div>
+<div class="field"><label for="days">No. of Days</label><input id="days" type="number" min="1" max="365" step="1" inputmode="numeric" placeholder="Days"></div>
+</div>
+<div class="metrics">
+<div class="metric"><span>Work Demand applicants</span><strong id="demandCount">—</strong></div>
+<div class="metric"><span>Outstanding review</span><strong id="reviewCount">—</strong></div>
+<div class="metric"><span>Active MIS Job Cards</span><strong id="jobCardCount">—</strong></div>
+</div>
+<div id="status" class="status" aria-live="polite">Checking your sign-in session…</div>
+</section>
+
+<section class="panel" aria-labelledby="review-heading">
+<div class="section-heading"><h2 id="review-heading">Outstanding — Manual Review</h2><span id="reviewBadge" class="count">0</span></div>
+<p class="sub">Job Cards with an outstanding contribution balance appear here. The balance amount is not displayed. Use Include to add an applicant to Work Demand.</p>
+<div class="table-wrap"><table id="reviewTable"><thead><tr><th>Job Card No.</th><th>Name of Applicant</th><th>Applicant No.</th><th>Action</th></tr></thead><tbody id="reviewBody"><tr><td colspan="4" class="empty">Loading applicants…</td></tr></tbody></table></div>
+</section>
+
+<section class="panel" aria-labelledby="demand-heading">
+<div class="section-heading"><h2 id="demand-heading">Work Demand</h2><span id="demandBadge" class="count">0</span></div>
+<p class="sub">Applicants selected in MIS are included automatically when their Job Cards have no outstanding balance. Applicants you include from the review list are added here.</p>
+<div class="table-wrap"><table id="demandTable"><thead><tr><th>Job Card No.</th><th>Name of Applicant</th><th>Applicant No.</th></tr></thead><tbody id="demandBody"><tr><td colspan="3" class="empty">Loading applicants…</td></tr></tbody></table></div>
+<div class="actions" style="margin-top:14px"><button id="generateBtn" type="button" disabled>Generate documents</button></div>
+<div id="generateStatus" class="status hidden" aria-live="polite"></div>
+</section>
+
+<section id="exportsPanel" class="panel hidden" aria-labelledby="exports-heading">
+<h2 id="exports-heading">Export generated documents</h2>
+<p class="sub">These exports use the same generated snapshot. If you change applicant inclusion, period name, or number of days, generate again before exporting.</p>
+<div class="export-group"><div class="export-title">Work Demand</div><div class="export-actions"><button id="demandPdfBtn" type="button" disabled>Export PDF</button><button id="demandCsvBtn" class="secondary" type="button" disabled>Export CSV</button></div></div>
+<div class="export-group"><div class="export-title">Unwilling to Work</div><div class="export-actions"><button id="unwillingPdfBtn" type="button" disabled>Export PDF</button><button id="unwillingCsvBtn" class="secondary" type="button" disabled>Export CSV</button></div></div>
+<p class="muted">Unwilling to Work is calculated only when you generate: active MIS Job Cards minus Job Cards represented in Work Demand.</p>
+</section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+const $=id=>document.getElementById(id);
+let allCards=[],selectedApplicants=new Map(),contributionData=null,reviewApplicants=[],demandApplicants=[],generated=null,loading=false,loadSequence=0;
+const normalize=value=>String(value==null?'':value).trim();
+const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function status(message,type='info'){const el=$('status');el.textContent=message;el.className='status'+(type==='error'?' error':type==='success'?' success':'');}
+function generatedStatus(message,type='info'){const el=$('generateStatus');el.textContent=message;el.className='status'+(type==='error'?' error':type==='success'?' success':'');}
+function invalidateGenerated(){generated=null;$('exportsPanel').classList.add('hidden');$('generateBtn').disabled=loading||!allCards.length;}
+function stableApplicantKey(jobCard,values,nameIndex,numberIndex,uniqueIdIndex){
+ const uniqueId=normalize(uniqueIdIndex>=0?values[uniqueIdIndex]:'');
+ if(uniqueId)return 'uid:'+uniqueId.toLocaleLowerCase();
+ return 'fallback:'+JSON.stringify([jobCard,normalize(numberIndex>=0?values[numberIndex]:''),normalize(nameIndex>=0?values[nameIndex]:'')].map(v=>v.toLocaleLowerCase()));
+}
+async function fetchAllMisRows(seq){
+ const pageSize=1000,concurrency=4;
+ const first=await supabaseClient.functions.invoke('vbgramg-mis-data',{body:{page:0,pageSize}});
+ if(first.error)throw new Error(first.error.message||'Could not load MIS data.');
+ const data=first.data;
+ if(!data||data.approved!==true)throw new Error((data&&data.error)||'MIS data access was denied.');
+ if(!data.hasData||!data.totalRows)return {headers:[],rows:[]};
+ const rows=(data.rows||[]).map(r=>({rowNumber:r.rowNumber,values:Array.isArray(r.values)?r.values:[]}));
+ const totalPages=Math.ceil(data.totalRows/pageSize);
+ for(let firstPage=1;firstPage<totalPages;firstPage+=concurrency){
+  const pages=Array.from({length:Math.min(concurrency,totalPages-firstPage)},(_,i)=>firstPage+i);
+  const results=await Promise.all(pages.map(page=>supabaseClient.functions.invoke('vbgramg-mis-data',{body:{page,pageSize}})));
+  if(seq!==loadSequence)return {headers:[],rows:[]};
+  for(const result of results){if(result.error)throw new Error(result.error.message||'Could not load all MIS rows.');if(!result.data||result.data.approved!==true)throw new Error((result.data&&result.data.error)||'MIS data access was denied.');rows.push(...(result.data.rows||[]).map(r=>({rowNumber:r.rowNumber,values:Array.isArray(r.values)?r.values:[]})));}
+ }
+ return {headers:(rows[0]?.values||[]).map(v=>String(v??'')),rows:rows.slice(1)};
+}
+function contributionBalances(data){
+ const exemptions=new Set((data.exemptions||[]).map(x=>normalize(x.job_card_number)));
+ const ledgers=new Map();
+ for(const entry of (data.entries||[])){const id=normalize(entry.job_card_number);if(!id)continue;if(!ledgers.has(id))ledgers.set(id,[]);ledgers.get(id).push(entry);}
+ const registered=new Set((data.citizens||[]).map(c=>normalize(c.job_card_number)).filter(Boolean));
+ const balances=new Map();
+ for(const id of registered){
+  if(exemptions.has(id)){balances.set(id,0);continue;}
+  let paid=0,returned=0,waived=0;const active=[];
+  for(const e of ledgers.get(id)||[]){
+   const n=Math.max(0,Number(e.amount)||0),type=e.entry_type;
+   if(type==='payment'){paid+=n;continue;}
+   if(type==='return'||(type==='charge'&&String(e.note||'').trim()==='Return')){returned+=n;continue;}
+   if(type==='forgive'){waived+=n;continue;}
+   if(type!=='charge'&&type!=='sanitationFee')continue;
+   if(e.is_deferred)continue;
+   active.push(n);
+  }
+  let credit=Math.min(waived,active.reduce((sum,n)=>sum+n,0));
+  for(let i=0;i<active.length&&credit>0;i++){const used=Math.min(credit,active[i]);active[i]-=used;credit-=used;}
+  balances.set(id,active.reduce((sum,n)=>sum+n,0)-paid+returned);
+ }
+ return balances;
+}
+function buildCards(headers,rows){
+ const jobIndex=headers.findIndex(h=>/^(job card number|jobcard number)$/i.test(h.trim()));
+ const fallbackIndex=headers.findIndex(h=>/^jc no\.?$/i.test(h.trim()));
+ const householdIndex=headers.findIndex(h=>/head of household/i.test(h));
+ const nameIndex=headers.findIndex(h=>/name of applicant|applicant name/i.test(h));
+ const numberIndex=headers.findIndex(h=>/applicant no/i.test(h));
+ const uniqueIdIndex=headers.findIndex(h=>/^unique id$/i.test(h.trim()));
+ const keyIndex=jobIndex>=0?jobIndex:fallbackIndex;
+ if(keyIndex<0||nameIndex<0||numberIndex<0)throw new Error('MIS columns not recognized. Expected Job Card Number, Name of Applicant, and Applicant No. Check the MIS header row.');
+ const groups=new Map();
+ rows.forEach((row,i)=>{
+  const values=row.values||[],key=normalize(values[keyIndex]);
+  if(!key||key==='(Job card number missing)')return;
+  if(!groups.has(key))groups.set(key,{key,household:normalize(householdIndex>=0?values[householdIndex]:''),applicants:[],firstRow:i});
+  const group=groups.get(key);if(!group.household&&householdIndex>=0)group.household=normalize(values[householdIndex]);
+  group.applicants.push({name:normalize(values[nameIndex]),number:normalize(values[numberIndex]),selectionKey:stableApplicantKey(key,values,nameIndex,numberIndex,uniqueIdIndex)});
+ });
+ return Array.from(groups.values());
+}
+async function load(){
+ if(loading)return;
+ loading=true;const seq=++loadSequence;$('refreshBtn').disabled=true;$('generateBtn').disabled=true;
+ $('reviewBody').innerHTML='<tr><td colspan="4" class="empty">Loading applicants…</td></tr>';
+ $('demandBody').innerHTML='<tr><td colspan="3" class="empty">Loading applicants…</td></tr>';
+ $('exportsPanel').classList.add('hidden');generated=null;
+ try{
+  status('Checking your sign-in session…');
+  const {data:sessionData,error:sessionError}=await supabaseClient.auth.getSession();
+  if(sessionError||!sessionData.session){window.location.replace('./');return;}
+  const {data:access,error:accessError}=await supabaseClient.functions.invoke('vbgramg-app-access',{body:{}});
+  if(seq!==loadSequence)return;
+  if(accessError||!access||access.approved!==true){await supabaseClient.auth.signOut();window.location.replace('./');return;}
+  status('Loading active MIS data and Contribution balances…');
+  const [misData,contributionResult,selectionResult]=await Promise.all([
+   fetchAllMisRows(seq),
+   supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}}),
+   supabaseClient.functions.invoke('vbgramg-mis-selection',{body:{action:'get'}})
+  ]);
+  if(seq!==loadSequence)return;
+  const cdata=contributionResult.data;
+  if(contributionResult.error||!cdata||cdata.approved!==true||cdata.error)throw new Error((cdata&&cdata.error)||(contributionResult.error&&contributionResult.error.message)||'Could not load Contribution data.');
+  if(selectionResult.error||!selectionResult.data||selectionResult.data.approved!==true||!Array.isArray(selectionResult.data.selections))throw new Error((selectionResult.data&&selectionResult.data.error)||(selectionResult.error&&selectionResult.error.message)||'Could not load saved MIS applicant selections.');
+  selectedApplicants=new Map();
+  selectionResult.data.selections.forEach(item=>{if(item&&typeof item.job_card_number==='string'&&typeof item.applicant_key==='string')selectedApplicants.set(item.job_card_number,item.applicant_key);});
+  contributionData=cdata;
+  allCards=buildCards(misData.headers,misData.rows);
+  const balances=contributionBalances(cdata);
+  reviewApplicants=[];demandApplicants=[];
+  for(const group of allCards){
+   const balance=balances.get(group.key)||0;
+   const chosenKey=selectedApplicants.get(group.key);
+   const selected=group.applicants.find(a=>a.selectionKey===chosenKey);
+   if(balance>0){
+    group.applicants.forEach(applicant=>reviewApplicants.push({...applicant,jobCard:group.key,household:group.household,identity:JSON.stringify([group.key,applicant.number,applicant.name])}));
+   }else if(selected){
+    demandApplicants.push({...selected,jobCard:group.key,household:group.household,identity:JSON.stringify([group.key,selected.number,selected.name])});
+   }
+  }
+  renderLists();
+  status('MIS and Contribution data loaded. Review outstanding Job Cards, then generate the documents.','success');
+  $('generateBtn').disabled=false;
+ }catch(error){
+  status('Could not prepare Making Demand: '+(error&&error.message?error.message:String(error)),'error');
+  $('reviewBody').innerHTML='<tr><td colspan="4" class="empty">Could not load the review list.</td></tr>';
+  $('demandBody').innerHTML='<tr><td colspan="3" class="empty">Could not load Work Demand.</td></tr>';
+ }finally{loading=false;$('refreshBtn').disabled=false;$('generateBtn').disabled=!allCards.length;}
+}
+function renderLists(){
+ $('reviewBadge').textContent=reviewApplicants.length;$('reviewCount').textContent=reviewApplicants.length;
+ $('demandBadge').textContent=demandApplicants.length;$('demandCount').textContent=demandApplicants.length;
+ $('jobCardCount').textContent=allCards.length;
+ const reviewBody=$('reviewBody');reviewBody.replaceChildren();
+ if(!reviewApplicants.length){reviewBody.innerHTML='<tr><td colspan="4" class="empty">No Job Cards with outstanding contributions need review.</td></tr>';}
+ else reviewApplicants.forEach((applicant,index)=>{
+  const tr=document.createElement('tr');
+  tr.innerHTML='<td class="jobcard">'+esc(applicant.jobCard)+'</td><td class="applicant">'+esc(applicant.name||'—')+'</td><td>'+esc(applicant.number||'—')+'</td><td><button type="button" class="include-btn" data-include="'+index+'">Include</button></td>';
+  reviewBody.appendChild(tr);
+ });
+ const demandBody=$('demandBody');demandBody.replaceChildren();
+ if(!demandApplicants.length){demandBody.innerHTML='<tr><td colspan="3" class="empty">No applicants in Work Demand yet.</td></tr>';}
+ else demandApplicants.forEach(applicant=>{
+  const tr=document.createElement('tr');
+  tr.innerHTML='<td class="jobcard">'+esc(applicant.jobCard)+'</td><td class="applicant">'+esc(applicant.name||'—')+'</td><td>'+esc(applicant.number||'—')+'</td>';
+  demandBody.appendChild(tr);
+ });
+}
+$('reviewBody').addEventListener('click',event=>{
+ const button=event.target.closest('[data-include]');if(!button)return;
+ const index=Number(button.dataset.include),applicant=reviewApplicants[index];if(!applicant)return;
+ if(demandApplicants.some(a=>a.identity===applicant.identity))return;
+ demandApplicants.push(applicant);reviewApplicants.splice(index,1);invalidateGenerated();renderLists();
+ status('Applicant included in Work Demand. Generate again before exporting.','success');
+});
+$('periodName').addEventListener('input',()=>{invalidateGenerated();});
+$('days').addEventListener('input',()=>{invalidateGenerated();});
+$('generateBtn').addEventListener('click',()=>{
+ const period=$('periodName').value.trim(),days=Number($('days').value);
+ if(!period){$('periodName').focus();generatedStatus('Enter the period name before generating.','error');$('generateStatus').classList.remove('hidden');return;}
+ if(!Number.isInteger(days)||days<1||days>365){$('days').focus();generatedStatus('Enter a whole number of days from 1 to 365.','error');$('generateStatus').classList.remove('hidden');return;}
+ const demandedCards=new Set(demandApplicants.map(a=>a.jobCard));
+ const unwilling=allCards.filter(group=>!demandedCards.has(group.key)).map(group=>({jobCard:group.key,household:group.household||''}));
+ generated={period,days,demand:demandApplicants.map(a=>({...a})),unwilling,createdAt:new Date().toISOString()};
+ $('exportsPanel').classList.remove('hidden');
+ ['demandPdfBtn','demandCsvBtn','unwillingPdfBtn','unwillingCsvBtn'].forEach(id=>$(id).disabled=false);
+ generatedStatus('Documents generated from the current MIS, Contribution, and applicant-inclusion decisions. Work Demand: '+generated.demand.length+' applicant(s). Unwilling to Work: '+generated.unwilling.length+' Job Card(s).','success');
+ $('generateStatus').classList.remove('hidden');
+ $('exportsPanel').scrollIntoView({behavior:'smooth',block:'start'});
+});
+function csvCell(value){const s=String(value??'');return '"'+s.replace(/"/g,'""')+'"';}
+function downloadCsv(filename,rows){
+ const csv='\ufeff'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n');
+ const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),link=document.createElement('a');
+ link.href=url;link.download=filename;document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
+}
+function safeFilename(value){return String(value||'demand').normalize('NFKD').replace(/[^a-zA-Z0-9_-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,70)||'demand';}
+function demandRows(){return [['Serial No.','Job Card No.','Name of Applicant','Applicant No.'],...generated.demand.map((a,i)=>[i+1,a.jobCard,a.name,a.number])];}
+function unwillingRows(){return [['Serial No.','Job Card No.','Name of Head of Household'],...generated.unwilling.map((a,i)=>[i+1,a.jobCard,a.household])];}
+function exportCsv(kind){
+ if(!generated)return;
+ const base=safeFilename(generated.period);
+ if(kind==='demand')downloadCsv('work-demand-'+base+'.csv',[
+  ['Work Demand for New Serchhip North'],
+  ['for the period of '+generated.period],
+  ['No. of Days: '+generated.days],
+  [],
+  ...demandRows()
+ ]);
+ else downloadCsv('unwilling-to-work-'+base+'.csv',[
+  ['Unwilling to Work for '+generated.period],
+  [],
+  ...unwillingRows()
+ ]);
+}
+function exportPrint(kind){
+ if(!generated)return;
+ const isDemand=kind==='demand',rows=isDemand?demandRows():unwillingRows();
+ const title=isDemand?'Work Demand for New Serchhip North':'Unwilling to Work for '+generated.period;
+ const subtitle=isDemand?'<p>for the period of '+esc(generated.period)+'</p><p>No. of Days: '+esc(generated.days)+'</p>':'';
+ const table='<table><thead><tr>'+rows[0].map(v=>'<th>'+esc(v)+'</th>').join('')+'</tr></thead><tbody>'+rows.slice(1).map(row=>'<tr>'+row.map(v=>'<td>'+esc(v)+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
+ const printWindow=window.open('','_blank');
+ if(!printWindow){status('Your browser blocked the print window. Allow pop-ups for this app and try again.','error');return;}
+ printWindow.onload=()=>setTimeout(()=>printWindow.print(),250);
+ printWindow.document.open();
+ printWindow.document.write('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(title)+'</title><style>body{font-family:Arial,"Noto Sans",sans-serif;color:#111;margin:22px;font-size:12pt}h1{text-align:center;font-size:17pt;margin:0 0 12px}p{text-align:center;margin:5px 0;font-weight:600}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #222;padding:8px;text-align:left;overflow-wrap:anywhere}th{text-align:center;font-weight:700}td:first-child{text-align:center;width:70px}thead{display:table-header-group}tr{break-inside:avoid}@page{size:auto;margin:14mm}@media print{body{margin:0}}</style></head><body><h1>'+esc(title)+'</h1>'+subtitle+table+'</body></html>');
+ printWindow.document.close();
+}
+$('demandPdfBtn').addEventListener('click',()=>exportPrint('demand'));
+$('unwillingPdfBtn').addEventListener('click',()=>exportPrint('unwilling'));
+$('demandCsvBtn').addEventListener('click',()=>exportCsv('demand'));
+$('unwillingCsvBtn').addEventListener('click',()=>exportCsv('unwilling'));
+supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'||!session)window.location.replace('./');});
+$('refreshBtn').addEventListener('click',load);
+load();
+</script>
+</body>
+</html>

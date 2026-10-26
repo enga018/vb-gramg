@@ -229,7 +229,7 @@ async function load(){
   status('MIS and Contribution data loaded. Review outstanding Job Cards, then generate the documents.','success');
   $('generateBtn').disabled=false;
  }catch(error){
-  status('Could not prepare Making Demand: '+(error&&error.message?error.message:String(error)),'error');
+  status('Could not prepare Work Demand: '+(error&&error.message?error.message:String(error)),'error');
   $('reviewBody').innerHTML='<tr><td colspan="4" class="empty">Could not load the review list.</td></tr>';
   $('demandBody').innerHTML='<tr><td colspan="3" class="empty">Could not load Work Demand.</td></tr>';
  }finally{loading=false;$('refreshBtn').disabled=false;$('generateBtn').disabled=!allCards.length;}

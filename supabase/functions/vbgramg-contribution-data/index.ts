@@ -361,13 +361,15 @@ Deno.serve(async(req:Request)=>{
   if(action==="sync-fto-batch"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can synchronize FTO transactions."},403);
    const ftoNumber=String(body.fto_number||"").trim().toUpperCase().slice(0,100);
+   const periodId=String(body.period_id||"").trim();
    const contributionPeriod=String(body.contribution_period||"").trim().slice(0,100);
    const chargePeriod=String(body.charge_period||"").trim();
    const periodMatch=chargePeriod.match(/^(\d{4})-(\d{2})-01$/);
    const villageScope="NEW SERCHHIP North";
    const rows=body.rows;
    if(!ftoNumber)return reply({error:"Enter the FTO number shown on the government page."},400);
-   if(!contributionPeriod)return reply({error:"Enter a contribution period label, such as August 2026."},400);
+   if(!periodId)return reply({error:"Select a shared contribution period."},400);
+   if(!contributionPeriod)return reply({error:"Select a contribution period from the shared list."},400);
    if(!periodMatch||Number(periodMatch[2])<1||Number(periodMatch[2])>12)return reply({error:"Enter a recognizable month and year, such as August 2026."},400);
    if(!Array.isArray(rows)||rows.length<1||rows.length>5000)return reply({error:"The pasted FTO must contain 1–5,000 transaction rows."},400);
    const sourceSha=String(body.source_sha256||"").toLowerCase();
@@ -414,6 +416,11 @@ Deno.serve(async(req:Request)=>{
    }
    const {data:batchOld,error:batchOldError}=await admin.from("vbgramg_fto_batches").select("id,fto_number,contribution_period,ledger_charge_period,period_id,village_scope").eq("fto_number",ftoNumber).maybeSingle();
    if(batchOldError)throw batchOldError;
+   const {data:selectedPeriod,error:selectedPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,status").eq("id",periodId).maybeSingle();
+   if(selectedPeriodError)throw selectedPeriodError;
+   if(!selectedPeriod||selectedPeriod.period_date!==chargePeriod||selectedPeriod.period_name!==contributionPeriod)return reply({error:"Select a shared contribution month that matches the period."},400);
+   if(batchOld&&selectedPeriod.status!=="open"&&String(batchOld.period_id||"")!==periodId)return reply({error:"That period is closed. Reopen it before assigning an FTO."},409);
+   if(!batchOld&&selectedPeriod.status!=="open")return reply({error:"That period is closed. Reopen it before importing an FTO."},409);
    if(batchOld&&(String(batchOld.contribution_period)!==contributionPeriod||String(batchOld.ledger_charge_period||"")!==chargePeriod)){
     return reply({error:"This FTO number is already saved with period \""+String(batchOld.contribution_period)+"\". The saved period cannot be changed during a re-import. If this is genuinely a different FTO, verify the FTO number first.",saved_period:batchOld.contribution_period},409);
    }
@@ -508,9 +515,12 @@ Deno.serve(async(req:Request)=>{
    }
    let batchId=String(batchOld?.id||"");
    if(!batchOld){
-    const {data:created,error:createError}=await admin.from("vbgramg_fto_batches").insert({fto_number:ftoNumber,contribution_period:contributionPeriod,ledger_charge_period:chargePeriod,village_scope:villageScope,created_by:authData.user.id}).select("id").single();
+    const {data:created,error:createError}=await admin.from("vbgramg_fto_batches").insert({fto_number:ftoNumber,period_id:periodId,contribution_period:contributionPeriod,ledger_charge_period:chargePeriod,village_scope:villageScope,created_by:authData.user.id}).select("id").single();
     if(createError)throw createError;
     batchId=String(created.id);
+   } else if(String(batchOld.period_id||"")!==periodId){
+    const {error:periodLinkError}=await admin.from("vbgramg_fto_batches").update({period_id:periodId}).eq("id",batchId);
+    if(periodLinkError)throw periodLinkError;
    }
    const {data:oldBatchTransactions,error:oldBatchTransactionsError}=await admin.from("vbgramg_fto_transactions").select("id,reference_no,status,calculated_charge,job_card_number,processed_date").eq("batch_id",batchId);
    if(oldBatchTransactionsError)throw oldBatchTransactionsError;

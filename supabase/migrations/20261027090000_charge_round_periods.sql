@@ -61,7 +61,8 @@ where exists (
 and not exists (
   select 1
   from public.vbgramg_periods
-  where lower(period_name) = lower('MAY26 (2)')
+  where contribution_month = date '2026-05-01'
+    and period_date = date '2026-05-02'
 );
 
 -- Map old FTO labels to the matching pre-normalized period names before compact labels are applied.

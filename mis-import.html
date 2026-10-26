@@ -63,12 +63,22 @@
     .diff-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
     .diff-actions button { flex:1; min-width:150px; }
     button.danger { background:#991b1b; color:#fff; }
-  </style>
+  
+/* Consistent page header: title left, navigation/actions right. */
+.app-header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.app-header .brand,.app-header .page-title{flex:0 1 auto;min-width:0}
+.app-header .brand h1,.app-header .page-title h1,.app-header>div:first-child h1{margin:0;font-size:1.35rem;line-height:1.25;letter-spacing:-.025em}
+.app-header .brand p,.app-header .page-title p,.app-header>div:first-child p{margin:3px 0 0}
+.app-header-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:0 0 auto;flex-wrap:wrap;margin-left:auto}
+.app-header-actions>*{white-space:nowrap}
+.app-header-actions .menu-link{order:0}
+@media(max-width:700px){.app-header{gap:12px;padding:14px 16px}.app-header-actions{width:100%;justify-content:flex-end;gap:7px}.app-header-actions>*{min-height:39px;padding:8px 11px;font-size:.84rem}.app-header .brand h1,.app-header .page-title h1,.app-header>div:first-child h1{font-size:1.25rem}}
+</style>
 </head>
 <body>
+  <header class="topbar app-header"><div class="brand"><h1>MIS Import</h1></div><div class="header-actions app-header-actions"><a class="link-button secondary menu-link" href="./">Back to menu</a><a class="link-button secondary" href="./mis.html">Back to MIS</a></div></header>
   <main>
-    <h1>MIS — Paste Import</h1>
-    <p><a href="./mis.html">← Back to MIS dashboard</a></p>
+  
     <p>Paste the copied MIS register and select Analyze and compare. The page filters locally, compares against the active MIS, and shows counts and applicant details. The active MIS changes only after you confirm.</p>
 
     <div class="paste-box">

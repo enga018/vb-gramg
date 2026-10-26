@@ -362,7 +362,7 @@ tbody tr:last-child td{border-bottom:0}
   <h2 id="period-modal-title">Change contribution period</h2>
   <p id="period-modal-description" class="period-modal-description">Edit the contribution period for this FTO. All transactions in the FTO will move to the saved period and contribution charges will be recalculated.</p>
   <form id="period-modal-form">
-   <div class="period-modal-field"><label for="period-modal-value">Contribution period</label><input id="period-modal-value" name="contribution-period" type="text" placeholder="e.g. June 2026" autocomplete="off" required></div>
+   <div class="period-modal-field"><label for="period-modal-value">Contribution period</label><select id="period-modal-value" name="contribution-period" required><option value="">Loading periods…</option></select></div>
    <div class="period-modal-actions"><button id="period-modal-cancel" type="button" class="secondary">Cancel</button><button id="period-modal-save" type="submit" class="save-period">Save</button></div>
   </form>
  </section>
@@ -383,7 +383,7 @@ tbody tr:last-child td{border-bottom:0}
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let authSequence=0;
+let authSequence=0,sharedPeriods=[];
 const FTO_HEADERS=[
  'S.No','Block Name','Job Card No. (Panchayat Name)','Reference No.','Transaction Date',
  'Applicant Name','Wagelist No.','Name of Primary Account Holder','Bank Code','IFSC code',
@@ -521,7 +521,7 @@ async function saveFtoPeriod(event){
  $("period-modal-save").disabled=true;$("period-modal-cancel").disabled=true;$("period-modal-save").textContent="Saving…";
  historyMessage("Changing FTO period and recalculating contribution charges…");
  try{
-  const {data,error}=await supabaseClient.functions.invoke("vbgramg-contribution-data",{body:{action:"change-fto-period",batch_id:batch.id,contribution_period:normalizedLabel,charge_period:chargePeriod}});
+  const {data,error}=await supabaseClient.functions.invoke("vbgramg-contribution-data",{body:{action:"change-fto-period",batch_id:batch.id,period_id:period.id,contribution_period:normalizedLabel,charge_period:chargePeriod}});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||"Could not change the FTO period.");
   closePeriodModal();
   await loadFtoHistory();

@@ -27,6 +27,20 @@ dialog#confirmDialog{width:min(92vw,520px);max-width:520px;border:1px solid var(
 <main>
 <header class="topbar"><div class="brand"><h1>Making Demand</h1><p>New Serchhip North</p></div><div class="top-actions"><a class="link-button secondary" href="./">Back to menu</a><button id="refreshBtn" class="secondary" type="button">Refresh data</button></div></header>
 
+<section class="panel" aria-labelledby="review-heading">
+<div class="section-heading"><h2 id="review-heading">Outstanding — Manual Review</h2><span id="reviewBadge" class="count">0</span></div>
+<p class="sub">Only MIS-selected applicants with an outstanding contribution balance appear here. Check the amount before using Include to add an applicant to Work Demand.</p>
+<div class="table-wrap"><table id="reviewTable"><thead><tr><th>Job Card No.</th><th>Head of Household</th><th>Outstanding Amount</th><th>Action</th></tr></thead><tbody id="reviewBody"><tr><td colspan="4" class="empty">Loading applicants…</td></tr></tbody></table></div><div class="table-foot"><span id="reviewPageLabel" class="page-label"></span><div class="page-actions"><button id="reviewPrev" class="secondary" type="button">Previous</button><button id="reviewNext" class="secondary" type="button">Next</button></div></div>
+</section>
+
+<section class="panel" aria-labelledby="demand-heading">
+<div class="section-heading"><h2 id="demand-heading">Work Demand</h2><span id="demandBadge" class="count">0</span></div>
+<p class="sub">Applicants selected in MIS are included automatically when their Job Cards have no outstanding balance. Applicants you include from the review list are added here.</p>
+<div class="table-wrap"><table id="demandTable"><thead><tr><th>Job Card No.</th><th>Name of Applicant</th><th>Applicant No.</th></tr></thead><tbody id="demandBody"><tr><td colspan="3" class="empty">Loading applicants…</td></tr></tbody></table></div><div class="table-foot"><span id="demandPageLabel" class="page-label"></span><div class="page-actions"><button id="demandPrev" class="secondary" type="button">Previous</button><button id="demandNext" class="secondary" type="button">Next</button></div></div>
+<div class="actions" style="margin-top:14px"><button id="generateBtn" type="button" disabled>Generate documents</button></div>
+<div id="generateStatus" class="status hidden" aria-live="polite"></div>
+</section>
+
 <section class="panel" aria-labelledby="period-heading">
 <h2 id="period-heading">Demand details</h2>
 <p class="sub">Enter the period name and number of days for the documents you will export. The applicant lists load automatically.</p>
@@ -40,20 +54,6 @@ dialog#confirmDialog{width:min(92vw,520px);max-width:520px;border:1px solid var(
 <div class="metric"><span>Active MIS Job Cards</span><strong id="jobCardCount">—</strong></div>
 </div>
 <div id="status" class="status" aria-live="polite">Checking your sign-in session…</div>
-</section>
-
-<section class="panel" aria-labelledby="review-heading">
-<div class="section-heading"><h2 id="review-heading">Outstanding — Manual Review</h2><span id="reviewBadge" class="count">0</span></div>
-<p class="sub">Only MIS-selected applicants with an outstanding contribution balance appear here. Check the amount before using Include to add an applicant to Work Demand.</p>
-<div class="table-wrap"><table id="reviewTable"><thead><tr><th>Job Card No.</th><th>Head of Household</th><th>Outstanding Amount</th><th>Action</th></tr></thead><tbody id="reviewBody"><tr><td colspan="4" class="empty">Loading applicants…</td></tr></tbody></table></div><div class="table-foot"><span id="reviewPageLabel" class="page-label"></span><div class="page-actions"><button id="reviewPrev" class="secondary" type="button">Previous</button><button id="reviewNext" class="secondary" type="button">Next</button></div></div>
-</section>
-
-<section class="panel" aria-labelledby="demand-heading">
-<div class="section-heading"><h2 id="demand-heading">Work Demand</h2><span id="demandBadge" class="count">0</span></div>
-<p class="sub">Applicants selected in MIS are included automatically when their Job Cards have no outstanding balance. Applicants you include from the review list are added here.</p>
-<div class="table-wrap"><table id="demandTable"><thead><tr><th>Job Card No.</th><th>Name of Applicant</th><th>Applicant No.</th></tr></thead><tbody id="demandBody"><tr><td colspan="3" class="empty">Loading applicants…</td></tr></tbody></table></div><div class="table-foot"><span id="demandPageLabel" class="page-label"></span><div class="page-actions"><button id="demandPrev" class="secondary" type="button">Previous</button><button id="demandNext" class="secondary" type="button">Next</button></div></div>
-<div class="actions" style="margin-top:14px"><button id="generateBtn" type="button" disabled>Generate documents</button></div>
-<div id="generateStatus" class="status hidden" aria-live="polite"></div>
 </section>
 
 <section class="panel" aria-labelledby="unwilling-heading">

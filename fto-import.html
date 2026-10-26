@@ -202,7 +202,7 @@ tbody tr:last-child td{border-bottom:0}
  <div class="section-head"><div><h2>Prepare contribution import</h2><p>The FTO number and text period are saved on the first import. Re-importing the same FTO reuses its saved period and synchronizes status changes. Only New Serchhip North transactions are saved; rows from other villages are excluded.</p></div></div>
  <div class="import-grid">
   <div class="field"><label for="fto-number">FTO number</label><input id="fto-number" type="text" maxlength="100" placeholder="Detected from pasted table or enter it" required></div>
-  <div class="field"><label for="charge-period">Contribution period (text)</label><input id="charge-period" type="text" maxlength="100" placeholder="August 2026" required></div>
+  <div class="field"><label for="charge-period">Contribution period</label><select id="charge-period" required><option value="">Loading open periods…</option></select></div>
   <div class="field"><label for="amount-divisor">Input 1 (divide by)</label><input id="amount-divisor" type="number" min="0.01" step="any" value="300" required></div>
   <div class="field"><label for="amount-multiplier">Input 2 (multiply by)</label><input id="amount-multiplier" type="number" min="0.01" step="any" value="100" required></div>
 
@@ -416,14 +416,14 @@ function renderImportPreview(){
   }else reviewCell.textContent=group.inScope?'—':'Review village';
   tbody.appendChild(tr);
  });
- const period=$('charge-period').value,excludedRows=parsedDataRows.filter(row=>normalizeVillage(villageFromRow(row))!==normalizeVillage('NEW SERCHHIP North')).length;
+ const period=selectedPeriodName(),excludedRows=parsedDataRows.filter(row=>normalizeVillage(villageFromRow(row))!==normalizeVillage('NEW SERCHHIP North')).length;
  $('import-count').textContent=localCards+' local job cards · '+parsedDataRows.length+' FTO rows · '+excludedRows+' rows outside/unclear village';
- $('import-summary').textContent=(period?'Period label: '+period:'Enter contribution period, e.g. August 2026')+' · Local calculated charges: ₹'+total.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+' · Excluded job-card groups: '+excluded+(invalid?' · '+invalid+' local row(s) have a missing/invalid credit amount':'');
+ $('import-summary').textContent=(period?'Period label: '+period:'Select a contribution month')+' · Local calculated charges: ₹'+total.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+' · Excluded job-card groups: '+excluded+(invalid?' · '+invalid+' local row(s) have a missing/invalid credit amount':'');
  updateImportButton();
 }
 async function refreshDuplicates(){
  const seq=++duplicateCheckSequence;duplicateCards=new Map();duplicateReferences=new Map();unknownCards=new Set();
- const period=periodToDate($('charge-period').value);
+ const period=periodToDate(selectedPeriodDate());
  if(!period||!actionGroups().length){checkingDuplicates=false;duplicateCheckFailed=false;renderImportPreview();return}
  checkingDuplicates=true;duplicateCheckFailed=false;renderImportPreview();
  try{
@@ -443,7 +443,7 @@ async function refreshDuplicates(){
  }
 }
 function updateImportButton(){
- const ftoNumber=$('fto-number').value.trim(),period=periodToDate($('charge-period').value),selected=actionGroups();
+ const ftoNumber=$('fto-number').value.trim(),period=periodToDate(selectedPeriodDate()),selected=actionGroups();
  const invalid=parsedDataRows.some(row=>!String(row[3]||'').trim()||!jobCardFromRow(row)||!String(row[7]||row[5]||'').trim()||(['blank','processed'].includes(rawStatus(row))&&parseAmount(row[11])<=0));
  const unreviewed=[...duplicateCards.keys()].some(card=>!reviewedCards.has(card));
  const unverifiedNew=[...unknownCards].some(card=>!reviewedNewCards.has(card));
@@ -463,7 +463,7 @@ async function lookupFtoBatch(){
    status('Known FTO found. Its saved text period "'+data.batch.contribution_period+'" has been restored automatically.','success');
    reviewedCards=new Set();reviewedNewCards=new Set();refreshDuplicates();
   }else{
-   status('New FTO number. Enter its contribution period as text, for example August 2026.','');
+   status('New FTO number. Select its contribution month from the shared periods list.','');
    updateImportButton();
   }
  }catch(err){status('Could not look up saved FTO details: '+(err.message||'unknown error'),'error')}
@@ -544,7 +544,7 @@ async function executeFtoSync(payload,button){
 }
 $('fto-import-button').addEventListener('click',async()=>{
  if($('fto-import-button').disabled)return;
- const button=$('fto-import-button'),ftoNumber=$('fto-number').value.trim(),periodLabel=$('charge-period').value.trim(),period=periodToDate(periodLabel);
+ const button=$('fto-import-button'),ftoNumber=$('fto-number').value.trim(),periodLabel=selectedPeriodName(),period=periodToDate(selectedPeriodDate()),periodId=$('charge-period').value;
  if(!window.confirm('Synchronize FTO '+ftoNumber+' for contribution period "'+periodLabel+'"? Only New Serchhip North records will affect charges. Status changes will be recorded, and unrelated charges will not be deleted.'))return;
  button.disabled=true;button.textContent='Synchronizing FTO…';$('sync-status').textContent='';$('sync-status').classList.add('hidden');$('sync-status').classList.remove('error','success');hideApplicantReview();
  try{
@@ -557,7 +557,7 @@ $('fto-import-button').addEventListener('click',async()=>{
    return {reference_no:String(row[3]||'').replace(/\s+/g,' ').trim(),job_card_number:jobCardFromRow(row),village_name:villageFromRow(row),person_name:String(row[7]||row[5]||'').replace(/\s+/g,' ').trim(),transaction_date:dateMatch?dateMatch[3]+'-'+dateMatch[2]+'-'+dateMatch[1]:'',processed_date:processedDateMatch?processedDateMatch[3]+'-'+processedDateMatch[2]+'-'+processedDateMatch[1]:'',amount_to_be_credited:amountToCredit,credit_amount:creditAmount,status:statusValue,calculated_charge:Number(calculatedCharge.toFixed(2)),rejection_reason:String(row[16]||'').trim(),source_row:row};
   });
   const sourceSha=await sha256(JSON.stringify({raw:$('table-input').value,ftoNumber,periodLabel,period,divisor,multiplier,rows:payloadRows}));
-  const payload={action:'sync-fto-batch',fto_number:ftoNumber,contribution_period:periodLabel,charge_period:period,rows:payloadRows,source_sha256:sourceSha,reviewed_duplicates:[...reviewedCards],reviewed_new_job_cards:[...reviewedNewCards]};
+  const payload={action:'sync-fto-batch',fto_number:ftoNumber,period_id:periodId,contribution_period:periodLabel,charge_period:period,rows:payloadRows,source_sha256:sourceSha,reviewed_duplicates:[...reviewedCards],reviewed_new_job_cards:[...reviewedNewCards]};
   await executeFtoSync(payload,button);
  }catch(err){const message=err.message||'FTO synchronization failed. Review the preview and try again.';syncStatus(message,'error');button.textContent='Synchronize FTO statuses';checkingDuplicates=false;updateImportButton()}
  finally{if(button.textContent!=='Synchronization completed')button.disabled=false}

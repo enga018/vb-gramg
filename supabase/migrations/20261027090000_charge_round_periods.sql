@@ -5,7 +5,7 @@ alter table public.vbgramg_periods
 alter table public.vbgramg_periods
   drop constraint if exists vbgramg_periods_period_date_first_day;
 
--- Preserve the month implied by a round date, or infer it from recognizable legacy period names.
+-- Infer the contribution month from existing dates or recognizable legacy period labels.
 update public.vbgramg_periods
 set contribution_month = case
   when period_date is not null then date_trunc('month', period_date)::date
@@ -17,7 +17,7 @@ set contribution_month = case
 end
 where contribution_month is null;
 
--- Give recognizable legacy periods a round date. The explicit suffix is the round number.
+-- Assign round dates based on an existing suffix where present.
 update public.vbgramg_periods
 set period_date = contribution_month + (
   coalesce(nullif(substring(period_name from '\(([0-9]+)\)$'), '')::integer, 1) - 1
@@ -48,9 +48,9 @@ create index if not exists vbgramg_periods_contribution_month_idx
 alter table public.vbgramg_charge_ledger
   add column if not exists period_id uuid references public.vbgramg_periods(id) on delete set null;
 
--- Preserve the existing May 2026 second-round ledger evidence.
+-- Create the known second May 2026 round from existing ledger evidence.
 insert into public.vbgramg_periods (period_name, period_date, contribution_month, status)
-select 'May 2026 (2)', date '2026-05-02', date '2026-05-01', 'open'
+select 'MAY26 (2)', date '2026-05-02', date '2026-05-01', 'open'
 where exists (
   select 1
   from public.vbgramg_charge_ledger
@@ -61,18 +61,33 @@ where exists (
 and not exists (
   select 1
   from public.vbgramg_periods
-  where lower(period_name) = lower('May 2026 (2)')
+  where lower(period_name) = lower('MAY26 (2)')
 );
 
--- Re-link saved FTO batches by their explicit round label, never by month alone.
+-- Map old FTO labels to the matching pre-normalized period names before compact labels are applied.
 update public.vbgramg_fto_batches b
 set period_id = p.id
 from public.vbgramg_periods p
 where p.contribution_month = b.ledger_charge_period
   and lower(p.period_name) = lower(b.contribution_period);
 
--- Link legacy ledger entries using their compact month labels; an unsuffixed label means round 1.
--- Do not alter amounts, charge dates, or notes.
+-- Standardize recognizable period names to the requested compact format: MAY26, MAY26 (2), etc.
+update public.vbgramg_periods
+set period_name = to_char(contribution_month, 'MONYY') ||
+  case
+    when period_date is not null and extract(day from period_date) > 1
+      then ' (' || extract(day from period_date)::integer || ')'
+    else ''
+  end
+where contribution_month is not null and period_date is not null;
+
+-- Ensure saved FTO batch labels agree with the canonical period ID after standardization.
+update public.vbgramg_fto_batches b
+set contribution_period = p.period_name
+from public.vbgramg_periods p
+where b.period_id = p.id;
+
+-- Link ledger entries to their exact round from their compact labels, preserving amounts and notes.
 update public.vbgramg_charge_ledger l
 set period_id = p.id
 from public.vbgramg_periods p
@@ -82,11 +97,7 @@ where l.entry_type = 'charge'
     'month',
     to_date('01 ' || substring(l.note from 1 for 3) || ' 20' || substring(l.note from 4 for 2), 'DD MON YYYY')
   )::date
-  and l.charge_period = p.contribution_month
-  and lower(p.period_name) = lower(
-    to_char(p.contribution_month, 'FMMonth YYYY') ||
-    case
-      when coalesce(nullif(substring(l.note from '\(([0-9]+)\)$'), '')::integer, 1) = 1 then ''
-      else ' (' || substring(l.note from '\(([0-9]+)\)$') || ')'
-    end
-  );
+  and p.period_date = p.contribution_month + (
+    coalesce(nullif(substring(l.note from '\(([0-9]+)\)$'), '')::integer, 1) - 1
+  )
+  and l.charge_period = p.contribution_month;

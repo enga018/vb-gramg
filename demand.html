@@ -232,6 +232,7 @@ async function load(){
   const {data:access,error:accessError}=await supabaseClient.functions.invoke('vbgramg-app-access',{body:{}});
   if(seq!==loadSequence)return;
   if(accessError||!access||access.approved!==true){await supabaseClient.auth.signOut();window.location.replace('./');return;}
+  await loadPeriods();
   status('Loading active MIS data and Contribution balances…');
   const [misData,contributionResult,selectionResult]=await Promise.all([
    fetchAllMisRows(seq),

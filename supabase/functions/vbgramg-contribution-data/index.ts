@@ -93,7 +93,7 @@ Deno.serve(async(req:Request)=>{
         const {error}=await admin.from("vbgramg_charge_ledger").update({period_id:periodId,person_name:name,amount,is_deferred:isDeferred,entry_date:entryDate,reference_numbers:refs,note:"FTO import"}).eq("id",keeper.id);
         if(error)throw error;ledgerId=String(keeper.id);
        }else{
-        const {data,error}=await admin.from("vbgramg_charge_ledger").insert({job_card_number:jobCard,person_name:name,entry_type:"charge",amount,charge_period:period,entry_date:entryDate,note:"FTO import",reference_numbers:refs,is_deferred:isDeferred,created_by:authData.user.id}).select("id").single();
+        const {data,error}=await admin.from("vbgramg_charge_ledger").insert({job_card_number:jobCard,person_name:name,entry_type:"charge",amount,charge_period:period,period_id:periodId,entry_date:entryDate,note:"FTO import",reference_numbers:refs,is_deferred:isDeferred,created_by:authData.user.id}).select("id").single();
         if(error)throw error;ledgerId=String(data.id);
        }
        const duplicates=ftoRows.filter(row=>String(row.id)!==ledgerId);
@@ -445,7 +445,7 @@ Deno.serve(async(req:Request)=>{
     }
     periodId=String(legacyPeriod.id);
    }
-   const {data:selectedPeriod,error:selectedPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,status").eq("id",periodId).maybeSingle();
+   const {data:selectedPeriod,error:selectedPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status").eq("id",periodId).maybeSingle();
    if(selectedPeriodError)throw selectedPeriodError;
    if(!selectedPeriod||selectedPeriod.contribution_month!==chargePeriod||selectedPeriod.period_name!==contributionPeriod)return reply({error:"Select a shared charge round for the chosen contribution month."},400);
    if(batchOld&&selectedPeriod.status!=="open"&&String(batchOld.period_id||"")!==periodId)return reply({error:"That period is closed. Reopen it before assigning an FTO."},409);
@@ -746,12 +746,12 @@ Deno.serve(async(req:Request)=>{
     const matches=byCard.get(String(row.job_card_number))||[],ftoMatches=matches.filter(ftoExisting);
     if(ftoMatches.length){
      const keeper=ftoMatches[0];
-     const {error:updateError}=await admin.from("vbgramg_charge_ledger").update({person_name:row.person_name,amount:row.amount,is_deferred:mode==="blank",entry_date:mode==="blank"?null:(row.processed_date||null),note:"FTO import",reference_numbers:row.reference_numbers,...applicantFields}).eq("id",keeper.id);
+     const {error:updateError}=await admin.from("vbgramg_charge_ledger").update({person_name:row.person_name,amount:row.amount,is_deferred:mode==="blank",entry_date:mode==="blank"?null:(row.processed_date||null),note:"FTO import",reference_numbers:row.reference_numbers,period_id:periodId,...applicantFields}).eq("id",keeper.id);
      if(updateError)throw updateError;updated++;
      for(const extra of ftoMatches.slice(1)){if(extra.is_deferred===true){const {error:extraDeleteError}=await admin.from("vbgramg_charge_ledger").delete().eq("id",extra.id);if(extraDeleteError)throw extraDeleteError;}}
      continue;
     }
-    const {error:insertError}=await admin.from("vbgramg_charge_ledger").insert({job_card_number:row.job_card_number,person_name:row.person_name,...applicantFields,entry_type:"charge",amount:row.amount,charge_period:period,entry_date:mode==="blank"?null:(row.processed_date||null),note:"FTO import",reference_numbers:row.reference_numbers,is_deferred:mode==="blank",created_by:authData.user.id,import_id:importId});
+    const {error:insertError}=await admin.from("vbgramg_charge_ledger").insert({job_card_number:row.job_card_number,person_name:row.person_name,...applicantFields,entry_type:"charge",amount:row.amount,charge_period:period,entry_date:mode==="blank"?null:(row.processed_date||null),note:"FTO import",reference_numbers:row.reference_numbers,is_deferred:mode==="blank",created_by:authData.user.id,import_id:importId,period_id:periodId});
     if(insertError)throw insertError;inserted++;
    }
    const {error:completeError}=await admin.from("vbgramg_charge_imports").update({status:"complete",completed_at:new Date().toISOString(),row_count:normalized.length,total_amount:totalAmount}).eq("id",importId);if(completeError)throw completeError;

@@ -75,7 +75,7 @@ header .top-actions > button:hover {
 <div class="field"><label for="periodName">Period</label><select id="periodName" required><option value="">Loading open periods…</option></select></div>
 <div class="field"><label for="days">No. of Days</label><input id="days" type="number" min="1" max="365" step="1" inputmode="numeric" placeholder="Days"></div>
 </div>
-<div class="actions" style="margin-top:10px"><button id="continueReviewBtn" type="button">Continue to Manual Review</button><button id="generateBtn" type="button" disabled>Generate Documents</button></div>
+<div class="actions" style="margin-top:10px"><button id="continueReviewBtn" type="button">Continue to Manual Review</button><button id="generateBtn" class="hidden" type="button" disabled>Generate Documents</button></div>
 <div id="generateStatus" class="status hidden" aria-live="polite"></div>
 <div class="metrics hidden">
 <div class="metric"><span>Work Demand applicants</span><strong id="demandCount">—</strong></div>
@@ -149,7 +149,7 @@ function getIncludedIds(id){try{return new Set(JSON.parse(localStorage.getItem(i
 function saveIncludedIds(id,ids){localStorage.setItem(includedKey(id),JSON.stringify([...ids]));}
 function applyWorkflowVisibility(){
  const setup=$("period-heading").closest("section");
- if(resultsMode){setup.classList.remove("hidden");$("reviewPanel").classList.add("hidden");$("demandPanel").classList.remove("hidden");$("unwillingPanel").classList.remove("hidden");$("continueReviewBtn").textContent="Review Again";}
+ if(resultsMode){setup.classList.remove("hidden");$("reviewPanel").classList.add("hidden");$("demandPanel").classList.remove("hidden");$("unwillingPanel").classList.remove("hidden");$("continueReviewBtn").textContent="Review Again";$("generateBtn").classList.remove("hidden");}
  else{$("reviewPanel").classList.add("hidden");$("demandPanel").classList.add("hidden");$("unwillingPanel").classList.add("hidden");$("exportsPanel").classList.add("hidden");}
 }
 const normalize=value=>String(value==null?'':value).trim();
@@ -398,6 +398,8 @@ $('confirmSaveBtn').addEventListener('click',async()=>{
   if(!data||data.saved!==true||!data.id)throw new Error((data&&data.error)||'Supabase did not confirm that the demand was saved.');
   generated={...snapshot,id:data.id,createdAt:data.createdAt||snapshot.createdAt};
   pendingSnapshot=null;
+  $('generateBtn').classList.add('hidden');
+  $('continueReviewBtn').classList.add('hidden');
   $('confirmDialog').close();
   $('exportsPanel').classList.remove('hidden');
   ['demandPdfBtn','demandCsvBtn','unwillingPdfBtn','unwillingCsvBtn'].forEach(id=>$(id).disabled=false);

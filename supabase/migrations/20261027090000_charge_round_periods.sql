@@ -43,7 +43,35 @@ insert into public.vbgramg_periods (period_name, period_date, contribution_month
 select 'May 2026 (2)', date '2026-05-02', date '2026-05-01', 'open'
 where exists (
   select 1 from public.vbgramg_charge_ledger
-  where entry_type = 'charge' and charge_period = date '2026-05-01' and note = 'MAY26(2)'
+  where entry_type = 'charge' and charge_period = date '2026-05-01' and note ~* '^MAY26\\s*\\(2\\)
+and not exists (
+  select 1 from public.vbgramg_periods where lower(period_name) = lower('May 2026 (2)')
+);
+
+-- Re-link saved FTO batches by their explicit round label, avoiding a month-only guess.
+update public.vbgramg_fto_batches b
+set period_id = p.id
+from public.vbgramg_periods p
+where p.contribution_month = b.ledger_charge_period
+  and lower(p.period_name) = lower(b.contribution_period);
+
+-- Link legacy monthly ledger rounds using their existing compact labels, with no suffix meaning round 1.
+-- Do not alter amounts, charge dates, or notes.
+update public.vbgramg_charge_ledger l
+set period_id = p.id
+from public.vbgramg_periods p
+where l.entry_type = 'charge'
+  and l.note ~* '^[A-Z]{3}[0-9]{2}(\([0-9]+\))?$'
+  and p.contribution_month = date_trunc('month', to_date('01 ' || substring(l.note from 1 for 3) || ' 20' || substring(l.note from 4 for 2), 'DD MON YYYY'))::date
+  and l.charge_period = p.contribution_month
+  and lower(p.period_name) = lower(
+    to_char(p.contribution_month, 'FMMonth YYYY') ||
+    case
+      when coalesce(nullif(substring(l.note from '\(([0-9]+)\)$'), '')::integer, 1) = 1 then ''
+      else ' (' || substring(l.note from '\(([0-9]+)\)$') || ')'
+    end
+  );
+
 )
 and not exists (
   select 1 from public.vbgramg_periods where lower(period_name) = lower('May 2026 (2)')

@@ -135,13 +135,22 @@ tbody tr:last-child td{border-bottom:0}
  .stat strong{font-size:.94rem}
  th,td{padding:9px 8px}
 }
+
+/* Consistent page header: title left, navigation/actions right. */
+.app-header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.app-header .brand,.app-header .page-title{flex:0 1 auto;min-width:0}
+.app-header .brand h1,.app-header .page-title h1,.app-header>div:first-child h1{margin:0;font-size:1.35rem;line-height:1.25;letter-spacing:-.025em}
+.app-header .brand p,.app-header .page-title p,.app-header>div:first-child p{margin:3px 0 0}
+.app-header-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:0 0 auto;flex-wrap:wrap;margin-left:auto}
+.app-header-actions>*{white-space:nowrap}
+.app-header-actions .menu-link{order:0}
+@media(max-width:700px){.app-header{gap:12px;padding:14px 16px}.app-header-actions{width:100%;justify-content:flex-end;gap:7px}.app-header-actions>*{min-height:39px;padding:8px 11px;font-size:.84rem}.app-header .brand h1,.app-header .page-title h1,.app-header>div:first-child h1{font-size:1.25rem}}
 </style>
 </head>
 <body>
 <main>
 <div id="app-panel" class="hidden">
-<header class="topbar"><div class="brand"><h1>MIS</h1><p><a href="./" style="color:inherit">← Main menu</a></p></div>
-<div class="header-actions" aria-label="MIS actions"><a id="import-link" class="link-button hidden" href="./mis-import.html">Import</a></div></header>
+<header class="topbar app-header"><div class="brand"><h1>MIS</h1><p>Search job cards and manage applicant selections.</p></div><div class="header-actions app-header-actions" aria-label="MIS actions"><a class="link-button secondary menu-link" href="./">Back to menu</a><a id="import-link" class="link-button hidden" href="./mis-import.html">Import</a></div></header>
 <section class="panel">
 <div class="meta"><div class="stat"><small>Total Job Card</small><strong id="total-jobcards">—</strong></div><div class="stat"><small>Total Applicants from MIS</small><strong id="total-applicants">—</strong></div><div class="stat"><small>Demand</small><strong id="total-demand">—</strong></div><div class="stat"><small>Unwilling</small><strong id="total-unwilling">—</strong></div><div class="stat"><small>Last Updated</small><strong id="updated-at">—</strong></div></div>
 <div class="toolbar"><div class="search"><label for="search-input">Search job cards or applicants</label><input id="search-input" type="search" placeholder="Job card number, household, applicant name or number…"></div><div class="filter-control"><label for="selection-filter">Selection status</label><select id="selection-filter"><option value="all">All job cards</option><option value="selected">Selected</option><option value="none">None selected</option></select></div><span id="result-count" class="muted"></span></div>

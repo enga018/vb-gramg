@@ -16,6 +16,7 @@ button:hover,.link-button:hover{background:#2c3b55}button.secondary,.link-button
 .fields{display:grid;grid-template-columns:minmax(0,2fr) minmax(150px,1fr);gap:12px;align-items:end}.field label{display:block;font-size:.85rem;font-weight:700;margin:0 0 6px;color:#344054}.field input{font:inherit;min-height:44px;padding:10px 12px;border:1px solid #cfd7e4;border-radius:10px;width:100%;background:#fff;color:var(--ink)}.field input:focus{outline:3px solid rgb(36 87 197 / 15%);border-color:#6f91dc}
 .metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0 0}.metric{border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}.metric span{display:block;color:var(--muted);font-size:.78rem;font-weight:650}.metric strong{display:block;margin-top:4px;font-size:1.2rem;overflow-wrap:anywhere}
 .status{margin:12px 0 0;padding:11px 13px;border:1px solid #e5eaf2;border-radius:10px;background:#f7f9fc;color:#475467;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.88rem;line-height:1.45}.status.error{background:#fff4f2;border-color:#ffd8d2;color:#a12b20}.status.success{background:#effaf3;border-color:#ccebd7;color:#17663a}.hidden{display:none!important}
+dialog#confirmDialog{width:min(92vw,520px);max-width:520px;border:1px solid var(--line);border-radius:18px;padding:0;color:var(--ink);box-shadow:0 24px 80px rgb(16 24 40 / 28%)}dialog#confirmDialog::backdrop{background:rgb(16 24 40 / 48%)}.confirm-content{padding:22px}.confirm-content h2{margin:0 0 8px;font-size:1.2rem}.confirm-content p{color:var(--muted);font-size:.9rem;line-height:1.5;margin:0 0 16px}.confirm-summary{margin:0;border:1px solid var(--line);border-radius:12px;overflow:hidden}.confirm-summary div{display:flex;justify-content:space-between;gap:16px;padding:11px 13px;border-bottom:1px solid var(--line)}.confirm-summary div:last-child{border-bottom:0}.confirm-summary dt{color:var(--muted);font-size:.86rem}.confirm-summary dd{margin:0;text-align:right;font-weight:750;overflow-wrap:anywhere}.confirm-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:18px}.confirm-error{margin-top:12px;color:#a12b20;font-size:.88rem;white-space:pre-wrap}
 .table-wrap{overflow:auto;overscroll-behavior:contain;max-height:52vh;border:1px solid #dfe5ee;border-radius:12px;background:#fff}table{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem;white-space:normal}th,td{padding:11px 13px;text-align:left;border-bottom:1px solid #edf0f5;vertical-align:middle;min-width:100px;max-width:460px;overflow-wrap:anywhere}th{position:sticky;top:0;z-index:1;background:#f5f7fb;color:#5b6577;font-size:.72rem;letter-spacing:.045em;text-transform:uppercase;font-weight:750}tbody tr:last-child td{border-bottom:0}.jobcard{font-weight:700;white-space:nowrap}.applicant{font-weight:600}.small-muted{color:var(--muted);font-size:.82rem}.include-btn{min-height:36px;padding:7px 11px;font-size:.82rem;white-space:nowrap}.outstanding{font-weight:750;color:#b42318;font-variant-numeric:tabular-nums;white-space:nowrap}.empty{padding:24px 14px;text-align:center;color:var(--muted);font-size:.9rem}.section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}.section-heading h2{margin:0}.count{display:inline-flex;align-items:center;justify-content:center;min-width:28px;padding:3px 8px;border-radius:999px;background:#eef2f7;color:#475467;font-size:.78rem;font-weight:750}
 .export-actions{display:flex;gap:8px;flex-wrap:wrap}.export-group{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:12px 0}.export-group+.export-group{border-top:1px solid var(--line)}.export-title{font-weight:750;min-width:180px}.muted{color:var(--muted);font-size:.84rem;line-height:1.45}
 @media(max-width:700px){body{padding:10px}.topbar{padding:15px}.top-actions{width:100%}.top-actions>*{flex:1}.fields{grid-template-columns:1fr 120px}.metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.metric{padding:10px}.metric strong{font-size:1.05rem}th,td{padding:10px 9px;min-width:92px}.table-wrap{max-height:58vh}#reviewTable,#demandTable{border-spacing:0;width:100%}#reviewTable thead,#demandTable thead{display:none}#reviewTable tbody,#demandTable tbody{display:block}#reviewTable tbody tr,#demandTable tbody tr{display:block;margin:0 0 10px;padding:6px 10px;border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:0 2px 8px rgb(23 32 51 / 3%)}#reviewTable tbody tr:last-child,#demandTable tbody tr:last-child{margin-bottom:0}#reviewTable td,#demandTable td{display:grid;grid-template-columns:minmax(94px,.8fr) minmax(0,1.2fr);gap:10px;align-items:start;min-width:0;max-width:none;padding:9px 2px;border-bottom:1px solid #edf0f5;overflow-wrap:anywhere}#reviewTable td::before,#demandTable td::before{content:attr(data-label);color:var(--muted);font-size:.72rem;font-weight:750;text-transform:uppercase;letter-spacing:.025em}#reviewTable td:last-child,#demandTable td:last-child{border-bottom:0}#reviewTable td.jobcard,#demandTable td.jobcard{white-space:normal}#reviewTable td.action-cell{display:flex;justify-content:flex-end;padding-top:10px}#reviewTable td.action-cell::before{content:none}#reviewTable .include-btn{width:100%;min-height:42px}#reviewTable td.empty,#demandTable td.empty{display:block;text-align:center;padding:18px 8px;border:0}#reviewTable td.empty::before,#demandTable td.empty::before{content:none}.table-wrap:has(#reviewTable),.table-wrap:has(#demandTable){max-height:none;overflow:visible;border:0;background:transparent}.export-title{width:100%;min-width:0}.export-group{align-items:stretch}.export-actions{width:100%}.export-actions button{flex:1}}
@@ -55,6 +56,21 @@ button:hover,.link-button:hover{background:#2c3b55}button.secondary,.link-button
 <div id="generateStatus" class="status hidden" aria-live="polite"></div>
 </section>
 
+<dialog id="confirmDialog" aria-labelledby="confirm-heading" aria-describedby="confirm-description">
+<div class="confirm-content">
+<h2 id="confirm-heading">Confirm &amp; Save Demand</h2>
+<p id="confirm-description">Check these details carefully. The final applicant lists will be saved to Supabase before export buttons become available.</p>
+<dl class="confirm-summary">
+<div><dt>Period</dt><dd id="confirmPeriod">—</dd></div>
+<div><dt>No. of Days</dt><dd id="confirmDays">—</dd></div>
+<div><dt>Work Demand applicants</dt><dd id="confirmDemandCount">—</dd></div>
+<div><dt>Unwilling to Work Job Cards</dt><dd id="confirmUnwillingCount">—</dd></div>
+</dl>
+<div id="confirmError" class="confirm-error" role="alert"></div>
+<div class="confirm-actions"><button id="cancelConfirmBtn" class="secondary" type="button">Cancel</button><button id="confirmSaveBtn" type="button">Confirm &amp; Save</button></div>
+</div>
+</dialog>
+
 <section id="exportsPanel" class="panel hidden" aria-labelledby="exports-heading">
 <h2 id="exports-heading">Export generated documents</h2>
 <p class="sub">These exports use the same generated snapshot. If you change applicant inclusion, period name, or number of days, generate again before exporting.</p>
@@ -70,12 +86,12 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let allCards=[],selectedApplicants=new Map(),contributionData=null,reviewApplicants=[],demandApplicants=[],generated=null,loading=false,loadSequence=0;
+let allCards=[],selectedApplicants=new Map(),contributionData=null,reviewApplicants=[],demandApplicants=[],generated=null,pendingSnapshot=null,loading=false,loadSequence=0,saving=false;
 const normalize=value=>String(value==null?'':value).trim();
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function status(message,type='info'){const el=$('status');el.textContent=message;el.className='status'+(type==='error'?' error':type==='success'?' success':'');}
 function generatedStatus(message,type='info'){const el=$('generateStatus');el.textContent=message;el.className='status'+(type==='error'?' error':type==='success'?' success':'');}
-function invalidateGenerated(){generated=null;$('exportsPanel').classList.add('hidden');$('generateBtn').disabled=loading||!allCards.length;}
+function invalidateGenerated(){generated=null;pendingSnapshot=null;if($('confirmDialog').open&&!saving)$('confirmDialog').close();$('exportsPanel').classList.add('hidden');$('generateBtn').disabled=loading||!allCards.length;}
 function stableApplicantKey(jobCard,values,nameIndex,numberIndex,uniqueIdIndex){
  const uniqueId=normalize(uniqueIdIndex>=0?values[uniqueIdIndex]:'');
  if(uniqueId)return 'uid:'+uniqueId.toLocaleLowerCase();
@@ -224,12 +240,56 @@ $('generateBtn').addEventListener('click',()=>{
  if(!Number.isInteger(days)||days<1||days>365){$('days').focus();generatedStatus('Enter a whole number of days from 1 to 365.','error');$('generateStatus').classList.remove('hidden');return;}
  const demandedCards=new Set(demandApplicants.map(a=>a.jobCard));
  const unwilling=allCards.filter(group=>!demandedCards.has(group.key)).map(group=>({jobCard:group.key,household:group.household||''}));
- generated={period,days,demand:demandApplicants.map(a=>({...a})),unwilling,createdAt:new Date().toISOString()};
- $('exportsPanel').classList.remove('hidden');
- ['demandPdfBtn','demandCsvBtn','unwillingPdfBtn','unwillingCsvBtn'].forEach(id=>$(id).disabled=false);
- generatedStatus('Documents generated from the current MIS, Contribution, and applicant-inclusion decisions. Work Demand: '+generated.demand.length+' applicant(s). Unwilling to Work: '+generated.unwilling.length+' Job Card(s).','success');
+ pendingSnapshot={period,days,demand:demandApplicants.map(a=>({...a})),unwilling,createdAt:new Date().toISOString()};
+ $('confirmPeriod').textContent=period;
+ $('confirmDays').textContent=String(days);
+ $('confirmDemandCount').textContent=String(pendingSnapshot.demand.length);
+ $('confirmUnwillingCount').textContent=String(pendingSnapshot.unwilling.length);
+ $('confirmError').textContent='';
+ $('confirmSaveBtn').disabled=false;
+ $('cancelConfirmBtn').disabled=false;
+ $('exportsPanel').classList.add('hidden');
+ $('confirmDialog').showModal();
+});
+$('cancelConfirmBtn').addEventListener('click',()=>{
+ if(saving)return;
+ pendingSnapshot=null;
+ $('confirmDialog').close();
+ generatedStatus('Cancelled. Nothing was saved and exports remain hidden.','info');
  $('generateStatus').classList.remove('hidden');
- $('exportsPanel').scrollIntoView({behavior:'smooth',block:'start'});
+});
+$('confirmSaveBtn').addEventListener('click',async()=>{
+ if(!pendingSnapshot||saving)return;
+ saving=true;
+ const snapshot=pendingSnapshot;
+ $('confirmSaveBtn').disabled=true;
+ $('cancelConfirmBtn').disabled=true;
+ $('confirmError').textContent='Saving the demand snapshot to Supabase…';
+ try{
+  const {data,error}=await supabaseClient.functions.invoke('vbgramg-demand-runs',{body:{
+   action:'save',
+   periodName:snapshot.period,
+   days:snapshot.days,
+   workDemand:snapshot.demand.map(a=>({jobCard:a.jobCard,name:a.name||'',number:a.number||'',household:a.household||''})),
+   unwillingToWork:snapshot.unwilling.map(a=>({jobCard:a.jobCard,household:a.household||''}))
+  }});
+  if(error)throw new Error(error.message||'Supabase could not save this demand.');
+  if(!data||data.saved!==true||!data.id)throw new Error((data&&data.error)||'Supabase did not confirm that the demand was saved.');
+  generated={...snapshot,id:data.id,createdAt:data.createdAt||snapshot.createdAt};
+  pendingSnapshot=null;
+  $('confirmDialog').close();
+  $('exportsPanel').classList.remove('hidden');
+  ['demandPdfBtn','demandCsvBtn','unwillingPdfBtn','unwillingCsvBtn'].forEach(id=>$(id).disabled=false);
+  generatedStatus('Demand saved successfully. Work Demand: '+generated.demand.length+' applicant(s). Unwilling to Work: '+generated.unwilling.length+' Job Card(s). You can now export the saved snapshot.','success');
+  $('generateStatus').classList.remove('hidden');
+  $('exportsPanel').scrollIntoView({behavior:'smooth',block:'start'});
+ }catch(error){
+  $('confirmError').textContent='Save failed: '+(error&&error.message?error.message:String(error))+'\nNothing was marked as saved; exports remain hidden. You can retry or cancel.';
+  $('confirmSaveBtn').disabled=false;
+  $('cancelConfirmBtn').disabled=false;
+ }finally{
+  saving=false;
+ }
 });
 function csvCell(value){const s=String(value??'');return '"'+s.replace(/"/g,'""')+'"';}
 function downloadCsv(filename,rows){

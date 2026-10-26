@@ -56,6 +56,7 @@ from public.vbgramg_periods p
 where l.entry_type = 'charge'
   and l.note ~* '^[A-Z]{3}[0-9]{2}\([0-9]+\)$'
   and p.contribution_month = date_trunc('month', to_date('01 ' || substring(l.note from 1 for 5), 'DD MON YY'))::date
+  and l.charge_period = date_trunc('month', to_date('01 ' || substring(l.note from 1 for 5), 'DD MON YY'))::date
   and lower(p.period_name) = lower(
     to_char(p.contribution_month, 'FMMonth YYYY') ||
     case

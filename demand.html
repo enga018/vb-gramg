@@ -174,9 +174,9 @@ async function load(){
    const balance=balances.get(group.key)||0;
    const chosenKey=selectedApplicants.get(group.key);
    const selected=group.applicants.find(a=>a.selectionKey===chosenKey);
-   if(balance>0){
-    group.applicants.forEach(applicant=>reviewApplicants.push({...applicant,jobCard:group.key,household:group.household,identity:JSON.stringify([group.key,applicant.number,applicant.name])}));
-   }else if(selected){
+   if(balance>0&&selected){
+    reviewApplicants.push({...selected,jobCard:group.key,household:group.household,identity:JSON.stringify([group.key,selected.number,selected.name])});
+   }else if(balance<=0&&selected){
     demandApplicants.push({...selected,jobCard:group.key,household:group.household,identity:JSON.stringify([group.key,selected.number,selected.name])});
    }
   }

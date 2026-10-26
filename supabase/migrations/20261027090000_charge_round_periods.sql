@@ -43,7 +43,8 @@ insert into public.vbgramg_periods (period_name, period_date, contribution_month
 select 'May 2026 (2)', date '2026-05-02', date '2026-05-01', 'open'
 where exists (
   select 1 from public.vbgramg_charge_ledger
-  where entry_type = 'charge' and charge_period = date '2026-05-01' and note ~* '^MAY26\\s*\\(2\\)
+  where entry_type = 'charge' and charge_period = date '2026-05-01' and note ~* '^MAY26\s*\(2\)$'
+)
 and not exists (
   select 1 from public.vbgramg_periods where lower(period_name) = lower('May 2026 (2)')
 );

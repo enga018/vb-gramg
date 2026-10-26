@@ -69,7 +69,17 @@ update public.vbgramg_fto_batches b
 set period_id = p.id
 from public.vbgramg_periods p
 where p.contribution_month = b.ledger_charge_period
-  and lower(p.period_name) = lower(b.contribution_period);
+  and (
+    lower(p.period_name) = lower(b.contribution_period)
+    or lower(
+      to_char(p.contribution_month, 'MONYY') ||
+      case
+        when p.period_date is not null and extract(day from p.period_date) > 1
+          then ' (' || extract(day from p.period_date)::integer || ')'
+        else ''
+      end
+    ) = lower(b.contribution_period)
+  );
 
 -- Standardize recognizable period names to the requested compact format: MAY26, MAY26 (2), etc.
 update public.vbgramg_periods

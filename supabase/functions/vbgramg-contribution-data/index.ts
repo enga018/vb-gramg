@@ -589,13 +589,13 @@ Deno.serve(async(req:Request)=>{
     const trackBatchIds=[...new Set((trackedRows||[]).map(r=>String(r.batch_id)))];
     let trackBatches:Record<string,any>[]=[];
     if(trackBatchIds.length){const {data,error}=await admin.from("vbgramg_fto_batches").select("id,ledger_charge_period").in("id",trackBatchIds);if(error)throw error;trackBatches=data||[];}
-    const trackPeriod=new Map(trackBatches.map(r=>[String(r.id),String(r.ledger_charge_period||"")]));
-    const relevant=(trackedRows||[]).filter(r=>trackPeriod.get(String(r.batch_id))===chargePeriod&&r.is_in_scope===true);
+     const trackPeriod=new Map(trackBatches.map(r=>[String(r.id),{month:String(r.ledger_charge_period||""),periodId:String(r.period_id||"")}]));
+     const relevant=(trackedRows||[]).filter(r=>{const p=trackPeriod.get(String(r.batch_id));return p?.month===chargePeriod&&p.periodId===periodId&&r.is_in_scope===true;});
     const latestByReference=new Map<string,Record<string,any>>();
     for(const tx of relevant){const key=String(tx.reference_no),old=latestByReference.get(key);if(!old||String(tx.last_seen_at)>String(old.last_seen_at))latestByReference.set(key,tx);}
     const txByCard=new Map<string,Record<string,any>[]>();
     for(const tx of latestByReference.values()){const card=String(tx.job_card_number);if(!txByCard.has(card))txByCard.set(card,[]);txByCard.get(card)!.push(tx);}
-    const {data:ledgerRows,error:ledgerRowsError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,note,reference_numbers,import_id").in("job_card_number",affectedCards).eq("entry_type","charge").eq("charge_period",chargePeriod);
+    const {data:ledgerRows,error:ledgerRowsError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,note,reference_numbers,import_id,period_id").in("job_card_number",affectedCards).eq("entry_type","charge").eq("charge_period",chargePeriod);
     if(ledgerRowsError)throw ledgerRowsError;
     for(const card of affectedCards){
      if(exemptCards.has(card))continue;
@@ -603,8 +603,8 @@ Deno.serve(async(req:Request)=>{
      const active=txs.filter(tx=>["blank","processed"].includes(String(tx.status))&&Number(tx.calculated_charge||0)>0);
      const refs=[...new Set(active.map(tx=>String(tx.reference_no)))];
      const amount=Number(active.reduce((sum,tx)=>sum+Number(tx.calculated_charge||0),0).toFixed(2));
-     const ftoRows=(ledgerRows||[]).filter(r=>String(r.job_card_number)===card&&/^FTO\b/i.test(String(r.note||""))&&!/^FTO EXTRA\b/i.test(String(r.note||"")));
-     const keeper=ftoRows.find(r=>(r.reference_numbers||[]).some((ref:string)=>refs.includes(String(ref))))||ftoRows[0]||null;
+      const ftoRows=(ledgerRows||[]).filter(r=>String(r.job_card_number)===card&&/^FTO\b/i.test(String(r.note||""))&&!/^FTO EXTRA\b/i.test(String(r.note||""))&&(String(r.period_id||"")===periodId||(!r.period_id&&(r.reference_numbers||[]).some((ref:string)=>refs.includes(String(ref))))));
+      const keeper=ftoRows.find(r=>(r.reference_numbers||[]).some((ref:string)=>refs.includes(String(ref))))||ftoRows[0]||null;
      if(amount>0){
       const isDeferred=active.every(tx=>String(tx.status)==="blank"),entryDate=ftoEntryDate(active,isDeferred);
       const activeApplicantName=String((normalized.find(r=>String(r.job_card_number)===card&&r.is_in_scope)?.person_name)||"");

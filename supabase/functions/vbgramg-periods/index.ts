@@ -60,12 +60,8 @@ Deno.serve(async (req: Request) => {
         const daysRaw = body.days === null || body.days === "" || body.days === undefined ? null : Number(body.days);
         if (daysRaw !== null && (!Number.isInteger(daysRaw) || daysRaw < 1 || daysRaw > 365)) return reply(req, { error: "Days must be a whole number from 1 to 365, or blank." }, 400);
         patch.days = daysRaw;
-        if (!existing.period_date) {
-          const name = clean(body.periodName, 120);
-          if (!name) return reply(req, { error: "Period name is required." }, 400);
-          patch.period_name = name;
-        } else if (body.periodName && clean(body.periodName, 120) !== existing.period_name) {
-          return reply(req, { error: "Monthly contribution period names are fixed to their month and year." }, 400);
+        if (body.periodName && clean(body.periodName, 120) !== existing.period_name) {
+          return reply(req, { error: "Generated period names cannot be changed. The name identifies its contribution month and charge round." }, 400);
         }
       }
       const { data, error } = await admin.from("vbgramg_periods").update(patch).eq("id", id).select("id,period_name,period_date,contribution_month,days,status,created_at,updated_at,closed_at").single();

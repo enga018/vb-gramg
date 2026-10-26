@@ -19,6 +19,37 @@ button.secondary{background:#e2e8f0;color:#0f172a}.hidden{display:none!important
 .module{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:22px;border:1px solid #e2e8f0;border-radius:14px;background:#fff;box-shadow:0 8px 24px rgb(15 23 42 / 4%);text-decoration:none;color:#0f172a;min-height:190px}
 .module:hover{border-color:#94a3b8;background:#f8fafc}.module.future{opacity:.72;cursor:not-allowed}.module .symbol{font-size:1.8rem}.module p{margin:0;font-size:.92rem}.module-link{margin-top:auto;width:100%}
 @media(max-width:600px){body{padding:10px}.topbar{padding:15px}.account{width:100%;justify-content:space-between}.panel{padding:18px}}
+
+/* Keep every header action visually consistent with the standard Refresh button. */
+header .account > button,
+header .app-header-actions > a,
+header .app-header-actions > button,
+header .top-actions > a,
+header .top-actions > button {
+  box-sizing: border-box !important;
+  min-height: 40px !important;
+  padding: 9px 12px !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 10px !important;
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+  font-family: inherit !important;
+  font-size: .9rem !important;
+  font-weight: 650 !important;
+  line-height: 1.2 !important;
+  text-decoration: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+header .account > button:hover,
+header .app-header-actions > a:hover,
+header .app-header-actions > button:hover,
+header .top-actions > a:hover,
+header .top-actions > button:hover {
+  background: #d7e0ec !important;
+  color: #0f172a !important;
+}
+
 </style>
 </head>
 <body><main>

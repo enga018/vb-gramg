@@ -75,8 +75,8 @@ header .top-actions > button:hover {
 <div class="field"><label for="periodName">Period</label><select id="periodName" required><option value="">Loading open periods…</option></select></div>
 <div class="field"><label for="days">No. of Days</label><input id="days" type="number" min="1" max="365" step="1" inputmode="numeric" placeholder="Days"></div>
 </div>
-<div class="actions" style="margin-top:10px"><a class="link-button secondary" href="./periods.html">Manage periods</a></div>
-<div class="metrics">
+<div class="actions" style="margin-top:10px"><button id="continueReviewBtn" type="button">Continue to Manual Review</button></div>
+<div class="metrics hidden">
 <div class="metric"><span>Work Demand applicants</span><strong id="demandCount">—</strong></div>
 <div class="metric"><span>Outstanding review</span><strong id="reviewCount">—</strong></div>
 <div class="metric"><span>Active MIS Job Cards</span><strong id="jobCardCount">—</strong></div>
@@ -84,13 +84,13 @@ header .top-actions > button:hover {
 <div id="status" class="status" aria-live="polite">Checking your sign-in session…</div>
 </section>
 
-<section class="panel" aria-labelledby="review-heading">
+<section id="reviewPanel" class="panel hidden" aria-labelledby="review-heading">
 <div class="section-heading"><h2 id="review-heading">Manual Review Needed</h2><span id="reviewBadge" class="count">0</span></div>
 <p class="sub">Only MIS-selected applicants with an outstanding contribution balance appear here. Check the amount before using Include to add an applicant to Work Demand.</p>
 <div class="table-wrap"><table id="reviewTable"><thead><tr><th>Job Card No.</th><th>Head of Household</th><th>Outstanding Amount</th><th>Action</th></tr></thead><tbody id="reviewBody"><tr><td colspan="4" class="empty">Loading applicants…</td></tr></tbody></table></div><div class="table-foot"><span id="reviewPageLabel" class="page-label"></span><div class="page-actions"><button id="reviewPrev" class="secondary" type="button">Previous</button><button id="reviewNext" class="secondary" type="button">Next</button></div></div>
 </section>
 
-<section class="panel" aria-labelledby="demand-heading">
+<section id="demandPanel" class="panel hidden" aria-labelledby="demand-heading">
 <div class="section-heading"><h2 id="demand-heading">Demand</h2><span id="demandBadge" class="count">0</span></div>
 <p class="sub">Applicants selected in MIS are included automatically when their Job Cards have no outstanding balance. Applicants you include from the review list are added here.</p>
 <div class="table-wrap"><table id="demandTable"><thead><tr><th>Job Card No.</th><th>Name of Applicant</th><th>Applicant No.</th></tr></thead><tbody id="demandBody"><tr><td colspan="3" class="empty">Loading applicants…</td></tr></tbody></table></div><div class="table-foot"><span id="demandPageLabel" class="page-label"></span><div class="page-actions"><button id="demandPrev" class="secondary" type="button">Previous</button><button id="demandNext" class="secondary" type="button">Next</button></div></div>
@@ -100,7 +100,7 @@ header .top-actions > button:hover {
 
 
 
-<section class="panel" aria-labelledby="unwilling-heading">
+<section id="unwillingPanel" class="panel hidden" aria-labelledby="unwilling-heading">
 <div class="section-heading"><h2 id="unwilling-heading">Unwilling to Work</h2><span id="unwillingBadge" class="count">0</span></div>
 <p class="sub">Active MIS Job Cards not represented in Work Demand. This list is recalculated when you include an applicant or reload data.</p>
 <div class="table-wrap"><table id="unwillingTable"><thead><tr><th>Job Card No.</th><th>Head of Household</th></tr></thead><tbody id="unwillingBody"><tr><td colspan="2" class="empty">Loading Job Cards…</td></tr></tbody></table></div>
@@ -137,7 +137,19 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let allCards=[],selectedApplicants=new Map(),contributionData=null,reviewApplicants=[],demandApplicants=[],generated=null,pendingSnapshot=null,loading=false,loadSequence=0,saving=false,periods=[];const pageSize=50;const tablePages={review:0,demand:0,unwilling:0};
+const query = new URLSearchParams(location.search);
+const reviewMode = false;
+const resultsMode = query.get("stage") === "results";
+const includedKey = id => "vbgramg-demand-included:" + id;
+let allCards=[],selectedApplicants=new Map(),contributionData=null,reviewApplicants=[],allReviewCandidates=[],demandApplicants=[],generated=null,pendingSnapshot=null,loading=false,loadSequence=0,saving=false,periods=[];const pageSize=50;const tablePages={review:0,demand:0,unwilling:0};
+function currentPeriodId(){return $("periodName").value || query.get("periodId") || "";}
+function getIncludedIds(id){try{return new Set(JSON.parse(localStorage.getItem(includedKey(id)) || "[]"));}catch{return new Set();}}
+function saveIncludedIds(id,ids){localStorage.setItem(includedKey(id),JSON.stringify([...ids]));}
+function applyWorkflowVisibility(){
+ const setup=$("period-heading").closest("section");
+ if(resultsMode){setup.classList.remove("hidden");$("reviewPanel").classList.add("hidden");$("demandPanel").classList.remove("hidden");$("unwillingPanel").classList.remove("hidden");$("continueReviewBtn").textContent="Review Again";}
+ else{$("reviewPanel").classList.add("hidden");$("demandPanel").classList.add("hidden");$("unwillingPanel").classList.add("hidden");$("exportsPanel").classList.add("hidden");}
+}
 const normalize=value=>String(value==null?'':value).trim();
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function selectedPeriod(){return periods.find(p=>p.id===$('periodName').value)||null;}
@@ -233,6 +245,9 @@ async function load(){
   if(seq!==loadSequence)return;
   if(accessError||!access||access.approved!==true){await supabaseClient.auth.signOut();window.location.replace('./');return;}
   await loadPeriods();
+  if(query.get("periodId") && periods.some(p=>p.id===query.get("periodId"))) $("periodName").value=query.get("periodId");
+  if(query.get("days") && /^\d+$/.test(query.get("days"))) $("days").value=query.get("days");
+  applyWorkflowVisibility();
   status('Loading active MIS data and Contribution balances…');
   const [misData,contributionResult,selectionResult]=await Promise.all([
    fetchAllMisRows(seq),
@@ -259,8 +274,12 @@ async function load(){
     demandApplicants.push({...selected,jobCard:group.key,household:group.household,identity:JSON.stringify([group.key,selected.number,selected.name])});
    }
   }
+  allReviewCandidates=reviewApplicants.map(a=>({...a}));
+  const includedIds=getIncludedIds(currentPeriodId());
+  for(const candidate of allReviewCandidates) if(includedIds.has(candidate.identity) && !demandApplicants.some(a=>a.identity===candidate.identity)) demandApplicants.push(candidate);
+  if(resultsMode) reviewApplicants=[];
   renderLists();
-  status('MIS and Contribution data loaded. Review outstanding Job Cards, then generate the documents.','success');
+  status('MIS and Contribution data loaded.','success');
   $('generateBtn').disabled=false;
  }catch(error){
   status('Could not prepare Work Demand: '+(error&&error.message?error.message:String(error)),'error');
@@ -292,7 +311,7 @@ function renderLists(){
  else reviewApplicants.slice(reviewPage.start,reviewPage.itemsEnd).forEach((applicant,offset)=>{
   const index=reviewPage.start+offset;
   const tr=document.createElement('tr');
-  tr.innerHTML='<td class="jobcard" data-label="Job Card No.">'+esc(applicant.jobCard)+'</td><td class="applicant" data-label="Head of Household">'+esc(applicant.household||'—')+'</td><td class="outstanding" data-label="Outstanding Amount">'+esc(formatRupees(applicant.outstanding))+'</td><td class="action-cell" data-label="Action"><button type="button" class="include-btn" data-include="'+index+'">Include</button></td>';
+  const included=demandApplicants.some(a=>a.identity===applicant.identity);tr.innerHTML='<td class="jobcard" data-label="Job Card No.">'+esc(applicant.jobCard)+'</td><td class="applicant" data-label="Head of Household">'+esc(applicant.household||'—')+'</td><td class="outstanding" data-label="Outstanding Amount">'+esc(formatRupees(applicant.outstanding))+'</td><td class="action-cell" data-label="Action"><button type="button" class="include-btn" data-include="'+index+'">'+(included?'Remove':'Include')+'</button></td>';
   reviewBody.appendChild(tr);
  });
  const demandBody=$('demandBody');demandBody.replaceChildren();
@@ -320,11 +339,19 @@ for(const kind of ['review','demand','unwilling']){
 $('reviewBody').addEventListener('click',event=>{
  const button=event.target.closest('[data-include]');if(!button)return;
  const index=Number(button.dataset.include),applicant=reviewApplicants[index];if(!applicant)return;
- if(demandApplicants.some(a=>a.identity===applicant.identity))return;
- demandApplicants.push(applicant);reviewApplicants.splice(index,1);tablePages.review=Math.min(tablePages.review,Math.max(0,Math.ceil(reviewApplicants.length/pageSize)-1));tablePages.demand=Math.max(0,Math.ceil(demandApplicants.length/pageSize)-1);invalidateGenerated();renderLists();
- status('Applicant included in Work Demand. Generate again before exporting.','success');
+ const existing=demandApplicants.findIndex(a=>a.identity===applicant.identity);
+ if(existing>=0)demandApplicants.splice(existing,1);else demandApplicants.push(applicant);
+ const ids=new Set(demandApplicants.filter(a=>allReviewCandidates.some(c=>c.identity===a.identity)).map(a=>a.identity));
+ saveIncludedIds(currentPeriodId(),ids);tablePages.demand=Math.max(0,Math.ceil(demandApplicants.length/pageSize)-1);invalidateGenerated();renderLists();
+ status(existing>=0?'Applicant removed from Work Demand.':'Applicant included in Work Demand.','success');
 });
 $('periodName').addEventListener('change',()=>{const p=selectedPeriod();if(p&&p.days&&!$('days').value)$('days').value=String(p.days);invalidateGenerated();});
+$('continueReviewBtn').addEventListener('click',()=>{
+ const p=selectedPeriod(),days=Number($('days').value);
+ if(!p){$('periodName').focus();status('Select an open period first.','error');return;}
+ if(!Number.isInteger(days)||days<1||days>365){$('days').focus();status('Enter a whole number of days from 1 to 365.','error');return;}
+ const next=new URL('./demand-review.html',location.href);next.searchParams.set('periodId',p.id);next.searchParams.set('days',String(days));location.href=next.toString();
+});
 $('days').addEventListener('input',()=>{invalidateGenerated();});
 $('generateBtn').addEventListener('click',()=>{
  const chosenPeriod=selectedPeriod(),period=chosenPeriod?.period_name||'',days=Number($('days').value);

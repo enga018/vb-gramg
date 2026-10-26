@@ -370,14 +370,13 @@ Deno.serve(async(req:Request)=>{
   if(action==="sync-fto-batch"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can synchronize FTO transactions."},403);
    const ftoNumber=String(body.fto_number||"").trim().toUpperCase().slice(0,100);
-   const periodId=String(body.period_id||"").trim();
+   let periodId=String(body.period_id||"").trim();
    const contributionPeriod=String(body.contribution_period||"").trim().slice(0,100);
    const chargePeriod=String(body.charge_period||"").trim();
    const periodMatch=chargePeriod.match(/^(\d{4})-(\d{2})-01$/);
    const villageScope="NEW SERCHHIP North";
    const rows=body.rows;
    if(!ftoNumber)return reply({error:"Enter the FTO number shown on the government page."},400);
-   if(!periodId)return reply({error:"Select a shared contribution period."},400);
    if(!contributionPeriod)return reply({error:"Select a contribution period from the shared list."},400);
    if(!periodMatch||Number(periodMatch[2])<1||Number(periodMatch[2])>12)return reply({error:"Enter a recognizable month and year, such as August 2026."},400);
    if(!Array.isArray(rows)||rows.length<1||rows.length>5000)return reply({error:"The pasted FTO must contain 1–5,000 transaction rows."},400);
@@ -425,6 +424,16 @@ Deno.serve(async(req:Request)=>{
    }
    const {data:batchOld,error:batchOldError}=await admin.from("vbgramg_fto_batches").select("id,fto_number,contribution_period,ledger_charge_period,period_id,village_scope").eq("fto_number",ftoNumber).maybeSingle();
    if(batchOldError)throw batchOldError;
+   if(!periodId){
+    let {data:legacyPeriod,error:legacyPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,status").eq("period_date",chargePeriod).maybeSingle();
+    if(legacyPeriodError)throw legacyPeriodError;
+    if(!legacyPeriod){
+     const {data:createdPeriod,error:createPeriodError}=await admin.from("vbgramg_periods").insert({period_name:contributionPeriod,period_date:chargePeriod,status:"open",created_by:authData.user.id}).select("id,period_name,period_date,status").single();
+     if(createPeriodError)throw createPeriodError;
+     legacyPeriod=createdPeriod;
+    }
+    periodId=String(legacyPeriod.id);
+   }
    const {data:selectedPeriod,error:selectedPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,status").eq("id",periodId).maybeSingle();
    if(selectedPeriodError)throw selectedPeriodError;
    if(!selectedPeriod||selectedPeriod.period_date!==chargePeriod||selectedPeriod.period_name!==contributionPeriod)return reply({error:"Select a shared contribution month that matches the period."},400);

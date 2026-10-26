@@ -245,23 +245,29 @@ Deno.serve(async(req:Request)=>{
    if(!contributionPeriod||!periodMatch||Number(periodMatch[2])<1||Number(periodMatch[2])>12)return reply({error:"Enter a valid month and year, such as June 2026."},400);
    const monthNames=["January","February","March","April","May","June","July","August","September","October","November","December"];
    const expectedLabel=monthNames[Number(periodMatch[2])-1]+" "+periodMatch[1];
-   if(contributionPeriod.toLowerCase()!==expectedLabel.toLowerCase())return reply({error:"Period label and month/year do not match."},400);
+   const isRoundLabel=contributionPeriod.toLowerCase().startsWith(expectedLabel.toLowerCase()+" (")&&/^\(\d+\)$/.test(contributionPeriod.slice(expectedLabel.length).trim());
+    if(contributionPeriod.toLowerCase()!==expectedLabel.toLowerCase()&&!isRoundLabel)return reply({error:"Period name must match the selected contribution month and optional round number."},400);
    const {data:batch,error:batchError}=await admin.from("vbgramg_fto_batches").select("id,fto_number,contribution_period,ledger_charge_period,period_id").eq("id",batchId).maybeSingle();
    if(batchError)throw batchError;if(!batch)return reply({error:"The selected FTO was not found. Refresh history and try again."},404);
    if(!periodId){
-    let {data:legacyPeriod,error:legacyPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,status").eq("period_date",chargePeriod).maybeSingle();
+    let {data:legacyPeriod,error:legacyPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status").eq("period_name",contributionPeriod).eq("contribution_month",chargePeriod).maybeSingle();
     if(legacyPeriodError)throw legacyPeriodError;
     if(!legacyPeriod){
-     const {data:createdPeriod,error:createPeriodError}=await admin.from("vbgramg_periods").insert({period_name:contributionPeriod,period_date:chargePeriod,status:"open",created_by:authData.user.id}).select("id,period_name,period_date,status").single();
+     const {data:monthPeriods,error:monthPeriodsError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status").eq("contribution_month",chargePeriod).order("period_date",{ascending:true}).limit(1);
+     if(monthPeriodsError)throw monthPeriodsError;
+     legacyPeriod=monthPeriods?.[0]||null;
+    }
+    if(!legacyPeriod){
+     const {data:createdPeriod,error:createPeriodError}=await admin.from("vbgramg_periods").insert({period_name:contributionPeriod,period_date:chargePeriod,contribution_month:chargePeriod,status:"open",created_by:authData.user.id}).select("id,period_name,period_date,contribution_month,status").single();
      if(createPeriodError)throw createPeriodError;
      legacyPeriod=createdPeriod;
     }
     periodId=String(legacyPeriod.id);
    }
    const oldPeriod=String(batch.ledger_charge_period||"");
-   const {data:selectedPeriod,error:selectedPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,status").eq("id",periodId).maybeSingle();
+   const {data:selectedPeriod,error:selectedPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status").eq("id",periodId).maybeSingle();
     if(selectedPeriodError)throw selectedPeriodError;
-    if(!selectedPeriod||selectedPeriod.period_date!==chargePeriod||selectedPeriod.period_name!==contributionPeriod)return reply({error:"Select a shared contribution month that matches the FTO period."},400);
+    if(!selectedPeriod||selectedPeriod.contribution_month!==chargePeriod||selectedPeriod.period_name!==contributionPeriod)return reply({error:"Select a shared charge round for the chosen contribution month."},400);
     if(selectedPeriod.status!=="open"&&String(batch.period_id||"")!==periodId)return reply({error:"That period is closed. Reopen it before assigning an FTO."},409);
     if(oldPeriod===chargePeriod&&String(batch.contribution_period||"")===contributionPeriod&&String(batch.period_id||"")===periodId)return reply({approved:true,unchanged:true,fto_number:batch.fto_number,contribution_period:contributionPeriod,charge_period:chargePeriod,period_id:periodId,transactions_changed:0,job_cards_recalculated:0});
    const {data:batchTx,error:batchTxError}=await admin.from("vbgramg_fto_transactions").select("id,job_card_number").eq("batch_id",batchId);
@@ -425,10 +431,15 @@ Deno.serve(async(req:Request)=>{
    const {data:batchOld,error:batchOldError}=await admin.from("vbgramg_fto_batches").select("id,fto_number,contribution_period,ledger_charge_period,period_id,village_scope").eq("fto_number",ftoNumber).maybeSingle();
    if(batchOldError)throw batchOldError;
    if(!periodId){
-    let {data:legacyPeriod,error:legacyPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,status").eq("period_date",chargePeriod).maybeSingle();
+    let {data:legacyPeriod,error:legacyPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status").eq("period_name",contributionPeriod).eq("contribution_month",chargePeriod).maybeSingle();
     if(legacyPeriodError)throw legacyPeriodError;
     if(!legacyPeriod){
-     const {data:createdPeriod,error:createPeriodError}=await admin.from("vbgramg_periods").insert({period_name:contributionPeriod,period_date:chargePeriod,status:"open",created_by:authData.user.id}).select("id,period_name,period_date,status").single();
+     const {data:monthPeriods,error:monthPeriodsError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status").eq("contribution_month",chargePeriod).order("period_date",{ascending:true}).limit(1);
+     if(monthPeriodsError)throw monthPeriodsError;
+     legacyPeriod=monthPeriods?.[0]||null;
+    }
+    if(!legacyPeriod){
+     const {data:createdPeriod,error:createPeriodError}=await admin.from("vbgramg_periods").insert({period_name:contributionPeriod,period_date:chargePeriod,contribution_month:chargePeriod,status:"open",created_by:authData.user.id}).select("id,period_name,period_date,contribution_month,status").single();
      if(createPeriodError)throw createPeriodError;
      legacyPeriod=createdPeriod;
     }
@@ -436,7 +447,7 @@ Deno.serve(async(req:Request)=>{
    }
    const {data:selectedPeriod,error:selectedPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,status").eq("id",periodId).maybeSingle();
    if(selectedPeriodError)throw selectedPeriodError;
-   if(!selectedPeriod||selectedPeriod.period_date!==chargePeriod||selectedPeriod.period_name!==contributionPeriod)return reply({error:"Select a shared contribution month that matches the period."},400);
+   if(!selectedPeriod||selectedPeriod.contribution_month!==chargePeriod||selectedPeriod.period_name!==contributionPeriod)return reply({error:"Select a shared charge round for the chosen contribution month."},400);
    if(batchOld&&selectedPeriod.status!=="open"&&String(batchOld.period_id||"")!==periodId)return reply({error:"That period is closed. Reopen it before assigning an FTO."},409);
    if(!batchOld&&selectedPeriod.status!=="open")return reply({error:"That period is closed. Reopen it before importing an FTO."},409);
    if(batchOld&&(String(batchOld.contribution_period)!==contributionPeriod||String(batchOld.ledger_charge_period||"")!==chargePeriod)){

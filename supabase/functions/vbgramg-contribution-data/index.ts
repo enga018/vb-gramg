@@ -243,10 +243,10 @@ Deno.serve(async(req:Request)=>{
    const periodMatch=chargePeriod.match(/^(\d{4})-(\d{2})-01$/);
    if(!batchId)return reply({error:"Select a saved FTO first."},400);
    if(!contributionPeriod||!periodMatch||Number(periodMatch[2])<1||Number(periodMatch[2])>12)return reply({error:"Enter a valid month and year, such as June 2026."},400);
-   const monthNames=["January","February","March","April","May","June","July","August","September","October","November","December"];
-   const expectedLabel=monthNames[Number(periodMatch[2])-1]+" "+periodMatch[1];
-   const isRoundLabel=contributionPeriod.toLowerCase().startsWith(expectedLabel.toLowerCase()+" (")&&/^\(\d+\)$/.test(contributionPeriod.slice(expectedLabel.length).trim());
-    if(contributionPeriod.toLowerCase()!==expectedLabel.toLowerCase()&&!isRoundLabel)return reply({error:"Period name must match the selected contribution month and optional round number."},400);
+   const monthNames=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+   const expectedLabel=monthNames[Number(periodMatch[2])-1]+periodMatch[1].slice(-2);
+   const isRoundLabel=contributionPeriod.toUpperCase().startsWith(expectedLabel+" (")&&/^\(\d+\)$/.test(contributionPeriod.slice(expectedLabel.length).trim());
+    if(contributionPeriod.toUpperCase()!==expectedLabel&&!isRoundLabel)return reply({error:"Period name must match the selected contribution month and optional round number, e.g. MAY26 or MAY26 (2)."},400);
    const {data:batch,error:batchError}=await admin.from("vbgramg_fto_batches").select("id,fto_number,contribution_period,ledger_charge_period,period_id").eq("id",batchId).maybeSingle();
    if(batchError)throw batchError;if(!batch)return reply({error:"The selected FTO was not found. Refresh history and try again."},404);
    if(!periodId){

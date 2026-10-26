@@ -252,16 +252,7 @@ Deno.serve(async(req:Request)=>{
    if(!periodId){
     let {data:legacyPeriod,error:legacyPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status").eq("period_name",contributionPeriod).eq("contribution_month",chargePeriod).maybeSingle();
     if(legacyPeriodError)throw legacyPeriodError;
-    if(!legacyPeriod){
-     const {data:monthPeriods,error:monthPeriodsError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status").eq("contribution_month",chargePeriod).order("period_date",{ascending:true}).limit(1);
-     if(monthPeriodsError)throw monthPeriodsError;
-     legacyPeriod=monthPeriods?.[0]||null;
-    }
-    if(!legacyPeriod){
-     const {data:createdPeriod,error:createPeriodError}=await admin.from("vbgramg_periods").insert({period_name:contributionPeriod,period_date:chargePeriod,contribution_month:chargePeriod,status:"open",created_by:authData.user.id}).select("id,period_name,period_date,contribution_month,status").single();
-     if(createPeriodError)throw createPeriodError;
-     legacyPeriod=createdPeriod;
-    }
+    if(!legacyPeriod)return reply({error:"The selected charge round does not exist in Period Management. Create or select the correct round first."},400);
     periodId=String(legacyPeriod.id);
    }
    const oldPeriod=String(batch.ledger_charge_period||"");
@@ -433,16 +424,7 @@ Deno.serve(async(req:Request)=>{
    if(!periodId){
     let {data:legacyPeriod,error:legacyPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status").eq("period_name",contributionPeriod).eq("contribution_month",chargePeriod).maybeSingle();
     if(legacyPeriodError)throw legacyPeriodError;
-    if(!legacyPeriod){
-     const {data:monthPeriods,error:monthPeriodsError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status").eq("contribution_month",chargePeriod).order("period_date",{ascending:true}).limit(1);
-     if(monthPeriodsError)throw monthPeriodsError;
-     legacyPeriod=monthPeriods?.[0]||null;
-    }
-    if(!legacyPeriod){
-     const {data:createdPeriod,error:createPeriodError}=await admin.from("vbgramg_periods").insert({period_name:contributionPeriod,period_date:chargePeriod,contribution_month:chargePeriod,status:"open",created_by:authData.user.id}).select("id,period_name,period_date,contribution_month,status").single();
-     if(createPeriodError)throw createPeriodError;
-     legacyPeriod=createdPeriod;
-    }
+    if(!legacyPeriod)return reply({error:"The selected charge round does not exist in Period Management. Create or select the correct round first."},400);
     periodId=String(legacyPeriod.id);
    }
    const {data:selectedPeriod,error:selectedPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status").eq("id",periodId).maybeSingle();

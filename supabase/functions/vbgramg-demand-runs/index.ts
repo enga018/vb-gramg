@@ -66,11 +66,7 @@ Deno.serve(async (req: Request) => {
       const { data, error } = await admin.from("vbgramg_periods").select("id,period_name,status").eq("period_name", periodName).eq("status", "open").maybeSingle();
       if (error) throw error;
       period = data;
-      if (!period) {
-        const { data: created, error: createError } = await admin.from("vbgramg_periods").insert({ period_name: periodName, status: "open", created_by: user.id }).select("id,period_name,status").single();
-        if (createError) throw createError;
-        period = created;
-      }
+      if (!period) return reply(req, { error: "Create a period in Period Management with a contribution month before starting Work Demand." }, 400);
       periodId = period.id;
     }
     if (!period || period.status !== "open" || period.period_name !== periodName) {

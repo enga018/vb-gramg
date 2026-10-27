@@ -3,6 +3,10 @@
 alter table public.vbgramg_periods
   add column if not exists contribution_month date;
 
+-- Multiple rounds may share one month label and month-start date.
+drop index if exists public.vbgramg_periods_name_ci_uidx;
+drop index if exists public.vbgramg_periods_period_date_uidx;
+
 update public.vbgramg_periods
 set contribution_month = case
   when period_date is not null then date_trunc('month', period_date)::date
@@ -31,9 +35,6 @@ alter table public.vbgramg_periods
   add constraint vbgramg_periods_round_matches_month
   check (period_date is null or contribution_month is null or date_trunc('month', period_date)::date = contribution_month);
 
--- Period names and dates are intentionally not unique: each round has its own UUID and created_at.
-drop index if exists public.vbgramg_periods_name_ci_uidx;
-drop index if exists public.vbgramg_periods_period_date_uidx;
 create index if not exists vbgramg_periods_contribution_month_idx
   on public.vbgramg_periods (contribution_month desc, created_at desc);
 

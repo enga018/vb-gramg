@@ -176,7 +176,33 @@ header .top-actions > button:hover {
   color: #0f172a !important;
 }
 
+
+/* MIS mobile refinement: prioritize applicant names and make selection controls easier to tap. */
+@media(max-width:700px){
+  #mis-table{table-layout:fixed}
+  #mis-table>.applicant-detail table,
+  .applicant-detail table{width:100%;min-width:0;table-layout:fixed}
+  .applicant-detail th,
+  .applicant-detail td{min-width:0;overflow-wrap:anywhere}
+  .applicant-detail th:first-child,
+  .applicant-detail td:first-child{width:auto}
+  .applicant-detail th:nth-child(2),
+  .applicant-detail td:nth-child(2){width:82px}
+  .applicant-detail th:last-child,
+  .applicant-detail td:last-child{width:52px;min-width:52px;padding-left:4px!important;padding-right:4px!important;text-align:center}
+  .applicant-detail tbody tr{min-height:48px}
+  .applicant-detail tbody td{padding-top:12px!important;padding-bottom:12px!important;line-height:1.4}
+  .applicant-detail input[type=checkbox]{width:24px!important;height:24px!important;min-width:24px!important;min-height:24px!important;margin:0!important}
+  .jobcard-row td{min-width:0}
+  #result-count{overflow-wrap:anywhere}
+}
+@media(max-width:360px){
+  .applicant-detail th:nth-child(2),
+  .applicant-detail td:nth-child(2){width:72px}
+}
+
 </style>
+  <link rel="stylesheet" href="./responsive.css">
 </head>
 <body>
 <main>

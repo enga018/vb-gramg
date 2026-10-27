@@ -44,7 +44,35 @@ header .top-actions > button:hover {
   color: #0f172a !important;
 }
 
-</style></head><body><main>
+
+/* Period management responsive refinement */
+#create-form .actions { display: flex; flex-wrap: wrap; }
+#create-form .actions button { min-width: 140px; }
+#period-body td { min-width: 0; }
+#period-body .row-actions button { white-space: normal; }
+@media (max-width: 700px) {
+  .grid { gap: 14px; }
+  .field input, .field select { min-height: 46px; }
+  #create-form .actions button { width: 100%; min-height: 46px; }
+  .table-wrap { overflow: visible; }
+  tbody tr { padding: 10px 13px; }
+  tbody td { grid-template-columns: minmax(94px, .72fr) minmax(0, 1.28fr); align-items: start; gap: 12px; }
+  #period-body td[data-label="Period"] { font-weight: 650; }
+  #period-body td[data-label="Actions"] { display: block; padding-top: 12px; }
+  #period-body td[data-label="Actions"]::before { display: block; margin-bottom: 8px; }
+  #period-body .row-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
+  #period-body .row-actions button { min-height: 42px; width: 100%; }
+}
+@media (max-width: 360px) {
+  body { padding: 8px; }
+  .topbar { padding: 12px; }
+  .panel { padding: 14px; }
+  tbody tr { padding: 8px 10px; }
+  tbody td { grid-template-columns: minmax(82px, .7fr) minmax(0, 1.3fr); gap: 8px; }
+  .app-header-actions > * { flex: 1 1 auto; }
+}
+</style>  <link rel="stylesheet" href="./responsive.css">
+</head><body><main>
 <header class="topbar app-header"><div class="page-title"><h1>Periods</h1><p>Manage shared periods used by Work Demand and FTO.</p></div><div class="actions app-header-actions"><a class="link secondary menu-link" href="./">Back to menu</a><a class="link secondary" href="./demand.html">Work Demand</a><button id="refresh" class="secondary" type="button">Refresh</button></div></header>
 <section class="panel"><h2>Create a period</h2><p class="sub">Periods stay open until you close them. Use a contribution month for FTO mapping, or create a named period for Work Demand.</p>
 <form id="create-form"><div class="grid">

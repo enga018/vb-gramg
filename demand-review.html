@@ -405,7 +405,7 @@ $('generateBtn').addEventListener('click',()=>{
  $('confirmError').textContent='';$('confirmSaveBtn').disabled=false;$('cancelConfirmBtn').disabled=false;
  $('exportsPanel').classList.add('hidden');$('confirmDialog').showModal();
 });
-$('confirmReviewBtn').addEventListener('click',()=>{const month=$('contributionMonth').value||(query.get('contributionMonth')||'').slice(0,7),days=Number($('days').value);if(!month||!Number.isInteger(days)||days<1||days>365){status('Choose a contribution month and valid number of days.','error');return;}const next=new URL('./demand.html',location.href);next.searchParams.set('stage','results');next.searchParams.set('contributionMonth',month+'-01');next.searchParams.set('draftId',draftId);next.searchParams.set('days',String(days));location.href=next.toString();});
+$('confirmReviewBtn').addEventListener('click',()=>{const month=$('contributionMonth').value||(query.get('contributionMonth')||'').slice(0,7),days=Number($('days').value);if(!month||!Number.isInteger(days)||days<1||days>365){status('Choose a contribution month and valid number of days.','error');return;}const next=new URL('./demand.html',location.href);next.searchParams.set('stage','results');next.searchParams.set('contributionMonth',month+'-01');if(query.get('periodId'))next.searchParams.set('periodId',query.get('periodId'));next.searchParams.set('draftId',draftId);next.searchParams.set('days',String(days));location.href=next.toString();});
 $('cancelConfirmBtn').addEventListener('click',()=>{
  if(saving)return;
  pendingSnapshot=null;

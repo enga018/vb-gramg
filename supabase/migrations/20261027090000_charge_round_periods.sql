@@ -12,7 +12,7 @@ set contribution_month = case
   when period_date is not null then date_trunc('month', period_date)::date
   when period_name ~* '^[A-Za-z]+ [0-9]{4}( \([0-9]+\))?$'
     then to_date('01 ' || regexp_replace(period_name, ' \([0-9]+\)$', ''), 'DD Month YYYY')
-  when period_name ~* '^[A-Z]{3}[0-9]{2}( \\([0-9]+\\))?
+  when period_name ~* '^[A-Z]{3}[0-9]{2}( \([0-9]+\))?$'
     then to_date('01 ' || substring(period_name from 1 for 3) || ' 20' || substring(period_name from 4 for 2), 'DD MON YYYY')
   else null
 end

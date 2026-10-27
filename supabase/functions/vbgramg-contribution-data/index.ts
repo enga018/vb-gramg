@@ -125,7 +125,7 @@ Deno.serve(async(req:Request)=>{
    for(let offset=0;;offset+=1000){const {data,error}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,applicant_name,applicant_number,applicant_unique_id,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").order("job_card_number",{ascending:true}).order("entry_date",{ascending:true}).range(offset,offset+999);if(error)throw error;all.push(...(data||[]));if(!data||data.length<1000||all.length>=20000)break;}
    const {data:exemptions,error:exemptionsError}=await admin.from("vbgramg_contribution_exemptions").select("job_card_number,note,created_at,updated_at").order("job_card_number",{ascending:true});if(exemptionsError)throw exemptionsError;
    const {data:imports,error:importError}=await admin.from("vbgramg_charge_imports").select("id,source_filename,charge_period,row_count,total_amount,status,completed_at").eq("status","complete").order("charge_period",{ascending:false}).limit(100);if(importError)throw importError;
-   const {data:extras,error:extrasError}=await admin.from("vbgramg_contribution_extras").select("id,job_card_number,person_name,charge_period,amount,reason,ledger_entry_id,created_at,updated_at").order("charge_period",{ascending:false});if(extrasError)throw extrasError;
+   const {data:extras,error:extrasError}=await admin.from("vbgramg_contribution_extras").select("id,job_card_number,person_name,charge_period,period_id,amount,reason,ledger_entry_id,created_at,updated_at").order("charge_period",{ascending:false});if(extrasError)throw extrasError;
    const {data:misState,error:misStateError}=await admin.from("vbgramg_mis_state").select("active_import_id,row_count,source_filename").eq("singleton",true).maybeSingle();if(misStateError)throw misStateError;
    if(!misState?.active_import_id)throw new Error("There is no active MIS import. Load the active MIS before using the contribution table.");
    const misRows:Record<string,unknown>[]=[];
@@ -163,7 +163,7 @@ Deno.serve(async(req:Request)=>{
      }
     }
    }
-   const {data:periodRows,error:periodRowsError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,created_at").order("contribution_month",{ascending:false,nullsFirst:false}).order("created_at",{ascending:true});
+   const {data:periodRows,error:periodRowsError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status,created_at").order("contribution_month",{ascending:false,nullsFirst:false}).order("created_at",{ascending:true});
    if(periodRowsError)throw periodRowsError;
    return reply({approved:true,role:approved.role,entries:all,imports:imports||[],extras:extras||[],citizens,periods:periodRows||[],applicants_by_job_card:Object.fromEntries(applicantsByCard),exemptions:exemptions||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:misRows.length});
   }
@@ -768,12 +768,17 @@ Deno.serve(async(req:Request)=>{
 
   if(action==="save-contribution-extra"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can save extra contribution charges."},403);
-   const jobCard=String(body.job_card_number||"").trim(),period=String(body.charge_period||"").trim(),amount=Number(body.amount),reason=String(body.reason||"").trim().slice(0,500);
+   const jobCard=String(body.job_card_number||"").trim(),period=String(body.charge_period||"").trim(),periodId=String(body.period_id||"").trim(),amount=Number(body.amount),reason=String(body.reason||"").trim().slice(0,500);
    const periodMatch=period.match(/^(\d{4})-(\d{2})-01$/);
    if(!jobCard)return reply({error:"Choose a job card."},400);
    if(!periodMatch||Number(periodMatch[2])<1||Number(periodMatch[2])>12)return reply({error:"Choose a valid contribution month."},400);
+   if(!periodId)return reply({error:"Select a specific contribution round."},400);
    if(!Number.isFinite(amount)||amount<=0||amount>10000000)return reply({error:"Enter an extra amount greater than zero."},400);
    if(!reason)return reply({error:"Enter a reason for the extra amount."},400);
+   const {data:selectedRound,error:selectedRoundError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month").eq("id",periodId).maybeSingle();
+   if(selectedRoundError)throw selectedRoundError;
+   const selectedMonth=String(selectedRound?.contribution_month||selectedRound?.period_date||"").slice(0,7);
+   if(!selectedRound||selectedMonth!==period.slice(0,7))return reply({error:"The selected contribution round does not match the chosen month."},400);
    const {data:known,error:knownError}=await admin.from("vbgramg_charge_ledger").select("person_name").eq("job_card_number",jobCard).limit(1).maybeSingle();
    if(knownError)throw knownError;
    const {data:citizen,error:citizenError}=await admin.from("vbgramg_contribution_citizens").select("job_card_number,person_name").eq("job_card_number",jobCard).maybeSingle();
@@ -781,20 +786,20 @@ Deno.serve(async(req:Request)=>{
    if(!known&&!citizen)return reply({error:"This job card is not present in the contribution records."},404);
    const personName=String(known?.person_name||citizen?.person_name||"").trim()||jobCard;
    const note=("FTO EXTRA: "+reason).slice(0,200);
-   const {data:oldExtra,error:oldExtraError}=await admin.from("vbgramg_contribution_extras").select("id,ledger_entry_id,created_by").eq("job_card_number",jobCard).eq("charge_period",period).maybeSingle();
+   const {data:oldExtra,error:oldExtraError}=await admin.from("vbgramg_contribution_extras").select("id,ledger_entry_id,created_by").eq("job_card_number",jobCard).eq("period_id",periodId).maybeSingle();
    if(oldExtraError)throw oldExtraError;
    let ledgerEntry:any=null;
    if(oldExtra?.ledger_entry_id){
-    const {data:updated,error:updateError}=await admin.from("vbgramg_charge_ledger").update({person_name:personName,amount,entry_date:new Date().toISOString().slice(0,10),note,charge_period:period,is_deferred:false}).eq("id",oldExtra.ledger_entry_id).select("id,job_card_number,person_name,entry_type,amount,charge_period,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").maybeSingle();
+    const {data:updated,error:updateError}=await admin.from("vbgramg_charge_ledger").update({person_name:personName,amount,entry_date:new Date().toISOString().slice(0,10),note,charge_period:period,period_id:periodId,is_deferred:false}).eq("id",oldExtra.ledger_entry_id).select("id,job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").maybeSingle();
     if(updateError)throw updateError;
     ledgerEntry=updated;
    }
    if(!ledgerEntry){
-    const {data:created,error:createError}=await admin.from("vbgramg_charge_ledger").insert({job_card_number:jobCard,person_name:personName,entry_type:"charge",amount,charge_period:period,entry_date:new Date().toISOString().slice(0,10),note,is_deferred:false,created_by:authData.user.id}).select("id,job_card_number,person_name,entry_type,amount,charge_period,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").single();
+    const {data:created,error:createError}=await admin.from("vbgramg_charge_ledger").insert({job_card_number:jobCard,person_name:personName,entry_type:"charge",amount,charge_period:period,period_id:periodId,entry_date:new Date().toISOString().slice(0,10),note,is_deferred:false,created_by:authData.user.id}).select("id,job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").single();
     if(createError)throw createError;
     ledgerEntry=created;
    }
-   const {data:extra,error:extraError}=await admin.from("vbgramg_contribution_extras").upsert({job_card_number:jobCard,person_name:personName,charge_period:period,amount,reason,ledger_entry_id:ledgerEntry.id,created_by:oldExtra?.created_by||authData.user.id,updated_by:authData.user.id,updated_at:new Date().toISOString()},{onConflict:"job_card_number,charge_period"}).select("id,job_card_number,person_name,charge_period,amount,reason,ledger_entry_id,created_at,updated_at").single();
+   const {data:extra,error:extraError}=await admin.from("vbgramg_contribution_extras").upsert({job_card_number:jobCard,person_name:personName,charge_period:period,period_id:periodId,amount,reason,ledger_entry_id:ledgerEntry.id,created_by:oldExtra?.created_by||authData.user.id,updated_by:authData.user.id,updated_at:new Date().toISOString()},{onConflict:"job_card_number,period_id"}).select("id,job_card_number,person_name,charge_period,period_id,amount,reason,ledger_entry_id,created_at,updated_at").single();
    if(extraError)throw extraError;
    return reply({approved:true,extra,entry:ledgerEntry,updated:Boolean(oldExtra)});
   }

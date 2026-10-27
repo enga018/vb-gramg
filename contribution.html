@@ -152,9 +152,9 @@ function calculateLedgerState(ledger){
  let charged=0,paid=0,returned=0,waived=0,deferred=0;const active=[];
  for(const e of ledger||[]){if(!e)continue;const n=Math.max(0,Number(e.amount)||0),t=e.entry_type;
   if(t==='payment'){paid+=n;continue}
-  if(t==='refund'||(t==='charge'&&String(e.note||'').trim()==='Return')){returned+=n;continue}
-  if(t==='charge_waiver'){waived+=n;continue}
-  if(t!=='charge'&&t!=='other_charge')continue;
+  if(t==='refund'||t==='return'||(t==='charge'&&String(e.note||'').trim()==='Return')){returned+=n;continue}
+  if(t==='charge_waiver'||t==='forgive'){waived+=n;continue}
+  if(t!=='charge'&&t!=='other_charge'&&t!=='sanitationFee')continue;
   if(e.is_deferred){deferred+=n;continue}
   charged+=n;active.push(n);
  }
@@ -199,7 +199,7 @@ function deriveCitizens(){
  const map=new Map(),make=(id,name)=>({id,jobCard:id,name:name||'Unnamed',exempt:exemptSet.has(id),charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,ledger:[]});
  for(const r of citizenRegistry){const id=String(r.job_card_number||'').trim();if(id)map.set(id,make(id,r.person_name))}
  for(const e of entries){const id=String(e.job_card_number||'').trim();if(!id||!map.has(id))continue;map.get(id).ledger.push(e)}
- citizens=[...map.values()].map(c=>{const x=calculateLedgerState(c.ledger);let gross=0;for(const e of c.ledger){if((e.entry_type==='charge'||e.entry_type==='other_charge')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return'))gross+=Math.max(0,Number(e.amount)||0)}return c.exempt?{...c,charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,totalCharged:0,balance:0}:{...c,charges:gross,activeCharges:x.charged,deferred:x.deferred,paid:x.paid,waived:x.waived,returns:x.returned,totalCharged:Math.max(0,gross-Math.min(gross,x.waived)),balance:x.balance}}).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
+ citizens=[...map.values()].map(c=>{const x=calculateLedgerState(c.ledger);let gross=0;for(const e of c.ledger){if((e.entry_type==='charge'||e.entry_type==='other_charge'||e.entry_type==='sanitationFee')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return'))gross+=Math.max(0,Number(e.amount)||0)}return c.exempt?{...c,charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,totalCharged:0,balance:0}:{...c,charges:gross,activeCharges:x.charged,deferred:x.deferred,paid:x.paid,waived:x.waived,returns:x.returned,totalCharged:Math.max(0,gross-Math.min(gross,x.waived)),balance:x.balance}}).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
 }
 function jobCardSuffixNumber(jobCard){
  const match=String(jobCard||'').match(/\/([^/]+)$/);
@@ -225,7 +225,7 @@ function render(){
  shown.forEach((c,index)=>{
   const state=c.balance<=0?'settled':'due',tr=document.createElement('tr');tr.className='contribution-row '+state;tr.tabIndex=0;tr.dataset.card=c.id;tr.setAttribute('role','button');tr.setAttribute('aria-label','Open contribution history for '+c.name+' job card '+c.id);
   const cell=(value,cls)=>{const td=document.createElement('td');td.textContent=value;if(cls)td.className=cls;tr.appendChild(td);return td};
-  const chargeEntries=c.ledger.filter(e=>(e.entry_type==='charge'||e.entry_type==='other_charge')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return')).sort((a,b)=>String(b.entry_date||'').localeCompare(String(a.entry_date||''))||String(b.created_at||'').localeCompare(String(a.created_at||'')));
+  const chargeEntries=c.ledger.filter(e=>(e.entry_type==='charge'||e.entry_type==='other_charge'||e.entry_type==='sanitationFee')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return')).sort((a,b)=>String(b.entry_date||'').localeCompare(String(a.entry_date||''))||String(b.created_at||'').localeCompare(String(a.created_at||'')));
   const lastCharge=chargeEntries[0];
   let chargeName=String(lastCharge?.applicant_name||'').trim();
   if(!chargeName&&lastCharge){
@@ -311,7 +311,7 @@ function openCitizen(id){
   }
   const extraPeriodRow=isExtra&&e.period_id?periods.find(p=>String(p.id)===String(e.period_id)):null;
   const extraPeriodLabel=String(extraPeriodRow?.period_name||'').trim()||formatPeriod(e.charge_period);
-  const label=isExtra?'Extra charge • '+extraPeriodLabel:type==='charge'?'Charges • '+periodLabel+(e.is_deferred?' • Deferred':(chargeApplicantName?' • '+chargeApplicantName:'')):type==='other_charge'?'Other Charge':type==='payment'?'Payment':type==='charge_waiver'?'Charge Waiver':type==='refund'?'Refund':type;
+  const label=isExtra?'Extra charge • '+extraPeriodLabel:type==='charge'?'Charges • '+periodLabel+(e.is_deferred?' • Deferred':(chargeApplicantName?' • '+chargeApplicantName:'')):(type==='other_charge'||type==='sanitationFee')?'Other Charge':type==='payment'?'Payment':(type==='charge_waiver'||type==='forgive')?'Charge Waiver':(type==='refund'||type==='return')?'Refund':type;
   const noteText=String(e.note||'').trim();
   const looksLikePeriod=/^(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)(\s*[-/]?\s*\d{0,4})?$/i.test(noteText)||/^MAY\s*1$/i.test(noteText)||/^MAY1$/i.test(noteText);
   const displayNote=type==='payment'&&looksLikePeriod?'':noteText;
@@ -448,7 +448,7 @@ function showEditForm(id){
  const c=currentCitizen;if(!c)return;
  const e=c.ledger.find(row=>String(row.id)===String(id));if(!e)return;
  const isCharge=e.entry_type==="charge"&&String(e.note||"").trim().toLowerCase()!=="return";
- const typeLabel=e.entry_type==="charge_waiver"?"Charge Waiver":e.entry_type==="payment"?"Payment":e.entry_type==="refund"?"Refund":e.entry_type==="other_charge"?"Other Charge":"Charge";
+ const typeLabel=(e.entry_type==="charge_waiver"||e.entry_type==="forgive")?"Charge Waiver":e.entry_type==="payment"?"Payment":(e.entry_type==="refund"||e.entry_type==="return")?"Refund":(e.entry_type==="other_charge"||e.entry_type==="sanitationFee")?"Other Charge":"Charge";
  $('sheetBody').innerHTML='<div class="notice info">Editing '+esc(typeLabel)+'. Original and revised values will be recorded in the audit log.</div><form id="editEntryForm"><div class="field"><label for="editAmount">Amount (₹)</label><input id="editAmount" type="number" min="0.01" max="10000000" step="0.01" required value="'+esc(e.amount)+'"></div><div class="grid2"><div class="field"><label for="editDate">Transaction date</label><input id="editDate" type="date" required value="'+esc(String(e.entry_date||new Date().toISOString().slice(0,10)).slice(0,10))+'"></div><div class="field"><label for="editNote">Note</label><input id="editNote" maxlength="200" value="'+esc(e.note||"")+'" placeholder="Optional note"></div></div>'+(isCharge?'<div class="field"><label for="editPeriod">Charge month</label><input id="editPeriod" type="month" required value="'+esc(String(e.charge_period||"").slice(0,7))+'"></div><div class="field"><label><input id="editDeferred" type="checkbox" '+(e.is_deferred?'checked':'')+' style="width:auto;min-height:0;margin-right:8px"> Deferred charge</label></div>':'')+'<button class="btn" id="saveEdit" type="submit">Save changes</button> <button class="btn ghost" id="cancelEdit" type="button">Cancel</button><div id="editError"></div></form>';
  $('cancelEdit').addEventListener('click',()=>openCitizen(c.id));
  $('editEntryForm').addEventListener('submit',async ev=>{

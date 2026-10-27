@@ -81,6 +81,11 @@ header .top-actions > button:hover {
   tbody td { grid-template-columns: minmax(82px, .7fr) minmax(0, 1.3fr); gap: 8px; }
   .app-header-actions > * { flex: 1 1 auto; }
 }
+
+/* Standardize mobile table font size across app tables. */
+@media (max-width:700px){
+  table, table th, table td { font-size:0.85rem !important; }
+}
 </style>
   <link rel="stylesheet" href="./responsive.css"></head><body><main>
 <header class="topbar app-header"><div class="page-title"><h1>Periods</h1><p>Manage shared periods used by Work Demand and FTO.</p></div><div class="actions app-header-actions"><a class="link secondary menu-link" href="./">Back to menu</a><a class="link secondary" href="./demand.html">Work Demand</a><button id="refresh" class="secondary" type="button">Refresh</button></div></header>

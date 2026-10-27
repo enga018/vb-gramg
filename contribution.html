@@ -313,7 +313,7 @@ function buildFifoBreakdown(c){
   return '<section class="fifo-period"><button class="fifo-period-toggle" type="button" data-fifo-toggle="'+index+'" aria-expanded="false"><span class="fifo-main"><span class="fifo-label">'+esc(g.label)+'</span><small>'+esc(detail.join(' · '))+'</small></span><span class="fifo-side"><span class="fifo-total-label">Total charge</span><b>'+fmt(g.total)+'</b><span class="fifo-status '+(g.due<=0?'paid':g.paid>0?'partial':'due')+'">'+status+'</span></span><span class="fifo-chevron" aria-hidden="true">⌄</span></button><div class="fifo-period-details hidden" data-fifo-details="'+index+'">'+details+'</div></section>';
  }).join('');
  const netRefundExcess=Math.max(0,(Number(c.returns)||0)-(Number(c.paid)||0));
- return '<div class="section-title">FIFO allocation · oldest charge first</div><div class="fifo-period-list">'+(rows||'<div class="empty">No active charges to allocate.</div>')+'</div>'+(netRefundExcess>0?'<div class="notice info">Refunds exceed recorded payments by '+fmt(netRefundExcess)+'. The existing outstanding balance includes this difference.</div>':'');
+ return '<div class="section-title">Transaction history</div><div class="fifo-period-list">'+(rows||'<div class="empty">No active charges to allocate.</div>')+'</div>'+(netRefundExcess>0?'<div class="notice info">Refunds exceed recorded payments by '+fmt(netRefundExcess)+'. The existing outstanding balance includes this difference.</div>':'');
 }
 function openCitizen(id){
  currentCitizen=citizens.find(c=>c.id===id);if(!currentCitizen)return;

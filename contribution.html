@@ -294,15 +294,9 @@ function openCitizen(id){
   const periodValue=String(periodRow?.contribution_month||periodRow?.period_date||e.charge_period||'').slice(0,10);
   const periodParts=periodValue.match(/^(\d{4})-(\d{2})/);
   const monthTags=['January','February','March','April','May','June','July','August','September','October','November','December'];
-  let periodLabel=periodParts&&Number(periodParts[2])>=1&&Number(periodParts[2])<=12
+  let periodLabel=String(periodRow?.period_name||'').trim()||(periodParts&&Number(periodParts[2])>=1&&Number(periodParts[2])<=12
    ?monthTags[Number(periodParts[2])-1]+' '+periodParts[1]
-   :String(periodRow?.period_name||e.charge_period||'').trim()||'Monthly charge';
-  if(type==='charge'&&!isExtra&&periodRow&&periodParts){
-   const month=periodValue;
-   const sameMonth=periods.filter(p=>String(p.contribution_month||p.period_date||'').slice(0,7)===month.slice(0,7))
-    .sort((a,b)=>String(a.created_at||'').localeCompare(String(b.created_at||'')));
-   if(sameMonth.length>1)periodLabel+=' · Round '+(sameMonth.findIndex(p=>String(p.id)===String(periodRow.id))+1);
-  }
+   :String(e.charge_period||'').trim()||'Monthly charge');
   let chargeApplicantName='';
   if(type==='charge'&&!isExtra){
    let matchedApplicant=null;
@@ -316,8 +310,7 @@ function openCitizen(id){
    chargeApplicantName=String(matchedApplicant?.applicant_name||e.applicant_name||'').trim();
   }
   const extraPeriodRow=isExtra&&e.period_id?periods.find(p=>String(p.id)===String(e.period_id)):null;
-  let extraPeriodLabel=formatPeriod(e.charge_period);
-  if(extraPeriodRow){const extraMonth=String(extraPeriodRow.contribution_month||extraPeriodRow.period_date||e.charge_period||'').slice(0,7);const extraRounds=periods.filter(p=>String(p.contribution_month||p.period_date||'').slice(0,7)===extraMonth).sort((a,b)=>String(a.created_at||'').localeCompare(String(b.created_at||'')));if(extraRounds.length>1)extraPeriodLabel+=' · Round '+(extraRounds.findIndex(p=>String(p.id)===String(extraPeriodRow.id))+1);}
+  const extraPeriodLabel=String(extraPeriodRow?.period_name||'').trim()||formatPeriod(e.charge_period);
   const label=isExtra?'Extra charge • '+extraPeriodLabel:type==='charge'?'Charges • '+periodLabel+(e.is_deferred?' • Deferred':(chargeApplicantName?' • '+chargeApplicantName:'')):type==='sanitationFee'?'Sanitation fee':type==='payment'?'Payment':type==='forgive'?'Waiver':type==='return'?'Return':type;
   const noteText=String(e.note||'').trim();
   const looksLikePeriod=/^(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)(\s*[-/]?\s*\d{0,4})?$/i.test(noteText)||/^MAY\s*1$/i.test(noteText)||/^MAY1$/i.test(noteText);
@@ -343,7 +336,7 @@ function showExtraChargeForm(){
  const existingForCard=extraCharges.filter(x=>String(x.job_card_number)===String(c.id));
  const periodMonth=p=>String(p.contribution_month||p.period_date||'').slice(0,7);
  const sortedPeriods=[...periods].sort((a,b)=>periodMonth(b).localeCompare(periodMonth(a))||String(a.created_at||'').localeCompare(String(b.created_at||'')));
- const roundLabel=p=>{const month=periodMonth(p);const same=periods.filter(x=>periodMonth(x)===month).sort((a,b)=>String(a.created_at||'').localeCompare(String(b.created_at||'')));return formatPeriod((p.contribution_month||p.period_date||'').slice(0,7))+(same.length>1?' · Round '+(same.findIndex(x=>String(x.id)===String(p.id))+1):'')+(p.status==='closed'?' · Closed':'');};
+ const roundLabel=p=>String(p.period_name||'').trim()+(p.status==='closed'?' · Closed':'');
  const currentMonth=new Date().toISOString().slice(0,7);
  const defaultPeriod=sortedPeriods.find(p=>existingForCard.some(x=>String(x.period_id||'')===String(p.id)))||sortedPeriods.find(p=>periodMonth(p)===currentMonth&&p.status!=='closed')||sortedPeriods[0];
  const defaultExtra=defaultPeriod?existingForCard.find(x=>String(x.period_id||'')===String(defaultPeriod.id)):null;

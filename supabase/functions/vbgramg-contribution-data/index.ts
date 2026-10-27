@@ -775,10 +775,12 @@ Deno.serve(async(req:Request)=>{
    if(!periodId)return reply({error:"Select a specific contribution round."},400);
    if(!Number.isFinite(amount)||amount<=0||amount>10000000)return reply({error:"Enter an extra amount greater than zero."},400);
    if(!reason)return reply({error:"Enter a reason for the extra amount."},400);
-   const {data:selectedRound,error:selectedRoundError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month").eq("id",periodId).maybeSingle();
+   const {data:selectedRound,error:selectedRoundError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status").eq("id",periodId).maybeSingle();
    if(selectedRoundError)throw selectedRoundError;
-   const selectedMonth=String(selectedRound?.contribution_month||selectedRound?.period_date||"").slice(0,7);
-   if(!selectedRound||selectedMonth!==period.slice(0,7))return reply({error:"The selected contribution round does not match the chosen month."},400);
+   if(!selectedRound)return reply({error:"The selected contribution round was not found."},404);
+   if(String(selectedRound.status||"open")!=="open")return reply({error:"This contribution round is closed. Reopen it before changing its extra charge."},409);
+   const selectedMonth=String(selectedRound.contribution_month||selectedRound.period_date||"").slice(0,7);
+   if(selectedMonth!==period.slice(0,7))return reply({error:"The selected contribution round does not match the chosen month."},400);
    const {data:known,error:knownError}=await admin.from("vbgramg_charge_ledger").select("person_name").eq("job_card_number",jobCard).limit(1).maybeSingle();
    if(knownError)throw knownError;
    const {data:citizen,error:citizenError}=await admin.from("vbgramg_contribution_citizens").select("job_card_number,person_name").eq("job_card_number",jobCard).maybeSingle();

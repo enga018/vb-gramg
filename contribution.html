@@ -237,7 +237,8 @@ function render(){
   const lastPeriodShort=lastPeriod;
   if(isMobile){
    const detail=cell('','mobile-details');
-   const topLine=document.createElement('div');topLine.className='mobile-jobcard-line';
+   detail.style.display='flex';detail.style.alignItems='center';detail.style.justifyContent='space-between';detail.style.gap='10px';detail.style.minWidth='0';
+   const topLine=document.createElement('div');topLine.className='mobile-jobcard-line';topLine.style.flex='1';topLine.style.minWidth='0';
    const slashIndex=String(c.id).lastIndexOf('/');
    if(slashIndex>=0){topLine.append(document.createTextNode(String(c.id).slice(0,slashIndex+1)));const suffix=document.createElement('span');suffix.className='suffix';suffix.textContent=String(c.id).slice(slashIndex+1);topLine.appendChild(suffix);}
    else topLine.textContent=c.id;
@@ -250,17 +251,11 @@ function render(){
    )[0];
    const displayApplicant=chargeName||String(latestApplicant?.applicant_name||latestApplicant?.name||'').trim()||c.name;
    topLine.append(document.createTextNode(' • '+displayApplicant));detail.appendChild(topLine);
-   const secondLine=document.createElement('div');secondLine.className='mobile-subline';
-   const chargeLine=document.createElement('div');chargeLine.className='mobile-charge-line';
-   chargeLine.textContent=lastPeriodShort+' • '+(lastCharge?fmt(lastCharge.amount)+(lastCharge.is_deferred?' · Deferred':''):'—');
-   if(lastCharge&&lastCharge.is_deferred)chargeLine.style.color='var(--partial)';
-   secondLine.appendChild(chargeLine);
    if(c.balance>0){
-    const balance=document.createElement('div');balance.className='mobile-outstanding';balance.textContent='Outstanding: '+fmt(c.balance);balance.style.color='#e9a23b';secondLine.appendChild(balance);
+    const balance=document.createElement('div');balance.className='mobile-outstanding';balance.textContent='Outstanding: '+fmt(c.balance);balance.style.color='#b45309';detail.appendChild(balance);
    }else{
-    const settled=document.createElement('div');settled.className='mobile-settled';settled.textContent='Settled';settled.style.color='#16a34a';secondLine.appendChild(settled);
+    const settled=document.createElement('div');settled.className='mobile-settled';settled.textContent='Settled';settled.style.color='#15803d';detail.appendChild(settled);
    }
-   detail.appendChild(secondLine);
   }else{
    cell(c.id,'jobcard');cell(c.name+(c.exempt?' · EXEMPT':''),'person');
    cell(lastPeriod,'person');

@@ -113,9 +113,16 @@ tbody tr:last-child td{border-bottom:0}
  .search,.filter-control{min-width:0;max-width:none;width:100%}
  .toolbar label{margin-bottom:6px}
  #result-count{margin-top:0}
- .table-wrap{max-height:65vh;border-radius:10px}
+ .table-wrap{max-height:none;overflow:visible;overscroll-behavior:visible;border-radius:10px}
  table{font-size:.84rem}
- th,td{padding:11px 10px}
+ th,td{padding:9px 10px}
+ #mis-table>thead{display:none}
+ #mis-table{table-layout:fixed;width:100%}
+ #mis-table>tbody>tr.jobcard-row>td{padding:12px 11px}
+ #mis-table>tbody>tr.jobcard-row{display:table-row}
+ #mis-table .applicant-detail>td{padding:10px!important}
+ #mis-table .applicant-detail table{width:100%;table-layout:fixed}
+ #mis-table .applicant-detail th{position:static;white-space:normal}
  th{font-size:.68rem}
  
  .jobcard-row td{padding-top:12px;padding-bottom:12px}

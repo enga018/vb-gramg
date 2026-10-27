@@ -541,7 +541,7 @@ async function loadSharedPeriods(selectedId=""){
  const allowed=sharedPeriods.filter(p=>p.contribution_month&&(p.status==="open"||p.id===selectedId));
  const select=$("period-modal-value"),old=selectedId||select.value;select.replaceChildren();
  const placeholder=document.createElement("option");placeholder.value="";placeholder.textContent="Select a contribution month";select.appendChild(placeholder);
- for(const p of allowed){const option=document.createElement("option");option.value=p.id;option.textContent=p.period_name+(p.status==="closed"?" (Closed — current assignment)":"");option.dataset.date=p.contribution_month;select.appendChild(option);}
+ for(const p of allowed){const option=document.createElement("option");option.value=p.id;const created=p.created_at?new Date(p.created_at).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}):"legacy";option.textContent=p.period_name+" · "+created+(p.status==="closed"?" (Closed — current assignment)":"");option.dataset.date=p.contribution_month;select.appendChild(option);}
  if(allowed.some(p=>p.id===old))select.value=old;
 }
 async function changeFtoPeriod(batch){
@@ -549,7 +549,7 @@ async function changeFtoPeriod(batch){
  try{
   await loadSharedPeriods(String(batch.period_id||""));
   if(!batch.period_id){
-   const match=sharedPeriods.find(p=>p.period_name.toLowerCase()===String(batch.contribution_period||"").toLowerCase())||sharedPeriods.find(p=>p.contribution_month===batch.ledger_charge_period);
+   const nameMatches=sharedPeriods.filter(p=>p.period_name.toLowerCase()===String(batch.contribution_period||"").toLowerCase());const monthMatches=sharedPeriods.filter(p=>p.contribution_month===batch.ledger_charge_period);const match=nameMatches.length===1?nameMatches[0]:(monthMatches.length===1?monthMatches[0]:null);
    if(match){await loadSharedPeriods(match.id);$("period-modal-value").value=match.id;}
   }else $("period-modal-value").value=String(batch.period_id);
   $("period-modal-backdrop").classList.remove("hidden");

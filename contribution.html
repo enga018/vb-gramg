@@ -314,7 +314,8 @@ function openCitizen(id){
   const label=isExtra?'Extra charge • '+extraPeriodLabel:type==='charge'?'Charges • '+periodLabel+(e.is_deferred?' • Deferred':(chargeApplicantName?' • '+chargeApplicantName:'')):(type==='other_charge'||type==='sanitationFee')?'Other Charge':type==='payment'?'Payment':(type==='charge_waiver'||type==='forgive')?'Charge Waiver':(type==='refund'||type==='return')?'Refund':type;
   const noteText=String(e.note||'').trim();
   const looksLikePeriod=/^(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)(\s*[-/]?\s*\d{0,4})?$/i.test(noteText)||/^MAY\s*1$/i.test(noteText)||/^MAY1$/i.test(noteText);
-  const displayNote=type==='payment'&&looksLikePeriod?'':noteText;
+  const redundantTypeNote=(type==='refund'&&/^return$/i.test(noteText))||(type==='other_charge'&&/^sanitation fee$/i.test(noteText))||(type==='charge_waiver'&&/^forgiven$/i.test(noteText));
+  const displayNote=(type==='payment'&&looksLikePeriod)||redundantTypeNote?'':noteText;
   const transactionDate=String(e.entry_date||'').slice(0,10)>='2026-06-01'?day(e.entry_date):'';
   const extraReason=isExtra?(extraCharges.find(x=>String(x.job_card_number)===String(c.id)&&String(x.period_id||"")===String(e.period_id||"")&&String(x.charge_period||"")===String(e.charge_period||""))?.reason||String(e.note||"").replace(/^FTO EXTRA:\\s*/i,"")):"";
   return '<div class="entry"><div class="desc"><b>'+esc(label)+(isExtra&&extraReason?' · '+esc(extraReason):type!=='charge'&&displayNote?' · '+esc(displayNote):'')+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+(appRole==='admin'&&!isExtra&&!c.exempt?'<div class="entry-actions"><button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button></div>':'')+'</div>';

@@ -125,7 +125,7 @@ end $$;
 drop index if exists public.vbgramg_contribution_extras_job_card_number_charge_period_key;
 
 -- Also remove a standalone legacy unique index if it was not created as a table constraint.
-do $
+do $$
 declare i record;
 begin
   for i in
@@ -148,7 +148,7 @@ begin
   loop
     execute format('drop index public.%I', i.index_name);
   end loop;
-end $;
+end $$;
 
 create unique index if not exists vbgramg_contribution_extras_job_card_period_id_uidx
   on public.vbgramg_contribution_extras (job_card_number, period_id);

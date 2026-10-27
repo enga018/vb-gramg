@@ -172,7 +172,8 @@ Deno.serve(async(req:Request)=>{
    const period=String(body.charge_period||"").trim(),periodId=String(body.period_id||"").trim(),periodMatch=period.match(/^(\d{4})-(\d{2})-01$/);
    if(!periodMatch||Number(periodMatch[2])<1||Number(periodMatch[2])>12)return reply({error:"Choose a valid contribution month."},400);
    const periodDate=period;
-   if(!periodId)return reply({error:"Select a specific contribution round."},400);
+   if(action==="check-fto-duplicates"){
+    if(!periodId)return reply({error:"Select a specific contribution round."},400);
     const {data:selectedRound,error:selectedRoundError}=await admin.from("vbgramg_periods").select("id,contribution_month").eq("id",periodId).maybeSingle();
     if(selectedRoundError)throw selectedRoundError;
     if(!selectedRound||String(selectedRound.contribution_month||"")!==periodDate)return reply({error:"The selected contribution round does not match the month."},400);

@@ -157,6 +157,7 @@ function applyWorkflowVisibility(){
 }
 const normalize=value=>String(value==null?'':value).trim();
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function monthLabel(value){if(!value)return '';const [year,month]=value.split('-').map(Number);return new Date(Date.UTC(year,month-1,1)).toLocaleDateString('en-US',{month:'long',year:'numeric',timeZone:'UTC'});}
 function selectedPeriod(){return periods.find(p=>p.id===query.get('periodId'))||null;}
 async function loadPeriods(){
  const {data,error}=await supabaseClient.functions.invoke('vbgramg-periods',{body:{action:'list'}});
@@ -374,8 +375,8 @@ $('generateBtn').addEventListener('click',()=>{
  $('confirmDemandCount').textContent=String(pendingSnapshot.demand.length);$('confirmUnwillingCount').textContent=String(pendingSnapshot.unwilling.length);
  $('confirmError').textContent='';$('confirmSaveBtn').disabled=false;$('cancelConfirmBtn').disabled=false;
  $('exportsPanel').classList.add('hidden');$('confirmDialog').showModal();
-$('confirmReviewBtn').addEventListener('click',()=>{const month=$('contributionMonth').value||(query.get('contributionMonth')||'').slice(0,7),days=Number($('days').value);if(!month||!Number.isInteger(days)||days<1||days>365){status('Choose a contribution month and valid number of days.','error');return;}const next=new URL('./demand.html',location.href);next.searchParams.set('stage','results');next.searchParams.set('contributionMonth',month+'-01');next.searchParams.set('draftId',draftId);next.searchParams.set('days',String(days));location.href=next.toString();});
 });
+$('confirmReviewBtn').addEventListener('click',()=>{const month=$('contributionMonth').value||(query.get('contributionMonth')||'').slice(0,7),days=Number($('days').value);if(!month||!Number.isInteger(days)||days<1||days>365){status('Choose a contribution month and valid number of days.','error');return;}const next=new URL('./demand.html',location.href);next.searchParams.set('stage','results');next.searchParams.set('contributionMonth',month+'-01');next.searchParams.set('draftId',draftId);next.searchParams.set('days',String(days));location.href=next.toString();});
 $('cancelConfirmBtn').addEventListener('click',()=>{
  if(saving)return;
  pendingSnapshot=null;

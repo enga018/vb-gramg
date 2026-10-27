@@ -71,6 +71,21 @@ header .top-actions > button:hover {
   color: #0f172a !important;
 }
 
+
+/* Mobile contribution history: keep ledger details readable and actions easy to tap. */
+@media (max-width:700px){
+  .sheet-body .entry{align-items:flex-start;flex-wrap:wrap;gap:8px;padding:13px 0}
+  .sheet-body .entry .desc{flex:1 1 calc(100% - 112px);min-width:0}
+  .sheet-body .entry .desc b{font-size:.9rem;line-height:1.4}
+  .sheet-body .entry .desc small{display:block;overflow-wrap:anywhere;line-height:1.4}
+  .sheet-body .entry .amt{margin-left:auto;align-self:flex-start;font-size:.9rem}
+  .sheet-body .entry .entry-actions{flex:1 1 100%;justify-content:flex-end;flex-wrap:wrap}
+  .sheet-body .entry .entry-actions .btn{min-height:42px;padding:9px 12px;font-size:.82rem}
+  .sheet-body form>.btn{width:100%;min-height:46px;margin-top:8px}
+  .sheet-body form>.btn+.btn{margin-left:0}
+  .sheet-body .field input,.sheet-body .field select{min-height:46px}
+}
+
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>

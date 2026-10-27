@@ -816,7 +816,7 @@ Deno.serve(async(req:Request)=>{
    if(oldError)throw oldError;if(!old)return reply({error:"Ledger entry was not found."},404);
    const type=String(old.entry_type||"");
    const isLegacyReturn=type==="charge"&&String(old.note||"").trim().toLowerCase()==="return";
-   if(!["charge","payment","return","forgive","sanitationFee"].includes(type))return reply({error:"This transaction type cannot be edited here."},400);
+   if(!["charge","payment","refund","charge_waiver","other_charge"].includes(type))return reply({error:"This transaction type cannot be edited here."},400);
    if(type==="charge"&&!isLegacyReturn&&/^FTO\b/i.test(String(old.note||""))&&!/^FTO\b/i.test(note))return reply({error:"FTO-imported charges must keep the FTO marker in their note."},400);
    if(isLegacyReturn&&note.toLowerCase()!=="return")return reply({error:"Keep the note as Return for this legacy entry."},400);
    let chargePeriod=old.charge_period;
@@ -848,15 +848,15 @@ Deno.serve(async(req:Request)=>{
    let charges=0,paid=0,returns=0,waived=0;
    for(const e of ledger){const n=Math.max(0,Number(e.amount)||0),t=String(e.entry_type||"");
     if(t==="payment")paid+=n;
-    else if(t==="return"||(t==="charge"&&String(e.note||"").trim().toLowerCase()==="return"))returns+=n;
-    else if(t==="forgive")waived+=n;
-    else if((t==="charge"||t==="sanitationFee")&&!e.is_deferred)charges+=n;
+    else if(t==="refund"||(t==="charge"&&String(e.note||"").trim().toLowerCase()==="return"))returns+=n;
+    else if(t==="charge_waiver")waived+=n;
+    else if((t==="charge"||t==="other_charge")&&!e.is_deferred)charges+=n;
    }
    const balance=charges-Math.min(waived,charges)-paid+returns;
    let amount=requestedAmount,type="",finalNote=note;
    if(action==="pay-in-full"){amount=Math.max(0,Number(balance.toFixed(2)));type="payment";finalNote="Cash";}
-   else if(action==="add-waiver"){type="forgive";if(!Number.isFinite(amount)||amount<=0||amount>Math.max(0,balance)+0.001)return reply({error:"Waiver must be positive and cannot exceed the current outstanding balance."},400);}
-   else {type="return";if(!Number.isFinite(amount)||amount<=0||amount>Math.max(0,paid-returns)+0.001)return reply({error:"Return amount must be positive and cannot exceed payments less previous returns."},400);}
+   else if(action==="add-waiver"){type="charge_waiver";if(!Number.isFinite(amount)||amount<=0||amount>Math.max(0,balance)+0.001)return reply({error:"Waiver must be positive and cannot exceed the current outstanding balance."},400);}
+   else {type="refund";if(!Number.isFinite(amount)||amount<=0||amount>Math.max(0,paid-returns)+0.001)return reply({error:"Return amount must be positive and cannot exceed payments less previous returns."},400);}
    if(!Number.isFinite(amount)||amount<=0)return reply({error:action==="pay-in-full"?"There is no outstanding balance to pay in full.":"Enter a valid positive amount."},400);
    const {data:inserted,error:insertError}=await admin.from("vbgramg_charge_ledger").insert({job_card_number:jobCard,person_name:ledger[0].person_name,entry_type:type,amount,entry_date:entryDate,note:finalNote,created_by:authData.user.id}).select("id,job_card_number,person_name,entry_type,amount,charge_period,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").single();
    if(insertError)throw insertError;
@@ -907,8 +907,8 @@ Deno.serve(async(req:Request)=>{
    const rows=body.entries;if(!Array.isArray(rows)||rows.length<1||rows.length>250)return reply({error:"Each batch must contain 1–250 ledger entries."},400);
    const normalized:Record<string,unknown>[]=[];
    for(const raw of rows){
-    const jobCard=String(raw.job_card_number||"").trim(),personName=String(raw.person_name||"").trim(),sourceId=String(raw.legacy_entry_id||"").trim(),type=String(raw.entry_type||""),amount=Number(raw.amount),note=String(raw.note||"").slice(0,200),ms=Number(raw.source_created_at_ms||0);
-    if(!jobCard||!personName||!sourceId||!["charge","payment","return","forgive","sanitationFee"].includes(type)||!Number.isFinite(amount)||amount<=0||amount>10000000)return reply({error:"Backup contains an invalid ledger row. Nothing from this batch was imported."},400);
+    const jobCard=String(raw.job_card_number||"").trim(),personName=String(raw.person_name||"").trim(),sourceId=String(raw.legacy_entry_id||"").trim(),rawType=String(raw.entry_type||""),type=rawType==="return"?"refund":rawType==="forgive"?"charge_waiver":rawType==="sanitationFee"?"other_charge":rawType,amount=Number(raw.amount),note=String(raw.note||"").slice(0,200),ms=Number(raw.source_created_at_ms||0);
+    if(!jobCard||!personName||!sourceId||!["charge","payment","refund","charge_waiver","other_charge","return","forgive","sanitationFee"].includes(type)||!Number.isFinite(amount)||amount<=0||amount>10000000)return reply({error:"Backup contains an invalid ledger row. Nothing from this batch was imported."},400);
     if(!Number.isFinite(ms)||ms<0)return reply({error:"Backup contains an invalid creation timestamp."},400);
     const chargePeriod=type==="charge"?periodFromNote(note):null;if(type==="charge"&&!chargePeriod)return reply({error:`Could not determine the charge month for ${jobCard}: ${note}`},400);
     const explicitDate=String(raw.entry_date||""),entryDate=/^\d{4}-\d{2}-\d{2}$/.test(explicitDate)?explicitDate:isoDate(ms||Date.now());

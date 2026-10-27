@@ -286,7 +286,7 @@ function buildFifoBreakdown(c){
   const total=Math.max(0,Number(e.amount)||0),paid=e.allocated, due=e.remaining;
   const isOther=e.entry_type==='other_charge'||e.entry_type==='sanitationFee';
   const period=formatPeriod(e.charge_period||e.entry_date);
-  const label=isOther?'Other charge':(/^FTO EXTRA:/i.test(String(e.note||''))?'Extra charge · '+period:'Charge · '+period);
+  const label=isOther?'Other charge':(/^FTO EXTRA:/i.test(String(e.note||''))?'Extra charge · '+period:period);
   const date=String(e.entry_date||'').slice(0,10);
   const status=due<=0?'Paid':paid>0?'Part-paid':'Due';
   const detail=[];

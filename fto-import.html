@@ -476,7 +476,7 @@ async function refreshDuplicates(){
  checkingDuplicates=true;duplicateCheckFailed=false;renderImportPreview();
  try{
   const groups=actionGroups();
-  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'check-fto-duplicates',charge_period:period,job_cards:groups.map(g=>g.job_card_number),reference_rows:groups.map(g=>({job_card_number:g.job_card_number,reference_numbers:g.reference_numbers}))}});
+  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'check-fto-duplicates',period_id:$('charge-period').value,charge_period:period,job_cards:groups.map(g=>g.job_card_number),reference_rows:groups.map(g=>({job_card_number:g.job_card_number,reference_numbers:g.reference_numbers}))}});
   if(seq!==duplicateCheckSequence)return;
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not check for duplicate charges.');
   duplicateCards=new Map((data.duplicates||[]).map(row=>[String(row.job_card_number),row]));

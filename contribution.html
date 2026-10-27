@@ -287,8 +287,9 @@ function buildFifoBreakdown(c){
   const isOther=e.entry_type==='other_charge'||e.entry_type==='sanitationFee';
   const isExtra=e.entry_type==='charge'&&/^FTO EXTRA:/i.test(String(e.note||''));
   const periodValue=String(e.charge_period||e.entry_date||e.created_at||'').slice(0,10);
-  const key=isOther?'special:'+String(e.id||index):isExtra?'extra:'+String(e.period_id||periodValue)+':'+String(e.id||index):'period:'+periodValue.slice(0,7);
-  const label=isOther?'Other charge':isExtra?'Extra charge':formatPeriod(e.charge_period||e.entry_date||e.created_at);
+  const key=isOther?'special:'+String(e.id||index):isExtra?'extra:'+String(e.period_id||periodValue)+':'+String(e.id||index):'period:'+(e.period_id?'id:'+String(e.period_id):periodValue);
+  const periodRow=e.period_id&&Array.isArray(periods)?periods.find(p=>String(p.id)===String(e.period_id)):null;
+  const label=isOther?'Other charge':isExtra?'Extra charge':String(periodRow?.period_name||'').trim()||formatPeriod(e.charge_period||e.entry_date||e.created_at);
   if(!groups.has(key))groups.set(key,{key,label,entries:[],total:0,paid:0,due:0,waived:0,firstSort:sortKey(e)});
   const g=groups.get(key);g.entries.push(e);g.total+=Math.max(0,Number(e.amount)||0);g.paid+=e.allocated;g.due+=e.remaining;g.waived+=e.waivedAmount;
  });

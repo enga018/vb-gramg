@@ -125,7 +125,7 @@ try{
 const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
-let entries=[], citizens=[], citizenRegistry=[], applicantsByCard={}, extraCharges=[], exemptions=[], currentCitizen=null, busy=false, currentPage=0, pageSize=50, appRole="";
+let entries=[], citizens=[], citizenRegistry=[], applicantsByCard={}, extraCharges=[], exemptions=[], periods=[], currentCitizen=null, busy=false, currentPage=0, pageSize=50, appRole="";
 const exemptCardSet=()=>new Set(exemptions.map(x=>String(x.job_card_number||"").trim()));
 const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -263,15 +263,8 @@ function openCitizen(id){
  sheet.classList.remove('edit-mode');
  $('toggleEditMode').classList.remove('hidden');
  $('toggleEditMode').textContent='Edit';
- $('toggleEditMode').setAttribute('aria-pressed','false');
- const chronological=[...c.ledger].sort((a,b)=>{const dateA=String(a.entry_date||'').slice(0,10),dateB=String(b.entry_date||'').slice(0,10);if(!dateA&&!dateB)return String(a.created_at||'').localeCompare(String(b.created_at||''));if(!dateA)return 1;if(!dateB)return -1;return dateA.localeCompare(dateB)||String(a.created_at||'').localeCompare(String(b.created_at||''));});
- const periodChargeCounts=new Map(),periodChargeIndexes=new Map(),chargeOccurrenceIndex=new Map();
- for(const e of chronological){
-  if(e.entry_type==='charge'&&e.charge_period&&!/^FTO EXTRA:/i.test(String(e.note||''))){
-   periodChargeCounts.set(e.charge_period,(periodChargeCounts.get(e.charge_period)||0)+1);
-   const next=(periodChargeIndexes.get(e.charge_period)||0)+1;
-   periodChargeIndexes.set(e.charge_period,next);
-   chargeOccurrenceIndex.set(e,next);
+ $('toggleEditMode').setAttribute('aria-pressed const chronological=[...c.ledger].sort((a,b)=>{const dateA=String(a.entry_date||'').slice(0,10),dateB=String(b.entry_date||'').slice(0,10);if(!dateA&&!dateB)return String(a.created_at||'').localeCompare(String(b.created_at||''));if(!dateA)return 1;if(!dateB)return -1;return dateA.localeCompare(dateB)||String(a.created_at||'').localeCompare(String(b.created_at||''));});
+xt);
   }
  }
  const activeApplicants=(Array.isArray(applicantsByCard[c.id])?applicantsByCard[c.id]:[]).slice().sort((a,b)=>String(a.applicant_number||"").localeCompare(String(b.applicant_number||""),undefined,{numeric:true})||String(a.applicant_name||"").localeCompare(String(b.applicant_name||"")));
@@ -287,15 +280,17 @@ function openCitizen(id){
   let periodLabel=periodMatch&&Number(periodMatch[2])>=1&&Number(periodMatch[2])<=12
    ?monthTags[Number(periodMatch[2])-1]+' '+periodMatch[1]
    :String(e.charge_period||'').trim()||'Monthly charge';
-  if(type==='charge'&&!isExtra&&(periodChargeCounts.get(e.charge_period)||0)>1){
-   periodLabel=periodLabel.replace(/\(\d+\)$/,'')+'('+chargeOccurrenceIndex.get(e)+')';
+  if(type==='charge'&&!isExtra&&(periodChargeCount  const periodMatch=String(e.charge_period||'').match(/^(\\d{4})-(\\d{2})/);
+  const periodRow=e.period_id?periods.find(p=>String(p.id)===String(e.period_id)):null;
+  let periodLabel=periodRow?(formatPeriod(periodRow.contribution_month||periodRow.period_date)||periodRow.period_name||'Monthly charge')
+   :periodMatch?formatPeriod(e.charge_period):String(e.charge_period||'').trim()||'Monthly charge';
+  if(type==='charge'&&!isExtra&&periodRow&&(periodRow.contribution_month||periodRow.period_date)){
+   const month=String(periodRow.contribution_month||periodRow.period_date).slice(0,10);
+   const sameMonth=periods.filter(p=>String(p.contribution_month||p.period_date||'').slice(0,10)===month)
+    .sort((a,b)=>String(a.created_at||'').localeCompare(String(b.created_at||'')));
+   if(sameMonth.length>1)periodLabel+=' · Round '+(sameMonth.findIndex(p=>String(p.id)===String(periodRow.id))+1);
   }
-  let chargeApplicantName='';
-  if(type==='charge'&&!isExtra){
-   let matchedApplicant=null;
-   if(e.applicant_unique_id)matchedApplicant=activeApplicants.find(a=>a.applicant_unique_id&&String(a.applicant_unique_id)===String(e.applicant_unique_id))||null;
-   if(!matchedApplicant&&e.applicant_number)matchedApplicant=activeApplicants.find(a=>a.applicant_number&&String(a.applicant_number)===String(e.applicant_number))||null;
-   if(!matchedApplicant&&e.applicant_name){
+cant_name){
     const normalizedChargeName=normalizeName(e.applicant_name);
     const nameMatches=activeApplicants.filter(a=>normalizeName(a.applicant_name)===normalizedChargeName);
     if(nameMatches.length===1)matchedApplicant=nameMatches[0];
@@ -500,7 +495,7 @@ async function load(){
   status('Loading active MIS and contribution ledger…');
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}});
   if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
-  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");entries=data.entries||[];extraCharges=data.extras||[];citizenRegistry=data.citizens||[];applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];deriveCitizens();renderExemptions();
+  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");entries=data.entries||[];periods=data.periods||[];extraCharges=data.extras||[];citizenRegistry=data.citizens||[];applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];deriveCitizens();renderExemptions();
   $('app').classList.remove('hidden');$('status').classList.add('hidden');
   render();
  }catch(err){status(err.message||'Could not load contribution data.','err');}

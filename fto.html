@@ -380,7 +380,42 @@ header .top-actions > button:hover {
   color: #0f172a !important;
 }
 
+/* FTO transaction details: compact summary cards on phones, full data on demand. */
+@media(max-width:700px){
+ .fto-view-modal-content .fto-transaction-table tbody>tr.transaction-row{
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  align-items:stretch;
+ }
+ .fto-view-modal-content .fto-transaction-table tbody>tr.transaction-row:not(.is-expanded)>td:not(:nth-child(3)):not(:nth-child(4)):not(:nth-child(5)):not(:nth-child(6)):not(:nth-child(12)):not(:nth-child(13)):not(.transaction-mobile-toggle){
+  display:none;
+ }
+ .fto-view-modal-content .fto-transaction-table tbody>tr.transaction-row.is-expanded>td{
+  display:block;
+ }
+ .fto-view-modal-content .fto-transaction-table tbody>tr.transaction-row>td:nth-child(3),
+ .fto-view-modal-content .fto-transaction-table tbody>tr.transaction-row>td:nth-child(6),
+ .fto-view-modal-content .fto-transaction-table tbody>tr.transaction-row>td:nth-child(12),
+ .fto-view-modal-content .fto-transaction-table tbody>tr.transaction-row>td:nth-child(13){
+  background:#f8fafc;
+ }
+ .fto-view-modal-content .fto-transaction-table tbody>tr.transaction-row>td.transaction-mobile-toggle{
+  display:block;
+  grid-column:1/-1;
+  padding:8px 10px;
+  border-bottom:0;
+  background:#f8fafc;
+ }
+ .fto-view-modal-content .transaction-mobile-toggle-button{
+  width:100%;
+  min-height:40px;
+  white-space:normal;
+ }
+ .fto-view-modal-content .fto-transaction-table tbody>tr.transaction-row.is-expanded>td.transaction-mobile-toggle{
+  border-top:1px solid #edf0f5;
+ }
+}
 </style>
+  <link rel="stylesheet" href="./responsive.css">
 </head>
 <body>
 <main>

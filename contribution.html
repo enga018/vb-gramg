@@ -234,7 +234,7 @@ function render(){
    chargeName=String(matched?.applicant_name||matched?.name||'').trim();
   }
   const lastPeriod=lastCharge?(lastCharge.charge_period?formatPeriod(lastCharge.charge_period):lastCharge.entry_date?day(lastCharge.entry_date):'—'):'—';
-  const lastPeriodShort=lastCharge?(lastCharge.charge_period?(()=>{const m=String(lastCharge.charge_period).match(/^(\\d{4})-(\\d{2})/);const months=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];return m&&Number(m[2])>=1&&Number(m[2])<=12?months[Number(m[2])-1]+m[1].slice(-2):lastPeriod;})():lastPeriod):'—';
+  const lastPeriodShort=lastPeriod;
   if(isMobile){
    const detail=cell('','mobile-details');
    const topLine=document.createElement('div');topLine.className='mobile-jobcard-line';
@@ -370,7 +370,7 @@ function openCitizen(id){
   const extraReason=isExtra?(extraCharges.find(x=>String(x.job_card_number)===String(c.id)&&String(x.period_id||"")===String(e.period_id||"")&&String(x.charge_period||"")===String(e.charge_period||""))?.reason||String(e.note||"").replace(/^FTO EXTRA:\\s*/i,"")):"";
   return '<div class="entry"><div class="desc"><b>'+esc(label)+(isExtra&&extraReason?' · '+esc(extraReason):type!=='charge'&&displayNote?' · '+esc(displayNote):'')+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+(appRole==='admin'&&!isExtra&&!c.exempt?'<div class="entry-actions"><button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button></div>':'')+'</div>';
  }).join('');
- $('sheetBody').innerHTML=(c.exempt?'<div class="notice info"><b>Exempt job card.</b> This job card is exempt. Contribution ledger entries are removed while exempt; its FTO transactions remain available in FTO history.</div>':buildFifoBreakdown(c))+'<div class="section-title">Ledger history · oldest first</div>'+(lines||'<div class="empty">No ledger entries.</div>');
+ $('sheetBody').innerHTML=(c.exempt?'<div class="notice info"><b>Exempt job card.</b> This job card is exempt. Contribution ledger entries are removed while exempt; its FTO transactions remain available in FTO history.</div>':'')+'<div class="section-title">Transaction history · oldest first</div>'+(lines||'<div class="empty">No ledger entries.</div>');
  document.querySelectorAll('[data-fifo-toggle]').forEach(toggle=>toggle.addEventListener('click',()=>{
   const wasOpen=toggle.getAttribute('aria-expanded')==='true';
   document.querySelectorAll('[data-fifo-toggle]').forEach(other=>{

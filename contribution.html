@@ -152,7 +152,7 @@ function calculateLedgerState(ledger){
  let charged=0,paid=0,returned=0,waived=0,deferred=0;const active=[];
  for(const e of ledger||[]){if(!e)continue;const n=Math.max(0,Number(e.amount)||0),t=e.entry_type;
   if(t==='payment'){paid+=n;continue}
-  if(t==='return'||(t==='charge'&&String(e.note||'').trim()==='Return')){returned+=n;continue}
+  if(t==='refund'||(t==='charge'&&String(e.note||'').trim()==='Return')){returned+=n;continue}
   if(t==='charge_waiver'){waived+=n;continue}
   if(t!=='charge'&&t!=='other_charge')continue;
   if(e.is_deferred){deferred+=n;continue}

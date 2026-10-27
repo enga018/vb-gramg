@@ -111,6 +111,8 @@ Deno.serve(async (req: Request) => {
       createdPeriodId = createdPeriod.id;
     }
 
+    if (!period || !periodId) return reply(req, { error: "The period could not be resolved for this demand." }, 500);
+
     const { data: saved, error: saveError } = await admin.from("vbgramg_demand_runs").insert({
       period_id: periodId, period_name: period.period_name, days, village_scope: "New Serchhip North",
       work_demand: workDemand, unwilling_to_work: unwillingToWork,

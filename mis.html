@@ -206,6 +206,14 @@ header .top-actions > button:hover {
   .applicant-detail th:nth-child(2),
   .applicant-detail td:nth-child(2){width:72px}
 }
+
+/* Keep mobile MIS and Contribution table text consistent. */
+@media (max-width:700px){
+  #mis-table tbody td,
+  #mis-table tbody td *,
+  #contribution-table tbody td,
+  #contribution-table tbody td * { font-size:0.85rem !important; }
+}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>

@@ -123,5 +123,32 @@ begin
 end $$;
 
 drop index if exists public.vbgramg_contribution_extras_job_card_number_charge_period_key;
+
+-- Also remove a standalone legacy unique index if it was not created as a table constraint.
+do $
+declare i record;
+begin
+  for i in
+    select idx.relname as index_name
+    from pg_index ix
+    join pg_class tbl on tbl.oid = ix.indrelid
+    join pg_namespace ns on ns.oid = tbl.relnamespace
+    join pg_class idx on idx.oid = ix.indexrelid
+    where ns.nspname = 'public'
+      and tbl.relname = 'vbgramg_contribution_extras'
+      and ix.indisunique
+      and ix.indnkeyatts = 2
+      and not exists (select 1 from pg_constraint con where con.conindid = ix.indexrelid)
+      and (
+        select array_agg(att.attname order by att.attname)
+        from unnest(ix.indkey::smallint[]) with ordinality as key(attnum, ord)
+        join pg_attribute att on att.attrelid = tbl.oid and att.attnum = key.attnum
+        where key.ord <= ix.indnkeyatts
+      ) = array['charge_period','job_card_number']::name[]
+  loop
+    execute format('drop index public.%I', i.index_name);
+  end loop;
+end $;
+
 create unique index if not exists vbgramg_contribution_extras_job_card_period_id_uidx
   on public.vbgramg_contribution_extras (job_card_number, period_id);

@@ -432,7 +432,7 @@ function exportCsv(kind){
  if(!generated)return;
  const base=safeFilename(generated.period);
  if(kind==='demand')downloadCsv('work-demand-'+base+'.csv',[
-  ['Work Demand for New Serchhip North'],
+  ['New Serchhip North Work Demand'],
   ['for the month of '+generated.period+' for '+generated.days+' days'],
   [],
   ...demandRows()

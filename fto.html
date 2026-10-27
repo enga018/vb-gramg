@@ -380,6 +380,41 @@ header .top-actions > button:hover {
   color: #0f172a !important;
 }
 
+
+/* FTO transaction details: compact summary cards on phones, full data on demand. */
+@media(max-width:700px){
+ .fto-view-modal-content .fto-transaction-table tbody>tr.transaction-row{
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  align-items:stretch;
+ }
+ .fto-view-modal-content .fto-transaction-table tbody>tr.transaction-row>td:not(:nth-child(3)):not(:nth-child(4)):not(:nth-child(5)):not(:nth-child(6)):not(:nth-child(12)):not(:nth-child(13)):not(.transaction-mobile-toggle){
+  display:none;
+ }
+ .fto-view-modal-content .fto-transaction-table tbody>tr.transaction-row.is-expanded>td{
+  display:block;
+ }
+ .fto-view-modal-content .fto-transaction-table tbody>tr.transaction-row>td:nth-child(3),
+ .fto-view-modal-content .fto-transaction-table tbody>tr.transaction-row>td:nth-child(6),
+ .fto-view-modal-content .fto-transaction-table tbody>tr.transaction-row>td:nth-child(12),
+ .fto-view-modal-content .fto-transaction-table tbody>tr.transaction-row>td:nth-child(13){
+  background:#f8fafc;
+ }
+ .fto-view-modal-content .fto-transaction-table tbody>tr.transaction-row>td.transaction-mobile-toggle{
+  display:block;
+  grid-column:1/-1;
+  padding:8px 10px;
+  border-bottom:0;
+  background:#f8fafc;
+ }
+ .fto-view-modal-content .transaction-mobile-toggle-button{
+  width:100%;
+  min-height:40px;
+  white-space:normal;
+ }
+ .fto-view-modal-content .fto-transaction-table tbody>tr.transaction-row.is-expanded>td.transaction-mobile-toggle{
+  border-top:1px solid #edf0f5;
+ }
+}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -489,11 +524,19 @@ function renderHistoryTransactions(batch){
  thead.appendChild(headRow);table.appendChild(thead);
  const tbody=document.createElement("tbody");
  for(const tx of (batch.transactions||[])){
-  const tr=document.createElement("tr");
+  const tr=document.createElement("tr");tr.className="transaction-row";
   for(const label of FTO_HEADERS){
    const td=document.createElement("td");td.dataset.label=label==="Job Card No. (Panchayat Name)"?"Job Card No.":label;
    td.textContent=cellValue(tx,label);tr.appendChild(td);
   }
+  const toggleCell=document.createElement("td");toggleCell.className="transaction-mobile-toggle";
+  const toggle=document.createElement("button");toggle.type="button";toggle.className="secondary transaction-mobile-toggle-button";toggle.textContent="More details";toggle.setAttribute("aria-expanded","false");
+  toggle.addEventListener("click",()=>{
+   const expanded=tr.classList.toggle("is-expanded");
+   toggle.textContent=expanded?"Hide details":"More details";
+   toggle.setAttribute("aria-expanded",String(expanded));
+  });
+  toggleCell.appendChild(toggle);tr.appendChild(toggleCell);
   tbody.appendChild(tr);
  }
  if(!(batch.transactions||[]).length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=FTO_HEADERS.length;td.textContent="No local transaction rows are saved for this FTO.";tr.appendChild(td);tbody.appendChild(tr);}

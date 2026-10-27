@@ -67,33 +67,40 @@ Deno.serve(async(req:Request)=>{
     const {data:cardTx,error:cardTxError}=await admin.from("vbgramg_fto_transactions").select("id,batch_id,reference_no,job_card_number,person_name,calculated_charge,status,processed_date,is_in_scope").eq("job_card_number",jobCard);
     if(cardTxError)throw cardTxError;
     const batchIds=[...new Set((cardTx||[]).map(tx=>String(tx.batch_id)))];
-    const batchPeriods=new Map<string,string>();
+    const batchPeriods=new Map<string,{month:string,periodId:string}>();
     for(let offset=0;offset<batchIds.length;offset+=500){
      const ids=batchIds.slice(offset,offset+500);
-     const {data,error}=await admin.from("vbgramg_fto_batches").select("id,ledger_charge_period").in("id",ids);
+     const {data,error}=await admin.from("vbgramg_fto_batches").select("id,ledger_charge_period,period_id").in("id",ids);
      if(error)throw error;
-     for(const b of data||[])batchPeriods.set(String(b.id),String(b.ledger_charge_period||""));
+     for(const b of data||[])batchPeriods.set(String(b.id),{month:String(b.ledger_charge_period||""),periodId:String(b.period_id||"")});
     }
-    const periods=[...new Set((cardTx||[]).filter(tx=>tx.is_in_scope===true).map(tx=>batchPeriods.get(String(tx.batch_id))||"").filter(Boolean))];
-    if(periods.length){
-     const {data:ledgerRows,error:ledgerError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,note,reference_numbers,charge_period").eq("job_card_number",jobCard).eq("entry_type","charge").in("charge_period",periods);
+    // Rebuild only against explicit round IDs. Ambiguous legacy batches stay unlinked
+    // until an administrator assigns them to the correct round.
+    const rounds=[...new Map((cardTx||[]).filter(tx=>tx.is_in_scope===true).map(tx=>{
+     const batch=batchPeriods.get(String(tx.batch_id));
+     return batch?.periodId? [batch.periodId,{periodId:batch.periodId,month:batch.month}] as const : null;
+    }).filter((item):item is readonly [string,{periodId:string,month:string}]=>item!==null)).values()];
+    const roundIds=rounds.map(round=>round.periodId);
+    if(roundIds.length){
+     const {data:ledgerRows,error:ledgerError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,note,reference_numbers,charge_period,period_id").eq("job_card_number",jobCard).eq("entry_type","charge").in("period_id",roundIds);
      if(ledgerError)throw ledgerError;
-     for(const period of periods){
-      const txs=(cardTx||[]).filter(tx=>tx.is_in_scope===true&&batchPeriods.get(String(tx.batch_id))===period);
+     for(const round of rounds){
+      const period=round.month,periodId=round.periodId;
+      const txs=(cardTx||[]).filter(tx=>tx.is_in_scope===true&&batchPeriods.get(String(tx.batch_id))?.periodId===periodId);
       const active=txs.filter(tx=>["blank","processed"].includes(String(tx.status))&&Number(tx.calculated_charge||0)>0);
       const refs=[...new Set(active.map(tx=>String(tx.reference_no)))];
       const amount=Number(active.reduce((sum,tx)=>sum+Number(tx.calculated_charge||0),0).toFixed(2));
-      const ftoRows=(ledgerRows||[]).filter(row=>String(row.charge_period||"")===period&&/^FTO\\b/i.test(String(row.note||""))&&!/^FTO EXTRA\\b/i.test(String(row.note||"")));
+      const ftoRows=(ledgerRows||[]).filter(row=>String(row.period_id||"")===periodId&&/^FTO\\b/i.test(String(row.note||""))&&!/^FTO EXTRA\\b/i.test(String(row.note||"")));
       let keeper=ftoRows.find(row=>(Array.isArray(row.reference_numbers)?row.reference_numbers:[]).some((ref:string)=>refs.includes(String(ref))))||ftoRows[0]||null;
       let ledgerId="";
       if(amount>0){
        const name=String(active[0]?.person_name||keeper?.person_name||"Name needs review");
        const isDeferred=active.every(tx=>String(tx.status)==="blank"),entryDate=ftoEntryDate(active,isDeferred);
        if(keeper){
-        const {error}=await admin.from("vbgramg_charge_ledger").update({person_name:name,amount,is_deferred:isDeferred,entry_date:entryDate,reference_numbers:refs,note:"FTO import"}).eq("id",keeper.id);
+        const {error}=await admin.from("vbgramg_charge_ledger").update({period_id:periodId,charge_period:period,person_name:name,amount,is_deferred:isDeferred,entry_date:entryDate,reference_numbers:refs,note:"FTO import"}).eq("id",keeper.id);
         if(error)throw error;ledgerId=String(keeper.id);
        }else{
-        const {data,error}=await admin.from("vbgramg_charge_ledger").insert({job_card_number:jobCard,person_name:name,entry_type:"charge",amount,charge_period:period,entry_date:entryDate,note:"FTO import",reference_numbers:refs,is_deferred:isDeferred,created_by:authData.user.id}).select("id").single();
+        const {data,error}=await admin.from("vbgramg_charge_ledger").insert({job_card_number:jobCard,person_name:name,entry_type:"charge",amount,charge_period:period,period_id:periodId,entry_date:entryDate,note:"FTO import",reference_numbers:refs,is_deferred:isDeferred,created_by:authData.user.id}).select("id").single();
         if(error)throw error;ledgerId=String(data.id);
        }
        const duplicates=ftoRows.filter(row=>String(row.id)!==ledgerId);
@@ -115,10 +122,10 @@ Deno.serve(async(req:Request)=>{
 
   if(action==="list"){
    const all:Record<string,unknown>[]=[];
-   for(let offset=0;;offset+=1000){const {data,error}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,applicant_name,applicant_number,applicant_unique_id,entry_type,amount,charge_period,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").order("job_card_number",{ascending:true}).order("entry_date",{ascending:true}).range(offset,offset+999);if(error)throw error;all.push(...(data||[]));if(!data||data.length<1000||all.length>=20000)break;}
+   for(let offset=0;;offset+=1000){const {data,error}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,applicant_name,applicant_number,applicant_unique_id,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").order("job_card_number",{ascending:true}).order("entry_date",{ascending:true}).range(offset,offset+999);if(error)throw error;all.push(...(data||[]));if(!data||data.length<1000||all.length>=20000)break;}
    const {data:exemptions,error:exemptionsError}=await admin.from("vbgramg_contribution_exemptions").select("job_card_number,note,created_at,updated_at").order("job_card_number",{ascending:true});if(exemptionsError)throw exemptionsError;
    const {data:imports,error:importError}=await admin.from("vbgramg_charge_imports").select("id,source_filename,charge_period,row_count,total_amount,status,completed_at").eq("status","complete").order("charge_period",{ascending:false}).limit(100);if(importError)throw importError;
-   const {data:extras,error:extrasError}=await admin.from("vbgramg_contribution_extras").select("id,job_card_number,person_name,charge_period,amount,reason,ledger_entry_id,created_at,updated_at").order("charge_period",{ascending:false});if(extrasError)throw extrasError;
+   const {data:extras,error:extrasError}=await admin.from("vbgramg_contribution_extras").select("id,job_card_number,person_name,charge_period,period_id,amount,reason,ledger_entry_id,created_at,updated_at").order("charge_period",{ascending:false});if(extrasError)throw extrasError;
    const {data:misState,error:misStateError}=await admin.from("vbgramg_mis_state").select("active_import_id,row_count,source_filename").eq("singleton",true).maybeSingle();if(misStateError)throw misStateError;
    if(!misState?.active_import_id)throw new Error("There is no active MIS import. Load the active MIS before using the contribution table.");
    const misRows:Record<string,unknown>[]=[];
@@ -156,19 +163,25 @@ Deno.serve(async(req:Request)=>{
      }
     }
    }
-   return reply({approved:true,role:approved.role,entries:all,imports:imports||[],extras:extras||[],citizens,applicants_by_job_card:Object.fromEntries(applicantsByCard),exemptions:exemptions||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:misRows.length});
+   const {data:periodRows,error:periodRowsError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status,created_at").order("contribution_month",{ascending:false,nullsFirst:false}).order("created_at",{ascending:true});
+   if(periodRowsError)throw periodRowsError;
+   return reply({approved:true,role:approved.role,entries:all,imports:imports||[],extras:extras||[],citizens,periods:periodRows||[],applicants_by_job_card:Object.fromEntries(applicantsByCard),exemptions:exemptions||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:misRows.length});
   }
   if(action==="check-fto-duplicates"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can import FTO charges."},403);
-   const period=String(body.charge_period||"").trim(),periodMatch=period.match(/^(\d{4})-(\d{2})-01$/);
+   const period=String(body.charge_period||"").trim(),periodId=String(body.period_id||"").trim(),periodMatch=period.match(/^(\d{4})-(\d{2})-01$/);
    if(!periodMatch||Number(periodMatch[2])<1||Number(periodMatch[2])>12)return reply({error:"Choose a valid contribution month."},400);
    const periodDate=period;
    if(action==="check-fto-duplicates"){
+    if(!periodId)return reply({error:"Select a specific contribution round."},400);
+    const {data:selectedRound,error:selectedRoundError}=await admin.from("vbgramg_periods").select("id,contribution_month").eq("id",periodId).maybeSingle();
+    if(selectedRoundError)throw selectedRoundError;
+    if(!selectedRound||String(selectedRound.contribution_month||"")!==periodDate)return reply({error:"The selected contribution round does not match the month."},400);
     const cards=Array.isArray(body.job_cards)?[...new Set(body.job_cards.map((v:unknown)=>String(v||"").trim()).filter(Boolean))]:[];
     const referenceRows=Array.isArray(body.reference_rows)?body.reference_rows.map((v:Record<string,unknown>)=>({job_card_number:String(v.job_card_number||"").trim(),reference_numbers:Array.isArray(v.reference_numbers)?[...new Set(v.reference_numbers.map((r:unknown)=>String(r||"").trim()).filter(Boolean))]:[]})): [];
     if(cards.length>1000)return reply({error:"Check at most 1,000 job cards at a time."},400);
     if(!cards.length)return reply({approved:true,duplicates:[],duplicate_references:[]});
-    const {data:existing,error:existingError}=await admin.from("vbgramg_charge_ledger").select("job_card_number,person_name,amount,is_deferred,note,reference_numbers").in("job_card_number",cards).eq("entry_type","charge").eq("charge_period",periodDate);
+    const {data:existing,error:existingError}=await admin.from("vbgramg_charge_ledger").select("job_card_number,person_name,amount,is_deferred,note,reference_numbers,period_id").in("job_card_number",cards).eq("entry_type","charge").eq("charge_period",periodDate);
     if(existingError)throw existingError;
     const {data:knownLedger,error:knownLedgerError}=await admin.from("vbgramg_charge_ledger").select("job_card_number").in("job_card_number",cards);
     if(knownLedgerError)throw knownLedgerError;
@@ -177,10 +190,10 @@ Deno.serve(async(req:Request)=>{
     const known=new Set([...(knownLedger||[]).map(r=>String(r.job_card_number)),...(knownCitizens||[]).map(r=>String(r.job_card_number))]);
     const allReferences=[...new Set(referenceRows.flatMap(r=>r.reference_numbers))];
     const referenceMatches:Record<string,any>[]=[];
-    if(allReferences.length){const {data,error}=await admin.from("vbgramg_charge_ledger").select("job_card_number,charge_period,note,reference_numbers").overlaps("reference_numbers",allReferences);if(error)throw error;referenceMatches.push(...(data||[]));}
+    if(allReferences.length){const {data,error}=await admin.from("vbgramg_charge_ledger").select("job_card_number,charge_period,period_id,note,reference_numbers").overlaps("reference_numbers",allReferences);if(error)throw error;referenceMatches.push(...(data||[]));}
     const duplicateMap=new Map<string,Set<string>>();
-    for(const input of referenceRows){for(const reference of input.reference_numbers){for(const old of referenceMatches){if(!(old.reference_numbers||[]).includes(reference))continue;const oldRefs=old.reference_numbers||[];const sameReferenceSet=oldRefs.length>0&&oldRefs.every((r:string)=>input.reference_numbers.includes(r));const sameExistingCharge=String(old.job_card_number)===input.job_card_number&&String(old.charge_period||"")===periodDate&&/^FTO\b/i.test(String(old.note||""))&&sameReferenceSet;if(!sameExistingCharge){if(!duplicateMap.has(input.job_card_number))duplicateMap.set(input.job_card_number,new Set());duplicateMap.get(input.job_card_number)!.add(reference);}}}}
-    return reply({approved:true,charge_period:periodDate,duplicates:[...new Map((existing||[]).filter(r=>!(/^FTO\b/i.test(String(r.note||"")))).map(r=>[r.job_card_number,{job_card_number:r.job_card_number,person_name:r.person_name,amount:r.amount,is_deferred:r.is_deferred}])).values()],unknown_job_cards:cards.filter(card=>!known.has(card)),duplicate_references:[...duplicateMap].map(([job_card_number,refs])=>({job_card_number,reference_numbers:[...refs]}))});
+    for(const input of referenceRows){for(const reference of input.reference_numbers){for(const old of referenceMatches){if(!(old.reference_numbers||[]).includes(reference))continue;const oldRefs=old.reference_numbers||[];const sameReferenceSet=oldRefs.length>0&&oldRefs.every((r:string)=>input.reference_numbers.includes(r));const sameExistingCharge=String(old.job_card_number)===input.job_card_number&&String(old.period_id||"")===periodId&&String(old.charge_period||"")===periodDate&&/^FTO\b/i.test(String(old.note||""))&&sameReferenceSet;if(!sameExistingCharge){if(!duplicateMap.has(input.job_card_number))duplicateMap.set(input.job_card_number,new Set());duplicateMap.get(input.job_card_number)!.add(reference);}}}}
+    return reply({approved:true,charge_period:periodDate,duplicates:[...new Map((existing||[]).filter(r=>(!r.period_id||String(r.period_id)===periodId)&&!(/^FTO\b/i.test(String(r.note||"")))).map(r=>[r.job_card_number,{job_card_number:r.job_card_number,person_name:r.person_name,amount:r.amount,is_deferred:r.is_deferred}])).values()],unknown_job_cards:cards.filter(card=>!known.has(card)),duplicate_references:[...duplicateMap].map(([job_card_number,refs])=>({job_card_number,reference_numbers:[...refs]}))});
    }
    const rows=body.rows,sourceSha=String(body.source_sha256||"").toLowerCase(),sourceFilename=String(body.source_filename||"").trim().slice(0,255),ftoNumber=String(body.fto_number||"").trim().toUpperCase().slice(0,100);
    const reviewed=Array.isArray(body.reviewed_duplicates)?new Set(body.reviewed_duplicates.map((v:unknown)=>String(v||"").trim())):new Set<string>();
@@ -243,68 +256,70 @@ Deno.serve(async(req:Request)=>{
    const periodMatch=chargePeriod.match(/^(\d{4})-(\d{2})-01$/);
    if(!batchId)return reply({error:"Select a saved FTO first."},400);
    if(!contributionPeriod||!periodMatch||Number(periodMatch[2])<1||Number(periodMatch[2])>12)return reply({error:"Enter a valid month and year, such as June 2026."},400);
-   const monthNames=["January","February","March","April","May","June","July","August","September","October","November","December"];
-   const expectedLabel=monthNames[Number(periodMatch[2])-1]+" "+periodMatch[1];
-   if(contributionPeriod.toLowerCase()!==expectedLabel.toLowerCase())return reply({error:"Period label and month/year do not match."},400);
+   const monthNames=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+   const expectedLabel=monthNames[Number(periodMatch[2])-1]+periodMatch[1].slice(-2);
+   const isRoundLabel=contributionPeriod.toUpperCase().startsWith(expectedLabel+" (")&&/^\(\d+\)$/.test(contributionPeriod.slice(expectedLabel.length).trim());
+    if(contributionPeriod.toUpperCase()!==expectedLabel&&!isRoundLabel)return reply({error:"Period name must match the selected contribution month and optional round number, e.g. MAY26 or MAY26 (2)."},400);
    const {data:batch,error:batchError}=await admin.from("vbgramg_fto_batches").select("id,fto_number,contribution_period,ledger_charge_period,period_id").eq("id",batchId).maybeSingle();
    if(batchError)throw batchError;if(!batch)return reply({error:"The selected FTO was not found. Refresh history and try again."},404);
    if(!periodId){
-    let {data:legacyPeriod,error:legacyPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,status").eq("period_date",chargePeriod).maybeSingle();
+    let {data:legacyPeriod,error:legacyPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status").eq("period_name",contributionPeriod).eq("contribution_month",chargePeriod).maybeSingle();
     if(legacyPeriodError)throw legacyPeriodError;
-    if(!legacyPeriod){
-     const {data:createdPeriod,error:createPeriodError}=await admin.from("vbgramg_periods").insert({period_name:contributionPeriod,period_date:chargePeriod,status:"open",created_by:authData.user.id}).select("id,period_name,period_date,status").single();
-     if(createPeriodError)throw createPeriodError;
-     legacyPeriod=createdPeriod;
-    }
+    if(!legacyPeriod)return reply({error:"The selected charge round does not exist in Period Management. Create or select the correct round first."},400);
     periodId=String(legacyPeriod.id);
    }
-   const oldPeriod=String(batch.ledger_charge_period||"");
-   const {data:selectedPeriod,error:selectedPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,status").eq("id",periodId).maybeSingle();
+   const oldPeriod=String(batch.ledger_charge_period||""),oldPeriodId=String(batch.period_id||"");
+   const {data:selectedPeriod,error:selectedPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status").eq("id",periodId).maybeSingle();
     if(selectedPeriodError)throw selectedPeriodError;
-    if(!selectedPeriod||selectedPeriod.period_date!==chargePeriod||selectedPeriod.period_name!==contributionPeriod)return reply({error:"Select a shared contribution month that matches the FTO period."},400);
-    if(selectedPeriod.status!=="open"&&String(batch.period_id||"")!==periodId)return reply({error:"That period is closed. Reopen it before assigning an FTO."},409);
-    if(oldPeriod===chargePeriod&&String(batch.contribution_period||"")===contributionPeriod&&String(batch.period_id||"")===periodId)return reply({approved:true,unchanged:true,fto_number:batch.fto_number,contribution_period:contributionPeriod,charge_period:chargePeriod,period_id:periodId,transactions_changed:0,job_cards_recalculated:0});
+    if(!selectedPeriod||selectedPeriod.contribution_month!==chargePeriod||selectedPeriod.period_name!==contributionPeriod)return reply({error:"Select a shared charge round for the chosen contribution month."},400);
+    if(selectedPeriod.status!=="open"&&oldPeriodId!==periodId)return reply({error:"That period is closed. Reopen it before assigning an FTO."},409);
+    if(oldPeriod===chargePeriod&&String(batch.contribution_period||"")===contributionPeriod&&oldPeriodId===periodId)return reply({approved:true,unchanged:true,fto_number:batch.fto_number,contribution_period:contributionPeriod,charge_period:chargePeriod,period_id:periodId,transactions_changed:0,job_cards_recalculated:0});
+   const roundIds=[...new Set([oldPeriodId,periodId].filter(Boolean))];
+   const {data:roundRows,error:roundRowsError}=await admin.from("vbgramg_periods").select("id,contribution_month").in("id",roundIds);
+   if(roundRowsError)throw roundRowsError;
+   const roundMonthById=new Map<string,string>((roundRows||[]).map((p:Record<string,any>)=>[String(p.id),String(p.contribution_month||"")]));
+   if(oldPeriodId&&!roundMonthById.has(oldPeriodId))return reply({error:"The previous charge round is missing from Period Management. Resolve that period before moving this FTO."},409);
    const {data:batchTx,error:batchTxError}=await admin.from("vbgramg_fto_transactions").select("id,job_card_number").eq("batch_id",batchId);
    if(batchTxError)throw batchTxError;
    const cards=[...new Set((batchTx||[]).map(r=>String(r.job_card_number||"")).filter(Boolean))];
    const {error:updateBatchError}=await admin.from("vbgramg_fto_batches").update({period_id:periodId,contribution_period:contributionPeriod,ledger_charge_period:chargePeriod}).eq("id",batchId);
    if(updateBatchError)throw updateBatchError;
    if(!cards.length)return reply({approved:true,fto_number:batch.fto_number,old_period:oldPeriod,new_period:chargePeriod,contribution_period:contributionPeriod,transactions_changed:(batchTx||[]).length,job_cards_recalculated:0});
-   const periods=[...new Set([oldPeriod,chargePeriod].filter(Boolean))];
    const {data:allTx,error:allTxError}=await admin.from("vbgramg_fto_transactions").select("id,batch_id,reference_no,job_card_number,person_name,calculated_charge,status,processed_date,is_in_scope,last_seen_at").in("job_card_number",cards);
    if(allTxError)throw allTxError;
    const allBatchIds=[...new Set((allTx||[]).map(r=>String(r.batch_id)))];
-   const batchPeriodMap=new Map<string,{period:string,fto:string}>();
+   const batchPeriodMap=new Map<string,{period:string,fto:string,periodId:string}>();
    for(let offset=0;offset<allBatchIds.length;offset+=500){
     const ids=allBatchIds.slice(offset,offset+500);
-    const {data,error}=await admin.from("vbgramg_fto_batches").select("id,fto_number,ledger_charge_period").in("id",ids);
+    const {data,error}=await admin.from("vbgramg_fto_batches").select("id,fto_number,ledger_charge_period,period_id").in("id",ids);
     if(error)throw error;
-    for(const b of data||[])batchPeriodMap.set(String(b.id),{period:String(b.ledger_charge_period||""),fto:String(b.fto_number||"")});
+    for(const b of data||[])batchPeriodMap.set(String(b.id),{period:String(b.ledger_charge_period||""),fto:String(b.fto_number||""),periodId:String(b.period_id||"")});
    }
-   const txs=(allTx||[]).filter(tx=>periods.includes(batchPeriodMap.get(String(tx.batch_id))?.period||""));
+   const txs=(allTx||[]).filter(tx=>roundIds.includes(batchPeriodMap.get(String(tx.batch_id))?.periodId||""));
    const inScopeTxs=txs.filter(tx=>tx.is_in_scope===true);
    const {data:exemptionRows,error:exemptionError}=await admin.from("vbgramg_contribution_exemptions").select("job_card_number");
    if(exemptionError)throw exemptionError;
    const exemptCards=new Set((exemptionRows||[]).map(r=>String(r.job_card_number)));
    const txByKey=new Map<string,Record<string,any>[]>();
-   for(const tx of inScopeTxs){const p=batchPeriodMap.get(String(tx.batch_id))?.period||"";const key=String(tx.job_card_number)+"|"+p;if(!txByKey.has(key))txByKey.set(key,[]);txByKey.get(key)!.push(tx);}
-   const {data:oldLedger,error:oldLedgerError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,note,reference_numbers,import_id,charge_period").in("job_card_number",cards).eq("entry_type","charge").in("charge_period",periods);
+   for(const tx of inScopeTxs){const p=batchPeriodMap.get(String(tx.batch_id))?.periodId||"";const key=String(tx.job_card_number)+"|"+p;if(!txByKey.has(key))txByKey.set(key,[]);txByKey.get(key)!.push(tx);}
+   const chargeMonths=[...new Set([...roundMonthById.values()].filter(Boolean))];
+   const {data:oldLedger,error:oldLedgerError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,note,reference_numbers,import_id,charge_period,period_id").in("job_card_number",cards).eq("entry_type","charge").in("charge_period",chargeMonths);
    if(oldLedgerError)throw oldLedgerError;
    const ftoLedger=(row:Record<string,any>)=>/^FTO\b/i.test(String(row.note||""))&&!/^FTO EXTRA\b/i.test(String(row.note||""));
    const ftoRows=(oldLedger||[]).filter(ftoLedger),ledgerByKey=new Map<string,Record<string,any>[]>();
-   for(const row of ftoRows){const key=String(row.job_card_number)+"|"+String(row.charge_period||"");if(!ledgerByKey.has(key))ledgerByKey.set(key,[]);ledgerByKey.get(key)!.push(row);}
+   for(const row of ftoRows){const key=String(row.job_card_number)+"|"+String(row.period_id||"");if(!ledgerByKey.has(key))ledgerByKey.set(key,[]);ledgerByKey.get(key)!.push(row);}
    const assignedLedger=new Map<string,string>();let ledgerUpdated=0,ledgerInserted=0,ledgerDeleted=0;
-   for(const card of cards)for(const period of periods){
+   for(const card of cards)for(const roundId of roundIds){
     if(exemptCards.has(card))continue;
-    const key=card+"|"+period,txRows=txByKey.get(key)||[];
+    const key=card+"|"+roundId,period=roundMonthById.get(roundId)||"",txRows=txByKey.get(key)||[];
     const active=txRows.filter(tx=>["blank","processed"].includes(String(tx.status))&&Number(tx.calculated_charge||0)>0);
     const refs=[...new Set(active.map(tx=>String(tx.reference_no)))],amount=Number(active.reduce((sum,tx)=>sum+Number(tx.calculated_charge||0),0).toFixed(2));
-    const existing=ledgerByKey.get(key)||[],keeper=existing.find(row=>(Array.isArray(row.reference_numbers)?row.reference_numbers:[]).some((ref:string)=>refs.includes(String(ref))))||existing[0]||null;
+    const existing=(ledgerByKey.get(key)||[]).concat(ftoRows.filter(row=>String(row.job_card_number)===card&&!row.period_id&&String(row.charge_period||"")===period&&(Array.isArray(row.reference_numbers)?row.reference_numbers:[]).some((ref:string)=>refs.includes(String(ref))))).filter((row,index,arr)=>arr.findIndex(other=>String(other.id)===String(row.id))===index),keeper=existing.find(row=>(Array.isArray(row.reference_numbers)?row.reference_numbers:[]).some((ref:string)=>refs.includes(String(ref))))||existing[0]||null;
     let ledgerId="";
     if(amount>0){
      const name=String(active[0]?.person_name||keeper?.person_name||"Name needs review"),isDeferred=active.every(tx=>String(tx.status)==="blank"),entryDate=ftoEntryDate(active,isDeferred);
-     if(keeper){const {error}=await admin.from("vbgramg_charge_ledger").update({person_name:name,amount,is_deferred:isDeferred,entry_date:entryDate,reference_numbers:refs,note:"FTO import"}).eq("id",keeper.id);if(error)throw error;ledgerId=String(keeper.id);ledgerUpdated++;}
-     else{const {data,error}=await admin.from("vbgramg_charge_ledger").insert({job_card_number:card,person_name:name,entry_type:"charge",amount,charge_period:period,entry_date:entryDate,note:"FTO import",reference_numbers:refs,is_deferred:isDeferred,created_by:authData.user.id}).select("id").single();if(error)throw error;ledgerId=String(data.id);ledgerInserted++;}
+     if(keeper){const {error}=await admin.from("vbgramg_charge_ledger").update({person_name:name,amount,is_deferred:isDeferred,entry_date:entryDate,reference_numbers:refs,note:"FTO import",charge_period:period,period_id:roundId}).eq("id",keeper.id);if(error)throw error;ledgerId=String(keeper.id);ledgerUpdated++;}
+     else{const {data,error}=await admin.from("vbgramg_charge_ledger").insert({job_card_number:card,person_name:name,entry_type:"charge",amount,charge_period:period,period_id:roundId,entry_date:entryDate,note:"FTO import",reference_numbers:refs,is_deferred:isDeferred,created_by:authData.user.id}).select("id").single();if(error)throw error;ledgerId=String(data.id);ledgerInserted++;}
      assignedLedger.set(key,ledgerId);
      const extras=existing.filter(row=>String(row.id)!==ledgerId);
      if(extras.length){const {error}=await admin.from("vbgramg_charge_ledger").delete().in("id",extras.map(row=>row.id));if(error)throw error;ledgerDeleted+=extras.length;}
@@ -425,22 +440,21 @@ Deno.serve(async(req:Request)=>{
    const {data:batchOld,error:batchOldError}=await admin.from("vbgramg_fto_batches").select("id,fto_number,contribution_period,ledger_charge_period,period_id,village_scope").eq("fto_number",ftoNumber).maybeSingle();
    if(batchOldError)throw batchOldError;
    if(!periodId){
-    let {data:legacyPeriod,error:legacyPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,status").eq("period_date",chargePeriod).maybeSingle();
+    let {data:legacyPeriod,error:legacyPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status").eq("period_name",contributionPeriod).eq("contribution_month",chargePeriod).maybeSingle();
     if(legacyPeriodError)throw legacyPeriodError;
-    if(!legacyPeriod){
-     const {data:createdPeriod,error:createPeriodError}=await admin.from("vbgramg_periods").insert({period_name:contributionPeriod,period_date:chargePeriod,status:"open",created_by:authData.user.id}).select("id,period_name,period_date,status").single();
-     if(createPeriodError)throw createPeriodError;
-     legacyPeriod=createdPeriod;
-    }
+    if(!legacyPeriod)return reply({error:"The selected charge round does not exist in Period Management. Create or select the correct round first."},400);
     periodId=String(legacyPeriod.id);
    }
-   const {data:selectedPeriod,error:selectedPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,status").eq("id",periodId).maybeSingle();
+   const {data:selectedPeriod,error:selectedPeriodError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status").eq("id",periodId).maybeSingle();
    if(selectedPeriodError)throw selectedPeriodError;
-   if(!selectedPeriod||selectedPeriod.period_date!==chargePeriod||selectedPeriod.period_name!==contributionPeriod)return reply({error:"Select a shared contribution month that matches the period."},400);
+   if(!selectedPeriod||selectedPeriod.contribution_month!==chargePeriod||selectedPeriod.period_name!==contributionPeriod)return reply({error:"Select a shared charge round for the chosen contribution month."},400);
    if(batchOld&&selectedPeriod.status!=="open"&&String(batchOld.period_id||"")!==periodId)return reply({error:"That period is closed. Reopen it before assigning an FTO."},409);
    if(!batchOld&&selectedPeriod.status!=="open")return reply({error:"That period is closed. Reopen it before importing an FTO."},409);
    if(batchOld&&(String(batchOld.contribution_period)!==contributionPeriod||String(batchOld.ledger_charge_period||"")!==chargePeriod)){
     return reply({error:"This FTO number is already saved with period \""+String(batchOld.contribution_period)+"\". The saved period cannot be changed during a re-import. If this is genuinely a different FTO, verify the FTO number first.",saved_period:batchOld.contribution_period},409);
+   }
+   if(batchOld&&batchOld.period_id&&String(batchOld.period_id)!==periodId){
+    return reply({error:"This FTO is already assigned to a different contribution round. Use the explicit FTO period reassignment workflow before importing it into another round."},409);
    }
    const incomingCards=[...new Set(normalized.filter(r=>r.is_in_scope).map(r=>String(r.job_card_number)))];
    const {data:exemptionRows,error:exemptionError}=await admin.from("vbgramg_contribution_exemptions").select("job_card_number");
@@ -486,18 +500,18 @@ Deno.serve(async(req:Request)=>{
     if(periodTxError)throw periodTxError;
     const periodBatchIds=[...new Set((periodTxs||[]).map(r=>String(r.batch_id)))];
     let periodBatches:Record<string,any>[]=[];
-    if(periodBatchIds.length){const {data,error}=await admin.from("vbgramg_fto_batches").select("id,fto_number,ledger_charge_period").in("id",periodBatchIds);if(error)throw error;periodBatches=data||[];}
+    if(periodBatchIds.length){const {data,error}=await admin.from("vbgramg_fto_batches").select("id,fto_number,ledger_charge_period,period_id").in("id",periodBatchIds);if(error)throw error;periodBatches=data||[];}
     const periodBatchMap=new Map(periodBatches.map(b=>[String(b.id),b]));
-    const conflictingFtos=[...new Set((periodTxs||[]).filter(tx=>tx.is_in_scope===true&&["blank","processed"].includes(String(tx.status))&&Number(tx.calculated_charge||0)>0).filter(tx=>{const b=periodBatchMap.get(String(tx.batch_id));return b&&String(b.ledger_charge_period||"")===chargePeriod&&String(b.fto_number||"")!==ftoNumber;}).map(tx=>String(tx.job_card_number)))];
+    const conflictingFtos=[...new Set((periodTxs||[]).filter(tx=>tx.is_in_scope===true&&["blank","processed"].includes(String(tx.status))&&Number(tx.calculated_charge||0)>0).filter(tx=>{const b=periodBatchMap.get(String(tx.batch_id));return b&&String(b.period_id||"")===periodId&&String(b.fto_number||"")!==ftoNumber;}).map(tx=>String(tx.job_card_number)))];
     if(conflictingFtos.length)return reply({error:"A different FTO number already has a charge for one or more job cards in this contribution period. Resolve the duplicate FTO before synchronizing.",conflicting_job_cards:conflictingFtos,fto_number:ftoNumber,charge_period:chargePeriod},409);
    }
    if(incomingRefs.length){
-    const {data:ledgerRefMatches,error:ledgerRefError}=await admin.from("vbgramg_charge_ledger").select("job_card_number,charge_period,note,reference_numbers").overlaps("reference_numbers",incomingRefs);
+    const {data:ledgerRefMatches,error:ledgerRefError}=await admin.from("vbgramg_charge_ledger").select("job_card_number,charge_period,period_id,note,reference_numbers").overlaps("reference_numbers",incomingRefs);
     if(ledgerRefError)throw ledgerRefError;
     for(const input of chargeCandidateRows){
      for(const old of ledgerRefMatches||[]){
       if(!(old.reference_numbers||[]).includes(String(input.reference_no)))continue;
-      const sameFtoLedger=String(old.job_card_number)===String(input.job_card_number)&&String(old.charge_period||"")===chargePeriod&&/^FTO\\b/i.test(String(old.note||""));
+      const sameFtoLedger=String(old.job_card_number)===String(input.job_card_number)&&String(old.period_id||"")===periodId&&String(old.charge_period||"")===chargePeriod&&/^FTO\\b/i.test(String(old.note||""));
       if(!sameFtoLedger)return reply({error:"Reference number "+input.reference_no+" already exists on a different or non-FTO ledger charge. Review the existing record before synchronizing.",duplicate_references:[{job_card_number:input.job_card_number,reference_numbers:[input.reference_no]}]},409);
      }
     }
@@ -518,9 +532,9 @@ Deno.serve(async(req:Request)=>{
     }
    }
    if(chargeCandidateCards.length){
-    const {data:existingLedger,error:existingLedgerError}=await admin.from("vbgramg_charge_ledger").select("job_card_number,person_name,amount,is_deferred,note,reference_numbers").in("job_card_number",chargeCandidateCards).eq("entry_type","charge").eq("charge_period",chargePeriod);
+    const {data:existingLedger,error:existingLedgerError}=await admin.from("vbgramg_charge_ledger").select("job_card_number,person_name,amount,is_deferred,note,reference_numbers,period_id").in("job_card_number",chargeCandidateCards).eq("entry_type","charge").eq("charge_period",chargePeriod);
     if(existingLedgerError)throw existingLedgerError;
-    const nonFto=[...new Map((existingLedger||[]).filter(r=>!/^FTO\b/i.test(String(r.note||""))).map(r=>[String(r.job_card_number),{job_card_number:r.job_card_number,person_name:r.person_name,amount:r.amount,is_deferred:r.is_deferred}])).values()];
+    const nonFto=[...new Map((existingLedger||[]).filter(r=>(!r.period_id||String(r.period_id)===periodId)&&!/^FTO\b/i.test(String(r.note||""))).map(r=>[String(r.job_card_number),{job_card_number:r.job_card_number,person_name:r.person_name,amount:r.amount,is_deferred:r.is_deferred}])).values()];
     const unreviewed=nonFto.filter(r=>!reviewed.has(String(r.job_card_number)));
     if(unreviewed.length)return reply({error:"Some local job cards already have non-FTO charges for this period. Review each flagged job card before continuing.",duplicates:unreviewed},409);
     const {data:knownLedger,error:knownLedgerError}=await admin.from("vbgramg_charge_ledger").select("job_card_number").in("job_card_number",chargeCandidateCards);
@@ -595,14 +609,14 @@ Deno.serve(async(req:Request)=>{
     if(trackedError)throw trackedError;
     const trackBatchIds=[...new Set((trackedRows||[]).map(r=>String(r.batch_id)))];
     let trackBatches:Record<string,any>[]=[];
-    if(trackBatchIds.length){const {data,error}=await admin.from("vbgramg_fto_batches").select("id,ledger_charge_period").in("id",trackBatchIds);if(error)throw error;trackBatches=data||[];}
-    const trackPeriod=new Map(trackBatches.map(r=>[String(r.id),String(r.ledger_charge_period||"")]));
-    const relevant=(trackedRows||[]).filter(r=>trackPeriod.get(String(r.batch_id))===chargePeriod&&r.is_in_scope===true);
+    if(trackBatchIds.length){const {data,error}=await admin.from("vbgramg_fto_batches").select("id,ledger_charge_period,period_id").in("id",trackBatchIds);if(error)throw error;trackBatches=data||[];}
+     const trackPeriod=new Map(trackBatches.map(r=>[String(r.id),{month:String(r.ledger_charge_period||""),periodId:String(r.period_id||"")}]));
+     const relevant=(trackedRows||[]).filter(r=>{const p=trackPeriod.get(String(r.batch_id));return p?.month===chargePeriod&&p.periodId===periodId&&r.is_in_scope===true;});
     const latestByReference=new Map<string,Record<string,any>>();
     for(const tx of relevant){const key=String(tx.reference_no),old=latestByReference.get(key);if(!old||String(tx.last_seen_at)>String(old.last_seen_at))latestByReference.set(key,tx);}
     const txByCard=new Map<string,Record<string,any>[]>();
     for(const tx of latestByReference.values()){const card=String(tx.job_card_number);if(!txByCard.has(card))txByCard.set(card,[]);txByCard.get(card)!.push(tx);}
-    const {data:ledgerRows,error:ledgerRowsError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,note,reference_numbers,import_id").in("job_card_number",affectedCards).eq("entry_type","charge").eq("charge_period",chargePeriod);
+    const {data:ledgerRows,error:ledgerRowsError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,note,reference_numbers,import_id,period_id").in("job_card_number",affectedCards).eq("entry_type","charge").eq("charge_period",chargePeriod);
     if(ledgerRowsError)throw ledgerRowsError;
     for(const card of affectedCards){
      if(exemptCards.has(card))continue;
@@ -610,8 +624,8 @@ Deno.serve(async(req:Request)=>{
      const active=txs.filter(tx=>["blank","processed"].includes(String(tx.status))&&Number(tx.calculated_charge||0)>0);
      const refs=[...new Set(active.map(tx=>String(tx.reference_no)))];
      const amount=Number(active.reduce((sum,tx)=>sum+Number(tx.calculated_charge||0),0).toFixed(2));
-     const ftoRows=(ledgerRows||[]).filter(r=>String(r.job_card_number)===card&&/^FTO\b/i.test(String(r.note||""))&&!/^FTO EXTRA\b/i.test(String(r.note||"")));
-     const keeper=ftoRows.find(r=>(r.reference_numbers||[]).some((ref:string)=>refs.includes(String(ref))))||ftoRows[0]||null;
+      const ftoRows=(ledgerRows||[]).filter(r=>String(r.job_card_number)===card&&/^FTO\b/i.test(String(r.note||""))&&!/^FTO EXTRA\b/i.test(String(r.note||""))&&(String(r.period_id||"")===periodId||(!r.period_id&&(r.reference_numbers||[]).some((ref:string)=>refs.includes(String(ref))))));
+      const keeper=ftoRows.find(r=>(r.reference_numbers||[]).some((ref:string)=>refs.includes(String(ref))))||ftoRows[0]||null;
      if(amount>0){
       const isDeferred=active.every(tx=>String(tx.status)==="blank"),entryDate=ftoEntryDate(active,isDeferred);
       const activeApplicantName=String((normalized.find(r=>String(r.job_card_number)===card&&r.is_in_scope)?.person_name)||"");
@@ -620,12 +634,12 @@ Deno.serve(async(req:Request)=>{
       const applicantFields=applicantMatch?{applicant_name:applicantMatch.applicant_name,applicant_number:applicantMatch.applicant_number,applicant_unique_id:applicantMatch.applicant_unique_id}:{};
       let ledgerId="";
       if(keeper){
-       const {error:updateLedgerError}=await admin.from("vbgramg_charge_ledger").update({person_name:name||keeper.person_name,amount,is_deferred:isDeferred,entry_date:entryDate,reference_numbers:refs,note:"FTO import",...applicantFields}).eq("id",keeper.id);
+       const {error:updateLedgerError}=await admin.from("vbgramg_charge_ledger").update({period_id:periodId,person_name:name||keeper.person_name,amount,is_deferred:isDeferred,entry_date:entryDate,reference_numbers:refs,note:"FTO import",...applicantFields}).eq("id",keeper.id);
        if(updateLedgerError)throw updateLedgerError;ledgerId=String(keeper.id);updatedCount++;
       }else{
        const {data:newLedger,error:insertLedgerError}=await admin.from("vbgramg_charge_ledger").insert({
         job_card_number:card,person_name:name||"Name needs review",...applicantFields,entry_type:"charge",amount,
-        charge_period:chargePeriod,entry_date:entryDate,note:"FTO import",
+        charge_period:chargePeriod,period_id:periodId,entry_date:entryDate,note:"FTO import",
         reference_numbers:refs,is_deferred:isDeferred,created_by:authData.user.id,import_id:importId
        }).select("id").single();
        if(insertLedgerError)throw insertLedgerError;ledgerId=String(newLedger.id);insertedCount++;
@@ -655,8 +669,12 @@ Deno.serve(async(req:Request)=>{
 
   if(action==="sync-fto-status"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can apply FTO statuses."},403);
-   const period=String(body.charge_period||"").trim(),periodMatch=period.match(/^(\d{4})-(\d{2})-01$/);
+   const period=String(body.charge_period||"").trim(),periodId=String(body.period_id||"").trim(),periodMatch=period.match(/^(\d{4})-(\d{2})-01$/);
    if(!periodMatch||Number(periodMatch[2])<1||Number(periodMatch[2])>12)return reply({error:"Choose a valid contribution month."},400);
+   if(!periodId)return reply({error:"Select a specific contribution round."},400);
+   const {data:selectedRound,error:selectedRoundError}=await admin.from("vbgramg_periods").select("id,contribution_month").eq("id",periodId).maybeSingle();
+   if(selectedRoundError)throw selectedRoundError;
+   if(!selectedRound||String(selectedRound.contribution_month||"")!==period)return reply({error:"The selected contribution round does not match the month."},400);
    const mode=String(body.mode||""),rows=body.rows;
    if(!["processed","blank","rejected"].includes(mode)||!Array.isArray(rows)||rows.length<1||rows.length>1000)return reply({error:"Choose a valid FTO status action and at least one matching job card."},400);
    const sourceSha=String(body.source_sha256||"").toLowerCase(),sourceFilename=String(body.source_filename||"").trim().slice(0,255);
@@ -678,22 +696,22 @@ Deno.serve(async(req:Request)=>{
    if(priorError)throw priorError;
    if(prior&&prior.status==="complete")return reply({approved:true,already_applied:true,inserted:0,updated:0,deleted:0,skipped:0,total_amount:prior.total_amount});
    const cards=normalized.map(r=>String(r.job_card_number));
-   const {data:existing,error:existingError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,note,import_id,reference_numbers").in("job_card_number",cards).eq("entry_type","charge").eq("charge_period",period);
+   const {data:existing,error:existingError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,note,import_id,reference_numbers,period_id").in("job_card_number",cards).eq("entry_type","charge").eq("charge_period",period).eq("period_id",periodId);
    if(existingError)throw existingError;
    const allReferences=[...new Set(normalized.flatMap(r=>r.reference_numbers as string[]))];
    const referenceOwners=new Map<string,string>();
    for(const row of normalized){for(const reference of row.reference_numbers as string[]){const owner=referenceOwners.get(reference);if(owner&&owner!==String(row.job_card_number))return reply({error:"The same reference number appears under multiple job cards in this pasted table: "+reference+". Nothing was changed."},400);referenceOwners.set(reference,String(row.job_card_number));}}
    if(mode!=="rejected"&&allReferences.length){
-    const {data:refMatches,error:refError}=await admin.from("vbgramg_charge_ledger").select("job_card_number,charge_period,note,reference_numbers").overlaps("reference_numbers",allReferences);
+    const {data:refMatches,error:refError}=await admin.from("vbgramg_charge_ledger").select("job_card_number,charge_period,period_id,note,reference_numbers").overlaps("reference_numbers",allReferences);
     if(refError)throw refError;
     const blockers=new Map<string,Set<string>>();
-    for(const row of normalized){for(const reference of row.reference_numbers as string[]){for(const old of refMatches||[]){if(!(old.reference_numbers||[]).includes(reference))continue;const oldRefs=old.reference_numbers||[];const rowRefs=row.reference_numbers as string[];const sameReferenceSet=oldRefs.length===rowRefs.length&&rowRefs.every(reference=>oldRefs.includes(reference));const sameExistingCharge=String(old.job_card_number)===String(row.job_card_number)&&String(old.charge_period||"")===period&&/^FTO\b/i.test(String(old.note||""))&&sameReferenceSet;if(!sameExistingCharge){const card=String(row.job_card_number);if(!blockers.has(card))blockers.set(card,new Set());blockers.get(card)!.add(reference);}}}}
+    for(const row of normalized){for(const reference of row.reference_numbers as string[]){for(const old of refMatches||[]){if(!(old.reference_numbers||[]).includes(reference))continue;const oldRefs=old.reference_numbers||[];const rowRefs=row.reference_numbers as string[];const sameReferenceSet=oldRefs.length===rowRefs.length&&rowRefs.every(reference=>oldRefs.includes(reference));const sameExistingCharge=String(old.job_card_number)===String(row.job_card_number)&&String(old.period_id||"")===periodId&&String(old.charge_period||"")===period&&/^FTO\b/i.test(String(old.note||""))&&sameReferenceSet;if(!sameExistingCharge){const card=String(row.job_card_number);if(!blockers.has(card))blockers.set(card,new Set());blockers.get(card)!.add(reference);}}}}
     if(blockers.size)return reply({error:"One or more reference numbers have already been imported for a different job card, period, or non-FTO charge. Duplicate references cannot be imported again.",duplicate_references:[...blockers].map(([job_card_number,refs])=>({job_card_number,reference_numbers:[...refs]}))},409);
    }
    const byCard=new Map<string,Record<string,any>[]>();
    for(const row of existing||[]){const key=String(row.job_card_number);if(!byCard.has(key))byCard.set(key,[]);byCard.get(key)!.push(row);}
    if(mode==="rejected"){
-    const deletable=(existing||[]).filter(r=>/^FTO\b/i.test(String(r.note||""))&&r.is_deferred===true&&normalized.some(n=>String(n.job_card_number)===String(r.job_card_number)&&Array.isArray(r.reference_numbers)&&r.reference_numbers.length===(n.reference_numbers||[]).length&&r.reference_numbers.every((ref:string)=>(n.reference_numbers||[]).includes(String(ref)))));
+    const deletable=(existing||[]).filter(r=>String(r.period_id||"")===periodId&&/^FTO\b/i.test(String(r.note||""))&&r.is_deferred===true&&normalized.some(n=>String(n.job_card_number)===String(r.job_card_number)&&Array.isArray(r.reference_numbers)&&r.reference_numbers.length===(n.reference_numbers||[]).length&&r.reference_numbers.every((ref:string)=>(n.reference_numbers||[]).includes(String(ref)))));
     if(deletable.length){const {error:deleteError}=await admin.from("vbgramg_charge_ledger").delete().in("id",deletable.map(r=>r.id));if(deleteError)throw deleteError;}
     const {error:auditError}=await admin.from("vbgramg_charge_imports").insert({source_filename:sourceFilename,source_sha256:sourceSha,charge_period:period,row_count:normalized.length,total_amount:0,status:"complete",completed_at:new Date().toISOString(),imported_by:authData.user.id,notes:("FTO rejected-status cleanup; deleted "+deletable.length+" matching deferred charge(s)").slice(0,500)});
     if(auditError&&auditError.code!=="23505")throw auditError;
@@ -735,12 +753,12 @@ Deno.serve(async(req:Request)=>{
     const matches=byCard.get(String(row.job_card_number))||[],ftoMatches=matches.filter(ftoExisting);
     if(ftoMatches.length){
      const keeper=ftoMatches[0];
-     const {error:updateError}=await admin.from("vbgramg_charge_ledger").update({person_name:row.person_name,amount:row.amount,is_deferred:mode==="blank",entry_date:mode==="blank"?null:(row.processed_date||null),note:"FTO import",reference_numbers:row.reference_numbers,...applicantFields}).eq("id",keeper.id);
+     const {error:updateError}=await admin.from("vbgramg_charge_ledger").update({person_name:row.person_name,amount:row.amount,is_deferred:mode==="blank",entry_date:mode==="blank"?null:(row.processed_date||null),note:"FTO import",reference_numbers:row.reference_numbers,period_id:periodId,...applicantFields}).eq("id",keeper.id);
      if(updateError)throw updateError;updated++;
      for(const extra of ftoMatches.slice(1)){if(extra.is_deferred===true){const {error:extraDeleteError}=await admin.from("vbgramg_charge_ledger").delete().eq("id",extra.id);if(extraDeleteError)throw extraDeleteError;}}
      continue;
     }
-    const {error:insertError}=await admin.from("vbgramg_charge_ledger").insert({job_card_number:row.job_card_number,person_name:row.person_name,...applicantFields,entry_type:"charge",amount:row.amount,charge_period:period,entry_date:mode==="blank"?null:(row.processed_date||null),note:"FTO import",reference_numbers:row.reference_numbers,is_deferred:mode==="blank",created_by:authData.user.id,import_id:importId});
+    const {error:insertError}=await admin.from("vbgramg_charge_ledger").insert({job_card_number:row.job_card_number,person_name:row.person_name,...applicantFields,entry_type:"charge",amount:row.amount,charge_period:period,entry_date:mode==="blank"?null:(row.processed_date||null),note:"FTO import",reference_numbers:row.reference_numbers,is_deferred:mode==="blank",created_by:authData.user.id,import_id:importId,period_id:periodId});
     if(insertError)throw insertError;inserted++;
    }
    const {error:completeError}=await admin.from("vbgramg_charge_imports").update({status:"complete",completed_at:new Date().toISOString(),row_count:normalized.length,total_amount:totalAmount}).eq("id",importId);if(completeError)throw completeError;
@@ -750,12 +768,19 @@ Deno.serve(async(req:Request)=>{
 
   if(action==="save-contribution-extra"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can save extra contribution charges."},403);
-   const jobCard=String(body.job_card_number||"").trim(),period=String(body.charge_period||"").trim(),amount=Number(body.amount),reason=String(body.reason||"").trim().slice(0,500);
+   const jobCard=String(body.job_card_number||"").trim(),period=String(body.charge_period||"").trim(),periodId=String(body.period_id||"").trim(),amount=Number(body.amount),reason=String(body.reason||"").trim().slice(0,500);
    const periodMatch=period.match(/^(\d{4})-(\d{2})-01$/);
    if(!jobCard)return reply({error:"Choose a job card."},400);
    if(!periodMatch||Number(periodMatch[2])<1||Number(periodMatch[2])>12)return reply({error:"Choose a valid contribution month."},400);
+   if(!periodId)return reply({error:"Select a specific contribution round."},400);
    if(!Number.isFinite(amount)||amount<=0||amount>10000000)return reply({error:"Enter an extra amount greater than zero."},400);
    if(!reason)return reply({error:"Enter a reason for the extra amount."},400);
+   const {data:selectedRound,error:selectedRoundError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status").eq("id",periodId).maybeSingle();
+   if(selectedRoundError)throw selectedRoundError;
+   if(!selectedRound)return reply({error:"The selected contribution round was not found."},404);
+   if(String(selectedRound.status||"open")!=="open")return reply({error:"This contribution round is closed. Reopen it before changing its extra charge."},409);
+   const selectedMonth=String(selectedRound.contribution_month||selectedRound.period_date||"").slice(0,7);
+   if(selectedMonth!==period.slice(0,7))return reply({error:"The selected contribution round does not match the chosen month."},400);
    const {data:known,error:knownError}=await admin.from("vbgramg_charge_ledger").select("person_name").eq("job_card_number",jobCard).limit(1).maybeSingle();
    if(knownError)throw knownError;
    const {data:citizen,error:citizenError}=await admin.from("vbgramg_contribution_citizens").select("job_card_number,person_name").eq("job_card_number",jobCard).maybeSingle();
@@ -763,20 +788,20 @@ Deno.serve(async(req:Request)=>{
    if(!known&&!citizen)return reply({error:"This job card is not present in the contribution records."},404);
    const personName=String(known?.person_name||citizen?.person_name||"").trim()||jobCard;
    const note=("FTO EXTRA: "+reason).slice(0,200);
-   const {data:oldExtra,error:oldExtraError}=await admin.from("vbgramg_contribution_extras").select("id,ledger_entry_id,created_by").eq("job_card_number",jobCard).eq("charge_period",period).maybeSingle();
+   const {data:oldExtra,error:oldExtraError}=await admin.from("vbgramg_contribution_extras").select("id,ledger_entry_id,created_by").eq("job_card_number",jobCard).eq("period_id",periodId).maybeSingle();
    if(oldExtraError)throw oldExtraError;
    let ledgerEntry:any=null;
    if(oldExtra?.ledger_entry_id){
-    const {data:updated,error:updateError}=await admin.from("vbgramg_charge_ledger").update({person_name:personName,amount,entry_date:new Date().toISOString().slice(0,10),note,charge_period:period,is_deferred:false}).eq("id",oldExtra.ledger_entry_id).select("id,job_card_number,person_name,entry_type,amount,charge_period,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").maybeSingle();
+    const {data:updated,error:updateError}=await admin.from("vbgramg_charge_ledger").update({person_name:personName,amount,entry_date:new Date().toISOString().slice(0,10),note,charge_period:period,period_id:periodId,is_deferred:false}).eq("id",oldExtra.ledger_entry_id).select("id,job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").maybeSingle();
     if(updateError)throw updateError;
     ledgerEntry=updated;
    }
    if(!ledgerEntry){
-    const {data:created,error:createError}=await admin.from("vbgramg_charge_ledger").insert({job_card_number:jobCard,person_name:personName,entry_type:"charge",amount,charge_period:period,entry_date:new Date().toISOString().slice(0,10),note,is_deferred:false,created_by:authData.user.id}).select("id,job_card_number,person_name,entry_type,amount,charge_period,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").single();
+    const {data:created,error:createError}=await admin.from("vbgramg_charge_ledger").insert({job_card_number:jobCard,person_name:personName,entry_type:"charge",amount,charge_period:period,period_id:periodId,entry_date:new Date().toISOString().slice(0,10),note,is_deferred:false,created_by:authData.user.id}).select("id,job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").single();
     if(createError)throw createError;
     ledgerEntry=created;
    }
-   const {data:extra,error:extraError}=await admin.from("vbgramg_contribution_extras").upsert({job_card_number:jobCard,person_name:personName,charge_period:period,amount,reason,ledger_entry_id:ledgerEntry.id,created_by:oldExtra?.created_by||authData.user.id,updated_by:authData.user.id,updated_at:new Date().toISOString()},{onConflict:"job_card_number,charge_period"}).select("id,job_card_number,person_name,charge_period,amount,reason,ledger_entry_id,created_at,updated_at").single();
+   const {data:extra,error:extraError}=await admin.from("vbgramg_contribution_extras").upsert({job_card_number:jobCard,person_name:personName,charge_period:period,period_id:periodId,amount,reason,ledger_entry_id:ledgerEntry.id,created_by:oldExtra?.created_by||authData.user.id,updated_by:authData.user.id,updated_at:new Date().toISOString()},{onConflict:"job_card_number,period_id"}).select("id,job_card_number,person_name,charge_period,period_id,amount,reason,ledger_entry_id,created_at,updated_at").single();
    if(extraError)throw extraError;
    return reply({approved:true,extra,entry:ledgerEntry,updated:Boolean(oldExtra)});
   }
@@ -787,7 +812,7 @@ Deno.serve(async(req:Request)=>{
    if(!id)return reply({error:"Ledger entry ID is required."},400);
    if(!Number.isFinite(amount)||amount<=0||amount>10000000)return reply({error:"Enter a valid positive amount."},400);
    if(!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)||Number.isNaN(Date.parse(entryDate)))return reply({error:"Enter a valid transaction date."},400);
-   const {data:old,error:oldError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,entry_type,amount,charge_period,entry_date,note,import_id,created_by,created_at,is_deferred,legacy_entry_id,source_created_at_ms").eq("id",id).maybeSingle();
+   const {data:old,error:oldError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note,import_id,created_by,created_at,is_deferred,legacy_entry_id,source_created_at_ms").eq("id",id).maybeSingle();
    if(oldError)throw oldError;if(!old)return reply({error:"Ledger entry was not found."},404);
    const type=String(old.entry_type||"");
    const isLegacyReturn=type==="charge"&&String(old.note||"").trim().toLowerCase()==="return";
@@ -798,11 +823,13 @@ Deno.serve(async(req:Request)=>{
    if(type==="charge"&&!isLegacyReturn){
     chargePeriod=String(body.charge_period||"").trim();
     if(!/^\d{4}-\d{2}-01$/.test(chargePeriod)||Number(chargePeriod.slice(5,7))<1||Number(chargePeriod.slice(5,7))>12)return reply({error:"Choose a valid charge month."},400);
+    if(String(old.period_id||"")&&chargePeriod!==String(old.charge_period||""))return reply({error:"This charge belongs to a specific contribution round. Change its round through the FTO period reassignment workflow, not by editing the month here."},409);
+    if(/^FTO\b/i.test(String(old.note||""))&&chargePeriod!==String(old.charge_period||""))return reply({error:"FTO-imported charges must be reassigned through the FTO period workflow so the batch and ledger remain synchronized."},409);
    }
    const isDeferred=type==="charge"&&!isLegacyReturn?Boolean(body.is_deferred):Boolean(old.is_deferred);
    const patch:Record<string,unknown>={amount,entry_date:entryDate,note:note||null};
    if(type==="charge"&&!isLegacyReturn){patch.charge_period=chargePeriod;patch.is_deferred=isDeferred;}
-   const {data:updated,error:updateError}=await admin.from("vbgramg_charge_ledger").update(patch).eq("id",id).select("id,job_card_number,person_name,entry_type,amount,charge_period,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").single();
+   const {data:updated,error:updateError}=await admin.from("vbgramg_charge_ledger").update(patch).eq("id",id).select("id,job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").single();
    if(updateError)throw updateError;
    const {error:auditError}=await admin.from("vbgramg_ledger_audit").insert({ledger_entry_id:id,job_card_number:old.job_card_number,action:"edit",actor_user_id:authData.user.id,actor_email:email,before_data:old,after_data:updated});
    if(auditError)throw auditError;

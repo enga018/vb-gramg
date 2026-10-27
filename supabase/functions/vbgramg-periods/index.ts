@@ -18,7 +18,8 @@ function reply(req: Request, body: Record<string, unknown>, status = 200) {
 const clean = (v: unknown, max = 120) => typeof v === "string" ? v.trim().slice(0, max) : "";
 function monthName(date: string) {
   const [year, month] = date.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+  const shortMonth = new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }).toUpperCase();
+  return shortMonth + String(year).slice(-2);
 }
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: headers(req) });
@@ -42,14 +43,14 @@ Deno.serve(async (req: Request) => {
     try { body = await req.json(); } catch { return reply(req, { error: "Invalid JSON request." }, 400); }
     const action = clean(body.action, 30);
     if (action === "list") {
-      const { data, error } = await admin.from("vbgramg_periods").select("id,period_name,period_date,days,status,created_at,updated_at,closed_at").order("period_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false });
+      const { data, error } = await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,days,status,created_at,updated_at,closed_at").order("contribution_month", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false });
       if (error) throw error;
       return reply(req, { approved: true, periods: data || [] });
     }
     const id = clean(body.id, 64);
     if (["close", "reopen", "update"].includes(action)) {
       if (!id) return reply(req, { error: "A period ID is required." }, 400);
-      const { data: existing, error: readError } = await admin.from("vbgramg_periods").select("id,period_name,period_date,days,status").eq("id", id).maybeSingle();
+      const { data: existing, error: readError } = await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,days,status").eq("id", id).maybeSingle();
       if (readError) throw readError;
       if (!existing) return reply(req, { error: "Period not found." }, 404);
       let patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -59,38 +60,18 @@ Deno.serve(async (req: Request) => {
         const daysRaw = body.days === null || body.days === "" || body.days === undefined ? null : Number(body.days);
         if (daysRaw !== null && (!Number.isInteger(daysRaw) || daysRaw < 1 || daysRaw > 365)) return reply(req, { error: "Days must be a whole number from 1 to 365, or blank." }, 400);
         patch.days = daysRaw;
-        if (!existing.period_date) {
-          const name = clean(body.periodName, 120);
-          if (!name) return reply(req, { error: "Period name is required." }, 400);
-          patch.period_name = name;
-        } else if (body.periodName && clean(body.periodName, 120) !== existing.period_name) {
-          return reply(req, { error: "Monthly contribution period names are fixed to their month and year." }, 400);
+        if (body.periodName && clean(body.periodName, 120) !== existing.period_name) {
+          return reply(req, { error: "Generated period names cannot be changed. The name identifies its contribution month and charge round." }, 400);
         }
       }
-      const { data, error } = await admin.from("vbgramg_periods").update(patch).eq("id", id).select("id,period_name,period_date,days,status,created_at,updated_at,closed_at").single();
+      const { data, error } = await admin.from("vbgramg_periods").update(patch).eq("id", id).select("id,period_name,period_date,contribution_month,days,status,created_at,updated_at,closed_at").single();
       if (error) {
-        if (error.code === "23505") return reply(req, { error: "A period with that name or month already exists." }, 409);
+        if (error.code === "23505") return reply(req, { error: "Could not update this period. Refresh and try again." }, 409);
         throw error;
       }
       return reply(req, { approved: true, period: data });
     }
-    if (action === "create") {
-      let periodName = clean(body.periodName, 120);
-      const date = clean(body.periodDate, 10);
-      const days = body.days === null || body.days === "" || body.days === undefined ? null : Number(body.days);
-      if (date) {
-        if (!/^\d{4}-\d{2}-01$/.test(date) || Number.isNaN(Date.parse(date))) return reply(req, { error: "Choose the first day of a month for a contribution period." }, 400);
-        periodName = monthName(date);
-      }
-      if (!periodName) return reply(req, { error: "Enter a period name or select a contribution month." }, 400);
-      if (days !== null && (!Number.isInteger(days) || days < 1 || days > 365)) return reply(req, { error: "Days must be a whole number from 1 to 365, or blank." }, 400);
-      const { data, error } = await admin.from("vbgramg_periods").insert({ period_name: periodName, period_date: date || null, days, status: "open", created_by: user.id }).select("id,period_name,period_date,days,status,created_at,updated_at,closed_at").single();
-      if (error) {
-        if (error.code === "23505") return reply(req, { error: "A period with that name or month already exists." }, 409);
-        throw error;
-      }
-      return reply(req, { approved: true, period: data }, 201);
-    }
+    if (action === "create") { return reply(req, { error: "Periods are created automatically when a Work Demand is confirmed and saved." }, 403); }
     return reply(req, { error: "Unsupported action." }, 400);
   } catch (error) {
     console.error("Period management failed:", error);

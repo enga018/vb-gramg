@@ -62,7 +62,6 @@ header .top-actions > button:hover {
   color: #0f172a !important;
 }
 
-
 /* Manual Review mobile refinement: improve action reach and confirmation readability. */
 @media(max-width:700px){
   .panel{min-width:0}
@@ -91,7 +90,6 @@ header .top-actions > button:hover {
   .confirm-summary div{flex-direction:column;gap:3px}
   .confirm-summary dd{text-align:left}
 }
-
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -101,9 +99,9 @@ header .top-actions > button:hover {
 
 <section class="panel hidden" aria-labelledby="period-heading">
 <h2 id="period-heading">Demand details</h2>
-<p class="sub">Select an open period from the shared list. Create, close, or reopen periods from Period Management. The applicant lists load automatically.</p>
+<p class="sub">Choose the month for this demand and enter the number of days. A unique period is created only when you confirm and save the demand.</p>
 <div class="fields">
-<div class="field"><label for="periodName">Period</label><select id="periodName" required><option value="">Loading open periods…</option></select></div>
+<div class="field"><label for="contributionMonth">Contribution month</label><input id="contributionMonth" type="month" required></div>
 <div class="field"><label for="days">No. of Days</label><input id="days" type="number" min="1" max="365" step="1" inputmode="numeric" placeholder="Days"></div>
 </div>
 <div class="actions" style="margin-top:10px"><button id="continueReviewBtn" type="button">Continue to Manual Review</button></div>
@@ -172,9 +170,12 @@ const $=id=>document.getElementById(id);
 const query = new URLSearchParams(location.search);
 const reviewMode = true;
 const resultsMode = false;
+const draftId = query.get("draftId") || crypto.randomUUID();
+if(query.get("contributionMonth")) $("contributionMonth").value = query.get("contributionMonth").slice(0,7);
+if(query.get("days")) $("days").value = query.get("days");
 const includedKey = id => "vbgramg-demand-included:" + id;
 let allCards=[],selectedApplicants=new Map(),contributionData=null,reviewApplicants=[],allReviewCandidates=[],demandApplicants=[],generated=null,pendingSnapshot=null,loading=false,loadSequence=0,saving=false,periods=[];const pageSize=50;const tablePages={review:0,demand:0,unwilling:0};
-function currentPeriodId(){return $("periodName").value || query.get("periodId") || "";}
+function currentPeriodId(){return query.get("periodId") || draftId;}
 function getIncludedIds(id){try{return new Set(JSON.parse(localStorage.getItem(includedKey(id)) || "[]"));}catch{return new Set();}}
 function saveIncludedIds(id,ids){localStorage.setItem(includedKey(id),JSON.stringify([...ids]));}
 function applyWorkflowVisibility(){
@@ -185,15 +186,18 @@ function applyWorkflowVisibility(){
 }
 const normalize=value=>String(value==null?'':value).trim();
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function selectedPeriod(){return periods.find(p=>p.id===$('periodName').value)||null;}
+function monthLabel(value){if(!value)return '';const [year,month]=value.split('-').map(Number);return new Date(Date.UTC(year,month-1,1)).toLocaleDateString('en-US',{month:'long',year:'numeric',timeZone:'UTC'});}
+function selectedPeriod(){return periods.find(p=>p.id===query.get('periodId'))||null;}
 async function loadPeriods(){
  const {data,error}=await supabaseClient.functions.invoke('vbgramg-periods',{body:{action:'list'}});
  if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||'Could not load shared periods.');
- periods=(data.periods||[]).filter(p=>p.status==='open');
- const select=$('periodName'),old=select.value;select.replaceChildren();
- const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent=periods.length?'Select a period':'No open periods — create one in Period Management';select.appendChild(placeholder);
- for(const p of periods){const option=document.createElement('option');option.value=p.id;option.textContent=p.period_name;option.dataset.name=p.period_name;option.dataset.days=p.days??'';select.appendChild(option);}
- if(periods.some(p=>p.id===old))select.value=old;
+ periods=data.periods||[];
+ const existing=selectedPeriod();
+ if(existing){
+  const month=existing.contribution_month||existing.period_date;
+  if(month&&!$('contributionMonth').value)$('contributionMonth').value=month.slice(0,7);
+  if(existing.days&&!$('days').value)$('days').value=String(existing.days);
+ }
 }
 function status(message,type='info'){const el=$('status');el.textContent=message;el.className='status'+(type==='error'?' error':type==='success'?' success':'');}
 function generatedStatus(message,type='info'){const el=$('generateStatus');el.textContent=message;el.className='status'+(type==='error'?' error':type==='success'?' success':'');}
@@ -278,7 +282,7 @@ async function load(){
   if(seq!==loadSequence)return;
   if(accessError||!access||access.approved!==true){await supabaseClient.auth.signOut();window.location.replace('./');return;}
   await loadPeriods();
-  if(query.get("periodId") && periods.some(p=>p.id===query.get("periodId"))) $("periodName").value=query.get("periodId");
+
   if(query.get("days") && /^\d+$/.test(query.get("days"))) $("days").value=query.get("days");
   applyWorkflowVisibility();
   status('Loading active MIS data and Contribution balances…');
@@ -378,31 +382,30 @@ $('reviewBody').addEventListener('click',event=>{
  saveIncludedIds(currentPeriodId(),ids);tablePages.demand=Math.max(0,Math.ceil(demandApplicants.length/pageSize)-1);invalidateGenerated();renderLists();
  status(existing>=0?'Applicant removed from Work Demand.':'Applicant included in Work Demand.','success');
 });
-$('periodName').addEventListener('change',()=>{const p=selectedPeriod();if(p&&p.days&&!$('days').value)$('days').value=String(p.days);invalidateGenerated();});
+$('contributionMonth').addEventListener('change',()=>{invalidateGenerated();});
 $('continueReviewBtn').addEventListener('click',()=>{
- const p=selectedPeriod(),days=Number($('days').value);
- if(!p){$('periodName').focus();status('Select an open period first.','error');return;}
+ const month=$('contributionMonth').value,days=Number($('days').value);
+ if(!month){$('contributionMonth').focus();status('Choose the contribution month first.','error');return;}
  if(!Number.isInteger(days)||days<1||days>365){$('days').focus();status('Enter a whole number of days from 1 to 365.','error');return;}
- const next=new URL('./demand-review.html',location.href);next.searchParams.set('periodId',p.id);next.searchParams.set('days',String(days));location.href=next.toString();
+ const next=new URL('./demand-review.html',location.href);
+ next.searchParams.set('contributionMonth',month+'-01');next.searchParams.set('draftId',draftId);next.searchParams.set('days',String(days));
+ location.href=next.toString();
 });
 $('days').addEventListener('input',()=>{invalidateGenerated();});
 $('generateBtn').addEventListener('click',()=>{
- const chosenPeriod=selectedPeriod(),period=chosenPeriod?.period_name||'',days=Number($('days').value);
- if(!chosenPeriod){$('periodName').focus();generatedStatus('Select an open period before generating. If no period is available, create one in Period Management.','error');$('generateStatus').classList.remove('hidden');return;}
+ const monthValue=$('contributionMonth').value||(query.get('contributionMonth')||'').slice(0,7);
+ const contributionMonth=monthValue?monthValue+'-01':'';
+ const chosenPeriod=selectedPeriod(),period=monthLabel(monthValue),days=Number($('days').value);
+ if(!monthValue){$('contributionMonth').focus();generatedStatus('Choose the contribution month before generating.','error');$('generateStatus').classList.remove('hidden');return;}
  if(!Number.isInteger(days)||days<1||days>365){$('days').focus();generatedStatus('Enter a whole number of days from 1 to 365.','error');$('generateStatus').classList.remove('hidden');return;}
  const unwilling=getUnwillingCards();
- pendingSnapshot={period,periodId:chosenPeriod.id,days,demand:demandApplicants.map(a=>({...a})),unwilling,createdAt:new Date().toISOString()};
- $('confirmPeriod').textContent=period;
- $('confirmDays').textContent=String(days);
- $('confirmDemandCount').textContent=String(pendingSnapshot.demand.length);
- $('confirmUnwillingCount').textContent=String(pendingSnapshot.unwilling.length);
- $('confirmError').textContent='';
- $('confirmSaveBtn').disabled=false;
- $('cancelConfirmBtn').disabled=false;
- $('exportsPanel').classList.add('hidden');
- $('confirmDialog').showModal();
+ pendingSnapshot={period,contributionMonth,periodId:chosenPeriod?.id||'',periodName:chosenPeriod?.period_name||'',draftId,days,demand:demandApplicants.map(a=>({...a})),unwilling,createdAt:new Date().toISOString()};
+ $('confirmPeriod').textContent=period;$('confirmDays').textContent=String(days);
+ $('confirmDemandCount').textContent=String(pendingSnapshot.demand.length);$('confirmUnwillingCount').textContent=String(pendingSnapshot.unwilling.length);
+ $('confirmError').textContent='';$('confirmSaveBtn').disabled=false;$('cancelConfirmBtn').disabled=false;
+ $('exportsPanel').classList.add('hidden');$('confirmDialog').showModal();
 });
-$('confirmReviewBtn').addEventListener('click',()=>{const p=selectedPeriod(),days=Number($('days').value);if(!p||!Number.isInteger(days)||days<1||days>365){status('Period details are missing. Return to setup and try again.','error');return;}const next=new URL('./demand.html',location.href);next.searchParams.set('stage','results');next.searchParams.set('periodId',p.id);next.searchParams.set('days',String(days));location.href=next.toString();});
+$('confirmReviewBtn').addEventListener('click',()=>{const month=$('contributionMonth').value||(query.get('contributionMonth')||'').slice(0,7),days=Number($('days').value);if(!month||!Number.isInteger(days)||days<1||days>365){status('Choose a contribution month and valid number of days.','error');return;}const next=new URL('./demand.html',location.href);next.searchParams.set('stage','results');next.searchParams.set('contributionMonth',month+'-01');next.searchParams.set('draftId',draftId);next.searchParams.set('days',String(days));location.href=next.toString();});
 $('cancelConfirmBtn').addEventListener('click',()=>{
  if(saving)return;
  pendingSnapshot=null;
@@ -421,14 +424,15 @@ $('confirmSaveBtn').addEventListener('click',async()=>{
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-demand-runs',{body:{
    action:'save',
    periodId:snapshot.periodId,
-   periodName:snapshot.period,
+   periodName:snapshot.periodName,
+   contributionMonth:snapshot.contributionMonth,
    days:snapshot.days,
    workDemand:snapshot.demand.map(a=>({jobCard:a.jobCard,name:a.name||'',number:a.number||'',household:a.household||''})),
    unwillingToWork:snapshot.unwilling.map(a=>({jobCard:a.jobCard,household:a.household||''}))
   }});
   if(error)throw new Error(error.message||'Supabase could not save this demand.');
   if(!data||data.saved!==true||!data.id)throw new Error((data&&data.error)||'Supabase did not confirm that the demand was saved.');
-  generated={...snapshot,id:data.id,createdAt:data.createdAt||snapshot.createdAt};
+  generated={...snapshot,id:data.id,periodId:data.periodId||snapshot.periodId,periodName:data.periodName||snapshot.periodName,createdAt:data.createdAt||snapshot.createdAt};
   pendingSnapshot=null;
   $('confirmDialog').close();
   $('exportsPanel').classList.remove('hidden');
@@ -457,9 +461,8 @@ function exportCsv(kind){
  if(!generated)return;
  const base=safeFilename(generated.period);
  if(kind==='demand')downloadCsv('work-demand-'+base+'.csv',[
-  ['Work Demand for New Serchhip North'],
-  ['for the period of '+generated.period],
-  ['No. of Days: '+generated.days],
+  ['New Serchhip North Work Demand'],
+  ['for the month of '+generated.period+' for '+generated.days+' days'],
   [],
   ...demandRows()
  ]);
@@ -472,8 +475,8 @@ function exportCsv(kind){
 function exportPrint(kind){
  if(!generated)return;
  const isDemand=kind==='demand',rows=isDemand?demandRows():unwillingRows();
- const title=isDemand?'Work Demand for New Serchhip North':'Unwilling to Work for '+generated.period;
- const subtitle=isDemand?'<p>for the period of '+esc(generated.period)+'</p><p>No. of Days: '+esc(generated.days)+'</p>':'';
+ const title=isDemand?'New Serchhip North Work Demand':'Unwilling to Work for '+generated.period;
+ const subtitle=isDemand?'<p>for the month of '+esc(generated.period)+' for '+esc(generated.days)+' days</p>':'';
  const table='<table><thead><tr>'+rows[0].map(v=>'<th>'+esc(v)+'</th>').join('')+'</tr></thead><tbody>'+rows.slice(1).map(row=>'<tr>'+row.map(v=>'<td>'+esc(v)+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
  const printWindow=window.open('','_blank');
  if(!printWindow){status('Your browser blocked the print window. Allow pop-ups for this app and try again.','error');return;}

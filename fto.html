@@ -380,7 +380,6 @@ header .top-actions > button:hover {
   color: #0f172a !important;
 }
 
-
 /* FTO transaction details: compact summary cards on phones, full data on demand. */
 @media(max-width:700px){
  .fto-view-modal-content .fto-transaction-table tbody>tr.transaction-row{
@@ -524,19 +523,11 @@ function renderHistoryTransactions(batch){
  thead.appendChild(headRow);table.appendChild(thead);
  const tbody=document.createElement("tbody");
  for(const tx of (batch.transactions||[])){
-  const tr=document.createElement("tr");tr.className="transaction-row";
+  const tr=document.createElement("tr");
   for(const label of FTO_HEADERS){
    const td=document.createElement("td");td.dataset.label=label==="Job Card No. (Panchayat Name)"?"Job Card No.":label;
    td.textContent=cellValue(tx,label);tr.appendChild(td);
   }
-  const toggleCell=document.createElement("td");toggleCell.className="transaction-mobile-toggle";
-  const toggle=document.createElement("button");toggle.type="button";toggle.className="secondary transaction-mobile-toggle-button";toggle.textContent="More details";toggle.setAttribute("aria-expanded","false");
-  toggle.addEventListener("click",()=>{
-   const expanded=tr.classList.toggle("is-expanded");
-   toggle.textContent=expanded?"Hide details":"More details";
-   toggle.setAttribute("aria-expanded",String(expanded));
-  });
-  toggleCell.appendChild(toggle);tr.appendChild(toggleCell);
   tbody.appendChild(tr);
  }
  if(!(batch.transactions||[]).length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=FTO_HEADERS.length;td.textContent="No local transaction rows are saved for this FTO.";tr.appendChild(td);tbody.appendChild(tr);}
@@ -582,10 +573,10 @@ async function loadSharedPeriods(selectedId=""){
  const {data,error}=await supabaseClient.functions.invoke("vbgramg-periods",{body:{action:"list"}});
  if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||"Could not load shared periods.");
  sharedPeriods=data.periods||[];
- const allowed=sharedPeriods.filter(p=>p.period_date&&(p.status==="open"||p.id===selectedId));
+ const allowed=sharedPeriods.filter(p=>p.contribution_month&&(p.status==="open"||p.id===selectedId));
  const select=$("period-modal-value"),old=selectedId||select.value;select.replaceChildren();
  const placeholder=document.createElement("option");placeholder.value="";placeholder.textContent="Select a contribution month";select.appendChild(placeholder);
- for(const p of allowed){const option=document.createElement("option");option.value=p.id;option.textContent=p.period_name+(p.status==="closed"?" (Closed — current assignment)":"");option.dataset.date=p.period_date;select.appendChild(option);}
+ for(const p of allowed){const option=document.createElement("option");option.value=p.id;const created=p.created_at?new Date(p.created_at).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}):"legacy";option.textContent=p.period_name+" · "+created+(p.status==="closed"?" (Closed — current assignment)":"");option.dataset.date=p.contribution_month;select.appendChild(option);}
  if(allowed.some(p=>p.id===old))select.value=old;
 }
 async function changeFtoPeriod(batch){
@@ -593,7 +584,7 @@ async function changeFtoPeriod(batch){
  try{
   await loadSharedPeriods(String(batch.period_id||""));
   if(!batch.period_id){
-   const match=sharedPeriods.find(p=>p.period_name.toLowerCase()===String(batch.contribution_period||"").toLowerCase())||sharedPeriods.find(p=>p.period_date===batch.ledger_charge_period);
+   const nameMatches=sharedPeriods.filter(p=>p.period_name.toLowerCase()===String(batch.contribution_period||"").toLowerCase());const monthMatches=sharedPeriods.filter(p=>p.contribution_month===batch.ledger_charge_period);const match=nameMatches.length===1?nameMatches[0]:(monthMatches.length===1?monthMatches[0]:null);
    if(match){await loadSharedPeriods(match.id);$("period-modal-value").value=match.id;}
   }else $("period-modal-value").value=String(batch.period_id);
   $("period-modal-backdrop").classList.remove("hidden");
@@ -612,9 +603,9 @@ async function saveFtoPeriod(event){
  const batch=pendingPeriodBatch;
  if(!batch)return;
  const period=sharedPeriods.find(p=>p.id===$("period-modal-value").value);
- if(!period||!period.period_date){historyMessage("Select a valid shared contribution month.","error");$("period-modal-value").focus();return;}
+ if(!period||!period.contribution_month){historyMessage("Select a valid shared contribution month.","error");$("period-modal-value").focus();return;}
  if(period.status==="closed"&&String(batch.period_id||"")!==period.id){historyMessage("That period is closed. Reopen it before assigning an FTO.","error");return;}
- const current=String(batch.contribution_period||""),normalizedLabel=period.period_name,chargePeriod=period.period_date;
+ const current=String(batch.contribution_period||""),normalizedLabel=period.period_name,chargePeriod=period.contribution_month;
  if(normalizedLabel.toLowerCase()===current.toLowerCase()&&String(batch.period_id||"")===period.id){
   closePeriodModal();historyMessage("The period is unchanged.");return;
  }

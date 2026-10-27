@@ -379,7 +379,7 @@ function periodToDate(value){
  return /^\d{4}-\d{2}-01$/.test(text)?text:'';
 }
 function selectedPeriod(){return sharedPeriods.find(p=>p.id===$('charge-period').value)||null;}
-function selectedPeriodDate(){return selectedPeriod()?.period_date||'';}
+function selectedPeriodDate(){return selectedPeriod()?.contribution_month||'';}
 function selectedPeriodName(){return selectedPeriod()?.period_name||'';}
 async function loadSharedPeriods(selectedId=''){
  const {data,error}=await supabaseClient.functions.invoke('vbgramg-periods',{body:{action:'list'}});
@@ -388,7 +388,7 @@ async function loadSharedPeriods(selectedId=''){
  const allowed=sharedPeriods.filter(p=>p.status==='open'||p.id===selectedId);
  const select=$('charge-period'),old=selectedId||select.value;select.replaceChildren();
  const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent=allowed.some(p=>p.status==='open')?'Select a contribution month':'No open contribution months — manage periods';select.appendChild(placeholder);
- for(const p of allowed.filter(p=>p.period_date)){const option=document.createElement('option');option.value=p.id;option.textContent=p.period_name;option.dataset.date=p.period_date;option.dataset.status=p.status;select.appendChild(option);}
+ for(const p of allowed.filter(p=>p.contribution_month)){const option=document.createElement('option');option.value=p.id;const created=p.created_at?new Date(p.created_at).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}):'legacy';option.textContent=p.period_name+' · '+created;option.dataset.date=p.contribution_month;option.dataset.status=p.status;select.appendChild(option);}
  if([...select.options].some(o=>o.value===old))select.value=old;
 }
 function currentStatusAction(){return 'all'}
@@ -477,7 +477,7 @@ async function refreshDuplicates(){
  checkingDuplicates=true;duplicateCheckFailed=false;renderImportPreview();
  try{
   const groups=actionGroups();
-  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'check-fto-duplicates',charge_period:period,job_cards:groups.map(g=>g.job_card_number),reference_rows:groups.map(g=>({job_card_number:g.job_card_number,reference_numbers:g.reference_numbers}))}});
+  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'check-fto-duplicates',period_id:$('charge-period').value,charge_period:period,job_cards:groups.map(g=>g.job_card_number),reference_rows:groups.map(g=>({job_card_number:g.job_card_number,reference_numbers:g.reference_numbers}))}});
   if(seq!==duplicateCheckSequence)return;
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not check for duplicate charges.');
   duplicateCards=new Map((data.duplicates||[]).map(row=>[String(row.job_card_number),row]));
@@ -508,7 +508,7 @@ async function lookupFtoBatch(){
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'get-fto-batch',fto_number:ftoNumber}});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not look up the FTO.');
   if(data.found&&data.batch){
-   const savedPeriod=sharedPeriods.find(p=>p.id===data.batch.period_id)||sharedPeriods.find(p=>p.period_name.toLowerCase()===String(data.batch.contribution_period||'').toLowerCase())||sharedPeriods.find(p=>p.period_date===data.batch.ledger_charge_period);
+   const nameMatches=sharedPeriods.filter(p=>p.period_name.toLowerCase()===String(data.batch.contribution_period||'').toLowerCase());const monthMatches=sharedPeriods.filter(p=>p.contribution_month===data.batch.ledger_charge_period);const savedPeriod=sharedPeriods.find(p=>p.id===data.batch.period_id)||(nameMatches.length===1?nameMatches[0]:(monthMatches.length===1?monthMatches[0]:null));
    if(savedPeriod){await loadSharedPeriods(savedPeriod.id);$('charge-period').value=savedPeriod.id;}
    status('Known FTO found. Its saved period "'+data.batch.contribution_period+'" has been restored automatically.','success');
    reviewedCards=new Set();reviewedNewCards=new Set();refreshDuplicates();

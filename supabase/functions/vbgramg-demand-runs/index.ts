@@ -97,7 +97,12 @@ Deno.serve(async (req: Request) => {
 
     let createdPeriodId: string | null = null;
     if (!periodId) {
-      const periodName = compactMonthName(contributionMonth);
+      const { data: monthPeriods, error: monthPeriodsError } = await admin.from("vbgramg_periods")
+        .select("id").eq("contribution_month", contributionMonth);
+      if (monthPeriodsError) throw monthPeriodsError;
+      const roundNumber = (monthPeriods || []).length + 1;
+      const basePeriodName = compactMonthName(contributionMonth);
+      const periodName = roundNumber === 1 ? basePeriodName : `${basePeriodName} (${roundNumber})`;
       const { data: createdPeriod, error: createPeriodError } = await admin.from("vbgramg_periods").insert({
         period_name: periodName, period_date: contributionMonth, contribution_month: contributionMonth,
         days, status: "open", created_by: user.id,

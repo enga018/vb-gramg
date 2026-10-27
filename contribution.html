@@ -252,7 +252,7 @@ function render(){
    const displayApplicant=chargeName||String(latestApplicant?.applicant_name||latestApplicant?.name||'').trim()||c.name;
    topLine.append(document.createTextNode(' • '+displayApplicant));detail.appendChild(topLine);
    if(c.balance>0){
-    const balance=document.createElement('div');balance.className='mobile-outstanding';balance.textContent='Outstanding: '+fmt(c.balance);balance.style.color='#b45309';detail.appendChild(balance);
+    const balance=document.createElement('div');balance.className='mobile-outstanding';balance.textContent=fmt(c.balance);balance.style.color='#b45309';detail.appendChild(balance);
    }else{
     const settled=document.createElement('div');settled.className='mobile-settled';settled.textContent='Settled';settled.style.color='#15803d';detail.appendChild(settled);
    }

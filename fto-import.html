@@ -388,7 +388,7 @@ async function loadSharedPeriods(selectedId=''){
  const allowed=sharedPeriods.filter(p=>p.status==='open'||p.id===selectedId);
  const select=$('charge-period'),old=selectedId||select.value;select.replaceChildren();
  const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent=allowed.some(p=>p.status==='open')?'Select a contribution month':'No open contribution months — manage periods';select.appendChild(placeholder);
- for(const p of allowed.filter(p=>p.contribution_month)){const option=document.createElement('option');option.value=p.id;const created=p.created_at?new Date(p.created_at).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}):'legacy';option.textContent=p.period_name+' · '+created;option.dataset.date=p.contribution_month;option.dataset.status=p.status;select.appendChild(option);}
+ for(const p of allowed.filter(p=>p.contribution_month)){const option=document.createElement('option');option.value=p.id;option.textContent=p.period_name+(p.status==='closed'?' · Closed':'');option.dataset.date=p.contribution_month;option.dataset.status=p.status;select.appendChild(option);}
  if([...select.options].some(o=>o.value===old))select.value=old;
 }
 function currentStatusAction(){return 'all'}

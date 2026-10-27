@@ -47,6 +47,47 @@ Deno.serve(async (req: Request) => {
       if (error) throw error;
       return reply(req, { approved: true, periods: data || [] });
     }
+    if (action === "create") {
+      const month = clean(body.contributionMonth, 10);
+      const days = body.days === null || body.days === "" || body.days === undefined ? null : Number(body.days);
+      if (!/^\\d{4}-\\d{2}-01$/.test(month) || Number.isNaN(Date.parse(month)) || new Date(month + "T00:00:00Z").toISOString().slice(0,10) !== month) return reply(req, { error: "Choose a valid contribution month." }, 400);
+      if (days !== null && (!Number.isInteger(days) || days < 1 || days > 365)) return reply(req, { error: "Days must be a whole number from 1 to 365, or blank." }, 400);
+      const { data: existing, error: existingError } = await admin.from("vbgramg_periods").select("period_name").eq("contribution_month", month);
+      if (existingError) throw existingError;
+      const base = monthName(month);
+      let highest = 0;
+      for (const row of existing || []) {
+        const name = String(row.period_name || "");
+        if (name === base) highest = Math.max(highest, 1);
+        else if (name.startsWith(base + " (") && name.endsWith(")")) {
+          const n = Number(name.slice(base.length + 2, -1));
+          if (Number.isInteger(n)) highest = Math.max(highest, n);
+        }
+      }
+      const periodName = highest === 0 ? base : `${base} (${highest + 1})`;
+      const { data: period, error } = await admin.from("vbgramg_periods").insert({ period_name: periodName, period_date: month, contribution_month: month, days, status: "open", created_by: user.id }).select("id,period_name,period_date,contribution_month,days,status,created_at,updated_at,closed_at").single();
+      if (error) { if (error.code === "23505") return reply(req, { error: "That period name already exists. Refresh and try again." }, 409); throw error; }
+      return reply(req, { approved: true, period });
+    }
+    if (action === "delete") {
+      const deleteId = clean(body.id, 64);
+      if (!deleteId) return reply(req, { error: "A period ID is required." }, 400);
+      const { data: existing, error: readError } = await admin.from("vbgramg_periods").select("id,period_name").eq("id", deleteId).maybeSingle();
+      if (readError) throw readError;
+      if (!existing) return reply(req, { error: "Period not found." }, 404);
+      const checks = await Promise.all([
+        admin.from("vbgramg_charge_ledger").select("id", { count: "exact", head: true }).eq("period_id", deleteId),
+        admin.from("vbgramg_contribution_extras").select("id", { count: "exact", head: true }).eq("period_id", deleteId),
+        admin.from("vbgramg_fto_batches").select("id", { count: "exact", head: true }).eq("period_id", deleteId),
+        admin.from("vbgramg_demand_runs").select("id", { count: "exact", head: true }).eq("period_id", deleteId)
+      ]);
+      const failed = checks.find(x => x.error);
+      if (failed) throw failed.error;
+      if (checks.some(x => (x.count || 0) > 0)) return reply(req, { error: "Cannot delete " + existing.period_name + ": linked charges or saved records exist. Close the period instead." }, 409);
+      const { error: deleteError } = await admin.from("vbgramg_periods").delete().eq("id", deleteId);
+      if (deleteError) throw deleteError;
+      return reply(req, { approved: true, deleted: true, periodName: existing.period_name });
+    }
     const id = clean(body.id, 64);
     if (["close", "reopen", "update"].includes(action)) {
       if (!id) return reply(req, { error: "A period ID is required." }, 400);
@@ -71,7 +112,6 @@ Deno.serve(async (req: Request) => {
       }
       return reply(req, { approved: true, period: data });
     }
-    if (action === "create") { return reply(req, { error: "Periods are created automatically when a Work Demand is confirmed and saved." }, 403); }
     return reply(req, { error: "Unsupported action." }, 400);
   } catch (error) {
     console.error("Period management failed:", error);

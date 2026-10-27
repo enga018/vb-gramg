@@ -383,7 +383,7 @@ $('reviewBody').addEventListener('click',event=>{
  saveIncludedIds(currentPeriodId(),ids);tablePages.demand=Math.max(0,Math.ceil(demandApplicants.length/pageSize)-1);invalidateGenerated();renderLists();
  status(existing>=0?'Applicant removed from Work Demand.':'Applicant included in Work Demand.','success');
 });
-$('periodSelect').addEventListener('change',()=>{const p=selectedPeriod();if(p){const m=p.contribution_month||p.period_date;if(m)$('contributionMonth').value=m.slice(0,7);if(p.days)$('days').value=String(p.days);}invalidateGenerated();});
+$('periodSelect').addEventListener('change',()=>{const p=selectedPeriod();if(p){const m=p.contribution_month||p.period_date;if(m)$('contributionMonth').value=m.slice(0,7);$('days').value=p.days?String(p.days):'';}invalidateGenerated();});
 $('contributionMonth').addEventListener('change',()=>{invalidateGenerated();});
 $('continueReviewBtn').addEventListener('click',()=>{
  const chosenPeriod=selectedPeriod(),month=(chosenPeriod?.contribution_month||chosenPeriod?.period_date||'').slice(0,7),days=Number($('days').value);

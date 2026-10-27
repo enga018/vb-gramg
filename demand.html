@@ -157,6 +157,7 @@ function applyWorkflowVisibility(){
 }
 const normalize=value=>String(value==null?'':value).trim();
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function monthLabel(value){if(!value)return '';const [year,month]=value.split('-').map(Number);return new Date(Date.UTC(year,month-1,1)).toLocaleDateString('en-US',{month:'long',year:'numeric',timeZone:'UTC'});}
 function selectedPeriod(){return periods.find(p=>p.id===query.get('periodId'))||null;}
 async function loadPeriods(){
  const {data,error}=await supabaseClient.functions.invoke('vbgramg-periods',{body:{action:'list'}});

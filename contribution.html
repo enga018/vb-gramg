@@ -276,11 +276,6 @@ xt);
   // Formula-generated charge labels come from the contribution period, never the note.
   // Occurrence numbering is assigned chronologically above, so newest-first display keeps stable labels.
   const periodMatch=String(e.charge_period||'').match(/^(\d{4})-(\d{2})/);
-  const monthTags=['January','February','March','April','May','June','July','August','September','October','November','December'];
-  let periodLabel=periodMatch&&Number(periodMatch[2])>=1&&Number(periodMatch[2])<=12
-   ?monthTags[Number(periodMatch[2])-1]+' '+periodMatch[1]
-   :String(e.charge_period||'').trim()||'Monthly charge';
-  if(type==='charge'&&!isExtra&&(periodChargeCount  const periodMatch=String(e.charge_period||'').match(/^(\\d{4})-(\\d{2})/);
   const periodRow=e.period_id?periods.find(p=>String(p.id)===String(e.period_id)):null;
   let periodLabel=periodRow?(formatPeriod(periodRow.contribution_month||periodRow.period_date)||periodRow.period_name||'Monthly charge')
    :periodMatch?formatPeriod(e.charge_period):String(e.charge_period||'').trim()||'Monthly charge';
@@ -290,7 +285,12 @@ xt);
     .sort((a,b)=>String(a.created_at||'').localeCompare(String(b.created_at||'')));
    if(sameMonth.length>1)periodLabel+=' · Round '+(sameMonth.findIndex(p=>String(p.id)===String(periodRow.id))+1);
   }
-cant_name){
+  let chargeApplicantName='';
+  if(type==='charge'&&!isExtra){
+   let matchedApplicant=null;
+   if(e.applicant_unique_id)matchedApplicant=activeApplicants.find(a=>a.applicant_unique_id&&String(a.applicant_unique_id)===String(e.applicant_unique_id))||null;
+   if(!matchedApplicant&&e.applicant_number)matchedApplicant=activeApplicants.find(a=>a.applicant_number&&String(a.applicant_number)===String(e.applicant_number))||null;
+   if(!matchedApplicant&&e.applicant_name){
     const normalizedChargeName=normalizeName(e.applicant_name);
     const nameMatches=activeApplicants.filter(a=>normalizeName(a.applicant_name)===normalizedChargeName);
     if(nameMatches.length===1)matchedApplicant=nameMatches[0];

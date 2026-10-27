@@ -62,6 +62,36 @@ header .top-actions > button:hover {
   color: #0f172a !important;
 }
 
+
+/* Manual Review mobile refinement: improve action reach and confirmation readability. */
+@media(max-width:700px){
+  .panel{min-width:0}
+  .fields .field{min-width:0}
+  .actions{width:100%}
+  .actions>button,.actions>.link-button{flex:1 1 160px;min-height:44px;white-space:normal}
+  .table-wrap td{line-height:1.35}
+  #reviewTable tbody tr:not(:has(.empty)),
+  #demandTable tbody tr:not(:has(.empty)),
+  #unwillingTable tbody tr:not(:has(.empty)){min-height:48px}
+  #reviewTable .include-btn{min-height:40px;padding:7px 4px}
+  .table-foot .page-actions{width:100%;display:grid;grid-template-columns:1fr 1fr}
+  .table-foot .page-actions button{min-height:42px;width:100%}
+  .export-actions button{min-height:44px}
+  dialog#confirmDialog{width:calc(100vw - 24px);max-width:520px;max-height:calc(100dvh - 24px);overflow:auto}
+  .confirm-content{padding:16px}
+  .confirm-summary div{gap:10px;align-items:flex-start}
+  .confirm-summary dt{flex:1;min-width:0}
+  .confirm-summary dd{flex:1;min-width:0}
+  .confirm-actions{display:grid;grid-template-columns:1fr}
+  .confirm-actions button{width:100%;min-height:44px}
+}
+@media(max-width:390px){
+  .top-actions>*{min-height:42px}
+  .fields{gap:10px}
+  .confirm-summary div{flex-direction:column;gap:3px}
+  .confirm-summary dd{text-align:left}
+}
+
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>

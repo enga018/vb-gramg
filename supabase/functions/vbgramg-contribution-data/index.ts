@@ -493,18 +493,18 @@ Deno.serve(async(req:Request)=>{
     if(periodTxError)throw periodTxError;
     const periodBatchIds=[...new Set((periodTxs||[]).map(r=>String(r.batch_id)))];
     let periodBatches:Record<string,any>[]=[];
-    if(periodBatchIds.length){const {data,error}=await admin.from("vbgramg_fto_batches").select("id,fto_number,ledger_charge_period").in("id",periodBatchIds);if(error)throw error;periodBatches=data||[];}
+    if(periodBatchIds.length){const {data,error}=await admin.from("vbgramg_fto_batches").select("id,fto_number,ledger_charge_period,period_id").in("id",periodBatchIds);if(error)throw error;periodBatches=data||[];}
     const periodBatchMap=new Map(periodBatches.map(b=>[String(b.id),b]));
-    const conflictingFtos=[...new Set((periodTxs||[]).filter(tx=>tx.is_in_scope===true&&["blank","processed"].includes(String(tx.status))&&Number(tx.calculated_charge||0)>0).filter(tx=>{const b=periodBatchMap.get(String(tx.batch_id));return b&&String(b.ledger_charge_period||"")===chargePeriod&&String(b.fto_number||"")!==ftoNumber;}).map(tx=>String(tx.job_card_number)))];
+    const conflictingFtos=[...new Set((periodTxs||[]).filter(tx=>tx.is_in_scope===true&&["blank","processed"].includes(String(tx.status))&&Number(tx.calculated_charge||0)>0).filter(tx=>{const b=periodBatchMap.get(String(tx.batch_id));return b&&String(b.period_id||"")===periodId&&String(b.fto_number||"")!==ftoNumber;}).map(tx=>String(tx.job_card_number)))];
     if(conflictingFtos.length)return reply({error:"A different FTO number already has a charge for one or more job cards in this contribution period. Resolve the duplicate FTO before synchronizing.",conflicting_job_cards:conflictingFtos,fto_number:ftoNumber,charge_period:chargePeriod},409);
    }
    if(incomingRefs.length){
-    const {data:ledgerRefMatches,error:ledgerRefError}=await admin.from("vbgramg_charge_ledger").select("job_card_number,charge_period,note,reference_numbers").overlaps("reference_numbers",incomingRefs);
+    const {data:ledgerRefMatches,error:ledgerRefError}=await admin.from("vbgramg_charge_ledger").select("job_card_number,charge_period,period_id,note,reference_numbers").overlaps("reference_numbers",incomingRefs);
     if(ledgerRefError)throw ledgerRefError;
     for(const input of chargeCandidateRows){
      for(const old of ledgerRefMatches||[]){
       if(!(old.reference_numbers||[]).includes(String(input.reference_no)))continue;
-      const sameFtoLedger=String(old.job_card_number)===String(input.job_card_number)&&String(old.charge_period||"")===chargePeriod&&/^FTO\\b/i.test(String(old.note||""));
+      const sameFtoLedger=String(old.job_card_number)===String(input.job_card_number)&&String(old.period_id||"")===periodId&&String(old.charge_period||"")===chargePeriod&&/^FTO\\b/i.test(String(old.note||""));
       if(!sameFtoLedger)return reply({error:"Reference number "+input.reference_no+" already exists on a different or non-FTO ledger charge. Review the existing record before synchronizing.",duplicate_references:[{job_card_number:input.job_card_number,reference_numbers:[input.reference_no]}]},409);
      }
     }
@@ -525,9 +525,9 @@ Deno.serve(async(req:Request)=>{
     }
    }
    if(chargeCandidateCards.length){
-    const {data:existingLedger,error:existingLedgerError}=await admin.from("vbgramg_charge_ledger").select("job_card_number,person_name,amount,is_deferred,note,reference_numbers").in("job_card_number",chargeCandidateCards).eq("entry_type","charge").eq("charge_period",chargePeriod);
+    const {data:existingLedger,error:existingLedgerError}=await admin.from("vbgramg_charge_ledger").select("job_card_number,person_name,amount,is_deferred,note,reference_numbers,period_id").in("job_card_number",chargeCandidateCards).eq("entry_type","charge").eq("charge_period",chargePeriod);
     if(existingLedgerError)throw existingLedgerError;
-    const nonFto=[...new Map((existingLedger||[]).filter(r=>!/^FTO\b/i.test(String(r.note||""))).map(r=>[String(r.job_card_number),{job_card_number:r.job_card_number,person_name:r.person_name,amount:r.amount,is_deferred:r.is_deferred}])).values()];
+    const nonFto=[...new Map((existingLedger||[]).filter(r=>(!r.period_id||String(r.period_id)===periodId)&&!/^FTO\b/i.test(String(r.note||""))).map(r=>[String(r.job_card_number),{job_card_number:r.job_card_number,person_name:r.person_name,amount:r.amount,is_deferred:r.is_deferred}])).values()];
     const unreviewed=nonFto.filter(r=>!reviewed.has(String(r.job_card_number)));
     if(unreviewed.length)return reply({error:"Some local job cards already have non-FTO charges for this period. Review each flagged job card before continuing.",duplicates:unreviewed},409);
     const {data:knownLedger,error:knownLedgerError}=await admin.from("vbgramg_charge_ledger").select("job_card_number").in("job_card_number",chargeCandidateCards);
@@ -602,7 +602,7 @@ Deno.serve(async(req:Request)=>{
     if(trackedError)throw trackedError;
     const trackBatchIds=[...new Set((trackedRows||[]).map(r=>String(r.batch_id)))];
     let trackBatches:Record<string,any>[]=[];
-    if(trackBatchIds.length){const {data,error}=await admin.from("vbgramg_fto_batches").select("id,ledger_charge_period").in("id",trackBatchIds);if(error)throw error;trackBatches=data||[];}
+    if(trackBatchIds.length){const {data,error}=await admin.from("vbgramg_fto_batches").select("id,ledger_charge_period,period_id").in("id",trackBatchIds);if(error)throw error;trackBatches=data||[];}
      const trackPeriod=new Map(trackBatches.map(r=>[String(r.id),{month:String(r.ledger_charge_period||""),periodId:String(r.period_id||"")}]));
      const relevant=(trackedRows||[]).filter(r=>{const p=trackPeriod.get(String(r.batch_id));return p?.month===chargePeriod&&p.periodId===periodId&&r.is_in_scope===true;});
     const latestByReference=new Map<string,Record<string,any>>();

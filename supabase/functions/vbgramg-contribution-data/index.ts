@@ -816,7 +816,7 @@ Deno.serve(async(req:Request)=>{
    if(oldError)throw oldError;if(!old)return reply({error:"Ledger entry was not found."},404);
    const type=String(old.entry_type||"");
    const isLegacyReturn=type==="charge"&&String(old.note||"").trim().toLowerCase()==="return";
-   if(!["charge","payment","refund","charge_waiver","other_charge"].includes(type))return reply({error:"This transaction type cannot be edited here."},400);
+   if(!["charge","payment","refund","charge_waiver","other_charge","return","forgive","sanitationFee"].includes(type))return reply({error:"This transaction type cannot be edited here."},400);
    if(type==="charge"&&!isLegacyReturn&&/^FTO\b/i.test(String(old.note||""))&&!/^FTO\b/i.test(note))return reply({error:"FTO-imported charges must keep the FTO marker in their note."},400);
    if(isLegacyReturn&&note.toLowerCase()!=="return")return reply({error:"Keep the note as Return for this legacy entry."},400);
    let chargePeriod=old.charge_period;
@@ -848,9 +848,9 @@ Deno.serve(async(req:Request)=>{
    let charges=0,paid=0,returns=0,waived=0;
    for(const e of ledger){const n=Math.max(0,Number(e.amount)||0),t=String(e.entry_type||"");
     if(t==="payment")paid+=n;
-    else if(t==="refund"||(t==="charge"&&String(e.note||"").trim().toLowerCase()==="return"))returns+=n;
-    else if(t==="charge_waiver")waived+=n;
-    else if((t==="charge"||t==="other_charge")&&!e.is_deferred)charges+=n;
+    else if(t==="refund"||t==="return"||(t==="charge"&&String(e.note||"").trim().toLowerCase()==="return"))returns+=n;
+    else if(t==="charge_waiver"||t==="forgive")waived+=n;
+    else if((t==="charge"||t==="other_charge"||t==="sanitationFee")&&!e.is_deferred)charges+=n;
    }
    const balance=charges-Math.min(waived,charges)-paid+returns;
    let amount=requestedAmount,type="",finalNote=note;

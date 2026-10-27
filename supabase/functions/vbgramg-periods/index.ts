@@ -80,7 +80,7 @@ Deno.serve(async (req: Request) => {
       }
       if (!date) return reply(req, { error: "Choose a period month. Named periods are no longer supported." }, 400);
       if (days !== null && (!Number.isInteger(days) || days < 1 || days > 365)) return reply(req, { error: "Days must be a whole number from 1 to 365, or blank." }, 400);
-      const { data, error } = await admin.from("vbgramg_periods").insert({ period_name: periodName, period_date: date || null, days, status: "open", created_by: user.id }).select("id,period_name,period_date,days,status,created_at,updated_at,closed_at").single();
+      const { data, error } = await admin.from("vbgramg_periods").insert({ period_name: periodName, period_date: date, days, status: "open", created_by: user.id }).select("id,period_name,period_date,days,status,created_at,updated_at,closed_at").single();
       if (error) {
         if (error.code === "23505") return reply(req, { error: "A period with that name or month already exists." }, 409);
         throw error;

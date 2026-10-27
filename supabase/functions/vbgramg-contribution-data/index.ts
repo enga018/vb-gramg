@@ -453,6 +453,9 @@ Deno.serve(async(req:Request)=>{
    if(batchOld&&(String(batchOld.contribution_period)!==contributionPeriod||String(batchOld.ledger_charge_period||"")!==chargePeriod)){
     return reply({error:"This FTO number is already saved with period \""+String(batchOld.contribution_period)+"\". The saved period cannot be changed during a re-import. If this is genuinely a different FTO, verify the FTO number first.",saved_period:batchOld.contribution_period},409);
    }
+   if(batchOld&&batchOld.period_id&&String(batchOld.period_id)!==periodId){
+    return reply({error:"This FTO is already assigned to a different contribution round. Use the explicit FTO period reassignment workflow before importing it into another round."},409);
+   }
    const incomingCards=[...new Set(normalized.filter(r=>r.is_in_scope).map(r=>String(r.job_card_number)))];
    const {data:exemptionRows,error:exemptionError}=await admin.from("vbgramg_contribution_exemptions").select("job_card_number");
    if(exemptionError)throw exemptionError;

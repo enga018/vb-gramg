@@ -72,3 +72,57 @@ from single_month_period s
 where l.period_id is null
   and l.entry_type = 'charge'
   and l.charge_period = s.contribution_month;
+
+
+-- Extra contribution charges belong to a specific contribution round, not just a month.
+alter table public.vbgramg_contribution_extras
+  add column if not exists period_id uuid references public.vbgramg_periods(id) on delete set null;
+
+-- Preserve legacy extras, assigning them only where their month has exactly one period.
+with single_month_period as (
+  select contribution_month, min(id::text)::uuid as period_id
+  from public.vbgramg_periods
+  where contribution_month is not null
+  group by contribution_month
+  having count(*) = 1
+)
+update public.vbgramg_contribution_extras e
+set period_id = s.period_id
+from single_month_period s
+where e.period_id is null
+  and e.charge_period = s.contribution_month;
+
+-- Keep the linked ledger row consistent with the extra's round.
+update public.vbgramg_charge_ledger l
+set period_id = e.period_id
+from public.vbgramg_contribution_extras e
+where e.ledger_entry_id = l.id
+  and e.period_id is not null
+  and l.period_id is null;
+
+-- Remove the old per-job-card/per-month uniqueness so distinct rounds can each hold an extra.
+do $$
+declare c record;
+begin
+  for c in
+    select con.conname
+    from pg_constraint con
+    join pg_class rel on rel.oid = con.conrelid
+    join pg_namespace ns on ns.oid = rel.relnamespace
+    where ns.nspname = 'public'
+      and rel.relname = 'vbgramg_contribution_extras'
+      and con.contype = 'u'
+      and (
+        select array_agg(att.attname order by att.attname)
+        from unnest(con.conkey) as key(attnum)
+        join pg_attribute att on att.attrelid = rel.oid and att.attnum = key.attnum
+      ) = array['charge_period','job_card_number']::name[]
+  loop
+    execute format('alter table public.vbgramg_contribution_extras drop constraint %I', c.conname);
+  end loop;
+end $$;
+
+drop index if exists public.vbgramg_contribution_extras_job_card_number_charge_period_key;
+create unique index if not exists vbgramg_contribution_extras_job_card_period_id_uidx
+  on public.vbgramg_contribution_extras (job_card_number, period_id)
+  where period_id is not null;

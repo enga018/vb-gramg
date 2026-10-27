@@ -122,7 +122,7 @@ Deno.serve(async(req:Request)=>{
 
   if(action==="list"){
    const all:Record<string,unknown>[]=[];
-   for(let offset=0;;offset+=1000){const {data,error}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,applicant_name,applicant_number,applicant_unique_id,entry_type,amount,charge_period,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").order("job_card_number",{ascending:true}).order("entry_date",{ascending:true}).range(offset,offset+999);if(error)throw error;all.push(...(data||[]));if(!data||data.length<1000||all.length>=20000)break;}
+   for(let offset=0;;offset+=1000){const {data,error}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,applicant_name,applicant_number,applicant_unique_id,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").order("job_card_number",{ascending:true}).order("entry_date",{ascending:true}).range(offset,offset+999);if(error)throw error;all.push(...(data||[]));if(!data||data.length<1000||all.length>=20000)break;}
    const {data:exemptions,error:exemptionsError}=await admin.from("vbgramg_contribution_exemptions").select("job_card_number,note,created_at,updated_at").order("job_card_number",{ascending:true});if(exemptionsError)throw exemptionsError;
    const {data:imports,error:importError}=await admin.from("vbgramg_charge_imports").select("id,source_filename,charge_period,row_count,total_amount,status,completed_at").eq("status","complete").order("charge_period",{ascending:false}).limit(100);if(importError)throw importError;
    const {data:extras,error:extrasError}=await admin.from("vbgramg_contribution_extras").select("id,job_card_number,person_name,charge_period,amount,reason,ledger_entry_id,created_at,updated_at").order("charge_period",{ascending:false});if(extrasError)throw extrasError;
@@ -163,7 +163,9 @@ Deno.serve(async(req:Request)=>{
      }
     }
    }
-   return reply({approved:true,role:approved.role,entries:all,imports:imports||[],extras:extras||[],citizens,applicants_by_job_card:Object.fromEntries(applicantsByCard),exemptions:exemptions||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:misRows.length});
+   const {data:periodRows,error:periodRowsError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,created_at").order("contribution_month",{ascending:false,nullsFirst:false}).order("created_at",{ascending:true});
+   if(periodRowsError)throw periodRowsError;
+   return reply({approved:true,role:approved.role,entries:all,imports:imports||[],extras:extras||[],citizens,periods:periodRows||[],applicants_by_job_card:Object.fromEntries(applicantsByCard),exemptions:exemptions||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:misRows.length});
   }
   if(action==="check-fto-duplicates"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can import FTO charges."},403);

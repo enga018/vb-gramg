@@ -169,10 +169,14 @@ Deno.serve(async(req:Request)=>{
   }
   if(action==="check-fto-duplicates"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can import FTO charges."},403);
-   const period=String(body.charge_period||"").trim(),periodMatch=period.match(/^(\d{4})-(\d{2})-01$/);
+   const period=String(body.charge_period||"").trim(),periodId=String(body.period_id||"").trim(),periodMatch=period.match(/^(\d{4})-(\d{2})-01$/);
    if(!periodMatch||Number(periodMatch[2])<1||Number(periodMatch[2])>12)return reply({error:"Choose a valid contribution month."},400);
    const periodDate=period;
    if(action==="check-fto-duplicates"){
+    if(!periodId)return reply({error:"Select a specific contribution round."},400);
+    const {data:selectedRound,error:selectedRoundError}=await admin.from("vbgramg_periods").select("id,contribution_month").eq("id",periodId).maybeSingle();
+    if(selectedRoundError)throw selectedRoundError;
+    if(!selectedRound||String(selectedRound.contribution_month||"")!==periodDate)return reply({error:"The selected contribution round does not match the month."},400);
     const cards=Array.isArray(body.job_cards)?[...new Set(body.job_cards.map((v:unknown)=>String(v||"").trim()).filter(Boolean))]:[];
     const referenceRows=Array.isArray(body.reference_rows)?body.reference_rows.map((v:Record<string,unknown>)=>({job_card_number:String(v.job_card_number||"").trim(),reference_numbers:Array.isArray(v.reference_numbers)?[...new Set(v.reference_numbers.map((r:unknown)=>String(r||"").trim()).filter(Boolean))]:[]})): [];
     if(cards.length>1000)return reply({error:"Check at most 1,000 job cards at a time."},400);
@@ -186,7 +190,7 @@ Deno.serve(async(req:Request)=>{
     const known=new Set([...(knownLedger||[]).map(r=>String(r.job_card_number)),...(knownCitizens||[]).map(r=>String(r.job_card_number))]);
     const allReferences=[...new Set(referenceRows.flatMap(r=>r.reference_numbers))];
     const referenceMatches:Record<string,any>[]=[];
-    if(allReferences.length){const {data,error}=await admin.from("vbgramg_charge_ledger").select("job_card_number,charge_period,note,reference_numbers").overlaps("reference_numbers",allReferences);if(error)throw error;referenceMatches.push(...(data||[]));}
+    if(allReferences.length){const {data,error}=await admin.from("vbgramg_charge_ledger").select("job_card_number,charge_period,period_id,note,reference_numbers").overlaps("reference_numbers",allReferences);if(error)throw error;referenceMatches.push(...(data||[]));}
     const duplicateMap=new Map<string,Set<string>>();
     for(const input of referenceRows){for(const reference of input.reference_numbers){for(const old of referenceMatches){if(!(old.reference_numbers||[]).includes(reference))continue;const oldRefs=old.reference_numbers||[];const sameReferenceSet=oldRefs.length>0&&oldRefs.every((r:string)=>input.reference_numbers.includes(r));const sameExistingCharge=String(old.job_card_number)===input.job_card_number&&String(old.charge_period||"")===periodDate&&/^FTO\b/i.test(String(old.note||""))&&sameReferenceSet;if(!sameExistingCharge){if(!duplicateMap.has(input.job_card_number))duplicateMap.set(input.job_card_number,new Set());duplicateMap.get(input.job_card_number)!.add(reference);}}}}
     return reply({approved:true,charge_period:periodDate,duplicates:[...new Map((existing||[]).filter(r=>!(/^FTO\b/i.test(String(r.note||"")))).map(r=>[r.job_card_number,{job_card_number:r.job_card_number,person_name:r.person_name,amount:r.amount,is_deferred:r.is_deferred}])).values()],unknown_job_cards:cards.filter(card=>!known.has(card)),duplicate_references:[...duplicateMap].map(([job_card_number,refs])=>({job_card_number,reference_numbers:[...refs]}))});

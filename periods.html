@@ -81,7 +81,7 @@ header .top-actions > button:hover {
 </div><div class="actions" style="margin-top:14px"><button id="create-button" type="submit">Create period</button></div></form>
 <div id="status" class="status" aria-live="polite">Checking sign-in session…</div></section>
 <section class="panel"><h2>All periods</h2><p class="sub">Closed periods remain in history. Reopen them if corrections are needed. All new periods are calendar months. Legacy named records remain visible for historical reference.</p>
-<div class="table-wrap"><table><thead><tr><th>Period</th><th>Days</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody id="period-body"><tr><td colspan="6" class="empty">Loading periods…</td></tr></tbody></table></div></section>
+<div class="table-wrap"><table><thead><tr><th>Period</th><th>Days</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody id="period-body"><tr><td colspan="5" class="empty">Loading periods…</td></tr></tbody></table></div></section>
 </main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
 const client=window.supabase.createClient("https://trtzhafgvqosjwrgckty.supabase.co","sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb");const $=id=>document.getElementById(id);let periods=[],sessionUser=null;
 function setStatus(msg,type=""){const el=$("status");el.textContent=msg;el.className="status"+(type?" "+type:"")}

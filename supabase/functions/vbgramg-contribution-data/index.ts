@@ -805,7 +805,7 @@ Deno.serve(async(req:Request)=>{
    if(!id)return reply({error:"Ledger entry ID is required."},400);
    if(!Number.isFinite(amount)||amount<=0||amount>10000000)return reply({error:"Enter a valid positive amount."},400);
    if(!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)||Number.isNaN(Date.parse(entryDate)))return reply({error:"Enter a valid transaction date."},400);
-   const {data:old,error:oldError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,entry_type,amount,charge_period,entry_date,note,import_id,created_by,created_at,is_deferred,legacy_entry_id,source_created_at_ms").eq("id",id).maybeSingle();
+   const {data:old,error:oldError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note,import_id,created_by,created_at,is_deferred,legacy_entry_id,source_created_at_ms").eq("id",id).maybeSingle();
    if(oldError)throw oldError;if(!old)return reply({error:"Ledger entry was not found."},404);
    const type=String(old.entry_type||"");
    const isLegacyReturn=type==="charge"&&String(old.note||"").trim().toLowerCase()==="return";
@@ -816,11 +816,13 @@ Deno.serve(async(req:Request)=>{
    if(type==="charge"&&!isLegacyReturn){
     chargePeriod=String(body.charge_period||"").trim();
     if(!/^\d{4}-\d{2}-01$/.test(chargePeriod)||Number(chargePeriod.slice(5,7))<1||Number(chargePeriod.slice(5,7))>12)return reply({error:"Choose a valid charge month."},400);
+    if(String(old.period_id||"")&&chargePeriod!==String(old.charge_period||""))return reply({error:"This charge belongs to a specific contribution round. Change its round through the FTO period reassignment workflow, not by editing the month here."},409);
+    if(/^FTO\b/i.test(String(old.note||""))&&chargePeriod!==String(old.charge_period||""))return reply({error:"FTO-imported charges must be reassigned through the FTO period workflow so the batch and ledger remain synchronized."},409);
    }
    const isDeferred=type==="charge"&&!isLegacyReturn?Boolean(body.is_deferred):Boolean(old.is_deferred);
    const patch:Record<string,unknown>={amount,entry_date:entryDate,note:note||null};
    if(type==="charge"&&!isLegacyReturn){patch.charge_period=chargePeriod;patch.is_deferred=isDeferred;}
-   const {data:updated,error:updateError}=await admin.from("vbgramg_charge_ledger").update(patch).eq("id",id).select("id,job_card_number,person_name,entry_type,amount,charge_period,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").single();
+   const {data:updated,error:updateError}=await admin.from("vbgramg_charge_ledger").update(patch).eq("id",id).select("id,job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").single();
    if(updateError)throw updateError;
    const {error:auditError}=await admin.from("vbgramg_ledger_audit").insert({ledger_entry_id:id,job_card_number:old.job_card_number,action:"edit",actor_user_id:authData.user.id,actor_email:email,before_data:old,after_data:updated});
    if(auditError)throw auditError;

@@ -50,7 +50,35 @@ header .top-actions > button:hover {
   color: #0f172a !important;
 }
 
+/* Home and sign-in responsive refinement */
+.login-card { width: 100%; }
+.login-card form button { width: 100%; }
+.modules { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+.module { min-width: 0; overflow-wrap: anywhere; }
+.module h2 { margin: 0; }
+.module p { line-height: 1.55; }
+#home-panel .panel > p { max-width: 66ch; }
+#login-status, #home-status { overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  body { padding: 12px; }
+  .login-card { margin: 3vh auto; padding: 20px; }
+  .topbar { align-items: flex-start; }
+  .topbar > div:first-child { min-width: 0; }
+  .account { gap: 10px; }
+  .account-label { flex: 1 1 150px; min-width: 0; }
+  #logout-button { flex: 0 0 auto; }
+  .modules { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .module { min-height: 0; padding: 18px; }
+  .module-link { margin-top: 4px; }
+}
+@media (max-width: 360px) {
+  body { padding: 8px; }
+  .login-card, .panel { padding: 15px; }
+  .topbar { padding: 13px; }
+  .module { padding: 15px; }
+}
 </style>
+  <link rel="stylesheet" href="./responsive.css">
 </head>
 <body><main>
 <section id="login-panel" class="panel login-card">

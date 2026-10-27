@@ -237,8 +237,8 @@ function render(){
   const lastPeriodShort=lastPeriod;
   if(isMobile){
    const detail=cell('','mobile-details');
-   detail.style.display='flex';detail.style.alignItems='center';detail.style.justifyContent='space-between';detail.style.gap='10px';detail.style.minWidth='0';
-   const topLine=document.createElement('div');topLine.className='mobile-jobcard-line';topLine.style.flex='1';topLine.style.minWidth='0';
+   detail.style.display='grid';detail.style.gridTemplateColumns='minmax(0,5fr) minmax(0,1fr)';detail.style.alignItems='center';detail.style.gap='10px';detail.style.minWidth='0';
+   const topLine=document.createElement('div');topLine.className='mobile-jobcard-line';topLine.style.minWidth='0';
    const slashIndex=String(c.id).lastIndexOf('/');
    if(slashIndex>=0){topLine.append(document.createTextNode(String(c.id).slice(0,slashIndex+1)));const suffix=document.createElement('span');suffix.className='suffix';suffix.textContent=String(c.id).slice(slashIndex+1);topLine.appendChild(suffix);}
    else topLine.textContent=c.id;
@@ -252,9 +252,9 @@ function render(){
    const displayApplicant=chargeName||String(latestApplicant?.applicant_name||latestApplicant?.name||'').trim()||c.name;
    topLine.append(document.createTextNode(' • '+displayApplicant));detail.appendChild(topLine);
    if(c.balance>0){
-    const balance=document.createElement('div');balance.className='mobile-outstanding';balance.textContent=fmt(c.balance);balance.style.color='#b45309';detail.appendChild(balance);
+    const balance=document.createElement('div');balance.className='mobile-outstanding';balance.textContent=fmt(c.balance);balance.style.color='#b45309';balance.style.minWidth='0';balance.style.textAlign='right';detail.appendChild(balance);
    }else{
-    const settled=document.createElement('div');settled.className='mobile-settled';settled.textContent='Settled';settled.style.color='#15803d';detail.appendChild(settled);
+    const settled=document.createElement('div');settled.className='mobile-settled';settled.textContent='Settled';settled.style.color='#15803d';settled.style.minWidth='0';settled.style.textAlign='right';detail.appendChild(settled);
    }
   }else{
    cell(c.id,'jobcard');cell(c.name+(c.exempt?' · EXEMPT':''),'person');

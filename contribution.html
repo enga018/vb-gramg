@@ -466,18 +466,29 @@ function buildHistoricalAllocationPreview(){
    suggestions.push({payment:pay,card,parts:[],unallocated:Number(pay.amount)||0,kind:'Needs review',reason:'Job card has a refund/waiver/return; FIFO requires manual review.'});continue;
   }
   // Payment notes "Cash" and "Bank" are methods, not period evidence.
+  // A period is eligible only once its charge rows have actually been entered.
+  // This prevents a payment from being assigned to a later-entered/future charge.
   const chargesByPeriod=new Map();
   for(const e of ledger){
-   if(e.is_deferred||(e.entry_type!=='charge'&&e.entry_type!=='other_charge')||!e.period_id)continue;
+   if((e.entry_type!=='charge'&&e.entry_type!=='other_charge')||!e.period_id)continue;
    const pid=String(e.period_id),p=periodById.get(pid);
-   if(!chargesByPeriod.has(pid))chargesByPeriod.set(pid,{periodId:e.period_id,label:p?(p.period_name||formatPeriod(p.contribution_month||p.period_date)):'Period '+pid.slice(0,8),date:String((p&&(p.contribution_month||p.period_date))||e.charge_period||e.entry_date||e.created_at||'').slice(0,10),gross:0});
-   chargesByPeriod.get(pid).gross+=Math.max(0,Number(e.amount)||0);
+   const periodDate=String((p&&(p.contribution_month||p.period_date))||e.charge_period||'').slice(0,10);
+   const chargeEntryDate=String(e.entry_date||e.created_at||'').slice(0,10);
+   if(!chargesByPeriod.has(pid))chargesByPeriod.set(pid,{periodId:e.period_id,label:p?(p.period_name||formatPeriod(p.contribution_month||p.period_date)):'Period '+pid.slice(0,8),date:periodDate,eligibleDate:chargeEntryDate||periodDate,gross:0});
+   const b=chargesByPeriod.get(pid);
+   // Conservative eligibility for a combined period bucket: wait until its latest
+   // charge row is recorded, including deferred rows, before using it for FIFO.
+   if(chargeEntryDate&&chargeEntryDate>b.eligibleDate)b.eligibleDate=chargeEntryDate;
+   b.gross+=Math.max(0,Number(e.amount)||0);
   }
-  const buckets=[...chargesByPeriod.values()].sort((a,b)=>a.date.localeCompare(b.date)||String(a.periodId).localeCompare(String(b.periodId)));
+  const paymentDate=dateValue(pay);
+  const buckets=[...chargesByPeriod.values()]
+   .filter(b=>!paymentDate||!b.eligibleDate||b.eligibleDate<=paymentDate)
+   .sort((a,b)=>a.date.localeCompare(b.date)||String(a.periodId).localeCompare(String(b.periodId)));
   for(const b of buckets)b.remaining=Math.max(0,b.gross-(savedByPeriodCard.get(card+'|'+String(b.periodId))||0));
-  const payKey=dateValue(pay)+'|'+String(pay.created_at||'');
-  const priorPayments=ledger.filter(e=>e.entry_type==='payment'&&(dateValue(e)<dateValue(pay)||(dateValue(e)===dateValue(pay)&&String(e.created_at||'')<String(pay.created_at||'')))).sort((a,b)=>dateValue(a).localeCompare(dateValue(b))||String(a.created_at||'').localeCompare(String(b.created_at||'')));
-  // Consume earlier unallocated payments before evaluating this payment.
+  const priorPayments=ledger.filter(e=>e.entry_type==='payment'&&(dateValue(e)<paymentDate||(dateValue(e)===paymentDate&&String(e.created_at||'')<String(pay.created_at||'')))).sort((a,b)=>dateValue(a).localeCompare(dateValue(b))||String(a.created_at||'').localeCompare(String(b.created_at||'')));
+  // Consume earlier unallocated payments against only periods that were eligible
+  // on the current payment's date; future periods are never pulled forward.
   for(const prior of priorPayments){
    const priorSaved=savedByPayment.get(String(prior.id))||0;
    let credit=Math.max(0,(Number(prior.amount)||0)-priorSaved);
@@ -486,7 +497,7 @@ function buildHistoricalAllocationPreview(){
   let remaining=Math.max(0,Number(pay.amount)||0),parts=[];
   for(const b of buckets){if(remaining<=0.009)break;if(b.remaining<=0.009)continue;const amount=Math.min(b.remaining,remaining);parts.push({period_id:b.periodId,period_label:b.label,amount});b.remaining-=amount;remaining-=amount;}
   if(parts.length)suggestions.push({payment:pay,card,parts,unallocated:remaining,kind:remaining>0.009?'Needs review':'FIFO proposal',reason:remaining>0.009?'Payment exceeds eligible outstanding balances.':'FIFO only; no explicit period evidence found.'});
-  else suggestions.push({payment:pay,card,parts:[],unallocated:remaining,kind:'Needs review',reason:'No eligible outstanding period found.'});
+  else suggestions.push({payment:pay,card,parts:[],unallocated:remaining,kind:'Needs review',reason:'No eligible outstanding period found as of the payment date.'});
  }
  // Mutually exclusive categories; every payment appears exactly once.
  const counts={reviewed:suggestions.length,proposed:suggestions.filter(x=>x.kind==='FIFO proposal').length,needs:suggestions.filter(x=>x.kind==='Needs review').length,already:suggestions.filter(x=>x.kind==='Already allocated').length};

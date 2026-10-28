@@ -487,18 +487,29 @@ function buildHistoricalAllocationPreview(){
    .sort((a,b)=>a.date.localeCompare(b.date)||String(a.periodId).localeCompare(String(b.periodId)));
   for(const b of buckets)b.remaining=Math.max(0,b.gross-(savedByPeriodCard.get(card+'|'+String(b.periodId))||0));
   const priorPayments=ledger.filter(e=>e.entry_type==='payment'&&(dateValue(e)<paymentDate||(dateValue(e)===paymentDate&&String(e.created_at||'')<String(pay.created_at||'')))).sort((a,b)=>dateValue(a).localeCompare(dateValue(b))||String(a.created_at||'').localeCompare(String(b.created_at||'')));
-  // Reconstruct earlier payments using the periods that were eligible on EACH
-  // earlier payment's own date. Otherwise a payment from February could wrongly
-  // consume a March/April bucket merely because that later bucket is eligible now.
+  // Reconstruct prior payments chronologically. Any surplus is retained as
+  // household credit and offsets later periods when they become eligible.
+  // This is a balance simulation only: we do NOT create a proposed allocation
+  // linking an earlier-dated payment to a period that was not yet eligible then.
+  let carryForwardCredit=0;
   for(const prior of priorPayments){
    const priorSaved=savedByPayment.get(String(prior.id))||0;
-   let credit=Math.max(0,(Number(prior.amount)||0)-priorSaved);
+   let credit=carryForwardCredit+Math.max(0,(Number(prior.amount)||0)-priorSaved);
+   carryForwardCredit=0;
    const priorDate=dateValue(prior);
    for(const b of buckets){
     if(credit<=0.009)break;
     if(priorDate&&b.eligibleDate&&b.eligibleDate>priorDate)continue;
     const applied=Math.min(b.remaining,credit);b.remaining-=applied;credit-=applied;
    }
+   carryForwardCredit=credit;
+  }
+  // Apply any surviving historical credit to periods that became eligible
+  // after the last prior payment but by the current payment date. This reduces
+  // outstanding balance without inventing a retroactive allocation row.
+  for(const b of buckets){
+   if(carryForwardCredit<=0.009)break;
+   const applied=Math.min(b.remaining,carryForwardCredit);b.remaining-=applied;carryForwardCredit-=applied;
   }
   let remaining=Math.max(0,Number(pay.amount)||0),parts=[];
   for(const b of buckets){if(remaining<=0.009)break;if(b.remaining<=0.009)continue;const amount=Math.min(b.remaining,remaining);parts.push({period_id:b.periodId,period_label:b.label,amount});b.remaining-=amount;remaining-=amount;}

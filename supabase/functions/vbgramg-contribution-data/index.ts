@@ -817,6 +817,12 @@ Deno.serve(async(req:Request)=>{
    const {data:old,error:oldError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note,import_id,created_by,created_at,is_deferred,legacy_entry_id,source_created_at_ms").eq("id",id).maybeSingle();
    if(oldError)throw oldError;if(!old)return reply({error:"Ledger entry was not found."},404);
    const type=String(old.entry_type||"");
+   if(type==="payment"){
+    const {data:existingAllocations,error:allocationError}=await admin.from("vbgramg_payment_allocations").select("amount").eq("transaction_id",id);
+    if(allocationError)throw allocationError;
+    const allocatedTotal=(existingAllocations||[]).reduce((sum,row)=>sum+Math.max(0,Number(row.amount)||0),0);
+    if(allocatedTotal>amount+0.001)return reply({error:"This payment has "+allocatedTotal.toFixed(2)+" allocated. Review or reduce its period allocations before lowering the payment amount."},409);
+   }
    const isLegacyReturn=type==="charge"&&String(old.note||"").trim().toLowerCase()==="return";
    if(!["charge","payment","refund","charge_waiver","other_charge","return","forgive","sanitationFee"].includes(type))return reply({error:"This transaction type cannot be edited here."},400);
    if(type==="charge"&&!isLegacyReturn&&/^FTO\b/i.test(String(old.note||""))&&!/^FTO\b/i.test(note))return reply({error:"FTO-imported charges must keep the FTO marker in their note."},400);

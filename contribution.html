@@ -149,7 +149,7 @@ try{
 const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
-let entries=[], citizens=[], citizenRegistry=[], applicantsByCard={}, extraCharges=[], exemptions=[], periods=[], currentCitizen=null, busy=false, currentPage=0, pageSize=50, appRole="";
+let entries=[], citizens=[], citizenRegistry=[], applicantsByCard={}, extraCharges=[], exemptions=[], periods=[], paymentAllocations=[], currentCitizen=null, busy=false, currentPage=0, pageSize=50, appRole="";
 const exemptCardSet=()=>new Set(exemptions.map(x=>String(x.job_card_number||"").trim()));
 const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -379,7 +379,9 @@ function openCitizen(id){
   const displayNote=(type==='payment'&&looksLikePeriod)||redundantTypeNote?'':noteText;
   const transactionDate=String(e.entry_date||'').slice(0,10)?day(String(e.entry_date).slice(0,10)):'';
   const extraReason=isExtra?(extraCharges.find(x=>String(x.job_card_number)===String(c.id)&&String(x.period_id||"")===String(e.period_id||"")&&String(x.charge_period||"")===String(e.charge_period||""))?.reason||String(e.note||"").replace(/^FTO EXTRA:\\s*/i,"")):"";
-  return '<div class="entry"><div class="desc"><b>'+esc(label)+(isExtra&&extraReason?' · '+esc(extraReason):type!=='charge'&&displayNote?' · '+esc(displayNote):'')+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+(appRole==='admin'&&!isExtra&&!c.exempt?'<div class="entry-actions"><button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button></div>':'')+'</div>';
+  const allocationRows=isPayment?paymentAllocations.filter(a=>String(a.transaction_id)===String(e.id)):[];
+  const allocationSummary=allocationRows.length?'<small>Allocated: '+esc(allocationRows.map(a=>{const p=periods.find(x=>String(x.id)===String(a.period_id));return (p?.period_name||'Period')+' '+fmt(a.amount)}).join(' · '))+'</small>':'';
+  return '<div class="entry"><div class="desc"><b>'+esc(label)+(isExtra&&extraReason?' · '+esc(extraReason):type!=='charge'&&displayNote?' · '+esc(displayNote):'')+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+allocationSummary+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+(appRole==='admin'&&!isExtra&&!c.exempt?'<div class="entry-actions">'+(isPayment?'<button class="btn ghost small" type="button" data-review-allocation="'+esc(e.id)+'">Review allocation</button>':'')+'<button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button></div>':'')+'</div>';
  }).join('');
  $('sheetBody').innerHTML=(c.exempt?'<div class="notice info"><b>Exempt job card.</b> This job card is exempt. Contribution ledger entries are removed while exempt; its FTO transactions remain available in FTO history.</div>':'')+'<div class="section-title">Transaction history · oldest first</div>'+(lines||'<div class="empty">No ledger entries.</div>');
  document.querySelectorAll('[data-fifo-toggle]').forEach(toggle=>toggle.addEventListener('click',()=>{
@@ -402,7 +404,45 @@ function openCitizen(id){
  const waive=$('waiveBtn');if(waive)waive.addEventListener('click',()=>showAdjustmentForm('add-waiver'));
  const ret=$('returnBtn');if(ret)ret.addEventListener('click',()=>showAdjustmentForm('add-return'));
  const extraBtn=$('extraChargeBtn');if(extraBtn)extraBtn.addEventListener('click',showExtraChargeForm);
+ document.querySelectorAll('[data-review-allocation]').forEach(btn=>btn.addEventListener('click',()=>showPaymentAllocationForm(btn.dataset.reviewAllocation)));
  document.querySelectorAll('[data-edit-entry]').forEach(btn=>btn.addEventListener('click',()=>showEditForm(btn.dataset.editEntry)));
+}
+
+function showPaymentAllocationForm(transactionId){
+ const c=currentCitizen;if(!c||appRole!=="admin")return;
+ const payment=c.ledger.find(e=>String(e.id)===String(transactionId)&&e.entry_type==="payment");if(!payment)return;
+ const current=paymentAllocations.filter(a=>String(a.transaction_id)===String(transactionId));
+ const options=[...periods].filter(p=>c.ledger.some(e=>String(e.period_id||"")===String(p.id)&&(e.entry_type==="charge"||e.entry_type==="other_charge")&&!e.is_deferred)).sort((a,b)=>String(a.contribution_month||a.period_date||"").localeCompare(String(b.contribution_month||b.period_date||""))||String(a.created_at||"").localeCompare(String(b.created_at||"")));
+ const optionHtml=options.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.period_name||formatPeriod(p.contribution_month||p.period_date))+'</option>').join('');
+ const rows=current.length?current.map(a=>({period_id:a.period_id,amount:a.amount,note:a.note||""})):[{period_id:options[0]?.id||"",amount:"",note:""}];
+ const rowHtml=(row,i)=>'<div class="allocation-edit-row" data-allocation-row="'+i+'" style="border:1px solid var(--line,#ddd);border-radius:10px;padding:10px;margin:8px 0"><div class="field"><label>Contribution period</label><select data-allocation-period>'+optionHtml+'</select></div><div class="field"><label>Amount (₹)</label><input data-allocation-amount type="number" min="0.01" step="0.01" max="10000000" value="'+esc(row.amount??"")+'" inputmode="decimal"></div><div class="field"><label>Review note (optional)</label><input data-allocation-note maxlength="300" value="'+esc(row.note||"")+'" placeholder="Evidence / reason"></div><button class="btn ghost small" type="button" data-remove-allocation>Remove period</button></div>';
+ $('sheetFooter').classList.add('hidden');
+ $('sheetBody').innerHTML='<div class="section-title">Review payment allocation</div><div class="notice info">Payment: <b>'+fmt(payment.amount)+'</b> · '+esc(day(String(payment.entry_date||"").slice(0,10)))+'<br>Allocate the payment across one or more eligible periods. The total allocated cannot exceed the payment amount. Saving replaces this payment’s existing allocation only.</div><form id="allocationForm"><div id="allocationRows">'+rows.map(rowHtml).join('')+'</div><button class="btn ghost" type="button" id="addAllocationRow">Add period</button><div id="allocationTotal" class="muted" style="margin:10px 0"></div><button class="btn" type="submit" id="saveAllocationBtn">Save allocation</button> <button class="btn ghost" type="button" id="cancelAllocationBtn">Cancel</button><div id="allocationError"></div></form>';
+ const setSelects=()=>document.querySelectorAll('[data-allocation-row]').forEach((row,i)=>{const select=row.querySelector('[data-allocation-period]');select.value=String(rows[i]?.period_id||"");});
+ setSelects();
+ const updateTotal=()=>{let total=0;document.querySelectorAll('[data-allocation-amount]').forEach(x=>total+=Math.max(0,Number(x.value)||0));$('allocationTotal').textContent='Total allocated: '+fmt(total)+' · Unallocated: '+fmt(Math.max(0,Number(payment.amount)-total));};
+ $('allocationRows').addEventListener('input',updateTotal);
+ $('allocationRows').addEventListener('change',updateTotal);
+ $('allocationRows').addEventListener('click',ev=>{const btn=ev.target.closest('[data-remove-allocation]');if(!btn)return;const row=btn.closest('[data-allocation-row]');if(row)row.remove();updateTotal();});
+ $('addAllocationRow').addEventListener('click',()=>{const host=$('allocationRows');const i=host.children.length;host.insertAdjacentHTML('beforeend',rowHtml({period_id:options.find(p=>!Array.from(host.querySelectorAll('[data-allocation-period]')).some(s=>s.value===String(p.id)))?.id||options[0]?.id||"",amount:"",note:""},i));updateTotal();});
+ $('cancelAllocationBtn').addEventListener('click',()=>openCitizen(c.id));
+ updateTotal();
+ $('allocationForm').addEventListener('submit',async ev=>{
+  ev.preventDefault();if(busy)return;
+  const allocations=[];let invalid=false;
+  document.querySelectorAll('[data-allocation-row]').forEach(row=>{const period_id=row.querySelector('[data-allocation-period]').value,amount=Number(row.querySelector('[data-allocation-amount]').value),note=row.querySelector('[data-allocation-note]').value.trim();if(!period_id&&!amount)return;if(!period_id||!Number.isFinite(amount)||amount<=0){invalid=true;return;}allocations.push({period_id,amount,note,confidence:"confirmed"});});
+  const total=allocations.reduce((s,a)=>s+a.amount,0);
+  if(invalid){$('allocationError').innerHTML='<div class="notice err">Each row must have a period and a positive amount, or be removed.</div>';return;}
+  if(total>Number(payment.amount)+0.00001){$('allocationError').innerHTML='<div class="notice err">Allocated amount cannot exceed the payment.</div>';return;}
+  busy=true;$('saveAllocationBtn').disabled=true;$('saveAllocationBtn').textContent='Saving…';
+  try{
+   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'set-payment-allocations',transaction_id:payment.id,allocations,allocation_source:'manual'}});
+   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save allocation.');
+   paymentAllocations=paymentAllocations.filter(a=>String(a.transaction_id)!==String(payment.id)).concat(data.allocations||[]);
+   openCitizen(c.id);status('Payment allocation saved.','info');
+  }catch(err){$('allocationError').innerHTML='<div class="notice err">'+esc(err.message||'Could not save allocation.')+'</div>';}
+  finally{busy=false;if($('saveAllocationBtn')){$('saveAllocationBtn').disabled=false;$('saveAllocationBtn').textContent='Save allocation';}}
+ });
 }
 
 function showExtraChargeForm(){
@@ -588,7 +628,7 @@ async function load(){
   status('Loading active MIS and contribution ledger…');
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}});
   if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
-  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");entries=data.entries||[];periods=data.periods||[];extraCharges=data.extras||[];citizenRegistry=data.citizens||[];applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];deriveCitizens();renderExemptions();
+  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");entries=data.entries||[];periods=data.periods||[];paymentAllocations=data.payment_allocations||[];extraCharges=data.extras||[];citizenRegistry=data.citizens||[];applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];deriveCitizens();renderExemptions();
   $('app').classList.remove('hidden');$('status').classList.add('hidden');
   render();
  }catch(err){status(err.message||'Could not load contribution data.','err');}

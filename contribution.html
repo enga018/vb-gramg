@@ -294,16 +294,17 @@ function buildFifoBreakdown(c){
  const cardPaymentIds=new Set(cardPayments.map(e=>String(e.id)));
  const cardAllocations=paymentAllocations.filter(a=>cardPaymentIds.has(String(a.transaction_id)));
  const allocatedByPeriod=new Map();
- let explicitlyAllocated=0;
- for(const a of cardAllocations){const amount=Math.max(0,Number(a.amount)||0);explicitlyAllocated+=amount;const key=String(a.period_id||'');allocatedByPeriod.set(key,(allocatedByPeriod.get(key)||0)+amount);}
- // Apply saved allocations to their explicitly chosen periods first.
+ for(const a of cardAllocations){const amount=Math.max(0,Number(a.amount)||0);const key=String(a.period_id||'');allocatedByPeriod.set(key,(allocatedByPeriod.get(key)||0)+amount);}
+ // Count only amounts that can actually be applied to a matching period charge.
+ // Any excess allocation remains unallocated credit and can still settle older outstanding periods.
+ let explicitlyApplied=0;
  for(const charge of charges){
   const key=String(charge.period_id||'');if(!key)continue;
   const available=allocatedByPeriod.get(key)||0;if(available<=0)continue;
-  const used=Math.min(charge.remaining,available);charge.remaining-=used;charge.allocated+=used;allocatedByPeriod.set(key,available-used);
+  const used=Math.min(charge.remaining,available);charge.remaining-=used;charge.allocated+=used;explicitlyApplied+=used;allocatedByPeriod.set(key,available-used);
  }
- // Payments without an explicit allocation retain the existing FIFO treatment.
- const netPaymentCredit=Math.max(0,(Number(c.paid)||0)-(Number(c.returns)||0)-explicitlyAllocated);
+ // Payments without a usable explicit allocation retain the existing FIFO treatment.
+ const netPaymentCredit=Math.max(0,(Number(c.paid)||0)-(Number(c.returns)||0)-explicitlyApplied);
  let paymentCredit=netPaymentCredit;
  for(const charge of charges){if(paymentCredit<=0)break;const used=Math.min(charge.remaining,paymentCredit);charge.remaining-=used;charge.allocated+=used;paymentCredit-=used;}
  const groups=new Map();

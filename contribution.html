@@ -487,12 +487,18 @@ function buildHistoricalAllocationPreview(){
    .sort((a,b)=>a.date.localeCompare(b.date)||String(a.periodId).localeCompare(String(b.periodId)));
   for(const b of buckets)b.remaining=Math.max(0,b.gross-(savedByPeriodCard.get(card+'|'+String(b.periodId))||0));
   const priorPayments=ledger.filter(e=>e.entry_type==='payment'&&(dateValue(e)<paymentDate||(dateValue(e)===paymentDate&&String(e.created_at||'')<String(pay.created_at||'')))).sort((a,b)=>dateValue(a).localeCompare(dateValue(b))||String(a.created_at||'').localeCompare(String(b.created_at||'')));
-  // Consume earlier unallocated payments against only periods that were eligible
-  // on the current payment's date; future periods are never pulled forward.
+  // Reconstruct earlier payments using the periods that were eligible on EACH
+  // earlier payment's own date. Otherwise a payment from February could wrongly
+  // consume a March/April bucket merely because that later bucket is eligible now.
   for(const prior of priorPayments){
    const priorSaved=savedByPayment.get(String(prior.id))||0;
    let credit=Math.max(0,(Number(prior.amount)||0)-priorSaved);
-   for(const b of buckets){if(credit<=0.009)break;const applied=Math.min(b.remaining,credit);b.remaining-=applied;credit-=applied;}
+   const priorDate=dateValue(prior);
+   for(const b of buckets){
+    if(credit<=0.009)break;
+    if(priorDate&&b.eligibleDate&&b.eligibleDate>priorDate)continue;
+    const applied=Math.min(b.remaining,credit);b.remaining-=applied;credit-=applied;
+   }
   }
   let remaining=Math.max(0,Number(pay.amount)||0),parts=[];
   for(const b of buckets){if(remaining<=0.009)break;if(b.remaining<=0.009)continue;const amount=Math.min(b.remaining,remaining);parts.push({period_id:b.periodId,period_label:b.label,amount});b.remaining-=amount;remaining-=amount;}

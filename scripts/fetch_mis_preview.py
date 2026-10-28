@@ -42,6 +42,7 @@ START_URL = REPORTING_ROOT + "Progofficer/PoIndexFrame.aspx?" + urlencode({
     "block_name": BLOCK_NAME,
     "Block_Code": BLOCK_CODE,
 })
+DIRECT_REGISTER_URL = "https://vbgramgrep.dord.gov.in/VBGRAMG/writereaddata/citizen_out/panchregpeople_2207001005_eng2627.html"
 OUT = Path("output")
 OUT.mkdir(parents=True, exist_ok=True)
 
@@ -112,6 +113,8 @@ def main() -> int:
         # Compare the reporting host root with the specific VBA-style entry URL.
         results.append(inspect_page(driver, "reporting-root", REPORTING_ROOT))
         results.append(inspect_page(driver, "reporting-entry", START_URL))
+        # Test the exact final register URL supplied by the user.
+        results.append(inspect_page(driver, "direct-registration-register", DIRECT_REGISTER_URL))
 
         report = {
             "mode": "portal-diagnostics-only",

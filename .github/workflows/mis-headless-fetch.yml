@@ -2,6 +2,10 @@ name: Playwright MIS portal diagnostics (read-only)
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - "scripts/fetch_mis_preview.py"
+      - ".github/workflows/mis-headless-fetch.yml"
 
 permissions:
   contents: read

@@ -40,7 +40,7 @@ def snapshot(driver, label):
         )
     except TimeoutException:
         pass
-    data = driver.execute_script("""() => {
+    data = driver.execute_script("""return (() => {
       const norm = s => (s || '').replace(/\\s+/g, ' ').trim();
       return {
         finalUrl: location.href, title: document.title || '',
@@ -59,7 +59,7 @@ def snapshot(driver, label):
         tableCount: document.querySelectorAll('table').length,
         tableRowCounts: [...document.querySelectorAll('table')].map(t=>t.rows.length).slice(0,30)
       };
-    }""")
+    })()""")
     data["label"] = label
     data["capturedAtUtc"] = datetime.now(timezone.utc).isoformat()
     (OUT / f"{label}.json").write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")

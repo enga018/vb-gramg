@@ -502,13 +502,41 @@ function buildHistoricalAllocationPreview(){
  // Mutually exclusive categories; every payment appears exactly once.
  const counts={reviewed:suggestions.length,proposed:suggestions.filter(x=>x.kind==='FIFO proposal').length,needs:suggestions.filter(x=>x.kind==='Needs review').length,already:suggestions.filter(x=>x.kind==='Already allocated').length};
  const proposed=suggestions.reduce((n,x)=>n+x.parts.reduce((m,p)=>m+p.amount,0),0);
+ // Diagnostic checks: summarize review reasons and flag any proposal that violates
+ // the same eligibility rule used to construct the candidate buckets.
+ const reviewReasons=new Map();
+ for(const x of suggestions.filter(x=>x.kind==='Needs review')){
+  const reason=x.reason||'Unspecified review reason';
+  const rec=reviewReasons.get(reason)||{count:0,amount:0};
+  rec.count++;rec.amount+=Number(x.unallocated)||0;reviewReasons.set(reason,rec);
+ }
+ const eligibilityByCard=new Map();
+ for(const e of entries){
+  const card=String(e.job_card_number||'').trim();
+  if(!card||(e.entry_type!=='charge'&&e.entry_type!=='other_charge')||!e.period_id)continue;
+  const p=periodById.get(String(e.period_id));
+  const pd=String((p&&(p.contribution_month||p.period_date))||e.charge_period||'').slice(0,10);
+  const ed=String(e.entry_date||e.created_at||'').slice(0,10);
+  const key=card+'|'+String(e.period_id),eligible=pd||ed;
+  const old=eligibilityByCard.get(key)||{date:eligible,label:p?(p.period_name||formatPeriod(p.contribution_month||p.period_date)):'Period '+String(e.period_id).slice(0,8)};
+  if(ed&&ed>old.date)old.date=ed;
+  eligibilityByCard.set(key,old);
+ }
+ let chronologyViolations=0;
+ for(const x of suggestions)for(const part of x.parts){
+  const eligible=eligibilityByCard.get(x.card+'|'+String(part.period_id));
+  const payDate=dateValue(x.payment);
+  if(eligible&&payDate&&eligible.date&&eligible.date>payDate)chronologyViolations++;
+ }
+ const reasonRows=[...reviewReasons.entries()].sort((a,b)=>b[1].count-a[1].count).map(([reason,v])=>'<tr><td>'+esc(reason)+'</td><td>'+v.count.toLocaleString('en-IN')+'</td><td>'+money(v.amount)+'</td></tr>').join('');
+ const diagnosticHtml='<section style="margin-top:14px"><h3>Review breakdown</h3><div class="muted">Payments that need review, grouped by reason. Unallocated amounts are not automatically assigned.</div><div style="overflow:auto;max-width:100%"><table style="width:100%;border-collapse:collapse;font-size:.9rem"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Reason</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Payments</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Unallocated amount</th></tr></thead><tbody>'+reasonRows+'</tbody></table></div><p class="muted">Chronology violations detected: <strong>'+chronologyViolations+'</strong>. This check tests proposed period eligibility against payment dates; it does not independently confirm that FIFO is historically correct.</p></section>';
  summary.innerHTML='<div class="stats"><div class="stat"><div class="k">Payments reviewed</div><div class="v">'+counts.reviewed.toLocaleString('en-IN')+'</div></div><div class="stat"><div class="k">FIFO proposals</div><div class="v">'+counts.proposed.toLocaleString('en-IN')+'</div></div><div class="stat"><div class="k">Proposed allocation</div><div class="v">'+money(proposed)+'</div></div><div class="stat"><div class="k">Needs review</div><div class="v">'+counts.needs.toLocaleString('en-IN')+'</div></div><div class="stat"><div class="k">Already allocated</div><div class="v">'+counts.already.toLocaleString('en-IN')+'</div></div></div>';
  if(!suggestions.length)host.innerHTML='<div class="empty">No payment transactions found.</div>';
  else{
   const rows=suggestions.map(x=>{const p=x.payment,details=x.parts.length?x.parts.map(a=>esc(a.period_label)+' · '+money(a.amount)).join('<br>'):'—';return '<tr><td>'+esc(dateValue(p)||'Date not recorded')+'</td><td>'+esc(x.card)+'</td><td>'+money(p.amount)+'</td><td>'+details+'</td><td>'+money(x.unallocated)+'</td><td>'+esc(x.kind)+'</td><td>'+esc(x.reason)+'</td></tr>';}).join('');
   host.innerHTML='<div class="muted" style="margin:8px 0">FIFO suggestions are not evidence-confirmed. Existing allocations are preserved; payments on cards with refunds/waivers or partial allocations are routed to review.</div><div style="overflow:auto;max-width:100%"><table style="width:100%;border-collapse:collapse;font-size:.9rem"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Payment date</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Job card</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Payment</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Suggested period allocations</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Unallocated</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Status</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Reason</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
  }
- note.textContent='Preview generated locally only; no database changes were made. Summary categories are mutually exclusive. Explicit payment notes currently identify Cash/Bank methods, not contribution periods.';
+ host.insertAdjacentHTML('beforeend',diagnosticHtml);\n note.textContent='Preview generated locally only; no database changes were made. Review reasons and chronology checks are shown below. Cash/Bank notes are payment methods, not period evidence.';
 }
 function showPaymentAllocationForm(transactionId){
  const c=currentCitizen;if(!c||appRole!=="admin")return;

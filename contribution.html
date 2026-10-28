@@ -434,53 +434,71 @@ function buildHistoricalAllocationPreview(){
  const host=$('allocationPreviewResults'),summary=$('allocationPreviewSummary'),note=$('allocationPreviewStatus');
  if(!host||!summary||!note)return;
  note.textContent='Calculating preview locally…';host.innerHTML='';summary.innerHTML='';
- // Work on copies only. Existing saved allocations are treated as already applied.
+ // Preview-only: never writes to Supabase. Keep one balance bucket per period ID.
+ const allPayments=entries.filter(e=>e.entry_type==='payment'&&String(e.job_card_number||'').trim());
  const byCard=new Map();
- for(const e of entries){const card=String(e.job_card_number||'').trim();if(!card||exemptCardSet().has(card))continue;if(!byCard.has(card))byCard.set(card,[]);byCard.get(card).push(e);}
- const savedByPayment=new Map();
- for(const a of paymentAllocations){const k=String(a.transaction_id);savedByPayment.set(k,(savedByPayment.get(k)||0)+(Number(a.amount)||0));}
- const suggestions=[];let skippedSaved=0,needsReview=0;
- const dateKey=e=>String(e.charge_period||e.entry_date||e.created_at||'').slice(0,10);
- for(const [card,ledger] of byCard){
-  const charges=ledger.filter(e=>!e.is_deferred&&(e.entry_type==='charge'||e.entry_type==='other_charge')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return'))
-   .map(e=>({entry:e,periodId:e.period_id,remaining:Math.max(0,Number(e.amount)||0),periodLabel:''}))
-   .filter(c=>c.periodId);
-  // Keep distinct period IDs distinct, including the two OCT26 rounds.
-  const periodById=new Map(periods.map(p=>[String(p.id),p]));
-  for(const c of charges){const p=periodById.get(String(c.periodId));c.periodLabel=p?(p.period_name||formatPeriod(p.contribution_month||p.period_date)):'Period '+String(c.periodId).slice(0,8);}
-  charges.sort((a,b)=>dateKey(a.entry).localeCompare(dateKey(b.entry))||String(a.entry.created_at||'').localeCompare(String(b.entry.created_at||''))||String(a.periodId).localeCompare(String(b.periodId)));
-  const payments=ledger.filter(e=>e.entry_type==='payment').sort((a,b)=>String(a.entry_date||a.created_at||'').localeCompare(String(b.entry_date||b.created_at||''))||String(a.created_at||'').localeCompare(String(b.created_at||'')));
-  // Deduct prior saved allocations from the matching period before proposing anything new.
-  const chargeRemaining=new Map();
-  for(const c of charges)chargeRemaining.set(String(c.periodId),(chargeRemaining.get(String(c.periodId))||0)+c.remaining);
-  for(const a of paymentAllocations){if(String(a.job_card_number||'')===card){const k=String(a.period_id);if(chargeRemaining.has(k))chargeRemaining.set(k,Math.max(0,chargeRemaining.get(k)-(Number(a.amount)||0)));}}
-  for(const pay of payments){
-   const already=savedByPayment.get(String(pay.id))||0;
-   const available=Math.max(0,(Number(pay.amount)||0)-already);
-   if(available<=0.009){skippedSaved++;continue;}
-   let remaining=available;const parts=[];
-   for(const c of charges){if(remaining<=0.009)break;const key=String(c.periodId),left=chargeRemaining.get(key)||0;if(left<=0.009)continue;const amount=Math.min(left,remaining);if(amount>0.009){parts.push({period_id:c.periodId,period_label:c.periodLabel,amount});chargeRemaining.set(key,left-amount);remaining-=amount;}}
-   if(parts.length){suggestions.push({payment:pay,card,parts,unallocated:remaining,kind:'FIFO proposal'});if(remaining>0.009)needsReview++;}
-   else {suggestions.push({payment:pay,card,parts:[],unallocated:remaining,kind:'Needs review'});needsReview++;}
-  }
+ for(const e of entries){const card=String(e.job_card_number||'').trim();if(!card)continue;if(!byCard.has(card))byCard.set(card,[]);byCard.get(card).push(e);}
+ const savedByPayment=new Map(),savedByPeriodCard=new Map();
+ for(const a of paymentAllocations){
+  const tid=String(a.transaction_id),card=String(a.job_card_number||'').trim(),pid=String(a.period_id),amt=Number(a.amount)||0;
+  savedByPayment.set(tid,(savedByPayment.get(tid)||0)+amt);
+  const key=card+'|'+pid;savedByPeriodCard.set(key,(savedByPeriodCard.get(key)||0)+amt);
  }
+ const periodById=new Map(periods.map(p=>[String(p.id),p]));
  const money=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
- const proposed=suggestions.reduce((n,x)=>n+x.parts.reduce((m,p)=>m+p.amount,0),0);
- const allocatedPayments=suggestions.filter(x=>x.parts.length).length;
- summary.innerHTML='<div class="stats"><div class="stat"><div class="k">Payments reviewed</div><div class="v">'+suggestions.length.toLocaleString('en-IN')+'</div></div><div class="stat"><div class="k">With FIFO proposals</div><div class="v">'+allocatedPayments.toLocaleString('en-IN')+'</div></div><div class="stat"><div class="k">Proposed allocation</div><div class="v">'+money(proposed)+'</div></div><div class="stat"><div class="k">Needs review</div><div class="v">'+needsReview.toLocaleString('en-IN')+'</div></div></div>';
- if(!suggestions.length){host.innerHTML='<div class="empty">No unallocated historical payments found.</div>';}
- else{
-  const rows=suggestions.map(x=>{
-   const p=x.payment,details=x.parts.length?x.parts.map(a=>esc(a.period_label)+' · '+money(a.amount)).join('<br>'):'No eligible outstanding period found';
-   const date=p.entry_date||'Date not recorded';
-   const statusLabel=x.kind==='Needs review'||x.unallocated>0.009?'Needs review':'FIFO proposal';
-   return '<tr><td>'+esc(date)+'</td><td>'+esc(x.card)+'</td><td>'+money(p.amount)+'</td><td>'+details+'</td><td>'+money(x.unallocated)+'</td><td>'+esc(statusLabel)+'</td></tr>';
-  }).join('');
-  host.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:.9rem"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Payment date</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Job card</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Payment</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Suggested period allocations</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Unallocated</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Review status</th></tr></thead><tbody>'+rows+'</tbody></table>';
+ const dateValue=e=>String(e.entry_date||e.created_at||'').slice(0,10);
+ const suggestions=[];
+ for(const pay of allPayments){
+  const card=String(pay.job_card_number||'').trim(),ledger=byCard.get(card)||[];
+  const saved=savedByPayment.get(String(pay.id))||0;
+  if(saved>=Number(pay.amount)-0.009){
+   suggestions.push({payment:pay,card,parts:[],unallocated:0,kind:'Already allocated',reason:'Existing saved allocation; preview will not replace it.'});continue;
+  }
+  if(saved>0.009){
+   suggestions.push({payment:pay,card,parts:[],unallocated:Math.max(0,Number(pay.amount)-saved),kind:'Needs review',reason:'Payment is partially allocated already; manual review required.'});continue;
+  }
+  if(exemptCardSet().has(card)){
+   suggestions.push({payment:pay,card,parts:[],unallocated:Number(pay.amount)||0,kind:'Needs review',reason:'Job card is exempt; no automatic allocation proposed.'});continue;
+  }
+  // Refunds and waivers can change the real balance. Do not guess their period effect.
+  const hasAdjustment=ledger.some(e=>e.entry_type==='refund'||e.entry_type==='charge_waiver'||(e.entry_type==='charge'&&String(e.note||'').trim()==='Return'));
+  if(hasAdjustment){
+   suggestions.push({payment:pay,card,parts:[],unallocated:Number(pay.amount)||0,kind:'Needs review',reason:'Job card has a refund/waiver/return; FIFO requires manual review.'});continue;
+  }
+  // Payment notes "Cash" and "Bank" are methods, not period evidence.
+  const chargesByPeriod=new Map();
+  for(const e of ledger){
+   if(e.is_deferred||(e.entry_type!=='charge'&&e.entry_type!=='other_charge')||!e.period_id)continue;
+   const pid=String(e.period_id),p=periodById.get(pid);
+   if(!chargesByPeriod.has(pid))chargesByPeriod.set(pid,{periodId:e.period_id,label:p?(p.period_name||formatPeriod(p.contribution_month||p.period_date)):'Period '+pid.slice(0,8),date:String((p&&(p.contribution_month||p.period_date))||e.charge_period||e.entry_date||e.created_at||'').slice(0,10),gross:0});
+   chargesByPeriod.get(pid).gross+=Math.max(0,Number(e.amount)||0);
+  }
+  const buckets=[...chargesByPeriod.values()].sort((a,b)=>a.date.localeCompare(b.date)||String(a.periodId).localeCompare(String(b.periodId)));
+  for(const b of buckets)b.remaining=Math.max(0,b.gross-(savedByPeriodCard.get(card+'|'+String(b.periodId))||0));
+  const payKey=dateValue(pay)+'|'+String(pay.created_at||'');
+  const priorPayments=ledger.filter(e=>e.entry_type==='payment'&&(dateValue(e)<dateValue(pay)||(dateValue(e)===dateValue(pay)&&String(e.created_at||'')<String(pay.created_at||'')))).sort((a,b)=>dateValue(a).localeCompare(dateValue(b))||String(a.created_at||'').localeCompare(String(b.created_at||'')));
+  // Consume earlier unallocated payments before evaluating this payment.
+  for(const prior of priorPayments){
+   const priorSaved=savedByPayment.get(String(prior.id))||0;
+   let credit=Math.max(0,(Number(prior.amount)||0)-priorSaved);
+   for(const b of buckets){if(credit<=0.009)break;const applied=Math.min(b.remaining,credit);b.remaining-=applied;credit-=applied;}
+  }
+  let remaining=Math.max(0,Number(pay.amount)||0),parts=[];
+  for(const b of buckets){if(remaining<=0.009)break;if(b.remaining<=0.009)continue;const amount=Math.min(b.remaining,remaining);parts.push({period_id:b.periodId,period_label:b.label,amount});b.remaining-=amount;remaining-=amount;}
+  if(parts.length)suggestions.push({payment:pay,card,parts,unallocated:remaining,kind:remaining>0.009?'Needs review':'FIFO proposal',reason:remaining>0.009?'Payment exceeds eligible outstanding balances.':'FIFO only; no explicit period evidence found.'});
+  else suggestions.push({payment:pay,card,parts:[],unallocated:remaining,kind:'Needs review',reason:'No eligible outstanding period found.'});
  }
- note.textContent='Preview generated in this browser only. No database changes were made. Payments already fully allocated: '+skippedSaved+'. FIFO proposals are suggestions, not evidence-confirmed matches.';
+ // Mutually exclusive categories; every payment appears exactly once.
+ const counts={reviewed:suggestions.length,proposed:suggestions.filter(x=>x.kind==='FIFO proposal').length,needs:suggestions.filter(x=>x.kind==='Needs review').length,already:suggestions.filter(x=>x.kind==='Already allocated').length};
+ const proposed=suggestions.reduce((n,x)=>n+x.parts.reduce((m,p)=>m+p.amount,0),0);
+ summary.innerHTML='<div class="stats"><div class="stat"><div class="k">Payments reviewed</div><div class="v">'+counts.reviewed.toLocaleString('en-IN')+'</div></div><div class="stat"><div class="k">FIFO proposals</div><div class="v">'+counts.proposed.toLocaleString('en-IN')+'</div></div><div class="stat"><div class="k">Proposed allocation</div><div class="v">'+money(proposed)+'</div></div><div class="stat"><div class="k">Needs review</div><div class="v">'+counts.needs.toLocaleString('en-IN')+'</div></div><div class="stat"><div class="k">Already allocated</div><div class="v">'+counts.already.toLocaleString('en-IN')+'</div></div></div>';
+ if(!suggestions.length)host.innerHTML='<div class="empty">No payment transactions found.</div>';
+ else{
+  const rows=suggestions.map(x=>{const p=x.payment,details=x.parts.length?x.parts.map(a=>esc(a.period_label)+' · '+money(a.amount)).join('<br>'):'—';return '<tr><td>'+esc(dateValue(p)||'Date not recorded')+'</td><td>'+esc(x.card)+'</td><td>'+money(p.amount)+'</td><td>'+details+'</td><td>'+money(x.unallocated)+'</td><td>'+esc(x.kind)+'</td><td>'+esc(x.reason)+'</td></tr>';}).join('');
+  host.innerHTML='<div class="muted" style="margin:8px 0">FIFO suggestions are not evidence-confirmed. Existing allocations are preserved; payments on cards with refunds/waivers or partial allocations are routed to review.</div><div style="overflow:auto;max-width:100%"><table style="width:100%;border-collapse:collapse;font-size:.9rem"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Payment date</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Job card</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Payment</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Suggested period allocations</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Unallocated</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Status</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Reason</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+ }
+ note.textContent='Preview generated locally only; no database changes were made. Summary categories are mutually exclusive. Explicit payment notes currently identify Cash/Bank methods, not contribution periods.';
 }
-
 function showPaymentAllocationForm(transactionId){
  const c=currentCitizen;if(!c||appRole!=="admin")return;
  const payment=c.ledger.find(e=>String(e.id)===String(transactionId)&&e.entry_type==="payment");if(!payment)return;

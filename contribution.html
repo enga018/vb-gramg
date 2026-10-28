@@ -98,12 +98,19 @@ header .top-actions > button:hover {
   <link rel="stylesheet" href="./responsive.css">
 </head>
 <body>
-<header class="topbar app-header"><div class="brand"><h1>Contribution</h1><p>Track contribution charges, payments and outstanding balances.</p></div><div class="top-actions app-header-actions"><a class="btn ghost small menu-link" href="./">Back to menu</a><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bank Payment</button><button class="btn ghost small" id="refreshBtn" type="button">Refresh</button></div></header>
+<header class="topbar app-header"><div class="brand"><h1>Contribution</h1><p>Track contribution charges, payments and outstanding balances.</p></div><div class="top-actions app-header-actions"><a class="btn ghost small menu-link" href="./">Back to menu</a><button class="btn ghost small hidden" id="allocationPreviewBtn" type="button">Historical allocation preview</button><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bank Payment</button><button class="btn ghost small" id="refreshBtn" type="button">Refresh</button></div></header>
 <main>
 <div id="status" class="notice info hidden" role="status" aria-live="polite"></div>
 <div id="app" class="hidden">
 <section class="panel">
 <div class="stats"><div class="stat"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred total</div><div class="v" id="deferred">—</div></div></div>
+<section class="panel hidden" id="allocationPreviewPanel" style="margin-bottom:16px">
+ <h1>Historical payment allocation preview</h1>
+ <p class="sub">Preview-only: proposes FIFO allocations to the oldest eligible outstanding periods. Nothing is saved by generating this preview. Review ambiguous cards before any future approval.</p>
+ <div class="top-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"><button class="btn" id="buildAllocationPreviewBtn" type="button">Build preview</button><button class="btn ghost" id="closeAllocationPreviewBtn" type="button">Close</button></div>
+ <div id="allocationPreviewStatus" class="muted" role="status" aria-live="polite">No preview generated.</div>
+ <div id="allocationPreviewSummary"></div><div id="allocationPreviewResults" style="overflow:auto;max-height:60vh;margin-top:12px"></div>
+</section>
 <section class="panel hidden" id="exemptionPanel" style="margin-bottom:16px">
  <h1>Exemptions</h1><p class="sub">Exempt job cards remain visible in FTO history. Their Contribution ledger entries, extra charges, and contribution-citizen records are removed while exempt; FTO transactions and FTO status history are preserved.</p>
  <div class="grid2"><div class="field"><label for="exemptJobCard">Full job card number</label><input id="exemptJobCard" maxlength="100" placeholder="Enter full job card number" autocomplete="off"></div><div class="field"><label for="exemptNote">Reason / note (optional)</label><input id="exemptNote" maxlength="300" placeholder="Reason for exemption"></div></div>
@@ -422,6 +429,58 @@ function openCitizen(id){
  document.querySelectorAll('[data-edit-entry]').forEach(btn=>btn.addEventListener('click',()=>showEditForm(btn.dataset.editEntry)));
 }
 
+function buildHistoricalAllocationPreview(){
+ if(appRole!=="admin")return;
+ const host=$('allocationPreviewResults'),summary=$('allocationPreviewSummary'),note=$('allocationPreviewStatus');
+ if(!host||!summary||!note)return;
+ note.textContent='Calculating preview locally…';host.innerHTML='';summary.innerHTML='';
+ // Work on copies only. Existing saved allocations are treated as already applied.
+ const byCard=new Map();
+ for(const e of entries){const card=String(e.job_card_number||'').trim();if(!card||exemptCardSet().has(card))continue;if(!byCard.has(card))byCard.set(card,[]);byCard.get(card).push(e);}
+ const savedByPayment=new Map();
+ for(const a of paymentAllocations){const k=String(a.transaction_id);savedByPayment.set(k,(savedByPayment.get(k)||0)+(Number(a.amount)||0));}
+ const suggestions=[];let skippedSaved=0,needsReview=0;
+ const dateKey=e=>String(e.charge_period||e.entry_date||e.created_at||'').slice(0,10);
+ for(const [card,ledger] of byCard){
+  const charges=ledger.filter(e=>!e.is_deferred&&(e.entry_type==='charge'||e.entry_type==='other_charge')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return'))
+   .map(e=>({entry:e,periodId:e.period_id,remaining:Math.max(0,Number(e.amount)||0),periodLabel:''}))
+   .filter(c=>c.periodId);
+  // Keep distinct period IDs distinct, including the two OCT26 rounds.
+  const periodById=new Map(periods.map(p=>[String(p.id),p]));
+  for(const c of charges){const p=periodById.get(String(c.periodId));c.periodLabel=p?(p.period_name||formatPeriod(p.contribution_month||p.period_date)):'Period '+String(c.periodId).slice(0,8);}
+  charges.sort((a,b)=>dateKey(a.entry).localeCompare(dateKey(b.entry))||String(a.entry.created_at||'').localeCompare(String(b.entry.created_at||''))||String(a.periodId).localeCompare(String(b.periodId)));
+  const payments=ledger.filter(e=>e.entry_type==='payment').sort((a,b)=>String(a.entry_date||a.created_at||'').localeCompare(String(b.entry_date||b.created_at||''))||String(a.created_at||'').localeCompare(String(b.created_at||'')));
+  // Deduct prior saved allocations from the matching period before proposing anything new.
+  const chargeRemaining=new Map();
+  for(const c of charges)chargeRemaining.set(String(c.periodId),(chargeRemaining.get(String(c.periodId))||0)+c.remaining);
+  for(const a of paymentAllocations){if(String(a.job_card_number||'')===card){const k=String(a.period_id);if(chargeRemaining.has(k))chargeRemaining.set(k,Math.max(0,chargeRemaining.get(k)-(Number(a.amount)||0)));}}
+  for(const pay of payments){
+   const already=savedByPayment.get(String(pay.id))||0;
+   const available=Math.max(0,(Number(pay.amount)||0)-already);
+   if(available<=0.009){skippedSaved++;continue;}
+   let remaining=available;const parts=[];
+   for(const c of charges){if(remaining<=0.009)break;const key=String(c.periodId),left=chargeRemaining.get(key)||0;if(left<=0.009)continue;const amount=Math.min(left,remaining);if(amount>0.009){parts.push({period_id:c.periodId,period_label:c.periodLabel,amount});chargeRemaining.set(key,left-amount);remaining-=amount;}}
+   if(parts.length){suggestions.push({payment:pay,card,parts,unallocated:remaining,kind:'FIFO proposal'});if(remaining>0.009)needsReview++;}
+   else {suggestions.push({payment:pay,card,parts:[],unallocated:remaining,kind:'Needs review'});needsReview++;}
+  }
+ }
+ const money=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
+ const proposed=suggestions.reduce((n,x)=>n+x.parts.reduce((m,p)=>m+p.amount,0),0);
+ const allocatedPayments=suggestions.filter(x=>x.parts.length).length;
+ summary.innerHTML='<div class="stats"><div class="stat"><div class="k">Payments reviewed</div><div class="v">'+suggestions.length.toLocaleString('en-IN')+'</div></div><div class="stat"><div class="k">With FIFO proposals</div><div class="v">'+allocatedPayments.toLocaleString('en-IN')+'</div></div><div class="stat"><div class="k">Proposed allocation</div><div class="v">'+money(proposed)+'</div></div><div class="stat"><div class="k">Needs review</div><div class="v">'+needsReview.toLocaleString('en-IN')+'</div></div></div>';
+ if(!suggestions.length){host.innerHTML='<div class="empty">No unallocated historical payments found.</div>';}
+ else{
+  const rows=suggestions.map(x=>{
+   const p=x.payment,details=x.parts.length?x.parts.map(a=>esc(a.period_label)+' · '+money(a.amount)).join('<br>'):'No eligible outstanding period found';
+   const date=p.entry_date||'Date not recorded';
+   const statusLabel=x.kind==='Needs review'||x.unallocated>0.009?'Needs review':'FIFO proposal';
+   return '<tr><td>'+esc(date)+'</td><td>'+esc(x.card)+'</td><td>'+money(p.amount)+'</td><td>'+details+'</td><td>'+money(x.unallocated)+'</td><td>'+esc(statusLabel)+'</td></tr>';
+  }).join('');
+  host.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:.9rem"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Payment date</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Job card</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Payment</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Suggested period allocations</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Unallocated</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Review status</th></tr></thead><tbody>'+rows+'</tbody></table>';
+ }
+ note.textContent='Preview generated in this browser only. No database changes were made. Payments already fully allocated: '+skippedSaved+'. FIFO proposals are suggestions, not evidence-confirmed matches.';
+}
+
 function showPaymentAllocationForm(transactionId){
  const c=currentCitizen;if(!c||appRole!=="admin")return;
  const payment=c.ledger.find(e=>String(e.id)===String(transactionId)&&e.entry_type==="payment");if(!payment)return;
@@ -656,6 +715,9 @@ $('prev-button').addEventListener('click',()=>{currentPage--;render()});$('next-
 window.addEventListener('resize',()=>render());
 $('refreshBtn').addEventListener('click',load);
 $('bulkPaymentBtn').addEventListener('click',showBulkPaymentForm);
+$('allocationPreviewBtn')?.addEventListener('click',()=>{$('allocationPreviewPanel').classList.remove('hidden');$('allocationPreviewPanel').scrollIntoView({behavior:'smooth',block:'start'});});
+$('buildAllocationPreviewBtn')?.addEventListener('click',buildHistoricalAllocationPreview);
+$('closeAllocationPreviewBtn')?.addEventListener('click',()=>$('allocationPreviewPanel').classList.add('hidden'));
 $('manageExemptionsBtn').addEventListener('click',()=>{$('exemptionPanel').classList.toggle('hidden');if(!$('exemptionPanel').classList.contains('hidden')){$('exemptJobCard').focus();$('exemptionPanel').scrollIntoView({behavior:'smooth',block:'start'});}});
 $('saveExemptionBtn').addEventListener('click',saveExemption);
 $('exemptionList').addEventListener('click',async ev=>{const btn=ev.target.closest('[data-remove-exemption]');if(!btn)return;await removeExemption(btn.dataset.removeExemption);});

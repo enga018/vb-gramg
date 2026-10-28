@@ -290,9 +290,22 @@ function buildFifoBreakdown(c){
  charges.sort((a,b)=>sortKey(a).localeCompare(sortKey(b))||String(a.entry_date||'').localeCompare(String(b.entry_date||''))||String(a.created_at||'').localeCompare(String(b.created_at||'')));
  let waiverCredit=Math.min(Math.max(0,Number(c.waived)||0),charges.reduce((sum,e)=>sum+e.remaining,0));
  for(const charge of charges){if(waiverCredit<=0)break;const used=Math.min(charge.remaining,waiverCredit);charge.remaining-=used;charge.waivedAmount=used;waiverCredit-=used;}
- const netPaymentCredit=Math.max(0,(Number(c.paid)||0)-(Number(c.returns)||0));
+ const cardPayments=(c.ledger||[]).filter(e=>e.entry_type==='payment');
+ const cardPaymentIds=new Set(cardPayments.map(e=>String(e.id)));
+ const cardAllocations=paymentAllocations.filter(a=>cardPaymentIds.has(String(a.transaction_id)));
+ const allocatedByPeriod=new Map();
+ let explicitlyAllocated=0;
+ for(const a of cardAllocations){const amount=Math.max(0,Number(a.amount)||0);explicitlyAllocated+=amount;const key=String(a.period_id||'');allocatedByPeriod.set(key,(allocatedByPeriod.get(key)||0)+amount);}
+ // Apply saved allocations to their explicitly chosen periods first.
+ for(const charge of charges){
+  const key=String(charge.period_id||'');if(!key)continue;
+  const available=allocatedByPeriod.get(key)||0;if(available<=0)continue;
+  const used=Math.min(charge.remaining,available);charge.remaining-=used;charge.allocated+=used;allocatedByPeriod.set(key,available-used);
+ }
+ // Payments without an explicit allocation retain the existing FIFO treatment.
+ const netPaymentCredit=Math.max(0,(Number(c.paid)||0)-(Number(c.returns)||0)-explicitlyAllocated);
  let paymentCredit=netPaymentCredit;
- for(const charge of charges){if(paymentCredit<=0)break;const used=Math.min(charge.remaining,paymentCredit);charge.remaining-=used;charge.allocated=used;paymentCredit-=used;}
+ for(const charge of charges){if(paymentCredit<=0)break;const used=Math.min(charge.remaining,paymentCredit);charge.remaining-=used;charge.allocated+=used;paymentCredit-=used;}
  const groups=new Map();
  charges.forEach((e,index)=>{
   const isOther=e.entry_type==='other_charge'||e.entry_type==='sanitationFee';

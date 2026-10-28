@@ -1,4 +1,4 @@
-name: Headless MIS fetch (preview only)
+name: Headless MIS portal diagnostics (no data updates)
 
 on:
   workflow_dispatch:
@@ -28,7 +28,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install selenium
 
-      - name: Fetch official MIS in headless Chrome
+      - name: Diagnose official MIS portal navigation
         run: python scripts/fetch_mis_preview.py
 
       - name: Upload preview or failure diagnostics

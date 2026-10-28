@@ -18,6 +18,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 
+PORTAL_URL = "https://vbgramgrep.dord.gov.in/VBGRAMG/IndexFrame.aspx"
 REPORT_URL = (
     "https://vbgramgrep.dord.gov.in/VBGRAMG/writereaddata/"
     "citizen_out/panchregpeople_2207001005_eng2627.html"
@@ -52,11 +53,29 @@ def main() -> int:
     try:
         driver = webdriver.Chrome(options=options)
         driver.set_page_load_timeout(60)
+        # First open the official portal so the server can establish any
+        # ordinary browser session/cookies and referrer context it requires.
+        # This is normal navigation only; no authentication or access controls
+        # are bypassed.
+        try:
+            driver.get(PORTAL_URL)
+            print(
+                f"Portal landing page: title={driver.title!r}, "
+                f"url={driver.current_url!r}, "
+                f"status text={(driver.find_element('tag name', 'body').text or '')[:500]!r}",
+                file=sys.stderr,
+            )
+            time.sleep(3)
+        except Exception as exc:
+            # Continue to the report so diagnostics can distinguish portal failure
+            # from report-endpoint failure.
+            print(f"Portal navigation warning: {type(exc).__name__}: {exc}", file=sys.stderr)
+
         try:
             driver.get(REPORT_URL)
         except Exception as exc:
             # A page-load timeout may still leave a useful partial page to inspect.
-            print(f"Navigation warning: {type(exc).__name__}: {exc}", file=sys.stderr)
+            print(f"Report navigation warning: {type(exc).__name__}: {exc}", file=sys.stderr)
 
         WebDriverWait(driver, 45).until(
             lambda d: d.execute_script(
@@ -101,6 +120,8 @@ def main() -> int:
 
         metadata = {
             "mode": "preview-only",
+            "portalUrl": PORTAL_URL,
+            "portalUrl": PORTAL_URL,
             "sourceUrl": REPORT_URL,
             "pageTitle": title,
             "currentUrl": driver.current_url,

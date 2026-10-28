@@ -27,6 +27,8 @@ BLOCK_CODE = "001"
 FINANCIAL_YEAR = "2026-2027"
 
 PUBLIC_HOME = "https://vbgramg.dord.gov.in/vbgramg/home.aspx"
+PUBLIC_REPORT_INDEX = "https://vbgramgrep.dord.gov.in/VBGRAMG/MISreport.aspx"
+PUBLIC_GLANCE_REPORT = "https://vbgramg.dord.gov.in/vbgramg/vbgramg_ataglance/At_a_glance.aspx"
 REPORTING_ROOT = "https://vbgramgrep.dord.gov.in/VBGRAMG/"
 START_URL = REPORTING_ROOT + "Progofficer/PoIndexFrame.aspx?" + urlencode({
     "flag_debited": "S",
@@ -105,6 +107,8 @@ def main() -> int:
         driver.set_page_load_timeout(60)
         # Visit the public entry page first and record official navigation links.
         results.append(inspect_page(driver, "public-home", PUBLIC_HOME))
+        results.append(inspect_page(driver, "public-report-index", PUBLIC_REPORT_INDEX))
+        results.append(inspect_page(driver, "public-glance-report", PUBLIC_GLANCE_REPORT))
         # Compare the reporting host root with the specific VBA-style entry URL.
         results.append(inspect_page(driver, "reporting-root", REPORTING_ROOT))
         results.append(inspect_page(driver, "reporting-entry", START_URL))
@@ -121,7 +125,7 @@ def main() -> int:
             "pages": results,
             "activeMisUpdated": False,
             "supabaseContacted": False,
-            "nextStep": "Review official-home navigation links and compare access outcomes. If the reporting host denies hosted requests, use an officially supported access method; do not add credentials or cookies to the repository.",
+            "nextStep": "Compare public report endpoints against the homepage. If all official endpoints return the same 401 from GitHub Actions, stop hosted retries and use an officially supported access method; do not add credentials or cookies to the repository.",
         }
         (OUT / "portal-diagnostics.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         print(json.dumps({

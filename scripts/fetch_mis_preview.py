@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Fetch the known public New Serchhip North MIS report using headless Chrome.
+"""Fetch the New Serchhip North MIS report using headless Chrome.
 
-Safety: preview-only. This script never writes to Supabase or changes active MIS.
-The report URL is intentionally fixed rather than accepting arbitrary URLs.
+Preview-only: this script never writes to Supabase or changes active MIS.
+On failure, it saves browser diagnostics so the cause can be investigated.
 """
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ import csv
 import json
 import sys
 import time
+import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -25,6 +26,12 @@ OUT = Path("output")
 OUT.mkdir(parents=True, exist_ok=True)
 
 
+def write_json(name: str, value: dict) -> None:
+    (OUT / name).write_text(
+        json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+
 def main() -> int:
     options = Options()
     options.add_argument("--headless=new")
@@ -33,6 +40,8 @@ def main() -> int:
     options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1440,1200")
     options.add_argument("--lang=en-US")
+    options.add_argument("--enable-logging")
+    options.add_argument("--v=1")
     options.add_argument(
         "--user-agent=Mozilla/5.0 (X11; Linux x86_64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -43,13 +52,18 @@ def main() -> int:
     try:
         driver = webdriver.Chrome(options=options)
         driver.set_page_load_timeout(60)
-        driver.get(REPORT_URL)
+        try:
+            driver.get(REPORT_URL)
+        except Exception as exc:
+            # A page-load timeout may still leave a useful partial page to inspect.
+            print(f"Navigation warning: {type(exc).__name__}: {exc}", file=sys.stderr)
+
         WebDriverWait(driver, 45).until(
             lambda d: d.execute_script(
-                "return document.readyState === 'complete'"
+                "return document.readyState === 'complete' || "
+                "document.readyState === 'interactive'"
             )
         )
-        # Some report pages render tables after document.readyState.
         WebDriverWait(driver, 20).until(
             lambda d: d.execute_script(
                 "return document.querySelectorAll('table tr').length > 1"
@@ -63,22 +77,23 @@ def main() -> int:
         for table in tables:
             for tr in table.find_elements("css selector", "tr"):
                 cells = tr.find_elements("css selector", "th, td")
-                values = [cell.text.replace(chr(9), " ").replace(chr(10), " ").strip() for cell in cells]
+                values = [
+                    cell.text.replace(chr(9), " ").replace(chr(10), " ").strip()
+                    for cell in cells
+                ]
                 if any(values):
                     rows.append(values)
 
         if len(rows) < 2:
-            raise RuntimeError("The page loaded but no usable table rows were found.")
+            raise RuntimeError("Page loaded but no usable table rows were found.")
         joined = " ".join(" ".join(row) for row in rows[:10]).lower()
         if not any(term in joined for term in ("job card", "jobcard", "applicant")):
-            excerpt = page_text[:500].replace(chr(10), " ")
+            excerpt = page_text[:1000].replace(chr(10), " ")
             raise RuntimeError(
-                "The response does not look like the expected applicant register. "
-                "It may be a login/error page. Page title: "
-                + title + "; page excerpt: " + excerpt
+                "Response does not look like the expected applicant register. "
+                f"Page title: {title!r}; excerpt: {excerpt!r}"
             )
 
-        # Save the exact rendered HTML and a tab-separated preview for inspection.
         (OUT / "mis-preview.html").write_text(driver.page_source, encoding="utf-8")
         with (OUT / "mis-preview.tsv").open("w", encoding="utf-8", newline="") as f:
             writer = csv.writer(f, delimiter=chr(9), lineterminator=chr(10))
@@ -88,23 +103,64 @@ def main() -> int:
             "mode": "preview-only",
             "sourceUrl": REPORT_URL,
             "pageTitle": title,
+            "currentUrl": driver.current_url,
             "fetchedAtUtc": datetime.now(timezone.utc).isoformat(),
             "tableRowCount": len(rows),
             "firstRows": rows[:5],
             "activeMisUpdated": False,
             "note": "This preview does not write to Supabase or modify active MIS.",
         }
-        (OUT / "mis-preview.json").write_text(
-            json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+        write_json("mis-preview.json", metadata)
         print(json.dumps(metadata, ensure_ascii=False, indent=2))
         return 0
+
     except Exception as exc:
-        print(f"Headless MIS fetch failed: {exc}", file=sys.stderr)
+        diagnostic = {
+            "mode": "failure-diagnostics-only",
+            "sourceUrl": REPORT_URL,
+            "capturedAtUtc": datetime.now(timezone.utc).isoformat(),
+            "exceptionType": type(exc).__name__,
+            "exception": str(exc) or repr(exc),
+            "traceback": traceback.format_exc(),
+            "currentUrl": None,
+            "pageTitle": None,
+            "readyState": None,
+            "pageTextExcerpt": None,
+            "tableRowCount": None,
+            "activeMisUpdated": False,
+        }
+        if driver is not None:
+            for key, script in (
+                ("currentUrl", "return window.location.href"),
+                ("pageTitle", "return document.title"),
+                ("readyState", "return document.readyState"),
+                ("pageTextExcerpt", "return (document.body ? document.body.innerText : '').slice(0, 3000)"),
+                ("tableRowCount", "return document.querySelectorAll('table tr').length"),
+            ):
+                try:
+                    diagnostic[key] = driver.execute_script(script)
+                except Exception as detail_exc:
+                    diagnostic[key] = f"Could not capture: {type(detail_exc).__name__}: {detail_exc}"
+            try:
+                (OUT / "mis-failure.html").write_text(
+                    driver.page_source, encoding="utf-8"
+                )
+            except Exception as detail_exc:
+                diagnostic["htmlCaptureError"] = f"{type(detail_exc).__name__}: {detail_exc}"
+            try:
+                driver.save_screenshot(str(OUT / "mis-failure.png"))
+            except Exception as detail_exc:
+                diagnostic["screenshotCaptureError"] = f"{type(detail_exc).__name__}: {detail_exc}"
+
+        write_json("mis-failure.json", diagnostic)
+        print(json.dumps(diagnostic, ensure_ascii=False, indent=2), file=sys.stderr)
         return 1
     finally:
         if driver is not None:
-            driver.quit()
+            try:
+                driver.quit()
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":

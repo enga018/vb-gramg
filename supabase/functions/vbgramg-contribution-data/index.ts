@@ -165,7 +165,9 @@ Deno.serve(async(req:Request)=>{
    }
    const {data:periodRows,error:periodRowsError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status,created_at").order("contribution_month",{ascending:false,nullsFirst:false}).order("created_at",{ascending:true});
    if(periodRowsError)throw periodRowsError;
-   return reply({approved:true,role:approved.role,entries:all,imports:imports||[],extras:extras||[],citizens,periods:periodRows||[],applicants_by_job_card:Object.fromEntries(applicantsByCard),exemptions:exemptions||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:misRows.length});
+   const {data:paymentAllocations,error:allocationError}=await admin.from("vbgramg_payment_allocations").select("id,transaction_id,period_id,job_card_number,amount,allocation_source,confidence,note,created_at,updated_at").order("created_at",{ascending:true});
+   if(allocationError)throw allocationError;
+   return reply({approved:true,role:approved.role,entries:all,imports:imports||[],extras:extras||[],citizens,periods:periodRows||[],payment_allocations:paymentAllocations||[],applicants_by_job_card:Object.fromEntries(applicantsByCard),exemptions:exemptions||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:misRows.length});
   }
   if(action==="check-fto-duplicates"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can import FTO charges."},403);
@@ -893,6 +895,27 @@ Deno.serve(async(req:Request)=>{
    if(auditError)throw auditError;
    const total=normalized.reduce((sum,row)=>sum+row.amount,0);
    return reply({approved:true,role:approved.role,entries:inserted||[],count:(inserted||[]).length,total_amount:total,method:"Bank"});
+  }
+
+  if(action==="set-payment-allocations"){
+   if(approved.role!=="admin")return reply({error:"Only an approved administrator can review or override payment allocations."},403);
+   const transactionId=String(body.transaction_id||"").trim();
+   const allocations=body.allocations;
+   const source=String(body.allocation_source||"manual");
+   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(transactionId))return reply({error:"A valid payment transaction is required."},400);
+   if(!Array.isArray(allocations)||allocations.length>100)return reply({error:"Allocations must be a list of at most 100 period amounts."},400);
+   const seenPeriods=new Set<string>();
+   for(const item of allocations){
+    const periodId=String(item?.period_id||"").trim(),amount=Number(item?.amount);
+    if(!periodId||!Number.isFinite(amount)||amount<=0)return reply({error:"Each allocation needs a period and positive amount."},400);
+    if(seenPeriods.has(periodId))return reply({error:"Combine duplicate rows for the same period before saving."},400);
+    seenPeriods.add(periodId);
+   }
+   const {data,error}=await admin.rpc("vbgramg_replace_payment_allocations",{p_transaction_id:transactionId,p_allocations:allocations,p_allocation_source:source,p_user_id:authData.user.id});
+   if(error)throw error;
+   const {data:saved,error:savedError}=await admin.from("vbgramg_payment_allocations").select("id,transaction_id,period_id,job_card_number,amount,allocation_source,confidence,note,created_at,updated_at").eq("transaction_id",transactionId).order("created_at",{ascending:true});
+   if(savedError)throw savedError;
+   return reply({approved:true,allocation_result:data,allocations:saved||[]});
   }
 
   if(action==="add-payment"){

@@ -282,7 +282,7 @@ async function load(){
   const {data:access,error:accessError}=await supabaseClient.functions.invoke('vbgramg-app-access',{body:{}});
   if(seq!==loadSequence)return;
   if(accessError||!access||access.approved!==true){await supabaseClient.auth.signOut();window.location.replace('./');return;}
-  await loadPeriods();
+  const periodsPromise=loadPeriods();
 
   if(query.get("days") && /^\d+$/.test(query.get("days"))) $("days").value=query.get("days");
   applyWorkflowVisibility();
@@ -290,7 +290,8 @@ async function load(){
   const [misData,contributionResult,selectionResult]=await Promise.all([
    fetchAllMisRows(seq),
    supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}}),
-   supabaseClient.functions.invoke('vbgramg-mis-selection',{body:{action:'get'}})
+   supabaseClient.functions.invoke('vbgramg-mis-selection',{body:{action:'get'}}),
+   periodsPromise
   ]);
   if(seq!==loadSequence)return;
   const cdata=contributionResult.data;

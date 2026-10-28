@@ -424,7 +424,7 @@ function showPaymentAllocationForm(transactionId){
  $('allocationRows').addEventListener('input',updateTotal);
  $('allocationRows').addEventListener('change',updateTotal);
  $('allocationRows').addEventListener('click',ev=>{const btn=ev.target.closest('[data-remove-allocation]');if(!btn)return;const row=btn.closest('[data-allocation-row]');if(row)row.remove();updateTotal();});
- $('addAllocationRow').addEventListener('click',()=>{const host=$('allocationRows');const i=host.children.length;host.insertAdjacentHTML('beforeend',rowHtml({period_id:options.find(p=>!Array.from(host.querySelectorAll('[data-allocation-period]')).some(s=>s.value===String(p.id)))?.id||options[0]?.id||"",amount:"",note:""},i));updateTotal();});
+ $('addAllocationRow').addEventListener('click',()=>{const host=$('allocationRows');const i=host.children.length;const nextPeriod=options.find(p=>!Array.from(host.querySelectorAll('[data-allocation-period]')).some(s=>s.value===String(p.id)))?.id||options[0]?.id||"";host.insertAdjacentHTML('beforeend',rowHtml({period_id:nextPeriod,amount:"",note:""},i));const added=host.lastElementChild;if(added)added.querySelector('[data-allocation-period]').value=String(nextPeriod);updateTotal();});
  $('cancelAllocationBtn').addEventListener('click',()=>openCitizen(c.id));
  updateTotal();
  $('allocationForm').addEventListener('submit',async ev=>{

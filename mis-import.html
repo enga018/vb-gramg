@@ -127,7 +127,11 @@ header .top-actions > button:hover {
     <p>Paste the copied MIS register and select Analyze and compare. The page filters locally, compares against the active MIS, and shows counts and applicant details. The active MIS changes only after you confirm.</p>
 
     <div class="paste-box">
-      <label class="file-label" for="table-input">Paste table copied from the MIS page</label>
+      <label class="file-label" for="register-file">Upload saved government register (.mht, .mhtml, .html)</label>
+      <input id="register-file" type="file" accept=".mht,.mhtml,.html,.htm,text/html,multipart/related" />
+      <p class="hint">Choose the saved Registration Application Register file from Brave. The page extracts the applicant table locally; it does not update active MIS until you analyze, review, and confirm.</p>
+      <div id="file-status" class="hint" aria-live="polite">No register file selected.</div>
+      <label class="file-label" for="table-input" style="margin-top:16px">Extracted register table (editable)</label>
       <textarea id="table-input" rows="8" placeholder="Copy the MIS table, then paste it here…"></textarea>
       <p class="hint">Original pasted text is retained unchanged. The app filters report headings/deleted applicants locally, maps the government register into the active database columns, and preserves existing Unique IDs when matched.</p>
       <button type="button" id="load-table-button">Analyze and compare</button>
@@ -161,6 +165,8 @@ header .top-actions > button:hover {
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
     const tableInput = document.getElementById('table-input');
+    const registerFileInput = document.getElementById('register-file');
+    const fileStatus = document.getElementById('file-status');
     const loadTableButton = document.getElementById('load-table-button');
     const statusBox = document.getElementById('status');
     let currentUser = null;
@@ -378,6 +384,71 @@ header .top-actions > button:hover {
       const uniqueReview=[...new Set(review)];
       return {output,removed,review:uniqueReview,activeCount:active.activeRowCount||activeRows.length-1,matchedCount,generatedIdCount};
     }
+
+
+    function decodeSavedRegisterFile(rawText) {
+      // Brave saves MHT as a MIME multipart document. Extract its text/html part without
+      // fetching the source URL or relying on browser cookies/session state.
+      let html = '';
+      if (/^From:\s*<Saved by Blink>/im.test(rawText) || /Content-Type:\s*multipart\/related/i.test(rawText.slice(0, 5000))) {
+        const boundaryMatch = rawText.match(/boundary\s*=\s*"?([^"\r\n;]+)"?/i);
+        if (!boundaryMatch) throw new Error('This MHT file has no readable MIME boundary.');
+        const boundary = boundaryMatch[1];
+        const parts = rawText.split('--' + boundary);
+        for (const part of parts) {
+          if (!/Content-Type:\s*text\/html/i.test(part.slice(0, 1200))) continue;
+          const splitAt = part.search(/\r?\n\r?\n/);
+          if (splitAt >= 0) { html = part.slice(splitAt).trim(); break; }
+        }
+      } else {
+        html = rawText;
+      }
+      if (!html || !/<html[\s>]/i.test(html)) throw new Error('Could not find the saved HTML report inside this file. Try saving the register page again from Brave.');
+      return html;
+    }
+
+    function extractRegisterTableFromHtml(html) {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const tables = Array.from(doc.querySelectorAll('table'));
+      if (!tables.length) throw new Error('No HTML tables were found in the saved report.');
+      const cellText = cell => (cell.innerText || cell.textContent || '').replace(/[\u00a0\u200b]/g, ' ').replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+      const looksLikeRegister = table => {
+        const text = (table.innerText || table.textContent || '').toLowerCase().replace(/\s+/g, ' ');
+        return text.includes('job card number') && (text.includes('name of applicant') || text.includes('applicant name'));
+      };
+      // This government report normally places the applicant register at table index 4.
+      // Prefer a table identified by its actual column headings, falling back to index 4 only
+      // when it has a substantial number of rows.
+      let table = tables.find(looksLikeRegister);
+      if (!table && tables[4] && tables[4].rows.length > 10) table = tables[4];
+      if (!table) throw new Error('Could not identify the applicant register table in the saved report.');
+      const rows = Array.from(table.rows).map(row => Array.from(row.cells).map(cellText)).filter(row => row.some(Boolean));
+      if (rows.length < 2) throw new Error('The extracted register table has too few rows.');
+      const tsv = rows.map(row => row.map(value => value.replace(/\t/g, ' ').replace(/\r?\n/g, ' ')).join('\t')).join('\n');
+      return { tsv, rowCount: rows.length, cellCount: Math.max(...rows.map(row => row.length)), title: doc.title || 'Saved register' };
+    }
+
+    registerFileInput.addEventListener('change', async function () {
+      const file = registerFileInput.files && registerFileInput.files[0];
+      if (!file) { fileStatus.textContent = 'No register file selected.'; return; }
+      if (pendingImportId) { fileStatus.textContent = 'Confirm or cancel the pending comparison before selecting another file.'; return; }
+      fileStatus.textContent = 'Reading saved report locally…';
+      try {
+        const raw = await file.text();
+        const html = decodeSavedRegisterFile(raw);
+        const extracted = extractRegisterTableFromHtml(html);
+        tableInput.value = extracted.tsv;
+        importedFileName = file.name;
+        pastedTableLoaded = false;
+        importedRows = [];
+        document.getElementById('diff-panel').classList.add('hidden');
+        fileStatus.textContent = 'Extracted ' + Math.max(0, extracted.rowCount - 1).toLocaleString() + ' table row(s) from "' + file.name + '". Review the extracted text, then tap Analyze and compare. No database changes have been made.';
+        setStatus('Saved report extracted locally. Analyze and compare when ready; the active MIS remains unchanged.', 'success');
+      } catch (error) {
+        fileStatus.textContent = 'Could not extract the report: ' + (error && error.message ? error.message : String(error));
+        setStatus('Saved report extraction failed. You can still paste a copied table below. No database changes have been made.', 'error');
+      }
+    });
 
     loadTableButton.addEventListener('click', async function () {
       if (!currentUser || currentRole !== 'admin') { setStatus('Administrator access is required.', 'error'); return; }

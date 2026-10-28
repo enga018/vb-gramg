@@ -63,7 +63,7 @@ def main() -> int:
         for table in tables:
             for tr in table.find_elements("css selector", "tr"):
                 cells = tr.find_elements("css selector", "th, td")
-                values = [cell.text.replace("\\t", " ").replace("\\n", " ").strip() for cell in cells]
+                values = [cell.text.replace(chr(9), " ").replace(chr(10), " ").strip() for cell in cells]
                 if any(values):
                     rows.append(values)
 
@@ -71,7 +71,7 @@ def main() -> int:
             raise RuntimeError("The page loaded but no usable table rows were found.")
         joined = " ".join(" ".join(row) for row in rows[:10]).lower()
         if not any(term in joined for term in ("job card", "jobcard", "applicant")):
-            excerpt = page_text[:500].replace("\\n", " ")
+            excerpt = page_text[:500].replace(chr(10), " ")
             raise RuntimeError(
                 "The response does not look like the expected applicant register. "
                 "It may be a login/error page. Page title: "
@@ -81,7 +81,7 @@ def main() -> int:
         # Save the exact rendered HTML and a tab-separated preview for inspection.
         (OUT / "mis-preview.html").write_text(driver.page_source, encoding="utf-8")
         with (OUT / "mis-preview.tsv").open("w", encoding="utf-8", newline="") as f:
-            writer = csv.writer(f, delimiter="\\t", lineterminator="\\n")
+            writer = csv.writer(f, delimiter=chr(9), lineterminator=chr(10))
             writer.writerows(rows)
 
         metadata = {

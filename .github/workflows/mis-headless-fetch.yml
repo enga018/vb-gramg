@@ -1,4 +1,4 @@
-name: Playwright MIS portal diagnostics (read-only)
+name: Selenium MIS portal diagnostics (read-only)
 
 on:
   workflow_dispatch:
@@ -27,11 +27,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install Playwright and Chromium
+      - name: Install Selenium
         run: |
           python -m pip install --upgrade pip
-          pip install playwright
-          python -m playwright install --with-deps chromium
+          pip install "selenium>=4.26"
 
       - name: Navigate the official portal and inspect report
         run: python scripts/fetch_mis_preview.py
@@ -40,7 +39,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mis-playwright-diagnostics
+          name: mis-selenium-diagnostics
           path: output/*
           if-no-files-found: warn
           retention-days: 7

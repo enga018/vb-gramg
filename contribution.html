@@ -546,7 +546,45 @@ function buildHistoricalAllocationPreview(){
   if(eligible&&payDate&&eligible.date&&eligible.date>payDate)chronologyViolations++;
  }
  const reasonRows=[...reviewReasons.entries()].sort((a,b)=>b[1].count-a[1].count).map(([reason,v])=>'<tr><td>'+esc(reason)+'</td><td>'+v.count.toLocaleString('en-IN')+'</td><td>'+money(v.amount)+'</td></tr>').join('');
- const diagnosticHtml='<section style="margin-top:14px"><h3>Review breakdown</h3><div class="muted">Payments that need review, grouped by reason. Unallocated amounts are not automatically assigned.</div><div style="overflow:auto;max-width:100%"><table style="width:100%;border-collapse:collapse;font-size:.9rem"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Reason</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Payments</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Unallocated amount</th></tr></thead><tbody>'+reasonRows+'</tbody></table></div><p class="muted">Chronology violations detected: <strong>'+chronologyViolations+'</strong>. This check tests proposed period eligibility against payment dates; it does not independently confirm that FIFO is historically correct.</p></section>';
+ const reviewItems=suggestions.filter(x=>x.kind==='Needs review');
+ const reviewGroups=new Map();
+ for(const x of reviewItems){const reason=x.reason||'Unspecified review reason';if(!reviewGroups.has(reason))reviewGroups.set(reason,[]);reviewGroups.get(reason).push(x);}
+ const reviewDetailGroupsHtml=[...reviewGroups.entries()].sort((a,b)=>b[1].length-a[1].length).map(([reason,items])=>{
+  const paymentRows=items.map(x=>{
+   const p=x.payment,paymentDate=dateValue(p),ledger=byCard.get(x.card)||[];
+   const currentSaved=paymentAllocations.filter(a=>String(a.transaction_id)===String(p.id));
+   const currentSavedTotal=currentSaved.reduce((n,a)=>n+(Number(a.amount)||0),0);
+   const priorPayments=ledger.filter(e=>e.entry_type==='payment'&&(dateValue(e)<paymentDate||(dateValue(e)===paymentDate&&String(e.created_at||'')<String(p.created_at||'')))).sort((a,b)=>dateValue(a).localeCompare(dateValue(b))||String(a.created_at||'').localeCompare(String(b.created_at||'')));
+   const priorHtml=priorPayments.length?priorPayments.map(prior=>{
+    const allocs=paymentAllocations.filter(a=>String(a.transaction_id)===String(prior.id));
+    const allocated=allocs.reduce((n,a)=>n+(Number(a.amount)||0),0);
+    const allocationText=allocs.length?allocs.map(a=>{const period=periodById.get(String(a.period_id));return esc(period?(period.period_name||formatPeriod(period.contribution_month||period.period_date)):'Period '+String(a.period_id).slice(0,8))+' '+money(a.amount);}).join(', '):'No saved period allocation';
+    return '<li>'+esc(dateValue(prior)||'Date not recorded')+' · '+money(prior.amount)+' paid · '+money(allocated)+' allocated. '+allocationText+'</li>';
+   }).join(''):'<li>No earlier payments recorded for this job card.</li>';
+   const eligibleByPeriod=new Map();
+   for(const e of ledger){
+    if((e.entry_type!=='charge'&&e.entry_type!=='other_charge')||!e.period_id)continue;
+    const pid=String(e.period_id),period=periodById.get(pid);
+    const periodDate=String((period&&(period.contribution_month||period.period_date))||e.charge_period||'').slice(0,10);
+    const chargeDate=String(e.entry_date||e.created_at||'').slice(0,10);
+    const eligibleDate=chargeDate&&chargeDate>periodDate?chargeDate:(periodDate||chargeDate);
+    if(paymentDate&&eligibleDate&&eligibleDate>paymentDate)continue;
+    if(!eligibleByPeriod.has(pid))eligibleByPeriod.set(pid,{label:period?(period.period_name||formatPeriod(period.contribution_month||period.period_date)):'Period '+pid.slice(0,8),eligibleDate,gross:0});
+    const bucket=eligibleByPeriod.get(pid);bucket.gross+=Math.max(0,Number(e.amount)||0);
+    if(chargeDate&&chargeDate>bucket.eligibleDate)bucket.eligibleDate=chargeDate;
+   }
+   const eligibleRows=[...eligibleByPeriod.entries()].sort((a,b)=>a[1].eligibleDate.localeCompare(b[1].eligibleDate)).map(([pid,b])=>{
+    const allocated=savedByPeriodCard.get(x.card+'|'+pid)||0;
+    return '<li>'+esc(b.label)+' · eligible '+esc(b.eligibleDate||'date unknown')+' · charge total '+money(b.gross)+' · saved allocations '+money(allocated)+' · balance before historical-credit simulation '+money(Math.max(0,b.gross-allocated))+'</li>';
+   }).join('');
+   const adjustments=ledger.filter(e=>e.entry_type==='refund'||e.entry_type==='charge_waiver'||(e.entry_type==='charge'&&String(e.note||'').trim()==='Return'));
+   const adjustmentHtml=adjustments.length?adjustments.map(e=>'<li>'+esc(e.entry_type==='charge_waiver'?'Waiver':e.entry_type==='refund'?'Refund':'Return')+' · '+esc(dateValue(e)||'Date not recorded')+' · '+money(e.amount)+' · '+esc(e.note||'No note')+'</li>').join(''):'<li>No refund, waiver, or return found on this job card.</li>';
+   const currentAllocationHtml=currentSaved.length?currentSaved.map(a=>{const period=periodById.get(String(a.period_id));return '<li>'+esc(period?(period.period_name||formatPeriod(period.contribution_month||period.period_date)):'Period '+String(a.period_id).slice(0,8))+' · '+money(a.amount)+(a.note?' · '+esc(a.note):'')+'</li>';}).join(''):'<li>No saved allocation for this payment.</li>';
+   return '<tr><td>'+esc(paymentDate||'Date not recorded')+'</td><td>'+esc(x.card)+'</td><td>'+money(p.amount)+'</td><td>'+money(currentSavedTotal)+'</td><td>'+money(x.unallocated)+'</td><td><details><summary>Inspect</summary><div style="min-width:260px;max-width:520px;white-space:normal"><p><strong>Review reason:</strong> '+esc(x.reason)+'</p><p><strong>Eligible charge periods</strong></p><ul>'+ (eligibleRows||'<li>No charge period eligible as of this payment date.</li>')+'</ul><p><strong>Prior payments and their saved allocations</strong></p><ul>'+priorHtml+'</ul><p><strong>This payment’s saved allocations</strong></p><ul>'+currentAllocationHtml+'</ul><p><strong>Refunds, waivers, and returns on this job card</strong></p><ul>'+adjustmentHtml+'</ul><p class="muted">Period balances above show recorded charge totals less saved allocations. They are diagnostic context, not a new allocation proposal; historical carry-forward credit may affect the simulated balance. Nothing is saved by opening these details.</p></div></details></td></tr>';
+  }).join('');
+  return '<details style="margin:10px 0;border:1px solid var(--line);border-radius:10px;padding:10px"><summary><strong>'+esc(reason)+'</strong> · '+items.length.toLocaleString('en-IN')+' payments · '+money(items.reduce((n,x)=>n+(Number(x.unallocated)||0),0))+' unallocated</summary><div style="overflow:auto;max-width:100%;margin-top:10px"><table style="width:100%;border-collapse:collapse;font-size:.9rem"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Payment date</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Job card</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Payment</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Already allocated</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Unallocated</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Payment-level evidence</th></tr></thead><tbody>'+paymentRows+'</tbody></table></div></details>';
+ }).join('');
+ const diagnosticHtml='<section style="margin-top:14px"><h3>Review breakdown</h3><div class="muted">Expand a reason, then inspect an individual payment for eligible charge periods, earlier payments, saved allocations, and adjustments. Unallocated amounts are not automatically assigned.</div><div style="overflow:auto;max-width:100%"><table style="width:100%;border-collapse:collapse;font-size:.9rem"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Reason</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Payments</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Unallocated amount</th></tr></thead><tbody>'+reasonRows+'</tbody></table></div><div style="margin-top:12px">'+(reviewDetailGroupsHtml||'<div class="empty">No payments currently need review.</div>')+'</div><p class="muted">Chronology violations detected: <strong>'+chronologyViolations+'</strong>. This check tests proposed period eligibility against payment dates; it does not independently confirm that FIFO is historically correct.</p></section>';
  summary.innerHTML='<div class="stats"><div class="stat"><div class="k">Payments reviewed</div><div class="v">'+counts.reviewed.toLocaleString('en-IN')+'</div></div><div class="stat"><div class="k">FIFO proposals</div><div class="v">'+counts.proposed.toLocaleString('en-IN')+'</div></div><div class="stat"><div class="k">Proposed allocation</div><div class="v">'+money(proposed)+'</div></div><div class="stat"><div class="k">Needs review</div><div class="v">'+counts.needs.toLocaleString('en-IN')+'</div></div><div class="stat"><div class="k">Already allocated</div><div class="v">'+counts.already.toLocaleString('en-IN')+'</div></div></div>';
  if(!suggestions.length)host.innerHTML='<div class="empty">No payment transactions found.</div>';
  else{

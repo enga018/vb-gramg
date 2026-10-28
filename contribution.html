@@ -474,7 +474,7 @@ function buildHistoricalAllocationPreview(){
    const pid=String(e.period_id),p=periodById.get(pid);
    const periodDate=String((p&&(p.contribution_month||p.period_date))||e.charge_period||'').slice(0,10);
    const chargeEntryDate=String(e.entry_date||e.created_at||'').slice(0,10);
-   if(!chargesByPeriod.has(pid))chargesByPeriod.set(pid,{periodId:e.period_id,label:p?(p.period_name||formatPeriod(p.contribution_month||p.period_date)):'Period '+pid.slice(0,8),date:periodDate,eligibleDate:chargeEntryDate||periodDate,gross:0});
+   if(!chargesByPeriod.has(pid))chargesByPeriod.set(pid,{periodId:e.period_id,label:p?(p.period_name||formatPeriod(p.contribution_month||p.period_date)):'Period '+pid.slice(0,8),date:periodDate,eligibleDate:periodDate||chargeEntryDate,gross:0});
    const b=chargesByPeriod.get(pid);
    // Conservative eligibility for a combined period bucket: wait until its latest
    // charge row is recorded, including deferred rows, before using it for FIFO.

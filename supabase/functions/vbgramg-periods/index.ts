@@ -46,18 +46,16 @@ Deno.serve(async (req: Request) => {
       const { data, error } = await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,days,status,created_at,updated_at,closed_at").order("contribution_month", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false });
       if (error) throw error;
       const periodRows = data || [];
-      const usageChecks = await Promise.all(periodRows.map(async period => {
-        const checks = await Promise.all([
-          admin.from("vbgramg_charge_ledger").select("id", { count: "exact", head: true }).eq("period_id", period.id),
-          admin.from("vbgramg_contribution_extras").select("id", { count: "exact", head: true }).eq("period_id", period.id),
-          admin.from("vbgramg_fto_batches").select("id", { count: "exact", head: true }).eq("period_id", period.id),
-          admin.from("vbgramg_demand_runs").select("id", { count: "exact", head: true }).eq("period_id", period.id)
-        ]);
-        const failed = checks.find(result => result.error);
-        if (failed) throw failed.error;
-        return { id: String(period.id), used: checks.some(result => (result.count || 0) > 0) };
-      }));
-      const usedIds = new Set(usageChecks.filter(item => item.used).map(item => item.id));
+      const usageQueries = await Promise.all([
+        admin.from("vbgramg_charge_ledger").select("period_id").not("period_id", "is", null),
+        admin.from("vbgramg_contribution_extras").select("period_id").not("period_id", "is", null),
+        admin.from("vbgramg_fto_batches").select("period_id").not("period_id", "is", null),
+        admin.from("vbgramg_demand_runs").select("period_id").not("period_id", "is", null)
+      ]);
+      const usageError = usageQueries.find(result => result.error);
+      if (usageError) throw usageError.error;
+      const usedIds = new Set<string>();
+      for (const result of usageQueries) for (const row of result.data || []) if (row.period_id) usedIds.add(String(row.period_id));
       return reply(req, { approved: true, periods: periodRows.map(period => ({ ...period, used: usedIds.has(String(period.id)) })) });
     }
     if (action === "create") {

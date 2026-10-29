@@ -2,7 +2,7 @@
 (function(){
  function install(){
   var header=document.querySelector('header'); if(!header||document.querySelector('.global-nav')) return;
-  var host=document.querySelector('#home-panel .account')||header.querySelector('.app-header-actions, .header-actions, .top-actions, .actions, .account'); if(!host)return;
+  var host=header;
   header.querySelectorAll('a.menu-link').forEach(function(a){a.remove();});
   var wrap=document.createElement('div');wrap.className='global-nav';
   var button=document.createElement('button');button.type='button';button.className='global-nav-trigger';button.setAttribute('aria-label','Open navigation menu');button.setAttribute('aria-haspopup','true');button.setAttribute('aria-expanded','false');button.title='Navigation';button.textContent='⋮';

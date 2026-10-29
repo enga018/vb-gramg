@@ -42,6 +42,16 @@ Deno.serve(async (req: Request) => {
     let body: Record<string, unknown>;
     try { body = await req.json(); } catch { return reply(req, { error: "Invalid JSON request." }, 400); }
     const action = clean(body.action, 30);
+    if (action === "open-list") {
+      // Work Demand only needs open periods; skip the usage scan needed by management.
+      const { data, error } = await admin.from("vbgramg_periods")
+        .select("id,period_name,period_date,contribution_month,days,status")
+        .eq("status", "open")
+        .order("contribution_month", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return reply(req, { approved: true, periods: data || [] });
+    }
     if (action === "list") {
       const { data, error } = await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,days,status,created_at,updated_at,closed_at").order("contribution_month", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false });
       if (error) throw error;

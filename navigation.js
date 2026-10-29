@@ -3,7 +3,7 @@
   function install() {
     var path = window.location.pathname || "/";
     var cleanPath = path.replace(/\/+$/, "") || "/";
-    if (cleanPath === "/index.html" || cleanPath === "/") return;
+    if (cleanPath.endsWith("/index.html") || cleanPath === "/" || path.endsWith("/")) return;
 
     var header = document.querySelector("header");
     if (!header || document.querySelector(".global-nav")) return;

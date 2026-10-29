@@ -184,7 +184,7 @@ function applyWorkflowVisibility(){
  for(const id of ["reviewPanel","demandPanel","unwillingPanel"]) $(id).classList.toggle("hidden",!workflowStarted);
  $("generateBtn").classList.toggle("hidden",!workflowStarted);
  if(!generated) $("exportsPanel").classList.add("hidden");
- $("continueReviewBtn").textContent=workflowStarted?"Reload applicants":"Load Applicants";
+ $("continueReviewBtn").textContent=workflowStarted?"Review applicants":"Load Applicants";
 }
 const normalize=value=>String(value==null?'':value).trim();
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

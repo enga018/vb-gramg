@@ -214,7 +214,7 @@ function deriveCitizens(){
  const map=new Map(),make=(id,name)=>({id,jobCard:id,name:name||'Unnamed',exempt:exemptSet.has(id),charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,ledger:[]});
  for(const r of citizenRegistry){const id=String(r.job_card_number||'').trim();if(id)map.set(id,make(id,r.person_name))}
  for(const e of entries){const id=String(e.job_card_number||'').trim();if(!id||!map.has(id))continue;map.get(id).ledger.push(e)}
- citizens=[...map.values()].map(c=>{const x=calculateLedgerState(c.ledger);let gross=0;for(const e of c.ledger){if((e.entry_type==='charge'||e.entry_type==='other_charge'||e.entry_type==='sanitationFee')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return'))gross+=Math.max(0,Number(e.amount)||0)}return c.exempt?{...c,charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,totalCharged:0,balance:0}:{...c,charges:gross,activeCharges:x.charged,deferred:x.deferred,paid:x.paid,waived:x.waived,returns:x.returned,totalCharged:Math.max(0,gross-Math.min(gross,x.waived)),balance:x.balance}}).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
+ citizens=[...map.values()].map(c=>{const x=calculateLedgerState(c.ledger);let gross=0;for(const e of c.ledger){if((e.entry_type==='charge'||e.entry_type==='other_charge'||e.entry_type==='sanitationFee')&&!e.is_deferred&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return'))gross+=Math.max(0,Number(e.amount)||0)}return c.exempt?{...c,charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,totalCharged:0,balance:0}:{...c,charges:gross,activeCharges:x.charged,deferred:x.deferred,paid:x.paid,waived:x.waived,returns:x.returned,totalCharged:Math.max(0,gross-Math.min(gross,x.waived)),balance:x.balance}}).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
 }
 function jobCardSuffixNumber(jobCard){
  const match=String(jobCard||'').match(/\/([^/]+)$/);
@@ -470,14 +470,13 @@ function buildHistoricalAllocationPreview(){
   // This prevents a payment from being assigned to a later-entered/future charge.
   const chargesByPeriod=new Map();
   for(const e of ledger){
-   if((e.entry_type!=='charge'&&e.entry_type!=='other_charge')||!e.period_id)continue;
+   if((e.entry_type!=='charge'&&e.entry_type!=='other_charge')||e.is_deferred||!e.period_id)continue;
    const pid=String(e.period_id),p=periodById.get(pid);
    const periodDate=String((p&&(p.contribution_month||p.period_date))||e.charge_period||'').slice(0,10);
    const chargeEntryDate=String(e.entry_date||e.created_at||'').slice(0,10);
    if(!chargesByPeriod.has(pid))chargesByPeriod.set(pid,{periodId:e.period_id,label:p?(p.period_name||formatPeriod(p.contribution_month||p.period_date)):'Period '+pid.slice(0,8),date:periodDate,eligibleDate:periodDate||chargeEntryDate,gross:0});
    const b=chargesByPeriod.get(pid);
-   // Conservative eligibility for a combined period bucket: wait until its latest
-   // charge row is recorded, including deferred rows, before using it for FIFO.
+   // Deferred charges are excluded entirely and cannot delay eligibility of active charges.
    if(chargeEntryDate&&chargeEntryDate>b.eligibleDate)b.eligibleDate=chargeEntryDate;
    b.gross+=Math.max(0,Number(e.amount)||0);
   }

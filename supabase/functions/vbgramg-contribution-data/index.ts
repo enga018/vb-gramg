@@ -164,8 +164,13 @@ Deno.serve(async(req:Request)=>{
    }
    const {data:periodRows,error:periodRowsError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status,created_at").order("contribution_month",{ascending:false,nullsFirst:false}).order("created_at",{ascending:true});
    if(periodRowsError)throw periodRowsError;
-   const {data:paymentAllocations,error:allocationError}=await admin.from("vbgramg_payment_allocations").select("id,transaction_id,period_id,job_card_number,amount,allocation_source,confidence,note,created_at,updated_at").order("created_at",{ascending:true});
-   if(allocationError)throw allocationError;
+   const paymentAllocations:Record<string,unknown>[]=[];
+   for(let offset=0;;offset+=1000){
+    const {data,error}=await admin.from("vbgramg_payment_allocations").select("id,transaction_id,period_id,job_card_number,amount,allocation_source,confidence,note,created_at,updated_at").order("created_at",{ascending:true}).range(offset,offset+999);
+    if(error)throw error;
+    paymentAllocations.push(...(data||[]));
+    if(!data||data.length<1000)break;
+   }
    return reply({approved:true,role:approved.role,entries:all,imports:imports||[],extras:extras||[],citizens,periods:periodRows||[],payment_allocations:paymentAllocations||[],applicants_by_job_card:Object.fromEntries(applicantsByCard),exemptions:exemptions||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:misRows.length});
   }
   if(action==="check-fto-duplicates"){

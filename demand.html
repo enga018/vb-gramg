@@ -319,10 +319,16 @@ async function load(){
   status('Checking your sign-in session…');
   const {data:sessionData,error:sessionError}=await withTimeout(supabaseClient.auth.getSession(),12000,'Sign-in session check');
   if(sessionError||!sessionData.session){window.location.replace('./');return;}
-  const {data:access,error:accessError}=await supabaseClient.functions.invoke('vbgramg-app-access',{body:{}});
+  // Load the open-period dropdown as soon as a valid session exists. Do not
+  // let a slow app-access check leave the dropdown stuck on its initial label.
+  const periodsPromise=loadPeriods();
+  const {data:access,error:accessError}=await withTimeout(
+   supabaseClient.functions.invoke('vbgramg-app-access',{body:{}}),
+   12000,
+   'App access check'
+  );
   if(seq!==loadSequence)return;
   if(accessError||!access||access.approved!==true){await supabaseClient.auth.signOut();window.location.replace('./');return;}
-  const periodsPromise=loadPeriods();
 
   if(query.get("days") && /^\d+$/.test(query.get("days"))) $("days").value=query.get("days");
   applyWorkflowVisibility();
@@ -361,6 +367,12 @@ async function load(){
   status('MIS and Contribution data loaded.','success');
   $('generateBtn').disabled=false;
  }catch(error){
+  // Never leave the period selector displaying an indefinite loading state.
+  const periodSelect=$('periodSelect');
+  if(periodSelect.options.length===1 && /loading open periods/i.test(periodSelect.options[0].textContent)){
+   periodSelect.replaceChildren(new Option('Could not load periods — see status below',''));
+   periodSelect.disabled=true;
+  }
   status('Could not prepare Work Demand: '+(error&&error.message?error.message:String(error)),'error');
   $('reviewBody').innerHTML='<tr><td colspan="4" class="empty">Could not load the review list.</td></tr>';
   $('demandBody').innerHTML='<tr><td colspan="3" class="empty">Could not load Work Demand.</td></tr>';

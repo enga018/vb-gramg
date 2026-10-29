@@ -104,7 +104,7 @@ header .top-actions > button:hover {
 <div class="field"><label for="periodSelect">Select an open period</label><select id="periodSelect" required style="font:inherit;min-height:44px;padding:10px 12px;border:1px solid #cfd7e4;border-radius:10px;width:100%;background:#fff;color:var(--ink)"><option value="">Loading open periods…</option></select></div>
 <div class="field"><label for="days">No. of Days</label><input id="days" type="number" min="1" max="365" step="1" inputmode="numeric" placeholder="Days"></div>
 </div>
-<div class="actions" style="margin-top:10px"><button id="continueReviewBtn" type="button">Review</button><button id="generateBtn" class="hidden" type="button" disabled>Generate Documents</button></div>
+<div class="actions" style="margin-top:10px"><button id="continueReviewBtn" type="button">Continue</button><button id="generateBtn" class="hidden" type="button" disabled>Generate Documents</button></div>
 <div id="generateStatus" class="status hidden" aria-live="polite"></div>
 <div class="metrics hidden">
 <div class="metric"><span>Work Demand applicants</span><strong id="demandCount">—</strong></div>
@@ -520,5 +520,17 @@ $('unwillingCsvBtn').addEventListener('click',()=>exportCsv('unwilling'));
 supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'||!session)window.location.replace('./');});
 $('refreshBtn').addEventListener('click',load);
 load();
+// Independent UI watchdog: if auth initialization stalls before load() reaches
+// its catch handler, make the blocked stage visible and clear the period spinner.
+setTimeout(()=>{
+ const statusEl=$('status'),periodSelect=$('periodSelect');
+ if(statusEl && /Checking your sign-in session/i.test(statusEl.textContent)){
+  status('Sign-in session check is not responding. Return to the main menu, sign out, sign in again, then reopen Work Demand.','error');
+  if(periodSelect && periodSelect.options.length===1 && /Loading open periods/i.test(periodSelect.options[0].textContent)){
+   periodSelect.replaceChildren(new Option('Sign-in check stalled — reopen Work Demand',''));
+   periodSelect.disabled=true;
+  }
+ }
+},8000);
 </script>
 <script src="./navigation.js"></script></body></html>

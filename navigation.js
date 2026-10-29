@@ -8,7 +8,8 @@
   var button=document.createElement('button');button.type='button';button.className='global-nav-trigger';button.setAttribute('aria-label','Open navigation menu');button.setAttribute('aria-haspopup','true');button.setAttribute('aria-expanded','false');button.title='Navigation';button.textContent='⋮';
   var panel=document.createElement('nav');panel.className='global-nav-panel';panel.setAttribute('aria-label','Main navigation');panel.hidden=true;
   var links=[['Main menu','./'],['MIS','./mis.html'],['Import MIS','./mis-import.html'],['FTO','./fto.html'],['Import FTO','./fto-import.html'],['Work Demand','./demand.html'],['Periods','./periods.html'],['Contribution','./contribution.html']];
-  var currentPath=window.location.pathname.replace(/\\/+$/,'')||'/';\n  links.forEach(function(item){var a=document.createElement('a');a.href=item[1];a.textContent=item[0];var targetPath=new URL(item[1],window.location.href).pathname.replace(/\\/+$/,'')||'/';if(targetPath===currentPath||(item[1]==='./'&&(currentPath.endsWith('/index.html')||currentPath==='/'))){a.classList.add('is-current');a.setAttribute('aria-current','page');}panel.appendChild(a);});
+  var currentPath=window.location.pathname.replace(/\/+$/,'')||'/';
+  links.forEach(function(item){var a=document.createElement('a');a.href=item[1];a.textContent=item[0];var targetPath=new URL(item[1],window.location.href).pathname.replace(/\/+$/,'')||'/';if(targetPath===currentPath||(item[1]==='./'&&(currentPath.endsWith('/index.html')||currentPath==='/'))){a.classList.add('is-current');a.setAttribute('aria-current','page');}panel.appendChild(a);});
   wrap.appendChild(button);wrap.appendChild(panel);host.appendChild(wrap);
   function close(){panel.hidden=true;button.setAttribute('aria-expanded','false');}
   button.addEventListener('click',function(){var opening=panel.hidden;panel.hidden=!opening;button.setAttribute('aria-expanded',String(opening));});

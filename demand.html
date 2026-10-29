@@ -162,7 +162,7 @@ header .top-actions > button:hover {
 
 </main>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="document.getElementById('status').className='status error';document.getElementById('status').textContent='Could not load the sign-in library. Check your internet connection, then refresh this page.'"></script>
 <script>
 const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
@@ -308,6 +308,7 @@ function buildCards(headers,rows){
  });
  return Array.from(groups.values());
 }
+function withTimeout(promise,ms,label){return Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(new Error(label+' timed out after '+Math.round(ms/1000)+' seconds. Refresh the page; if it repeats, sign in again from the main menu.')),ms))]);}
 async function load(){
  if(loading)return;
  loading=true;const seq=++loadSequence;$('refreshBtn').disabled=true;$('generateBtn').disabled=true;
@@ -316,7 +317,7 @@ async function load(){
  $('exportsPanel').classList.add('hidden');generated=null;
  try{
   status('Checking your sign-in session…');
-  const {data:sessionData,error:sessionError}=await supabaseClient.auth.getSession();
+  const {data:sessionData,error:sessionError}=await withTimeout(supabaseClient.auth.getSession(),12000,'Sign-in session check');
   if(sessionError||!sessionData.session){window.location.replace('./');return;}
   const {data:access,error:accessError}=await supabaseClient.functions.invoke('vbgramg-app-access',{body:{}});
   if(seq!==loadSequence)return;

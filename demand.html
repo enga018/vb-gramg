@@ -221,9 +221,20 @@ async function loadPeriods(){
  select.disabled=true;
  select.replaceChildren(new Option("Loading open periods…",""));
  try{
-  const data=await withTimeout(callPeriodAction("open-list"),10000,"Open periods request");
-  if(!Array.isArray(data.periods))throw new Error("The periods service returned an invalid list.");
-  periods=data.periods;
+  // Period metadata is intentionally readable without login; RLS grants anon
+  // SELECT access only to these six non-sensitive columns.
+  const {data,error}=await withTimeout(
+   supabaseClient.from("vbgramg_periods")
+    .select("id,period_name,period_date,contribution_month,days,status")
+    .eq("status","open")
+    .order("contribution_month",{ascending:false,nullsFirst:false})
+    .order("created_at",{ascending:false}),
+   10000,
+   "Open periods request"
+  );
+  if(error)throw error;
+  if(!Array.isArray(data))throw new Error("The periods table returned an invalid list.");
+  periods=data;
   renderPeriodOptions();
   const existing=selectedPeriod();
   if(existing&&!$("days").value&&existing.days)$("days").value=String(existing.days);
@@ -316,12 +327,11 @@ async function load(){
  $('demandBody').innerHTML='<tr><td colspan="3" class="empty">Loading applicants…</td></tr>';
  $('exportsPanel').classList.add('hidden');generated=null;
  try{
+  // Start public period-list loading independently of the protected app session.
+  const periodsPromise=loadPeriods();
   status('Checking your sign-in session…');
   const {data:sessionData,error:sessionError}=await withTimeout(supabaseClient.auth.getSession(),6000,'Sign-in session check');
   if(sessionError||!sessionData.session){window.location.replace('./');return;}
-  // Load the open-period dropdown as soon as a valid session exists. Do not
-  // let a slow app-access check leave the dropdown stuck on its initial label.
-  const periodsPromise=loadPeriods();
   const {data:access,error:accessError}=await withTimeout(
    supabaseClient.functions.invoke('vbgramg-app-access',{body:{}}),
    12000,

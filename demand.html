@@ -213,7 +213,7 @@ async function ensureBasePeriod(month){
 async function loadPeriods(){
  const data=await callPeriodAction("list");periods=data.periods||[];
  const month=$("contributionMonth").value;
- if(month&&!query.get("periodId")){
+ if(month&&(!query.get("periodId")||!periods.some(p=>p.id===query.get("periodId")&&monthOfPeriod(p)===month))){
   try{
    const base=await ensureBasePeriod(month);
    const refreshed=await callPeriodAction("list");periods=refreshed.periods||[];

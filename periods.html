@@ -178,3 +178,36 @@ async function togglePeriod(p){const action=p.status==="open"?"close":"reopen";i
 $("refresh").addEventListener("click",load);$("create-period").addEventListener("click",createPeriod);$("toggle-create").addEventListener("click",()=>{const panel=$("create-panel"),opening=panel.hidden;panel.hidden=!opening;$("toggle-create").setAttribute("aria-expanded",String(opening));$("toggle-create").textContent=opening?"Cancel":"＋ Create period";if(opening){$("new-month").focus()}else{$("new-month").value="";}});
 (async()=>{if(await verify())await load()})();
 </script></body></html>
+
+/* Final period-action layout: keep available actions together, without a stacked Delete row. */
+@media (max-width:700px) {
+  #period-body tr:not(:has(.empty)) {
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    column-gap:10px;
+    align-items:center;
+  }
+  #period-body .row-actions {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:6px;
+  }
+  #period-body .row-actions button {
+    grid-column:auto;
+    width:100%;
+    min-width:0;
+    min-height:40px;
+    padding:7px 4px;
+    white-space:normal;
+    font-size:.78rem;
+  }
+  #period-body .row-actions button[data-action="delete"] {
+    grid-column:auto;
+    min-height:40px;
+    background:#f0f3f8;
+    color:#667085;
+    border-color:#e0e6ef;
+  }
+  #period-body .row-actions:not(:has(button[data-action="delete"])) button {
+    grid-column:1 / -1;
+  }
+}

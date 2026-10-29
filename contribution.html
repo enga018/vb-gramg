@@ -72,6 +72,16 @@ header .top-actions > button:hover {
 }
 
 
+.payment-allocation-details{margin-top:7px;font-size:.82rem;line-height:1.4}
+.payment-allocation-details summary{cursor:pointer;color:var(--muted,#64748b);padding:3px 0;list-style-position:inside}
+.payment-allocation-list{margin-top:5px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--surface,#f8fafc)}
+.payment-allocation-row,.payment-allocation-total{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:5px 0}
+.payment-allocation-row+ .payment-allocation-row{border-top:1px solid var(--line)}
+.payment-allocation-row span{min-width:0;overflow-wrap:anywhere}
+.payment-allocation-row b,.payment-allocation-total b{white-space:nowrap}
+.payment-allocation-total{border-top:1px solid var(--line);font-weight:600}
+.payment-allocation-empty,.payment-allocation-note{margin-top:5px;color:var(--muted,#64748b);font-size:.76rem}
+.payment-allocation-warning{margin-top:7px;color:#b45309;font-size:.78rem}
 /* Mobile contribution history: keep ledger details readable and actions easy to tap. */
 @media (max-width:700px){
   .sheet-body .entry{align-items:flex-start;flex-wrap:wrap;gap:8px;padding:13px 0}
@@ -401,8 +411,21 @@ function openCitizen(id){
   const transactionDate=String(e.entry_date||'').slice(0,10)?day(String(e.entry_date).slice(0,10)):'';
   const extraReason=isExtra?(String(extraCharges.find(x=>String(x.job_card_number)===String(c.id)&&String(x.period_id||"")===String(e.period_id||"")&&String(x.charge_period||"")===String(e.charge_period||""))?.reason||String(e.note||"").replace(/^FTO EXTRA:\\s*/i,"").replace(/\\s*\\(legacy(?:;[^)]*)?\\)\\s*$/i,"").trim())):"";
   const allocationRows=isPayment?paymentAllocations.filter(a=>String(a.transaction_id)===String(e.id)):[];
-  const allocationSummary=allocationRows.length?'<small>Allocated: '+esc(allocationRows.map(a=>{const p=periods.find(x=>String(x.id)===String(a.period_id));return (p?.period_name||'Period')+' '+fmt(a.amount)}).join(' · '))+'</small>':'';
-  return '<div class="entry"><div class="desc"><b>'+esc(label)+(isExtra&&extraReason?' · '+esc(extraReason):type!=='charge'&&displayNote?' · '+esc(displayNote):'')+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+allocationSummary+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+(appRole==='admin'&&!isExtra&&!c.exempt?'<div class="entry-actions">'+(isPayment?'<button class="btn ghost small" type="button" data-review-allocation="'+esc(e.id)+'">Review allocation</button>':'')+'<button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button></div>':'')+'</div>';
+  const savedAllocationTotal=allocationRows.reduce((sum,a)=>sum+Math.max(0,Number(a.amount)||0),0);
+  const unallocatedAmount=Math.max(0,amount-savedAllocationTotal);
+  const overAllocatedAmount=Math.max(0,savedAllocationTotal-amount);
+  const allocationDetails=isPayment
+   ?'<details class="payment-allocation-details"><summary>'+ (allocationRows.length?'Allocations · '+fmt(savedAllocationTotal):'No saved allocations') + (unallocatedAmount>0?' · Unallocated '+fmt(unallocatedAmount):'') +'</summary><div class="payment-allocation-list">'+
+    (allocationRows.length?allocationRows.map(a=>{
+     const p=periods.find(x=>String(x.id)===String(a.period_id));
+     const periodName=String(p?.period_name||'').trim()||String(p?.contribution_month||p?.period_date||'').slice(0,10)||'Period '+String(a.period_id||'unknown');
+     return '<div class="payment-allocation-row"><span>'+esc(periodName)+'</span><b>'+fmt(a.amount)+'</b></div>';
+    }).join(''):'<div class="payment-allocation-empty">No allocation records are saved for this payment.</div>')+
+    (unallocatedAmount>0?'<div class="payment-allocation-total"><span>Unallocated</span><b>'+fmt(unallocatedAmount)+'</b></div>':'')+
+    (overAllocatedAmount>0?'<div class="payment-allocation-warning">Saved allocations exceed this payment by '+fmt(overAllocatedAmount)+'. Please review this payment.</div>':'')+
+    '<div class="payment-allocation-note">These are saved historical allocations. Amounts counted toward the current balance may differ when a period has deferred or inactive charges.</div></div></details>'
+   :'';
+  return '<div class="entry"><div class="desc"><b>'+esc(label)+(isExtra&&extraReason?' · '+esc(extraReason):type!=='charge'&&displayNote?' · '+esc(displayNote):'')+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+allocationDetails+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+(appRole==='admin'&&!isExtra&&!c.exempt?'<div class="entry-actions">'+(isPayment?'<button class="btn ghost small" type="button" data-review-allocation="'+esc(e.id)+'">Review allocation</button>':'')+'<button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button></div>':'')+'</div>';
  }).join('');
  $('sheetBody').innerHTML=(c.exempt?'<div class="notice info"><b>Exempt job card.</b> This job card is exempt. Contribution ledger entries are removed while exempt; its FTO transactions remain available in FTO history.</div>':'')+'<div class="section-title">Transaction history · oldest first</div>'+(lines||'<div class="empty">No ledger entries.</div>');
  document.querySelectorAll('[data-fifo-toggle]').forEach(toggle=>toggle.addEventListener('click',()=>{

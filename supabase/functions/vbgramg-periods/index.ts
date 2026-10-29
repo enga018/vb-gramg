@@ -73,38 +73,6 @@ Deno.serve(async (req: Request) => {
       const usedIds = new Set<string>(usageResults.flat());
       return reply(req, { approved: true, periods: periodRows.map(period => ({ ...period, used: usedIds.has(String(period.id)) })) });
     }
-    if (action === "ensure-base") {
-      const month = clean(body.contributionMonth, 10);
-      if (!/^\d{4}-\d{2}-01$/.test(month) || Number.isNaN(Date.parse(month)) || new Date(month + "T00:00:00Z").toISOString().slice(0, 10) !== month) {
-        return reply(req, { error: "Choose a valid contribution month." }, 400);
-      }
-      const base = monthName(month);
-      const findBase = async () => {
-        const { data, error } = await admin.from("vbgramg_periods")
-          .select("id,period_name,period_date,contribution_month,days,status,created_at,updated_at,closed_at")
-          .eq("contribution_month", month).eq("period_name", base).maybeSingle();
-        if (error) throw error;
-        return data;
-      };
-      let period = await findBase();
-      if (period) {
-        if (period.status !== "open") return reply(req, { error: base + " already exists but is closed. It was not reopened or replaced. Reopen it on the Periods page, or create/select another period explicitly." }, 409);
-        return reply(req, { approved: true, period, reused: true });
-      }
-      const { data: created, error: createError } = await admin.from("vbgramg_periods").insert({
-        period_name: base, period_date: month, contribution_month: month, days: null,
-        status: "open", created_by: user.id
-      }).select("id,period_name,period_date,contribution_month,days,status,created_at,updated_at,closed_at").single();
-      if (createError) {
-        if (createError.code === "23505") {
-          period = await findBase();
-          if (period && period.status === "open") return reply(req, { approved: true, period, reused: true });
-          if (period && period.status !== "open") return reply(req, { error: base + " already exists but is closed. It was not reopened or replaced." }, 409);
-        }
-        throw createError;
-      }
-      return reply(req, { approved: true, period: created, reused: false });
-    }
     if (action === "create") {
       const month = clean(body.contributionMonth, 10);
       const days = body.days === null || body.days === "" || body.days === undefined ? null : Number(body.days);

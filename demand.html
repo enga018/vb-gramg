@@ -122,7 +122,7 @@ header .top-actions > button:hover {
 
 <section id="exportsPanel" class="panel hidden" aria-labelledby="exports-heading">
 <h2 id="exports-heading">Export generated documents</h2>
-<p class="sub">These exports use the same generated snapshot. If you change applicant inclusion, period name, or number of days, generate again before exporting.</p>
+<p class="sub">Generate the lists after reviewing applicants. If you change applicant inclusion, period, or number of days, generate again before exporting.</p>
 <div class="export-group"><div class="export-title">Work Demand</div><div class="export-actions"><button id="demandPdfBtn" type="button" disabled>Export PDF</button><button id="demandCsvBtn" class="secondary" type="button" disabled>Export CSV</button></div></div>
 <div class="export-group"><div class="export-title">Unwilling to Work</div><div class="export-actions"><button id="unwillingPdfBtn" type="button" disabled>Export PDF</button><button id="unwillingCsvBtn" class="secondary" type="button" disabled>Export CSV</button></div></div>
 <p class="muted">Unwilling to Work is calculated only when you generate: active MIS Job Cards minus Job Cards represented in Work Demand.</p>
@@ -146,8 +146,8 @@ header .top-actions > button:hover {
 
 <dialog id="confirmDialog" aria-labelledby="confirm-heading" aria-describedby="confirm-description">
 <div class="confirm-content">
-<h2 id="confirm-heading">Confirm &amp; Save Demand</h2>
-<p id="confirm-description">Check these details carefully. The final applicant lists will be saved to Supabase before export buttons become available.</p>
+<h2 id="confirm-heading">Demand summary</h2>
+<p id="confirm-description">This legacy confirmation is not used. Lists are generated locally and are not saved as permanent demand records.</p>
 <dl class="confirm-summary">
 <div><dt>Period</dt><dd id="confirmPeriod">—</dd></div>
 <div><dt>No. of Days</dt><dd id="confirmDays">—</dd></div>
@@ -169,8 +169,7 @@ const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
 const query = new URLSearchParams(location.search);
-const reviewMode = false;
-const resultsMode = query.get("stage") === "results";
+let workflowStarted = false;
 const draftId = query.get("draftId") || crypto.randomUUID();
 if(query.get("contributionMonth")) $("contributionMonth").value = query.get("contributionMonth").slice(0,7);
 if(query.get("days")) $("days").value = query.get("days");
@@ -181,8 +180,11 @@ function getIncludedIds(id){try{return new Set(JSON.parse(localStorage.getItem(i
 function saveIncludedIds(id,ids){localStorage.setItem(includedKey(id),JSON.stringify([...ids]));}
 function applyWorkflowVisibility(){
  const setup=$("period-heading").closest("section");
- if(resultsMode){setup.classList.remove("hidden");$("reviewPanel").classList.add("hidden");$("demandPanel").classList.remove("hidden");$("unwillingPanel").classList.remove("hidden");$("continueReviewBtn").textContent="Review Again";$("generateBtn").classList.remove("hidden");}
- else{$("reviewPanel").classList.add("hidden");$("demandPanel").classList.add("hidden");$("unwillingPanel").classList.add("hidden");$("exportsPanel").classList.add("hidden");}
+ setup.classList.remove("hidden");
+ for(const id of ["reviewPanel","demandPanel","unwillingPanel"]) $(id).classList.toggle("hidden",!workflowStarted);
+ $("generateBtn").classList.toggle("hidden",!workflowStarted);
+ if(!generated) $("exportsPanel").classList.add("hidden");
+ $("continueReviewBtn").textContent=workflowStarted?"Review applicants":"Load Applicants";
 }
 const normalize=value=>String(value==null?'':value).trim();
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -327,7 +329,7 @@ async function load(){
   allReviewCandidates=reviewApplicants.map(a=>({...a}));
   const includedIds=getIncludedIds(currentPeriodId());
   for(const candidate of allReviewCandidates) if(includedIds.has(candidate.identity) && !demandApplicants.some(a=>a.identity===candidate.identity)) demandApplicants.push(candidate);
-  if(resultsMode) reviewApplicants=[];
+  reviewApplicants=allReviewCandidates.map(a=>({...a}));
   renderLists();
   status('MIS and Contribution data loaded.','success');
   $('generateBtn').disabled=false;
@@ -414,67 +416,36 @@ $('continueReviewBtn').addEventListener('click',()=>{
  if(!month){$('contributionMonth').focus();status('Choose the contribution month first.','error');return;}
  if(!chosenPeriod||chosenPeriod.status!=="open"||monthOfPeriod(chosenPeriod)!==month){$('periodSelect').focus();status('Select an open period for the chosen month.','error');return;}
  if(!Number.isInteger(days)||days<1||days>365){$('days').focus();status('Enter a whole number of days from 1 to 365.','error');return;}
- const next=new URL('./demand-review.html',location.href);
- next.searchParams.set('contributionMonth',month+'-01');next.searchParams.set('periodId',chosenPeriod.id);next.searchParams.set('draftId',draftId);next.searchParams.set('days',String(days));
- location.href=next.toString();
+ if(!allCards.length){status('Wait for MIS and Contribution data to finish loading.','error');return;}
+ workflowStarted=true;
+ applyWorkflowVisibility();
+ renderLists();
+ status('Applicants loaded. Review outstanding balances, include or remove applicants, then generate the lists.','success');
+ $('reviewPanel').scrollIntoView({behavior:'smooth',block:'start'});
 });
 $('days').addEventListener('input',()=>{invalidateGenerated();});
 $('generateBtn').addEventListener('click',()=>{
- const chosenPeriod=selectedPeriod(),monthValue=$('contributionMonth').value;
- const contributionMonth=monthValue?monthValue+'-01':'';
- const period=chosenPeriod?.period_name||monthLabel(monthValue),days=Number($('days').value);
+ const monthValue=$('contributionMonth').value;
+ const chosenPeriod=selectedPeriod(),days=Number($('days').value);
+ if(!workflowStarted){status('Load applicants first.','error');return;}
  if(!chosenPeriod||chosenPeriod.status!=="open"||monthOfPeriod(chosenPeriod)!==monthValue){$('periodSelect').focus();generatedStatus('Select an open period for the chosen month before generating.','error');$('generateStatus').classList.remove('hidden');return;}
  if(!Number.isInteger(days)||days<1||days>365){$('days').focus();generatedStatus('Enter a whole number of days from 1 to 365.','error');$('generateStatus').classList.remove('hidden');return;}
- const unwilling=getUnwillingCards();
- pendingSnapshot={period,contributionMonth,periodId:chosenPeriod?.id||'',periodName:chosenPeriod?.period_name||'',draftId,days,demand:demandApplicants.map(a=>({...a})),unwilling,createdAt:new Date().toISOString()};
- $('confirmPeriod').textContent=period;$('confirmDays').textContent=String(days);
- $('confirmDemandCount').textContent=String(pendingSnapshot.demand.length);$('confirmUnwillingCount').textContent=String(pendingSnapshot.unwilling.length);
- $('confirmError').textContent='';$('confirmSaveBtn').disabled=false;$('cancelConfirmBtn').disabled=false;
- $('exportsPanel').classList.add('hidden');$('confirmDialog').showModal();
-});
-$('cancelConfirmBtn').addEventListener('click',()=>{
- if(saving)return;
- pendingSnapshot=null;
- $('confirmDialog').close();
- generatedStatus('Cancelled. Nothing was saved and exports remain hidden.','info');
+ generated={
+  period:chosenPeriod.period_name||monthLabel(monthValue),
+  contributionMonth:monthValue?monthValue+'-01':'',
+  periodId:chosenPeriod.id||'',
+  periodName:chosenPeriod.period_name||'',
+  draftId,
+  days,
+  demand:demandApplicants.map(a=>({...a})),
+  unwilling:getUnwillingCards(),
+  createdAt:new Date().toISOString()
+ };
+ $('exportsPanel').classList.remove('hidden');
+ ['demandPdfBtn','demandCsvBtn','unwillingPdfBtn','unwillingCsvBtn'].forEach(id=>$(id).disabled=false);
+ generatedStatus('Lists generated in this session. Nothing was saved as a permanent demand record. Work Demand: '+generated.demand.length+' applicant(s). Unwilling to Work: '+generated.unwilling.length+' Job Card(s). Export the files you need.','success');
  $('generateStatus').classList.remove('hidden');
-});
-$('confirmSaveBtn').addEventListener('click',async()=>{
- if(!pendingSnapshot||saving)return;
- saving=true;
- const snapshot=pendingSnapshot;
- $('confirmSaveBtn').disabled=true;
- $('cancelConfirmBtn').disabled=true;
- $('confirmError').textContent='Saving the demand snapshot to Supabase…';
- try{
-  const {data,error}=await supabaseClient.functions.invoke('vbgramg-demand-runs',{body:{
-   action:'save',
-   periodId:snapshot.periodId,
-   periodName:snapshot.periodName,
-   contributionMonth:snapshot.contributionMonth,
-   days:snapshot.days,
-   workDemand:snapshot.demand.map(a=>({jobCard:a.jobCard,name:a.name||'',number:a.number||'',household:a.household||''})),
-   unwillingToWork:snapshot.unwilling.map(a=>({jobCard:a.jobCard,household:a.household||''}))
-  }});
-  if(error)throw new Error(error.message||'Supabase could not save this demand.');
-  if(!data||data.saved!==true||!data.id)throw new Error((data&&data.error)||'Supabase did not confirm that the demand was saved.');
-  generated={...snapshot,id:data.id,periodId:data.periodId||snapshot.periodId,periodName:data.periodName||snapshot.periodName,createdAt:data.createdAt||snapshot.createdAt};
-  pendingSnapshot=null;
-  $('generateBtn').classList.add('hidden');
-  $('continueReviewBtn').classList.add('hidden');
-  $('confirmDialog').close();
-  $('exportsPanel').classList.remove('hidden');
-  ['demandPdfBtn','demandCsvBtn','unwillingPdfBtn','unwillingCsvBtn'].forEach(id=>$(id).disabled=false);
-  generatedStatus('Demand saved successfully. Work Demand: '+generated.demand.length+' applicant(s). Unwilling to Work: '+generated.unwilling.length+' Job Card(s). You can now export the saved snapshot.','success');
-  $('generateStatus').classList.remove('hidden');
-  $('exportsPanel').scrollIntoView({behavior:'smooth',block:'start'});
- }catch(error){
-  $('confirmError').textContent='Save failed: '+(error&&error.message?error.message:String(error))+'\nNothing was marked as saved; exports remain hidden. You can retry or cancel.';
-  $('confirmSaveBtn').disabled=false;
-  $('cancelConfirmBtn').disabled=false;
- }finally{
-  saving=false;
- }
+ $('exportsPanel').scrollIntoView({behavior:'smooth',block:'start'});
 });
 function csvCell(value){const s=String(value??'');return '"'+s.replace(/"/g,'""')+'"';}
 function downloadCsv(filename,rows){

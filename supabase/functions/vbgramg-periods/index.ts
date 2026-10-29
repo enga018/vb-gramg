@@ -75,14 +75,11 @@ Deno.serve(async (req: Request) => {
     }
     if (action === "create") {
       const month = clean(body.contributionMonth, 10);
-      const periodDate = clean(body.periodDate, 10);
       const days = body.days === null || body.days === "" || body.days === undefined ? null : Number(body.days);
       if (!/^\d{4}-\d{2}-01$/.test(month) || Number.isNaN(Date.parse(month)) || new Date(month + "T00:00:00Z").toISOString().slice(0,10) !== month) return reply(req, { error: "Choose a valid contribution month." }, 400);
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(periodDate) || periodDate.slice(0, 7) !== month.slice(0, 7) || Number.isNaN(Date.parse(periodDate)) || new Date(periodDate + "T00:00:00Z").toISOString().slice(0,10) !== periodDate) return reply(req, { error: "Period date must be a valid date within the selected contribution month." }, 400);
       if (days !== null && (!Number.isInteger(days) || days < 1 || days > 365)) return reply(req, { error: "Days must be a whole number from 1 to 365, or blank." }, 400);
       const { data: existing, error: existingError } = await admin.from("vbgramg_periods").select("period_name,period_date").eq("contribution_month", month);
       if (existingError) throw existingError;
-      if ((existing || []).some(row => String(row.period_date || "").slice(0, 10) === periodDate)) return reply(req, { error: "A period already exists on " + periodDate + " for this month. Choose a different date." }, 409);
       const base = monthName(month);
       let highest = 0;
       for (const row of existing || []) {
@@ -93,7 +90,13 @@ Deno.serve(async (req: Request) => {
           if (Number.isInteger(n)) highest = Math.max(highest, n);
         }
       }
-      const periodName = highest === 0 ? base : `${base} (${highest + 1})`;
+      const periodNumber = highest + 1;
+      const year = Number(month.slice(0, 4));
+      const monthNumber = Number(month.slice(5, 7));
+      const daysInMonth = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
+      if (periodNumber > daysInMonth) return reply(req, { error: "All calendar dates in this charge month have already been assigned to periods." }, 409);
+      const periodDate = `${month.slice(0, 7)}-${String(periodNumber).padStart(2, "0")}`;
+      const periodName = periodNumber === 1 ? base : `${base} (${periodNumber})`;
       const { data: period, error } = await admin.from("vbgramg_periods").insert({ period_name: periodName, period_date: periodDate, contribution_month: month, days, status: "open", created_by: user.id }).select("id,period_name,period_date,contribution_month,days,status,created_at,updated_at,closed_at").single();
       if (error) { if (error.code === "23505") return reply(req, { error: "That period name already exists. Refresh and try again." }, 409); throw error; }
       return reply(req, { approved: true, period });
@@ -131,15 +134,6 @@ Deno.serve(async (req: Request) => {
         const daysRaw = body.days === null || body.days === "" || body.days === undefined ? null : Number(body.days);
         if (daysRaw !== null && (!Number.isInteger(daysRaw) || daysRaw < 1 || daysRaw > 365)) return reply(req, { error: "Days must be a whole number from 1 to 365, or blank." }, 400);
         patch.days = daysRaw;
-        if (body.periodDate !== undefined) {
-          const periodDate = clean(body.periodDate, 10);
-          const month = String(existing.contribution_month || existing.period_date || "").slice(0, 7);
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(periodDate) || periodDate.slice(0, 7) !== month || Number.isNaN(Date.parse(periodDate)) || new Date(periodDate + "T00:00:00Z").toISOString().slice(0, 10) !== periodDate) return reply(req, { error: "Period date must be a valid date within " + month + "." }, 400);
-          const { data: sameDate, error: dateError } = await admin.from("vbgramg_periods").select("id,period_name").eq("contribution_month", String(existing.contribution_month || existing.period_date).slice(0, 10)).eq("period_date", periodDate).neq("id", id);
-          if (dateError) throw dateError;
-          if ((sameDate || []).length) return reply(req, { error: "Another period (" + sameDate[0].period_name + ") already uses " + periodDate + ". Choose a different date." }, 409);
-          patch.period_date = periodDate;
-        }
         if (body.periodName && clean(body.periodName, 120) !== existing.period_name) {
           return reply(req, { error: "Generated period names cannot be changed. The name identifies its contribution month and charge round." }, 400);
         }

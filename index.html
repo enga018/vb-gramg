@@ -77,7 +77,7 @@ header .top-actions > button:hover {
   .topbar { padding: 13px; }
   .module { padding: 15px; }
 }
-</style>
+.page-actions-bar{display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;margin:0 auto 16px;width:min(100%,1440px)}.page-actions-bar>*{flex-shrink:0}@media(max-width:700px){.page-actions-bar{justify-content:stretch}.page-actions-bar>*{flex:1 1 auto}}</style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
 <body><main>
@@ -91,7 +91,8 @@ header .top-actions > button:hover {
 </section>
 <section id="home-panel" class="hidden">
 <header class="topbar"><div><h1>VBGRAMG</h1><p style="margin:0">Village Benefit Management</p></div>
-<div class="account"><span id="account-label" class="account-label"></span><button id="logout-button" class="secondary" type="button">Sign out</button></div></header>
+</header>
+<div class="page-actions-bar"><span id="account-label" class="account-label"></span><button id="logout-button" class="secondary" type="button">Sign out</button></div>
 <div class="panel"><h2>Choose a module</h2><p>Open the workspace you need. MIS, FTO, Contribution, and Work Demand have separate workspaces.</p>
 <div class="modules">
 <a class="module" href="./mis.html"><span class="symbol" aria-hidden="true">👥</span><h2>MIS</h2><p>Search job cards, view households and applicants, and manage applicant selections. Administrators can also import and compare MIS files.</p><span class="module-link">Open MIS</span></a>

@@ -99,9 +99,9 @@ header .top-actions > button:hover {
 
 <section class="panel" aria-labelledby="period-heading">
 <h2 id="period-heading">Demand details</h2>
-<p class="sub">Select an open period created on the Periods page, then enter or confirm the number of days.</p>
-<div class="fields">
-<div class="field"><label for="periodSelect">Period</label><select id="periodSelect" required style="font:inherit;min-height:44px;padding:10px 12px;border:1px solid #cfd7e4;border-radius:10px;width:100%;background:#fff;color:var(--ink)"><option value="">Loading periods…</option></select><a href="./periods.html" class="muted" style="display:inline-block;margin-top:7px">Create or manage periods</a><input id="contributionMonth" type="hidden"></div>
+<p class="sub">Choose an existing open period for the contribution month, then enter the number of days. Create or manage periods on the Periods page.</p>
+<div class="fields" style="grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(120px,.7fr)">
+<div class="field"><label for="contributionMonth">Contribution month</label><input id="contributionMonth" type="month" required style="font:inherit;min-height:44px;padding:10px 12px;border:1px solid #cfd7e4;border-radius:10px;width:100%;background:#fff;color:var(--ink)"><a href="./periods.html" class="muted" style="display:inline-block;margin-top:7px">Create or manage periods</a></div><div class="field"><label for="periodSelect">Period (optional override)</label><select id="periodSelect" style="font:inherit;min-height:44px;padding:10px 12px;border:1px solid #cfd7e4;border-radius:10px;width:100%;background:#fff;color:var(--ink)"><option value="">Choose a month first</option></select><span class="muted" style="display:inline-block;margin-top:7px">The first period for the chosen month is selected automatically.</span></div>
 <div class="field"><label for="days">No. of Days</label><input id="days" type="number" min="1" max="365" step="1" inputmode="numeric" placeholder="Days"></div>
 </div>
 <div class="actions" style="margin-top:10px"><button id="continueReviewBtn" type="button">Continue to Manual Review</button><button id="generateBtn" class="hidden" type="button" disabled>Generate Documents</button></div>
@@ -187,18 +187,29 @@ function applyWorkflowVisibility(){
 const normalize=value=>String(value==null?'':value).trim();
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function monthLabel(value){if(!value)return '';const [year,month]=value.split('-').map(Number);return new Date(Date.UTC(year,month-1,1)).toLocaleDateString('en-US',{month:'long',year:'numeric',timeZone:'UTC'});}
-function selectedPeriod(){return periods.find(p=>p.id===$("periodSelect").value)||periods.find(p=>p.id===query.get('periodId'))||null;}
-function renderPeriodOptions(){const select=$("periodSelect");const wanted=query.get("periodId")||"";select.replaceChildren();const first=document.createElement("option");first.value="";first.textContent="Select an open period";select.appendChild(first);const open=periods.filter(p=>p.status==="open");for(const p of open){const o=document.createElement("option");o.value=p.id;o.textContent=p.period_name+(p.days?" · "+p.days+" days":"");select.appendChild(o);}select.disabled=!open.length;if(wanted&&open.some(p=>p.id===wanted))select.value=wanted;else select.value="";if(!open.length)first.textContent="No open periods — create one first";}
+function selectedPeriod(){return periods.find(p=>p.id===$("periodSelect").value)||null;}
+function monthOfPeriod(p){return String(p?.contribution_month||p?.period_date||"").slice(0,7);}
+function monthNameForInput(month){if(!/^\d{4}-\d{2}$/.test(month))return "";const [year,mon]=month.split("-").map(Number);return new Date(Date.UTC(year,mon-1,1)).toLocaleDateString("en-US",{month:"short",timeZone:"UTC"}).toUpperCase()+String(year).slice(-2);}
+function renderPeriodOptions(){
+ const select=$("periodSelect"),month=$("contributionMonth").value,wanted=query.get("periodId")||select.value||"";
+ select.replaceChildren();
+ const first=document.createElement("option");first.value="";first.textContent=month?"No open period selected":"Choose a month first";select.appendChild(first);
+ const open=periods.filter(p=>p.status==="open");
+ for(const p of open){const o=document.createElement("option");o.value=p.id;o.textContent=p.period_name+" · "+(monthLabel(monthOfPeriod(p))||"Unknown month")+(p.days?" · "+p.days+" days":"");select.appendChild(o);}
+ const preferred=open.find(p=>p.id===wanted&&(!month||monthOfPeriod(p)===month))||open.find(p=>monthOfPeriod(p)===month&&p.period_name===monthNameForInput(month));
+ select.value=preferred?.id||"";
+ if(!open.length)first.textContent="No open periods available";
+}
+async function callPeriodAction(action,extra={}){
+ const {data,error}=await supabaseClient.functions.invoke("vbgramg-periods",{body:{action,...extra}});
+ if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||"Could not prepare the selected period.");
+ return data;
+}
 async function loadPeriods(){
- const {data,error}=await supabaseClient.functions.invoke('vbgramg-periods',{body:{action:'list'}});
- if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||'Could not load shared periods.');
- periods=data.periods||[];renderPeriodOptions();
+ const data=await callPeriodAction("list");periods=data.periods||[];
+ renderPeriodOptions();
  const existing=selectedPeriod();
- if(existing){
-  const month=existing.contribution_month||existing.period_date;
-  if(month)$('contributionMonth').value=month.slice(0,7);
-  if(existing.days)$('days').value=String(existing.days);
- }
+ if(existing&&monthOfPeriod(existing)===$("contributionMonth").value&&!$("days").value&&existing.days)$("days").value=String(existing.days);
 }
 function status(message,type='info'){const el=$('status');el.textContent=message;el.className='status'+(type==='error'?' error':type==='success'?' success':'');}
 function generatedStatus(message,type='info'){const el=$('generateStatus');el.textContent=message;el.className='status'+(type==='error'?' error':type==='success'?' success':'');}
@@ -384,11 +395,24 @@ $('reviewBody').addEventListener('click',event=>{
  saveIncludedIds(currentPeriodId(),ids);tablePages.demand=Math.max(0,Math.ceil(demandApplicants.length/pageSize)-1);invalidateGenerated();renderLists();
  status(existing>=0?'Applicant removed from Work Demand.':'Applicant included in Work Demand.','success');
 });
-$('periodSelect').addEventListener('change',()=>{const p=selectedPeriod();if(p){const m=p.contribution_month||p.period_date;if(m)$('contributionMonth').value=m.slice(0,7);$('days').value=p.days?String(p.days):'';}invalidateGenerated();});
-$('contributionMonth').addEventListener('change',()=>{invalidateGenerated();});
+$('periodSelect').addEventListener('change',()=>{const p=selectedPeriod();if(p){const m=p.contribution_month||p.period_date;if(m)$('contributionMonth').value=m.slice(0,7);if(!$('days').value&&p.days)$('days').value=String(p.days);}invalidateGenerated();});
+$('contributionMonth').addEventListener('change',async()=>{
+ invalidateGenerated();
+ $('periodSelect').disabled=true;
+ try{
+  await loadPeriods();
+  const month=$('contributionMonth').value,selected=selectedPeriod();
+  if(!month){status('Choose a contribution month.');return;}
+  if(!selected||selected.status!=="open"||monthOfPeriod(selected)!==month){
+   status('No open period exists for '+monthLabel(month)+'. Create it on the Periods page, then return and refresh.','error');
+  }else status('Using existing period '+selected.period_name+'.','success');
+ }catch(error){status(error.message,'error');}
+ finally{$('periodSelect').disabled=false;}
+});
 $('continueReviewBtn').addEventListener('click',()=>{
- const chosenPeriod=selectedPeriod(),month=(chosenPeriod?.contribution_month||chosenPeriod?.period_date||'').slice(0,7),days=Number($('days').value);
- if(!chosenPeriod||chosenPeriod.status!=="open"){$('periodSelect').focus();status('Select an open period first.','error');return;}
+ const month=$('contributionMonth').value,chosenPeriod=selectedPeriod(),days=Number($('days').value);
+ if(!month){$('contributionMonth').focus();status('Choose the contribution month first.','error');return;}
+ if(!chosenPeriod||chosenPeriod.status!=="open"||monthOfPeriod(chosenPeriod)!==month){$('periodSelect').focus();status('Select an open period for the chosen month.','error');return;}
  if(!Number.isInteger(days)||days<1||days>365){$('days').focus();status('Enter a whole number of days from 1 to 365.','error');return;}
  const next=new URL('./demand-review.html',location.href);
  next.searchParams.set('contributionMonth',month+'-01');next.searchParams.set('periodId',chosenPeriod.id);next.searchParams.set('draftId',draftId);next.searchParams.set('days',String(days));
@@ -396,10 +420,10 @@ $('continueReviewBtn').addEventListener('click',()=>{
 });
 $('days').addEventListener('input',()=>{invalidateGenerated();});
 $('generateBtn').addEventListener('click',()=>{
- const chosenPeriod=selectedPeriod(),monthValue=(chosenPeriod?.contribution_month||chosenPeriod?.period_date||'').slice(0,7);
+ const chosenPeriod=selectedPeriod(),monthValue=$('contributionMonth').value;
  const contributionMonth=monthValue?monthValue+'-01':'';
  const period=chosenPeriod?.period_name||monthLabel(monthValue),days=Number($('days').value);
- if(!chosenPeriod||chosenPeriod.status!=="open"){$('periodSelect').focus();generatedStatus('Select an open period before generating.','error');$('generateStatus').classList.remove('hidden');return;}
+ if(!chosenPeriod||chosenPeriod.status!=="open"||monthOfPeriod(chosenPeriod)!==monthValue){$('periodSelect').focus();generatedStatus('Select an open period for the chosen month before generating.','error');$('generateStatus').classList.remove('hidden');return;}
  if(!Number.isInteger(days)||days<1||days>365){$('days').focus();generatedStatus('Enter a whole number of days from 1 to 365.','error');$('generateStatus').classList.remove('hidden');return;}
  const unwilling=getUnwillingCards();
  pendingSnapshot={period,contributionMonth,periodId:chosenPeriod?.id||'',periodName:chosenPeriod?.period_name||'',draftId,days,demand:demandApplicants.map(a=>({...a})),unwilling,createdAt:new Date().toISOString()};

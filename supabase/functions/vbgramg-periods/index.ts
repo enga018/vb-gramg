@@ -48,6 +48,7 @@ Deno.serve(async (req: Request) => {
       const periodRows = data || [];
       const usageQueries = await Promise.all([
         admin.from("vbgramg_charge_ledger").select("period_id").not("period_id", "is", null),
+        admin.from("vbgramg_payment_allocations").select("period_id").not("period_id", "is", null),
         admin.from("vbgramg_contribution_extras").select("period_id").not("period_id", "is", null),
         admin.from("vbgramg_fto_batches").select("period_id").not("period_id", "is", null),
         admin.from("vbgramg_demand_runs").select("period_id").not("period_id", "is", null)
@@ -91,6 +92,7 @@ Deno.serve(async (req: Request) => {
       if (!existing) return reply(req, { error: "Period not found." }, 404);
       const checks = await Promise.all([
         admin.from("vbgramg_charge_ledger").select("id", { count: "exact", head: true }).eq("period_id", deleteId),
+        admin.from("vbgramg_payment_allocations").select("id", { count: "exact", head: true }).eq("period_id", deleteId),
         admin.from("vbgramg_contribution_extras").select("id", { count: "exact", head: true }).eq("period_id", deleteId),
         admin.from("vbgramg_fto_batches").select("id", { count: "exact", head: true }).eq("period_id", deleteId),
         admin.from("vbgramg_demand_runs").select("id", { count: "exact", head: true }).eq("period_id", deleteId)

@@ -56,7 +56,7 @@ header .top-actions > button:hover {
   #period-body td[data-label="Period"] { grid-column: 1; padding: 0; border: 0; font-size: .98rem; font-weight: 750; line-height: 1.35; }
   #period-body td[data-label="Period"]::before { display: none; }
   #period-body .period-mobile-meta { display: block; margin-top: 4px; color: var(--muted); font-size: .76rem; font-weight: 450; line-height: 1.45; }
-  #period-body td[data-label="Days"], #period-body td[data-label="Status"], #period-body td[data-label="Created"] { display: none; }
+  #period-body td[data-label="Status"], #period-body td[data-label="Created"] { display: none; }
   #period-body td[data-label="Actions"] { grid-column: 2; grid-row: 1; display: block; align-self: center; padding: 0; border: 0; }
   #period-body td[data-label="Actions"]::before { display: none; }
   #period-body .row-actions { display: flex; flex-direction: column; gap: 6px; }
@@ -82,31 +82,99 @@ header .top-actions > button:hover {
   .app-header-actions > * { flex: 1 1 auto; }
 }
 
+/* Mobile period cards: compact details, paired primary actions, quieter Delete. */
+@media (max-width:700px) {
+  #period-body tr:not(:has(.empty)) {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1.12fr);
+    align-items:center;
+    column-gap:12px;
+    padding:14px;
+  }
+  #period-body td[data-label="Period"] {
+    grid-column:1;
+    grid-row:1;
+    display:block;
+    padding:0;
+    border:0;
+    font-size:1rem;
+    font-weight:750;
+    line-height:1.35;
+  }
+  #period-body td[data-label="Period"]::before { display:none; }
+  #period-body .period-mobile-meta {
+    display:block;
+    margin-top:6px;
+    color:var(--muted);
+    font-size:.78rem;
+    font-weight:450;
+    line-height:1.45;
+  }
+  #period-body td[data-label="Status"],
+  #period-body td[data-label="Created"] { display:none; }
+  #period-body td[data-label="Actions"] {
+    grid-column:2;
+    grid-row:1;
+    display:block;
+    align-self:center;
+    padding:0;
+    border:0;
+  }
+  #period-body td[data-label="Actions"]::before { display:none; }
+  #period-body .row-actions {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:7px;
+  }
+  #period-body .row-actions button {
+    width:100%;
+    min-width:0;
+    min-height:42px;
+    padding:7px 5px;
+    white-space:normal;
+    font-size:.8rem;
+  }
+  #period-body .row-actions button[data-action="delete"] {
+    grid-column:1 / -1;
+    min-height:34px;
+    background:#f0f3f8;
+    color:#667085;
+    border-color:#e0e6ef;
+  }
+  #period-body tr:has(.empty) { display:block; }
+}
+@media (max-width:420px) {
+  #period-body tr:not(:has(.empty)) { grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:8px; padding:11px; }
+  #period-body .period-mobile-meta { font-size:.73rem; }
+  #period-body .row-actions { gap:5px; }
+  #period-body .row-actions button { font-size:.75rem; padding:6px 3px; }
+}
+
 /* Standardize mobile table font size across app tables. */
 @media (max-width:700px){
   table, table th, table td { font-size:0.85rem !important; }
 }
 </style>
   <link rel="stylesheet" href="./responsive.css"></head><body><main>
-<header class="topbar app-header"><div class="page-title"><h1>Periods</h1><p>Manage shared periods used by Work Demand and FTO.</p></div><div class="actions app-header-actions"><a class="link secondary menu-link" href="./">Back to menu</a><a class="link secondary" href="./demand.html">Work Demand</a><button id="refresh" class="secondary" type="button">Refresh</button></div></header>
-<section class="panel"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><h2 style="margin:0">Period creation</h2><button id="toggle-create" class="secondary" type="button" aria-expanded="false" aria-controls="create-panel">+ Create period</button></div><div id="create-panel" hidden><p class="sub" style="margin-top:12px">Create a period here, then select it while preparing Work Demand. Period names are generated automatically, such as MAY26, MAY26 (2), and MAY26 (3).</p><div class="grid" id="create-form"><div class="field"><label for="new-month">Charge month</label><input id="new-month" type="month" required></div><div class="field"><label for="new-days">No. of Days (optional)</label><input id="new-days" type="number" min="1" max="365" step="1" placeholder="Days"></div><div class="actions"><button id="create-period" type="button">Save period</button></div></div><p class="muted">Period date is assigned automatically as the first day of the selected charge month. Multiple periods for the same month share that date.</p></div><div id="status" class="status" aria-live="polite">Checking sign-in session…</div></section>
-<section class="panel"><h2>All periods</h2><p class="sub">Rounds are sorted by contribution month, then creation time. Use Edit days to correct a round’s days, or close/reopen it for future assignments.</p>
-<div class="table-wrap"><table><thead><tr><th>Period</th><th>Days</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody id="period-body"><tr><td colspan="5" class="empty">Loading periods…</td></tr></tbody></table></div></section>
+<header class="topbar app-header"><div class="page-title"><h1>Periods</h1><p>Manage shared periods used by Work Demand and FTO.</p></div><div class="actions app-header-actions"><a class="link secondary menu-link" href="./">Back to menu</a><button id="refresh" class="secondary" type="button">Refresh</button></div></header>
+<section class="panel"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><h2 style="margin:0">Period creation</h2><button id="toggle-create" class="secondary" type="button" aria-expanded="false" aria-controls="create-panel">+ Create period</button></div><div id="create-panel" hidden><p class="sub" style="margin-top:12px">Create a period here, then select it while preparing Work Demand. Period names are generated automatically, such as MAY26, MAY26 (2), and MAY26 (3).</p><div class="grid" id="create-form"><div class="field"><label for="new-month">Charge month</label><input id="new-month" type="month" required></div><div class="actions"><button id="create-period" type="button">Save period</button></div></div><p class="muted">Period date is assigned automatically as the first day of the selected charge month. Multiple periods for the same month share that date.</p></div><div id="status" class="status" aria-live="polite">Checking sign-in session…</div></section>
+<section class="panel"><h2>All periods</h2><p class="sub">Rounds are sorted by contribution month, then creation time. Close or reopen a period to control whether it can be assigned to new demands.</p>
+<div class="table-wrap"><table><thead><tr><th>Period</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody id="period-body"><tr><td colspan="4" class="empty">Loading periods…</td></tr></tbody></table></div></section>
 </main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
 const client=window.supabase.createClient("https://trtzhafgvqosjwrgckty.supabase.co","sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb");const $=id=>document.getElementById(id);let periods=[],sessionUser=null;
 function setStatus(msg,type=""){const el=$("status");el.textContent=msg;el.className="status"+(type?" "+type:"")}
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 async function verify(){const {data,error}=await client.auth.getSession();if(error||!data.session){location.replace("./");return false}const {data:access,error:accessError}=await client.functions.invoke("vbgramg-app-access",{body:{}});if(accessError||!access||access.approved!==true){await client.auth.signOut();location.replace("./");return false}sessionUser=data.session.user;return true}
 async function call(action,extra={}){const {data,error}=await client.functions.invoke("vbgramg-periods",{body:{action,...extra}});if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||"Period operation failed.");return data}
-function render(){const body=$("period-body");body.replaceChildren();if(!periods.length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=5;td.className="empty";td.textContent="No periods yet. Create the first period above.";tr.appendChild(td);body.appendChild(tr);return}
-for(const p of periods){const tr=document.createElement("tr");const created=p.created_at?new Date(p.created_at).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}):"—";const month=p.contribution_month||p.period_date;const monthText=month?new Date(month+"T00:00:00Z").toLocaleDateString("en-US",{month:"long",year:"numeric",timeZone:"UTC"}):"Legacy month unknown";const periodTd=document.createElement("td");periodTd.dataset.label="Period";periodTd.className="period-name-cell";periodTd.textContent=String(p.period_name??"—");const meta=document.createElement("span");meta.className="period-mobile-meta";meta.textContent="Days: "+(p.days??"—")+" · "+(p.status==="open"?"Open":"Closed")+" · "+created;periodTd.appendChild(meta);tr.appendChild(periodTd);const daysTd=document.createElement("td");daysTd.dataset.label="Days";daysTd.textContent=String(p.days??"—");tr.appendChild(daysTd);const statusTd=document.createElement("td");statusTd.dataset.label="Status";const badge=document.createElement("span");badge.className="pill"+(p.status==="closed"?" closed":"");badge.textContent=p.status==="open"?"Open":"Closed";statusTd.appendChild(badge);tr.appendChild(statusTd);const createdTd=document.createElement("td");createdTd.dataset.label="Created";createdTd.textContent=created;tr.appendChild(createdTd);
+function render(){const body=$("period-body");body.replaceChildren();if(!periods.length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=4;td.className="empty";td.textContent="No periods yet. Create the first period above.";tr.appendChild(td);body.appendChild(tr);return}
+for(const p of periods){const tr=document.createElement("tr");const created=p.created_at?new Date(p.created_at).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}):"—";const month=p.contribution_month||p.period_date;const monthText=month?new Date(month+"T00:00:00Z").toLocaleDateString("en-US",{month:"long",year:"numeric",timeZone:"UTC"}):"Legacy month unknown";const periodTd=document.createElement("td");periodTd.dataset.label="Period";periodTd.className="period-name-cell";periodTd.textContent=String(p.period_name??"—");const meta=document.createElement("span");meta.className="period-mobile-meta";meta.textContent=(p.status==="open"?"Open":"Closed")+" · "+created;periodTd.appendChild(meta);tr.appendChild(periodTd);const statusTd=document.createElement("td");statusTd.dataset.label="Status";const badge=document.createElement("span");badge.className="pill"+(p.status==="closed"?" closed":"");badge.textContent=p.status==="open"?"Open":"Closed";statusTd.appendChild(badge);tr.appendChild(statusTd);const createdTd=document.createElement("td");createdTd.dataset.label="Created";createdTd.textContent=created;tr.appendChild(createdTd);
 const td=document.createElement("td");td.dataset.label="Actions";const actions=document.createElement("div");actions.className="row-actions";
-const edit=document.createElement("button");edit.type="button";edit.className="secondary";edit.textContent="Edit days";edit.addEventListener("click",()=>editPeriod(p));actions.appendChild(edit);const toggle=document.createElement("button");toggle.type="button";toggle.className=p.status==="open"?"danger":"secondary";toggle.textContent=p.status==="open"?"Close":"Reopen";toggle.addEventListener("click",()=>togglePeriod(p));actions.appendChild(toggle);if(!p.used){const del=document.createElement("button");del.type="button";del.className="danger";del.textContent="Delete";del.addEventListener("click",()=>deletePeriod(p));actions.appendChild(del);}td.appendChild(actions);tr.appendChild(td);body.appendChild(tr)}}
-async function createPeriod(){const month=$("new-month").value,periodDate=month?month+"-01":"",raw=$("new-days").value.trim(),days=raw?Number(raw):null;if(!month){setStatus("Choose a charge month.","error");return}if(days!==null&&(!Number.isInteger(days)||days<1||days>365)){setStatus("Days must be a whole number from 1 to 365, or blank.","error");return}$("create-period").disabled=true;try{const r=await call("create",{contributionMonth:month+"-01",periodDate,days});setStatus("Created period "+r.period.period_name+" dated "+periodDate+".","success");$("new-month").value="";$("new-days").value="";await load()}catch(e){setStatus(e.message,"error")}finally{$("create-period").disabled=false}}
+const toggle=document.createElement("button");toggle.type="button";toggle.className=p.status==="open"?"danger":"secondary";toggle.textContent=p.status==="open"?"Close":"Reopen";toggle.addEventListener("click",()=>togglePeriod(p));actions.appendChild(toggle);if(!p.used){const del=document.createElement("button");del.type="button";del.className="danger";del.dataset.action="delete";del.textContent="Delete";del.addEventListener("click",()=>deletePeriod(p));actions.appendChild(del);}td.appendChild(actions);tr.appendChild(td);body.appendChild(tr)}}
+async function createPeriod(){const month=$("new-month").value,periodDate=month?month+"-01":"";if(!month){setStatus("Choose a charge month.","error");return}$("create-period").disabled=true;try{const r=await call("create",{contributionMonth:month+"-01",periodDate});setStatus("Created period "+r.period.period_name+" dated "+periodDate+".","success");$("new-month").value="";await load()}catch(e){setStatus(e.message,"error")}finally{$("create-period").disabled=false}}
 async function deletePeriod(p){if(!confirm("Delete period “"+p.period_name+"”? Deletion is allowed only when this period has never been used."))return;try{await call("delete",{id:p.id});setStatus("Period "+p.period_name+" deleted.","success");await load()}catch(e){setStatus(e.message,"error")}}
 async function load(){ $("refresh").disabled=true;try{const result=await call("list");periods=result.periods||[];render();setStatus(periods.length+" period(s) loaded.","success")}catch(e){setStatus(e.message,"error")}finally{$("refresh").disabled=false}}
 async function togglePeriod(p){const action=p.status==="open"?"close":"reopen";if(!confirm((action==="close"?"Close":"Reopen")+" period “"+p.period_name+"”? "+(action==="close"?"It will no longer appear in normal assignment dropdowns.":"It will become available for new assignments.")))return;try{await call(action,{id:p.id});setStatus("Period "+p.period_name+" "+(action==="close"?"closed.":"reopened."),"success");await load()}catch(e){setStatus(e.message,"error")}}
-async function editPeriod(p){const daysText=prompt("No. of days (leave blank if not applicable)",p.days??"");if(daysText===null)return;const days=daysText.trim()?Number(daysText):null;if(days!==null&&(!Number.isInteger(days)||days<1||days>365)){setStatus("Days must be a whole number from 1 to 365, or blank.","error");return}try{await call("update",{id:p.id,days});setStatus("Period days updated.","success");await load()}catch(e){setStatus(e.message,"error")}}
-$("refresh").addEventListener("click",load);$("create-period").addEventListener("click",createPeriod);$("toggle-create").addEventListener("click",()=>{const panel=$("create-panel"),opening=panel.hidden;panel.hidden=!opening;$("toggle-create").setAttribute("aria-expanded",String(opening));$("toggle-create").textContent=opening?"Cancel":"＋ Create period";if(opening){$("new-month").focus()}else{$("new-month").value="";$("new-days").value=""}});
+
+$("refresh").addEventListener("click",load);$("create-period").addEventListener("click",createPeriod);$("toggle-create").addEventListener("click",()=>{const panel=$("create-panel"),opening=panel.hidden;panel.hidden=!opening;$("toggle-create").setAttribute("aria-expanded",String(opening));$("toggle-create").textContent=opening?"Cancel":"＋ Create period";if(opening){$("new-month").focus()}else{$("new-month").value="";}});
 (async()=>{if(await verify())await load()})();
 </script></body></html>

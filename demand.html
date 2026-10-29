@@ -99,7 +99,7 @@ header .top-actions > button:hover {
 
 <section class="panel" aria-labelledby="period-heading">
 <h2 id="period-heading">Demand details</h2>
-<p class="sub">Choose the contribution month and number of days. The first period is created automatically if needed, including for a future month.</p>
+<p class="sub">Choose an existing open period for the contribution month, then enter the number of days. Create or manage periods on the Periods page.</p>
 <div class="fields" style="grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(120px,.7fr)">
 <div class="field"><label for="contributionMonth">Contribution month</label><input id="contributionMonth" type="month" required style="font:inherit;min-height:44px;padding:10px 12px;border:1px solid #cfd7e4;border-radius:10px;width:100%;background:#fff;color:var(--ink)"><a href="./periods.html" class="muted" style="display:inline-block;margin-top:7px">Create or manage periods</a></div><div class="field"><label for="periodSelect">Period (optional override)</label><select id="periodSelect" style="font:inherit;min-height:44px;padding:10px 12px;border:1px solid #cfd7e4;border-radius:10px;width:100%;background:#fff;color:var(--ink)"><option value="">Choose a month first</option></select><span class="muted" style="display:inline-block;margin-top:7px">The first period for the chosen month is selected automatically.</span></div>
 <div class="field"><label for="days">No. of Days</label><input id="days" type="number" min="1" max="365" step="1" inputmode="numeric" placeholder="Days"></div>
@@ -205,25 +205,8 @@ async function callPeriodAction(action,extra={}){
  if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||"Could not prepare the selected period.");
  return data;
 }
-async function ensureBasePeriod(month){
- if(!/^\d{4}-\d{2}$/.test(month))throw new Error("Choose a valid contribution month.");
- const result=await callPeriodAction("ensure-base",{contributionMonth:month+"-01"});
- return result.period;
-}
 async function loadPeriods(){
  const data=await callPeriodAction("list");periods=data.periods||[];
- const month=$("contributionMonth").value;
- if(month&&(!query.get("periodId")||!periods.some(p=>p.id===query.get("periodId")&&monthOfPeriod(p)===month))){
-  try{
-   const base=await ensureBasePeriod(month);
-   const refreshed=await callPeriodAction("list");periods=refreshed.periods||[];
-   $("periodSelect").value=base.id;
-  }catch(error){
-   renderPeriodOptions();
-   status(error.message+" Choose another open period if one exists, or manage periods manually.","error");
-   return;
-  }
- }
  renderPeriodOptions();
  const existing=selectedPeriod();
  if(existing&&monthOfPeriod(existing)===$("contributionMonth").value&&!$("days").value&&existing.days)$("days").value=String(existing.days);
@@ -413,7 +396,19 @@ $('reviewBody').addEventListener('click',event=>{
  status(existing>=0?'Applicant removed from Work Demand.':'Applicant included in Work Demand.','success');
 });
 $('periodSelect').addEventListener('change',()=>{const p=selectedPeriod();if(p){const m=p.contribution_month||p.period_date;if(m)$('contributionMonth').value=m.slice(0,7);if(!$('days').value&&p.days)$('days').value=String(p.days);}invalidateGenerated();});
-$('contributionMonth').addEventListener('change',async()=>{invalidateGenerated();$('periodSelect').disabled=true;status('Preparing the period for '+monthLabel($('contributionMonth').value)+'…');try{await loadPeriods();if(selectedPeriod())status('Ready for '+monthLabel($('contributionMonth').value)+'.','success');}catch(error){status(error.message,'error');}finally{$('periodSelect').disabled=false;}});
+$('contributionMonth').addEventListener('change',async()=>{
+ invalidateGenerated();
+ $('periodSelect').disabled=true;
+ try{
+  await loadPeriods();
+  const month=$('contributionMonth').value,selected=selectedPeriod();
+  if(!month){status('Choose a contribution month.');return;}
+  if(!selected||selected.status!=="open"||monthOfPeriod(selected)!==month){
+   status('No open period exists for '+monthLabel(month)+'. Create it on the Periods page, then return and refresh.','error');
+  }else status('Using existing period '+selected.period_name+'.','success');
+ }catch(error){status(error.message,'error');}
+ finally{$('periodSelect').disabled=false;}
+});
 $('continueReviewBtn').addEventListener('click',()=>{
  const month=$('contributionMonth').value,chosenPeriod=selectedPeriod(),days=Number($('days').value);
  if(!month){$('contributionMonth').focus();status('Choose the contribution month first.','error');return;}

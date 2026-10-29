@@ -62,8 +62,8 @@ Deno.serve(async (req: Request) => {
       const month = clean(body.contributionMonth, 10);
       const periodDate = clean(body.periodDate, 10);
       const days = body.days === null || body.days === "" || body.days === undefined ? null : Number(body.days);
-      if (!/^\\d{4}-\\d{2}-01$/.test(month) || Number.isNaN(Date.parse(month)) || new Date(month + "T00:00:00Z").toISOString().slice(0,10) !== month) return reply(req, { error: "Choose a valid contribution month." }, 400);
-      if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(periodDate) || periodDate.slice(0, 7) !== month.slice(0, 7) || Number.isNaN(Date.parse(periodDate)) || new Date(periodDate + "T00:00:00Z").toISOString().slice(0,10) !== periodDate) return reply(req, { error: "Period date must be a valid date within the selected contribution month." }, 400);
+      if (!/^\d{4}-\d{2}-01$/.test(month) || Number.isNaN(Date.parse(month)) || new Date(month + "T00:00:00Z").toISOString().slice(0,10) !== month) return reply(req, { error: "Choose a valid contribution month." }, 400);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(periodDate) || periodDate.slice(0, 7) !== month.slice(0, 7) || Number.isNaN(Date.parse(periodDate)) || new Date(periodDate + "T00:00:00Z").toISOString().slice(0,10) !== periodDate) return reply(req, { error: "Period date must be a valid date within the selected contribution month." }, 400);
       if (days !== null && (!Number.isInteger(days) || days < 1 || days > 365)) return reply(req, { error: "Days must be a whole number from 1 to 365, or blank." }, 400);
       const { data: existing, error: existingError } = await admin.from("vbgramg_periods").select("period_name,period_date").eq("contribution_month", month);
       if (existingError) throw existingError;
@@ -118,7 +118,7 @@ Deno.serve(async (req: Request) => {
         if (body.periodDate !== undefined) {
           const periodDate = clean(body.periodDate, 10);
           const month = String(existing.contribution_month || existing.period_date || "").slice(0, 7);
-          if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(periodDate) || periodDate.slice(0, 7) !== month || Number.isNaN(Date.parse(periodDate)) || new Date(periodDate + "T00:00:00Z").toISOString().slice(0, 10) !== periodDate) return reply(req, { error: "Period date must be a valid date within " + month + "." }, 400);
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(periodDate) || periodDate.slice(0, 7) !== month || Number.isNaN(Date.parse(periodDate)) || new Date(periodDate + "T00:00:00Z").toISOString().slice(0, 10) !== periodDate) return reply(req, { error: "Period date must be a valid date within " + month + "." }, 400);
           const { data: sameDate, error: dateError } = await admin.from("vbgramg_periods").select("id,period_name").eq("contribution_month", String(existing.contribution_month || existing.period_date).slice(0, 10)).eq("period_date", periodDate).neq("id", id);
           if (dateError) throw dateError;
           if ((sameDate || []).length) return reply(req, { error: "Another period (" + sameDate[0].period_name + ") already uses " + periodDate + ". Choose a different date." }, 409);

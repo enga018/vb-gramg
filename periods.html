@@ -56,7 +56,7 @@ header .top-actions > button:hover {
   #period-body td[data-label="Period"] { grid-column: 1; padding: 0; border: 0; font-size: .98rem; font-weight: 750; line-height: 1.35; }
   #period-body td[data-label="Period"]::before { display: none; }
   #period-body .period-mobile-meta { display: block; margin-top: 4px; color: var(--muted); font-size: .76rem; font-weight: 450; line-height: 1.45; }
-  #period-body td[data-label="Days"], #period-body td[data-label="Status"], #period-body td[data-label="Created"] { display: none; }
+  #period-body td[data-label="Status"], #period-body td[data-label="Created"] { display: none; }
   #period-body td[data-label="Actions"] { grid-column: 2; grid-row: 1; display: block; align-self: center; padding: 0; border: 0; }
   #period-body td[data-label="Actions"]::before { display: none; }
   #period-body .row-actions { display: flex; flex-direction: column; gap: 6px; }
@@ -110,7 +110,6 @@ header .top-actions > button:hover {
     font-weight:450;
     line-height:1.45;
   }
-  #period-body td[data-label="Days"],
   #period-body td[data-label="Status"],
   #period-body td[data-label="Created"] { display:none; }
   #period-body td[data-label="Actions"] {
@@ -160,7 +159,7 @@ header .top-actions > button:hover {
 <header class="topbar app-header"><div class="page-title"><h1>Periods</h1><p>Manage shared periods used by Work Demand and FTO.</p></div><div class="actions app-header-actions"><a class="link secondary menu-link" href="./">Back to menu</a><button id="refresh" class="secondary" type="button">Refresh</button></div></header>
 <section class="panel"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><h2 style="margin:0">Period creation</h2><button id="toggle-create" class="secondary" type="button" aria-expanded="false" aria-controls="create-panel">+ Create period</button></div><div id="create-panel" hidden><p class="sub" style="margin-top:12px">Create a period here, then select it while preparing Work Demand. Period names are generated automatically, such as MAY26, MAY26 (2), and MAY26 (3).</p><div class="grid" id="create-form"><div class="field"><label for="new-month">Charge month</label><input id="new-month" type="month" required></div><div class="actions"><button id="create-period" type="button">Save period</button></div></div><p class="muted">Period date is assigned automatically as the first day of the selected charge month. Multiple periods for the same month share that date.</p></div><div id="status" class="status" aria-live="polite">Checking sign-in session…</div></section>
 <section class="panel"><h2>All periods</h2><p class="sub">Rounds are sorted by contribution month, then creation time. Close or reopen a period to control whether it can be assigned to new demands.</p>
-<div class="table-wrap"><table><thead><tr><th>Period</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody id="period-body"><tr><td colspan="5" class="empty">Loading periods…</td></tr></tbody></table></div></section>
+<div class="table-wrap"><table><thead><tr><th>Period</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody id="period-body"><tr><td colspan="4" class="empty">Loading periods…</td></tr></tbody></table></div></section>
 </main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
 const client=window.supabase.createClient("https://trtzhafgvqosjwrgckty.supabase.co","sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb");const $=id=>document.getElementById(id);let periods=[],sessionUser=null;
 function setStatus(msg,type=""){const el=$("status");el.textContent=msg;el.className="status"+(type?" "+type:"")}

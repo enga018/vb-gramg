@@ -211,4 +211,4 @@ async function togglePeriod(p){const action=p.status==="open"?"close":"reopen";i
 
 $("refresh").addEventListener("click",load);$("create-period").addEventListener("click",createPeriod);$("toggle-create").addEventListener("click",()=>{const panel=$("create-panel"),opening=panel.hidden;panel.hidden=!opening;$("toggle-create").setAttribute("aria-expanded",String(opening));$("toggle-create").textContent=opening?"Cancel":"＋ Create period";if(opening){$("new-month").focus()}else{$("new-month").value="";}});
 (async()=>{if(await verify())await load()})();
-</script></body></html>
+</script><script src="./navigation.js"></script></body></html>

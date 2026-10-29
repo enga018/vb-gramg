@@ -245,23 +245,20 @@ async function loadPeriods(){
  select.disabled=true;
  select.replaceChildren(new Option("Loading open periods…",""));
  try{
-  // Period metadata is intentionally readable without login; RLS grants anon
-  // SELECT access only to these six non-sensitive columns.
+  // Use the same approved server-side period-list endpoint as FTO Import.
+  // This avoids relying on direct browser SELECT permissions for the periods table.
   const {data,error}=await withTimeout(
-   supabaseClient.from("vbgramg_periods")
-    .select("id,period_name,period_date,contribution_month,days,status")
-    .eq("status","open")
-    .order("contribution_month",{ascending:false,nullsFirst:false}),
+   supabaseClient.functions.invoke("vbgramg-periods",{body:{action:"list"}}),
    10000,
    "Open periods request"
   );
-  if(error)throw error;
-  if(!Array.isArray(data))throw new Error("The periods table returned an invalid list.");
-  periods=data;
+  if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||"Could not load shared periods.");
+  if(!Array.isArray(data.periods))throw new Error("The periods service returned an invalid list.");
+  periods=data.periods.filter(p=>p&&p.status==="open");
   renderPeriodOptions();
   const existing=selectedPeriod();
   if(existing&&!$("days").value&&existing.days)$("days").value=String(existing.days);
-  if(!periods.some(p=>p.status==="open")){
+  if(!periods.length){
    select.title="No periods have Open status. Open or create a period on the Periods page.";
   }else{
    select.title="";
@@ -271,8 +268,7 @@ async function loadPeriods(){
   select.replaceChildren(new Option("Could not load periods — refresh to retry",""));
   select.disabled=true;
   throw error;
- }
-}
+ }}
 function status(message,type='info'){const el=$('status');el.textContent=message;el.className='status'+(type==='error'?' error':type==='success'?' success':'');}
 function generatedStatus(message,type='info'){const el=$('generateStatus');el.textContent=message;el.className='status'+(type==='error'?' error':type==='success'?' success':'');}
 function invalidateGenerated(){generated=null;pendingSnapshot=null;if($('confirmDialog').open&&!saving)$('confirmDialog').close();$('exportsPanel').classList.add('hidden');$('generateBtn').disabled=loading||!allCards.length;}

@@ -195,12 +195,21 @@ function monthNameForInput(month){if(!/^\d{4}-\d{2}$/.test(month))return "";cons
 function renderPeriodOptions(){
  const select=$("periodSelect"),month=$("contributionMonth").value,wanted=query.get("periodId")||select.value||"";
  select.replaceChildren();
- const first=document.createElement("option");first.value="";first.textContent=month?"No open period selected":"Choose a month first";select.appendChild(first);
- const open=periods.filter(p=>p.status==="open");
- for(const p of open){const o=document.createElement("option");o.value=p.id;o.textContent=p.period_name+" · "+(monthLabel(monthOfPeriod(p))||"Unknown month")+(p.days?" · "+p.days+" days":"");select.appendChild(o);}
- const preferred=open.find(p=>p.id===wanted&&(!month||monthOfPeriod(p)===month))||open.find(p=>monthOfPeriod(p)===month&&p.period_name===monthNameForInput(month));
- select.value=preferred?.id||"";
- if(!open.length)first.textContent="No open periods available";
+ const openForMonth=month
+  ?periods.filter(p=>p.status==="open"&&monthOfPeriod(p)===month)
+    .sort((a,b)=>String(a.period_date||a.contribution_month||"").localeCompare(String(b.period_date||b.contribution_month||""))||String(a.period_name||"").localeCompare(String(b.period_name||"")))
+  :[];
+ const first=document.createElement("option");first.value="";
+ first.textContent=!month?"Choose a month first":openForMonth.length?"Choose an open period":"No open periods for this month";
+ select.appendChild(first);
+ for(const p of openForMonth){
+  const o=document.createElement("option");o.value=String(p.id);
+  o.textContent=(p.period_name||monthLabel(monthOfPeriod(p))||"Open period")+(p.days?" · "+p.days+" days":"");
+  select.appendChild(o);
+ }
+ const preferred=openForMonth.find(p=>String(p.id)===wanted)||openForMonth[0]||null;
+ select.value=preferred?String(preferred.id):"";
+ select.disabled=!month||openForMonth.length===0;
 }
 async function callPeriodAction(action,extra={}){
  const {data,error}=await supabaseClient.functions.invoke("vbgramg-periods",{body:{action,...extra}});
@@ -409,7 +418,7 @@ $('contributionMonth').addEventListener('change',async()=>{
    status('No open period exists for '+monthLabel(month)+'. Create it on the Periods page, then return and refresh.','error');
   }else status('Using existing period '+selected.period_name+'.','success');
  }catch(error){status(error.message,'error');}
- finally{$('periodSelect').disabled=false;}
+ finally{renderPeriodOptions();}
 });
 $('continueReviewBtn').addEventListener('click',()=>{
  const month=$('contributionMonth').value,chosenPeriod=selectedPeriod(),days=Number($('days').value);

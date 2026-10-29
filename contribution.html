@@ -108,19 +108,13 @@ header .top-actions > button:hover {
   <link rel="stylesheet" href="./responsive.css">
 </head>
 <body>
-<header class="topbar app-header"><div class="brand"><h1>Contribution</h1><p>Track contribution charges, payments and outstanding balances.</p></div><div class="top-actions app-header-actions"><a class="btn ghost small menu-link" href="./">Back to menu</a><button class="btn ghost small hidden" id="allocationPreviewBtn" type="button">Historical allocation preview</button><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bank Payment</button><button class="btn ghost small" id="refreshBtn" type="button">Refresh</button></div></header>
+<header class="topbar app-header"><div class="brand"><h1>Contribution</h1><p>Track contribution charges, payments and outstanding balances.</p></div><div class="top-actions app-header-actions"><a class="btn ghost small menu-link" href="./">Back to menu</a><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bank Payment</button><button class="btn ghost small" id="refreshBtn" type="button">Refresh</button></div></header>
 <main>
 <div id="status" class="notice info hidden" role="status" aria-live="polite"></div>
 <div id="app" class="hidden">
 <section class="panel">
 <div class="stats"><div class="stat"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred total</div><div class="v" id="deferred">—</div></div></div>
-<section class="panel hidden" id="allocationPreviewPanel" style="margin-bottom:16px">
- <h1>Historical payment allocation preview</h1>
- <p class="sub">Preview-only: proposes FIFO allocations to the oldest eligible outstanding periods. Nothing is saved by generating this preview. Review ambiguous cards before any future approval.</p>
- <div class="top-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0"><button class="btn" id="buildAllocationPreviewBtn" type="button">Build preview</button><button class="btn ghost" id="closeAllocationPreviewBtn" type="button">Close</button></div>
- <div id="allocationPreviewStatus" class="muted" role="status" aria-live="polite">No preview generated.</div>
- <div id="allocationPreviewSummary"></div><div id="allocationPreviewResults" style="overflow:auto;max-height:60vh;margin-top:12px"></div>
-</section>
+
 <section class="panel hidden" id="exemptionPanel" style="margin-bottom:16px">
  <h1>Exemptions</h1><p class="sub">Exempt job cards remain visible in FTO history. Their Contribution ledger entries, extra charges, and contribution-citizen records are removed while exempt; FTO transactions and FTO status history are preserved.</p>
  <div class="grid2"><div class="field"><label for="exemptJobCard">Full job card number</label><input id="exemptJobCard" maxlength="100" placeholder="Enter full job card number" autocomplete="off"></div><div class="field"><label for="exemptNote">Reason / note (optional)</label><input id="exemptNote" maxlength="300" placeholder="Reason for exemption"></div></div>
@@ -452,191 +446,6 @@ function openCitizen(id){
  document.querySelectorAll('[data-edit-entry]').forEach(btn=>btn.addEventListener('click',()=>showEditForm(btn.dataset.editEntry)));
 }
 
-function buildHistoricalAllocationPreview(){
- if(appRole!=="admin")return;
- const host=$('allocationPreviewResults'),summary=$('allocationPreviewSummary'),note=$('allocationPreviewStatus');
- if(!host||!summary||!note)return;
- note.textContent='Calculating preview locally…';host.innerHTML='';summary.innerHTML='';
- // Preview-only: never writes to Supabase. Keep one balance bucket per period ID.
- const allPayments=entries.filter(e=>e.entry_type==='payment'&&String(e.job_card_number||'').trim());
- const byCard=new Map();
- for(const e of entries){const card=String(e.job_card_number||'').trim();if(!card)continue;if(!byCard.has(card))byCard.set(card,[]);byCard.get(card).push(e);}
- const savedByPayment=new Map(),balanceSavedByPayment=new Map(),savedByPeriodCard=new Map(),activeCapacityByPeriodCard=new Map();
- // Preserve every saved allocation record; deferred-only allocations must not count toward balances.
- for(const a of paymentAllocations){
-  const tid=String(a.transaction_id),amt=Math.max(0,Number(a.amount)||0);
-  savedByPayment.set(tid,(savedByPayment.get(tid)||0)+amt);
- }
- // Only active, non-deferred charges create balance capacity for allocations.
- for(const [card,ledger] of byCard){
-  for(const e of ledger){
-   if((e.entry_type!=='charge'&&e.entry_type!=='other_charge')||e.is_deferred||!e.period_id)continue;
-   const key=card+'|'+String(e.period_id);
-   activeCapacityByPeriodCard.set(key,(activeCapacityByPeriodCard.get(key)||0)+Math.max(0,Number(e.amount)||0));
-  }
- }
- // Cap saved allocations at the active charge total in each card-period. Any excess
- // (including allocations to deferred-only periods) remains historical data, not balance credit.
- const remainingCapacity=new Map(activeCapacityByPeriodCard);
- const allocationsInOrder=[...paymentAllocations].sort((a,b)=>String(a.created_at||'').localeCompare(String(b.created_at||''))||String(a.id||'').localeCompare(String(b.id||'')));
- for(const a of allocationsInOrder){
-  const tid=String(a.transaction_id),card=String(a.job_card_number||'').trim(),pid=String(a.period_id),key=card+'|'+pid;
-  const amount=Math.max(0,Number(a.amount)||0),capacity=remainingCapacity.get(key)||0,valid=Math.min(amount,capacity);
-  if(valid>0){
-   balanceSavedByPayment.set(tid,(balanceSavedByPayment.get(tid)||0)+valid);
-   savedByPeriodCard.set(key,(savedByPeriodCard.get(key)||0)+valid);
-   remainingCapacity.set(key,capacity-valid);
-  }
- }
- const periodById=new Map(periods.map(p=>[String(p.id),p]));
- const money=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
- const dateValue=e=>String(e.entry_date||e.created_at||'').slice(0,10);
- const suggestions=[];
- for(const pay of allPayments){
-  const card=String(pay.job_card_number||'').trim(),ledger=byCard.get(card)||[];
-  const saved=savedByPayment.get(String(pay.id))||0;
-  if(saved>=Number(pay.amount)-0.009){
-   suggestions.push({payment:pay,card,parts:[],unallocated:0,kind:'Already allocated',reason:'Existing saved allocation; preview will not replace it.'});continue;
-  }
-  if(saved>0.009){
-   suggestions.push({payment:pay,card,parts:[],unallocated:Math.max(0,Number(pay.amount)-saved),kind:'Needs review',reason:'Payment is partially allocated already; manual review required.'});continue;
-  }
-  if(exemptCardSet().has(card)){
-   suggestions.push({payment:pay,card,parts:[],unallocated:Number(pay.amount)||0,kind:'Needs review',reason:'Job card is exempt; no automatic allocation proposed.'});continue;
-  }
-  // Refunds and waivers can change the real balance. Do not guess their period effect.
-  const hasAdjustment=ledger.some(e=>e.entry_type==='refund'||e.entry_type==='charge_waiver'||(e.entry_type==='charge'&&String(e.note||'').trim()==='Return'));
-  if(hasAdjustment){
-   suggestions.push({payment:pay,card,parts:[],unallocated:Number(pay.amount)||0,kind:'Needs review',reason:'Job card has a refund/waiver/return; FIFO requires manual review.'});continue;
-  }
-  // Payment notes "Cash" and "Bank" are methods, not period evidence.
-  // A period is eligible only once its charge rows have actually been entered.
-  // This prevents a payment from being assigned to a later-entered/future charge.
-  const chargesByPeriod=new Map();
-  for(const e of ledger){
-   if((e.entry_type!=='charge'&&e.entry_type!=='other_charge')||e.is_deferred||!e.period_id)continue;
-   const pid=String(e.period_id),p=periodById.get(pid);
-   const periodDate=String((p&&(p.contribution_month||p.period_date))||e.charge_period||'').slice(0,10);
-   const chargeEntryDate=String(e.entry_date||e.created_at||'').slice(0,10);
-   if(!chargesByPeriod.has(pid))chargesByPeriod.set(pid,{periodId:e.period_id,label:p?(p.period_name||formatPeriod(p.contribution_month||p.period_date)):'Period '+pid.slice(0,8),date:periodDate,eligibleDate:periodDate||chargeEntryDate,gross:0});
-   const b=chargesByPeriod.get(pid);
-   // Deferred charges are excluded entirely and cannot delay eligibility of active charges.
-   if(chargeEntryDate&&chargeEntryDate>b.eligibleDate)b.eligibleDate=chargeEntryDate;
-   b.gross+=Math.max(0,Number(e.amount)||0);
-  }
-  const paymentDate=dateValue(pay);
-  const buckets=[...chargesByPeriod.values()]
-   .filter(b=>!paymentDate||!b.eligibleDate||b.eligibleDate<=paymentDate)
-   .sort((a,b)=>a.date.localeCompare(b.date)||String(a.periodId).localeCompare(String(b.periodId)));
-  for(const b of buckets)b.remaining=Math.max(0,b.gross-(savedByPeriodCard.get(card+'|'+String(b.periodId))||0));
-  const priorPayments=ledger.filter(e=>e.entry_type==='payment'&&(dateValue(e)<paymentDate||(dateValue(e)===paymentDate&&String(e.created_at||'')<String(pay.created_at||'')))).sort((a,b)=>dateValue(a).localeCompare(dateValue(b))||String(a.created_at||'').localeCompare(String(b.created_at||'')));
-  // Reconstruct prior payments chronologically. Any surplus is retained as
-  // household credit and offsets later periods when they become eligible.
-  // This is a balance simulation only: we do NOT create a proposed allocation
-  // linking an earlier-dated payment to a period that was not yet eligible then.
-  let carryForwardCredit=0;
-  for(const prior of priorPayments){
-   const priorSaved=balanceSavedByPayment.get(String(prior.id))||0;
-   let credit=carryForwardCredit+Math.max(0,(Number(prior.amount)||0)-priorSaved);
-   carryForwardCredit=0;
-   const priorDate=dateValue(prior);
-   for(const b of buckets){
-    if(credit<=0.009)break;
-    if(priorDate&&b.eligibleDate&&b.eligibleDate>priorDate)continue;
-    const applied=Math.min(b.remaining,credit);b.remaining-=applied;credit-=applied;
-   }
-   carryForwardCredit=credit;
-  }
-  // Apply any surviving historical credit to periods that became eligible
-  // after the last prior payment but by the current payment date. This reduces
-  // outstanding balance without inventing a retroactive allocation row.
-  for(const b of buckets){
-   if(carryForwardCredit<=0.009)break;
-   const applied=Math.min(b.remaining,carryForwardCredit);b.remaining-=applied;carryForwardCredit-=applied;
-  }
-  let remaining=Math.max(0,Number(pay.amount)||0),parts=[];
-  for(const b of buckets){if(remaining<=0.009)break;if(b.remaining<=0.009)continue;const amount=Math.min(b.remaining,remaining);parts.push({period_id:b.periodId,period_label:b.label,amount});b.remaining-=amount;remaining-=amount;}
-  if(parts.length)suggestions.push({payment:pay,card,parts,unallocated:remaining,kind:remaining>0.009?'Needs review':'FIFO proposal',reason:remaining>0.009?'Payment exceeds eligible outstanding balances.':'FIFO only; no explicit period evidence found.'});
-  else suggestions.push({payment:pay,card,parts:[],unallocated:remaining,kind:'Needs review',reason:'No eligible outstanding period found as of the payment date.'});
- }
- // Mutually exclusive categories; every payment appears exactly once.
- const counts={reviewed:suggestions.length,proposed:suggestions.filter(x=>x.kind==='FIFO proposal').length,needs:suggestions.filter(x=>x.kind==='Needs review').length,already:suggestions.filter(x=>x.kind==='Already allocated').length};
- const proposed=suggestions.reduce((n,x)=>n+x.parts.reduce((m,p)=>m+p.amount,0),0);
- // Diagnostic checks: summarize review reasons and flag any proposal that violates
- // the same eligibility rule used to construct the candidate buckets.
- const reviewReasons=new Map();
- for(const x of suggestions.filter(x=>x.kind==='Needs review')){
-  const reason=x.reason||'Unspecified review reason';
-  const rec=reviewReasons.get(reason)||{count:0,amount:0};
-  rec.count++;rec.amount+=Number(x.unallocated)||0;reviewReasons.set(reason,rec);
- }
- const eligibilityByCard=new Map();
- for(const e of entries){
-  const card=String(e.job_card_number||'').trim();
-  if(!card||(e.entry_type!=='charge'&&e.entry_type!=='other_charge')||!e.period_id)continue;
-  const p=periodById.get(String(e.period_id));
-  const pd=String((p&&(p.contribution_month||p.period_date))||e.charge_period||'').slice(0,10);
-  const ed=String(e.entry_date||e.created_at||'').slice(0,10);
-  const key=card+'|'+String(e.period_id),eligible=pd||ed;
-  const old=eligibilityByCard.get(key)||{date:eligible,label:p?(p.period_name||formatPeriod(p.contribution_month||p.period_date)):'Period '+String(e.period_id).slice(0,8)};
-  if(ed&&ed>old.date)old.date=ed;
-  eligibilityByCard.set(key,old);
- }
- let chronologyViolations=0;
- for(const x of suggestions)for(const part of x.parts){
-  const eligible=eligibilityByCard.get(x.card+'|'+String(part.period_id));
-  const payDate=dateValue(x.payment);
-  if(eligible&&payDate&&eligible.date&&eligible.date>payDate)chronologyViolations++;
- }
- const reasonRows=[...reviewReasons.entries()].sort((a,b)=>b[1].count-a[1].count).map(([reason,v])=>'<tr><td>'+esc(reason)+'</td><td>'+v.count.toLocaleString('en-IN')+'</td><td>'+money(v.amount)+'</td></tr>').join('');
- const reviewItems=suggestions.filter(x=>x.kind==='Needs review');
- const reviewGroups=new Map();
- for(const x of reviewItems){const reason=x.reason||'Unspecified review reason';if(!reviewGroups.has(reason))reviewGroups.set(reason,[]);reviewGroups.get(reason).push(x);}
- const reviewDetailGroupsHtml=[...reviewGroups.entries()].sort((a,b)=>b[1].length-a[1].length).map(([reason,items])=>{
-  const paymentRows=items.map(x=>{
-   const p=x.payment,paymentDate=dateValue(p),ledger=byCard.get(x.card)||[];
-   const currentSaved=paymentAllocations.filter(a=>String(a.transaction_id)===String(p.id));
-   const currentSavedTotal=currentSaved.reduce((n,a)=>n+(Number(a.amount)||0),0);
-   const priorPayments=ledger.filter(e=>e.entry_type==='payment'&&(dateValue(e)<paymentDate||(dateValue(e)===paymentDate&&String(e.created_at||'')<String(p.created_at||'')))).sort((a,b)=>dateValue(a).localeCompare(dateValue(b))||String(a.created_at||'').localeCompare(String(b.created_at||'')));
-   const priorHtml=priorPayments.length?priorPayments.map(prior=>{
-    const allocs=paymentAllocations.filter(a=>String(a.transaction_id)===String(prior.id));
-    const allocated=allocs.reduce((n,a)=>n+(Number(a.amount)||0),0);
-    const allocationText=allocs.length?allocs.map(a=>{const period=periodById.get(String(a.period_id));return esc(period?(period.period_name||formatPeriod(period.contribution_month||period.period_date)):'Period '+String(a.period_id).slice(0,8))+' '+money(a.amount);}).join(', '):'No saved period allocation';
-    return '<li>'+esc(dateValue(prior)||'Date not recorded')+' · '+money(prior.amount)+' paid · '+money(allocated)+' allocated. '+allocationText+'</li>';
-   }).join(''):'<li>No earlier payments recorded for this job card.</li>';
-   const eligibleByPeriod=new Map();
-   for(const e of ledger){
-    if((e.entry_type!=='charge'&&e.entry_type!=='other_charge')||!e.period_id)continue;
-    const pid=String(e.period_id),period=periodById.get(pid);
-    const periodDate=String((period&&(period.contribution_month||period.period_date))||e.charge_period||'').slice(0,10);
-    const chargeDate=String(e.entry_date||e.created_at||'').slice(0,10);
-    const eligibleDate=chargeDate&&chargeDate>periodDate?chargeDate:(periodDate||chargeDate);
-    if(paymentDate&&eligibleDate&&eligibleDate>paymentDate)continue;
-    if(!eligibleByPeriod.has(pid))eligibleByPeriod.set(pid,{label:period?(period.period_name||formatPeriod(period.contribution_month||period.period_date)):'Period '+pid.slice(0,8),eligibleDate,gross:0});
-    const bucket=eligibleByPeriod.get(pid);bucket.gross+=Math.max(0,Number(e.amount)||0);
-    if(chargeDate&&chargeDate>bucket.eligibleDate)bucket.eligibleDate=chargeDate;
-   }
-   const eligibleRows=[...eligibleByPeriod.entries()].sort((a,b)=>a[1].eligibleDate.localeCompare(b[1].eligibleDate)).map(([pid,b])=>{
-    const allocated=savedByPeriodCard.get(x.card+'|'+pid)||0;
-    return '<li>'+esc(b.label)+' · eligible '+esc(b.eligibleDate||'date unknown')+' · charge total '+money(b.gross)+' · saved allocations '+money(allocated)+' · balance before historical-credit simulation '+money(Math.max(0,b.gross-allocated))+'</li>';
-   }).join('');
-   const adjustments=ledger.filter(e=>e.entry_type==='refund'||e.entry_type==='charge_waiver'||(e.entry_type==='charge'&&String(e.note||'').trim()==='Return'));
-   const adjustmentHtml=adjustments.length?adjustments.map(e=>'<li>'+esc(e.entry_type==='charge_waiver'?'Waiver':e.entry_type==='refund'?'Refund':'Return')+' · '+esc(dateValue(e)||'Date not recorded')+' · '+money(e.amount)+' · '+esc(e.note||'No note')+'</li>').join(''):'<li>No refund, waiver, or return found on this job card.</li>';
-   const currentAllocationHtml=currentSaved.length?currentSaved.map(a=>{const period=periodById.get(String(a.period_id));return '<li>'+esc(period?(period.period_name||formatPeriod(period.contribution_month||period.period_date)):'Period '+String(a.period_id).slice(0,8))+' · '+money(a.amount)+(a.note?' · '+esc(a.note):'')+'</li>';}).join(''):'<li>No saved allocation for this payment.</li>';
-   return '<tr><td>'+esc(paymentDate||'Date not recorded')+'</td><td>'+esc(x.card)+'</td><td>'+money(p.amount)+'</td><td>'+money(currentSavedTotal)+'</td><td>'+money(x.unallocated)+'</td><td><details><summary>Inspect</summary><div style="min-width:240px;max-width:520px;white-space:normal;padding:4px 0"><p style="margin:6px 0"><strong>'+esc(x.reason)+'</strong></p><p style="margin:6px 0">Payment: '+money(p.amount)+' · Already allocated: '+money(currentSavedTotal)+' · Unallocated: <strong>'+money(x.unallocated)+'</strong></p><p class="muted" style="margin:6px 0">Read-only preview. No allocation is changed or saved.</p><details style="margin-top:10px"><summary>Show more details</summary><div style="padding:8px 0"><p><strong>Eligible charge periods</strong></p><ul>'+ (eligibleRows||'<li>No charge period eligible as of this payment date.</li>')+'</ul><p><strong>Prior payments and their saved allocations</strong></p><ul>'+priorHtml+'</ul><p><strong>This payment’s saved allocations</strong></p><ul>'+currentAllocationHtml+'</ul><p><strong>Refunds, waivers, and returns on this job card</strong></p><ul>'+adjustmentHtml+'</ul><p class="muted">Period balances show recorded charge totals less saved allocations. They are diagnostic context, not a new allocation proposal; historical carry-forward credit may affect the simulated balance.</p></div></details></div></details></td></tr>';
-  }).join('');
-  return '<details style="margin:10px 0;border:1px solid var(--line);border-radius:10px;padding:10px"><summary><strong>'+esc(reason)+'</strong> · '+items.length.toLocaleString('en-IN')+' payments · '+money(items.reduce((n,x)=>n+(Number(x.unallocated)||0),0))+' unallocated</summary><div style="overflow:auto;max-width:100%;margin-top:10px"><table style="width:100%;border-collapse:collapse;font-size:.9rem"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Payment date</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Job card</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Payment</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Already allocated</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Unallocated</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Payment-level evidence</th></tr></thead><tbody>'+paymentRows+'</tbody></table></div></details>';
- }).join('');
- const diagnosticHtml='<section style="margin-top:14px"><h3>Review breakdown</h3><div class="muted">Expand a reason, then inspect an individual payment for eligible charge periods, earlier payments, saved allocations, and adjustments. Unallocated amounts are not automatically assigned.</div><div style="overflow:auto;max-width:100%"><table style="width:100%;border-collapse:collapse;font-size:.9rem"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Reason</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Payments</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Unallocated amount</th></tr></thead><tbody>'+reasonRows+'</tbody></table></div><div style="margin-top:12px">'+(reviewDetailGroupsHtml||'<div class="empty">No payments currently need review.</div>')+'</div><p class="muted">Chronology violations detected: <strong>'+chronologyViolations+'</strong>. This check tests proposed period eligibility against payment dates; it does not independently confirm that FIFO is historically correct.</p></section>';
- summary.innerHTML='<div class="stats"><div class="stat"><div class="k">Payments reviewed</div><div class="v">'+counts.reviewed.toLocaleString('en-IN')+'</div></div><div class="stat"><div class="k">FIFO proposals</div><div class="v">'+counts.proposed.toLocaleString('en-IN')+'</div></div><div class="stat"><div class="k">Proposed allocation</div><div class="v">'+money(proposed)+'</div></div><div class="stat"><div class="k">Needs review</div><div class="v">'+counts.needs.toLocaleString('en-IN')+'</div></div><div class="stat"><div class="k">Already allocated</div><div class="v">'+counts.already.toLocaleString('en-IN')+'</div></div></div>';
- if(!suggestions.length)host.innerHTML='<div class="empty">No payment transactions found.</div>';
- else{
-  const rows=suggestions.map(x=>{const p=x.payment,details=x.parts.length?x.parts.map(a=>esc(a.period_label)+' · '+money(a.amount)).join('<br>'):'—';return '<tr><td>'+esc(dateValue(p)||'Date not recorded')+'</td><td>'+esc(x.card)+'</td><td>'+money(p.amount)+'</td><td>'+details+'</td><td>'+money(x.unallocated)+'</td><td>'+esc(x.kind)+'</td><td>'+esc(x.reason)+'</td></tr>';}).join('');
-  host.innerHTML='<div class="muted" style="margin:8px 0">FIFO suggestions are not evidence-confirmed. Existing allocations are preserved; payments on cards with refunds/waivers or partial allocations are routed to review.</div><div style="overflow:auto;max-width:100%"><table style="width:100%;border-collapse:collapse;font-size:.9rem"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Payment date</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Job card</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Payment</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Suggested period allocations</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Unallocated</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Status</th><th style="text-align:left;padding:8px;border-bottom:1px solid var(--line)">Reason</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
- }
- host.insertAdjacentHTML('beforeend',diagnosticHtml);
- note.textContent='Preview generated locally only; no database changes were made. Review reasons and chronology checks are shown below. Cash/Bank notes are payment methods, not period evidence.';
-}
 function showPaymentAllocationForm(transactionId){
  const c=currentCitizen;if(!c||appRole!=="admin")return;
  const payment=c.ledger.find(e=>String(e.id)===String(transactionId)&&e.entry_type==="payment");if(!payment)return;
@@ -857,7 +666,7 @@ async function load(){
   status('Loading active MIS and contribution ledger…');
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}});
   if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
-  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");$("allocationPreviewBtn").classList.toggle("hidden",appRole!=="admin");entries=data.entries||[];periods=data.periods||[];paymentAllocations=data.payment_allocations||[];extraCharges=data.extras||[];citizenRegistry=data.citizens||[];applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];deriveCitizens();renderExemptions();
+  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");entries=data.entries||[];periods=data.periods||[];paymentAllocations=data.payment_allocations||[];extraCharges=data.extras||[];citizenRegistry=data.citizens||[];applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];deriveCitizens();renderExemptions();
   $('app').classList.remove('hidden');$('status').classList.add('hidden');
   render();
  }catch(err){status(err.message||'Could not load contribution data.','err');}
@@ -871,9 +680,9 @@ $('prev-button').addEventListener('click',()=>{currentPage--;render()});$('next-
 window.addEventListener('resize',()=>render());
 $('refreshBtn').addEventListener('click',load);
 $('bulkPaymentBtn').addEventListener('click',showBulkPaymentForm);
-$('allocationPreviewBtn')?.addEventListener('click',()=>{$('allocationPreviewPanel').classList.remove('hidden');$('allocationPreviewPanel').scrollIntoView({behavior:'smooth',block:'start'});});
-$('buildAllocationPreviewBtn')?.addEventListener('click',buildHistoricalAllocationPreview);
-$('closeAllocationPreviewBtn')?.addEventListener('click',()=>$('allocationPreviewPanel').classList.add('hidden'));
+
+
+
 $('manageExemptionsBtn').addEventListener('click',()=>{$('exemptionPanel').classList.toggle('hidden');if(!$('exemptionPanel').classList.contains('hidden')){$('exemptJobCard').focus();$('exemptionPanel').scrollIntoView({behavior:'smooth',block:'start'});}});
 $('saveExemptionBtn').addEventListener('click',saveExemption);
 $('exemptionList').addEventListener('click',async ev=>{const btn=ev.target.closest('[data-remove-exemption]');if(!btn)return;await removeExemption(btn.dataset.removeExemption);});

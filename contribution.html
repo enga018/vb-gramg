@@ -214,7 +214,7 @@ function deriveCitizens(){
  const map=new Map(),make=(id,name)=>({id,jobCard:id,name:name||'Unnamed',exempt:exemptSet.has(id),charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,ledger:[]});
  for(const r of citizenRegistry){const id=String(r.job_card_number||'').trim();if(id)map.set(id,make(id,r.person_name))}
  for(const e of entries){const id=String(e.job_card_number||'').trim();if(!id||!map.has(id))continue;map.get(id).ledger.push(e)}
- citizens=[...map.values()].map(c=>{const x=calculateLedgerState(c.ledger);let gross=0;for(const e of c.ledger){if((e.entry_type==='charge'||e.entry_type==='other_charge'||e.entry_type==='sanitationFee')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return'))gross+=Math.max(0,Number(e.amount)||0)}return c.exempt?{...c,charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,totalCharged:0,balance:0}:{...c,charges:gross,activeCharges:x.charged,deferred:x.deferred,paid:x.paid,waived:x.waived,returns:x.returned,totalCharged:Math.max(0,gross-Math.min(gross,x.waived)),balance:x.balance}}).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
+ citizens=[...map.values()].map(c=>{const x=calculateLedgerState(c.ledger);let gross=0;for(const e of c.ledger){if((e.entry_type==='charge'||e.entry_type==='other_charge'||e.entry_type==='sanitationFee')&&!e.is_deferred&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return'))gross+=Math.max(0,Number(e.amount)||0)}return c.exempt?{...c,charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,totalCharged:0,balance:0}:{...c,charges:gross,activeCharges:x.charged,deferred:x.deferred,paid:x.paid,waived:x.waived,returns:x.returned,totalCharged:Math.max(0,gross-Math.min(gross,x.waived)),balance:x.balance}}).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
 }
 function jobCardSuffixNumber(jobCard){
  const match=String(jobCard||'').match(/\/([^/]+)$/);
@@ -438,11 +438,32 @@ function buildHistoricalAllocationPreview(){
  const allPayments=entries.filter(e=>e.entry_type==='payment'&&String(e.job_card_number||'').trim());
  const byCard=new Map();
  for(const e of entries){const card=String(e.job_card_number||'').trim();if(!card)continue;if(!byCard.has(card))byCard.set(card,[]);byCard.get(card).push(e);}
- const savedByPayment=new Map(),savedByPeriodCard=new Map();
+ const savedByPayment=new Map(),balanceSavedByPayment=new Map(),savedByPeriodCard=new Map(),activeCapacityByPeriodCard=new Map();
+ // Preserve every saved allocation record; deferred-only allocations must not count toward balances.
  for(const a of paymentAllocations){
-  const tid=String(a.transaction_id),card=String(a.job_card_number||'').trim(),pid=String(a.period_id),amt=Number(a.amount)||0;
+  const tid=String(a.transaction_id),amt=Math.max(0,Number(a.amount)||0);
   savedByPayment.set(tid,(savedByPayment.get(tid)||0)+amt);
-  const key=card+'|'+pid;savedByPeriodCard.set(key,(savedByPeriodCard.get(key)||0)+amt);
+ }
+ // Only active, non-deferred charges create balance capacity for allocations.
+ for(const [card,ledger] of byCard){
+  for(const e of ledger){
+   if((e.entry_type!=='charge'&&e.entry_type!=='other_charge')||e.is_deferred||!e.period_id)continue;
+   const key=card+'|'+String(e.period_id);
+   activeCapacityByPeriodCard.set(key,(activeCapacityByPeriodCard.get(key)||0)+Math.max(0,Number(e.amount)||0));
+  }
+ }
+ // Cap saved allocations at the active charge total in each card-period. Any excess
+ // (including allocations to deferred-only periods) remains historical data, not balance credit.
+ const remainingCapacity=new Map(activeCapacityByPeriodCard);
+ const allocationsInOrder=[...paymentAllocations].sort((a,b)=>String(a.created_at||'').localeCompare(String(b.created_at||''))||String(a.id||'').localeCompare(String(b.id||'')));
+ for(const a of allocationsInOrder){
+  const tid=String(a.transaction_id),card=String(a.job_card_number||'').trim(),pid=String(a.period_id),key=card+'|'+pid;
+  const amount=Math.max(0,Number(a.amount)||0),capacity=remainingCapacity.get(key)||0,valid=Math.min(amount,capacity);
+  if(valid>0){
+   balanceSavedByPayment.set(tid,(balanceSavedByPayment.get(tid)||0)+valid);
+   savedByPeriodCard.set(key,(savedByPeriodCard.get(key)||0)+valid);
+   remainingCapacity.set(key,capacity-valid);
+  }
  }
  const periodById=new Map(periods.map(p=>[String(p.id),p]));
  const money=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
@@ -470,14 +491,13 @@ function buildHistoricalAllocationPreview(){
   // This prevents a payment from being assigned to a later-entered/future charge.
   const chargesByPeriod=new Map();
   for(const e of ledger){
-   if((e.entry_type!=='charge'&&e.entry_type!=='other_charge')||!e.period_id)continue;
+   if((e.entry_type!=='charge'&&e.entry_type!=='other_charge')||e.is_deferred||!e.period_id)continue;
    const pid=String(e.period_id),p=periodById.get(pid);
    const periodDate=String((p&&(p.contribution_month||p.period_date))||e.charge_period||'').slice(0,10);
    const chargeEntryDate=String(e.entry_date||e.created_at||'').slice(0,10);
    if(!chargesByPeriod.has(pid))chargesByPeriod.set(pid,{periodId:e.period_id,label:p?(p.period_name||formatPeriod(p.contribution_month||p.period_date)):'Period '+pid.slice(0,8),date:periodDate,eligibleDate:periodDate||chargeEntryDate,gross:0});
    const b=chargesByPeriod.get(pid);
-   // Conservative eligibility for a combined period bucket: wait until its latest
-   // charge row is recorded, including deferred rows, before using it for FIFO.
+   // Deferred charges are excluded entirely and cannot delay eligibility of active charges.
    if(chargeEntryDate&&chargeEntryDate>b.eligibleDate)b.eligibleDate=chargeEntryDate;
    b.gross+=Math.max(0,Number(e.amount)||0);
   }
@@ -493,7 +513,7 @@ function buildHistoricalAllocationPreview(){
   // linking an earlier-dated payment to a period that was not yet eligible then.
   let carryForwardCredit=0;
   for(const prior of priorPayments){
-   const priorSaved=savedByPayment.get(String(prior.id))||0;
+   const priorSaved=balanceSavedByPayment.get(String(prior.id))||0;
    let credit=carryForwardCredit+Math.max(0,(Number(prior.amount)||0)-priorSaved);
    carryForwardCredit=0;
    const priorDate=dateValue(prior);

@@ -226,13 +226,14 @@ header .top-actions > button:hover {
 @media (max-width:700px){
   table, table th, table td { font-size:0.85rem !important; }
 }
-</style>
+.page-actions-bar{display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;margin:0 auto 16px;width:min(100%,1440px)}.page-actions-bar>*{flex-shrink:0}@media(max-width:700px){.page-actions-bar{justify-content:stretch}.page-actions-bar>*{flex:1 1 auto}}</style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
 <body>
 <main>
 <div id="app-panel" class="hidden">
-<header class="topbar app-header"><div class="brand"><h1>FTO Import</h1><p>Import FTO transactions and assign a contribution period.</p></div><div class="header-actions app-header-actions"><a class="link-button secondary menu-link" href="./">Back to menu</a><a class="link-button secondary" href="./fto.html">FTO history</a><a class="link-button secondary" href="./periods.html">Manage periods</a></div></header><section class="panel">
+<header class="topbar app-header"><div class="brand"><h1>FTO Import</h1><p>Import FTO transactions and assign a contribution period.</p></div></header>
+<div class="header-actions page-actions-bar"><a class="link-button secondary menu-link" href="./">Back to menu</a><a class="link-button secondary" href="./fto.html">FTO history</a><a class="link-button secondary" href="./periods.html">Manage periods</a></div><section class="panel">
 <div>
 <label for="table-input">Paste table copied from the FTO page</label>
 <textarea id="table-input" rows="7" placeholder="Copy the table from the FTO page, then paste it here…"></textarea>

@@ -162,6 +162,29 @@ header .top-actions > button:hover {
 
 </main>
 
+<script>
+/* Early fallback: runs even if the main application script fails to initialize. */
+window.__demandEarlyWatchdog=setTimeout(function(){
+ var s=document.getElementById('status');
+ var p=document.getElementById('periodSelect');
+ if(s && /Checking your sign-in session|Loading open periods/i.test((s.textContent||'')+' '+(p&&p.options[0]?p.options[0].textContent:''))){
+  s.className='status error';
+  s.textContent='Work Demand is not finishing initialization. Refresh this page once; if it persists, the page script or database request is failing.';
+  if(p && p.options.length===1 && /Loading open periods/i.test(p.options[0].textContent)){
+   p.replaceChildren(new Option('Period list did not load — refresh to retry',''));
+   p.disabled=true;
+  }
+ }
+},8000);
+window.addEventListener('error',function(e){
+ var s=document.getElementById('status');
+ if(s && e.message){s.className='status error';s.textContent='Page script error: '+e.message;}
+});
+window.addEventListener('unhandledrejection',function(e){
+ var s=document.getElementById('status');
+ if(s){s.className='status error';s.textContent='Page request error: '+String(e.reason&&e.reason.message||e.reason||'Unknown error');}
+});
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="document.getElementById('status').className='status error';document.getElementById('status').textContent='Could not load the sign-in library. Check your internet connection, then refresh this page.'"></script>
 <script>
 const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
@@ -227,8 +250,7 @@ async function loadPeriods(){
    supabaseClient.from("vbgramg_periods")
     .select("id,period_name,period_date,contribution_month,days,status")
     .eq("status","open")
-    .order("contribution_month",{ascending:false,nullsFirst:false})
-    .order("created_at",{ascending:false}),
+    .order("contribution_month",{ascending:false,nullsFirst:false}),
    10000,
    "Open periods request"
   );

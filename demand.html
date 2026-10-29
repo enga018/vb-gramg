@@ -221,7 +221,7 @@ async function loadPeriods(){
  select.disabled=true;
  select.replaceChildren(new Option("Loading open periods…",""));
  try{
-  const data=await callPeriodAction("open-list");
+  const data=await withTimeout(callPeriodAction("open-list"),10000,"Open periods request");
   if(!Array.isArray(data.periods))throw new Error("The periods service returned an invalid list.");
   periods=data.periods;
   renderPeriodOptions();

@@ -60,3 +60,12 @@ header.topbar, header.app-header{position:relative;padding-right:58px}
 .global-nav-panel a{display:flex;align-items:center;min-height:43px;padding:10px 12px;border-radius:8px;color:#172033;text-decoration:none;font:600 .92rem/1.3 system-ui,sans-serif;white-space:normal}
 .global-nav-panel a:hover,.global-nav-panel a:focus-visible{background:#f1f5f9;outline:none}
 @media(max-width:700px){header.topbar,header.app-header{padding-right:58px}.global-nav{top:8px;right:8px}.global-nav-trigger{width:44px;min-width:44px;height:44px;min-height:44px}.global-nav-panel{position:fixed;top:60px;right:12px;max-height:min(75vh,560px);overflow:auto}}
+
+/* Polished navigation dropdown and current-page indicator */
+.global-nav-panel{gap:3px;padding:8px;border-radius:14px}
+.global-nav-panel a{position:relative;gap:10px;transition:background-color .15s ease,color .15s ease}
+.global-nav-panel a.is-current{background:#eaf2ff;color:#174ea6;font-weight:750}
+.global-nav-panel a.is-current:before{content:"";width:4px;align-self:stretch;position:absolute;left:0;top:9px;bottom:9px;border-radius:4px;background:#2563eb}
+.global-nav-panel a.is-current:hover{background:#dfeaff}
+.global-nav-panel a:focus-visible{outline:2px solid #2563eb;outline-offset:1px}
+@media(prefers-reduced-motion:reduce){.global-nav-panel a{transition:none}}

@@ -217,10 +217,27 @@ async function callPeriodAction(action,extra={}){
  return data;
 }
 async function loadPeriods(){
- const data=await callPeriodAction("list");periods=data.periods||[];
- renderPeriodOptions();
- const existing=selectedPeriod();
- if(existing&&!$("days").value&&existing.days)$("days").value=String(existing.days);
+ const select=$("periodSelect");
+ select.disabled=true;
+ select.replaceChildren(new Option("Loading open periods…",""));
+ try{
+  const data=await callPeriodAction("list");
+  if(!Array.isArray(data.periods))throw new Error("The periods service returned an invalid list.");
+  periods=data.periods;
+  renderPeriodOptions();
+  const existing=selectedPeriod();
+  if(existing&&!$("days").value&&existing.days)$("days").value=String(existing.days);
+  if(!periods.some(p=>p.status==="open")){
+   select.title="No periods have Open status. Open or create a period on the Periods page.";
+  }else{
+   select.title="";
+  }
+ }catch(error){
+  periods=[];
+  select.replaceChildren(new Option("Could not load periods — refresh to retry",""));
+  select.disabled=true;
+  throw error;
+ }
 }
 function status(message,type='info'){const el=$('status');el.textContent=message;el.className='status'+(type==='error'?' error':type==='success'?' success':'');}
 function generatedStatus(message,type='info'){const el=$('generateStatus');el.textContent=message;el.className='status'+(type==='error'?' error':type==='success'?' success':'');}

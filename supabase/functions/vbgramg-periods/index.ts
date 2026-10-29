@@ -46,17 +46,31 @@ Deno.serve(async (req: Request) => {
       const { data, error } = await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,days,status,created_at,updated_at,closed_at").order("contribution_month", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false });
       if (error) throw error;
       const periodRows = data || [];
-      const usageQueries = await Promise.all([
-        admin.from("vbgramg_charge_ledger").select("period_id").not("period_id", "is", null),
-        admin.from("vbgramg_payment_allocations").select("period_id").not("period_id", "is", null),
-        admin.from("vbgramg_contribution_extras").select("period_id").not("period_id", "is", null),
-        admin.from("vbgramg_fto_batches").select("period_id").not("period_id", "is", null),
-        admin.from("vbgramg_demand_runs").select("period_id").not("period_id", "is", null)
-      ]);
-      const usageError = usageQueries.find(result => result.error);
-      if (usageError) throw usageError.error;
-      const usedIds = new Set<string>();
-      for (const result of usageQueries) for (const row of result.data || []) if (row.period_id) usedIds.add(String(row.period_id));
+      // PostgREST normally caps each response at 1,000 rows. Paginate every
+      // usage table so older periods cannot appear unused just because their
+      // linked rows fall beyond the first response page.
+      const usageTables = [
+        "vbgramg_charge_ledger",
+        "vbgramg_payment_allocations",
+        "vbgramg_contribution_extras",
+        "vbgramg_fto_batches",
+        "vbgramg_demand_runs"
+      ] as const;
+      const usageResults = await Promise.all(usageTables.map(async (table) => {
+        const ids: string[] = [];
+        for (let offset = 0; ; offset += 1000) {
+          const { data: rows, error: usageError } = await admin
+            .from(table)
+            .select("period_id")
+            .not("period_id", "is", null)
+            .range(offset, offset + 999);
+          if (usageError) throw usageError;
+          for (const row of rows || []) if (row.period_id) ids.push(String(row.period_id));
+          if (!rows || rows.length < 1000) break;
+        }
+        return ids;
+      }));
+      const usedIds = new Set<string>(usageResults.flat());
       return reply(req, { approved: true, periods: periodRows.map(period => ({ ...period, used: usedIds.has(String(period.id)) })) });
     }
     if (action === "create") {

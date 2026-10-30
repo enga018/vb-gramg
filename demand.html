@@ -346,8 +346,6 @@ async function load(){
  $('demandBody').innerHTML='<tr><td colspan="3" class="empty">Loading applicants…</td></tr>';
  $('exportsPanel').classList.add('hidden');generated=null;
  try{
-  // Start public period-list loading independently of the protected app session.
-  const periodsPromise=loadPeriods();
   status('Checking your sign-in session…');
   const {data:sessionData,error:sessionError}=await withTimeout(supabaseClient.auth.getSession(),6000,'Sign-in session check');
   if(sessionError||!sessionData.session){window.location.replace('./');return;}
@@ -359,6 +357,9 @@ async function load(){
   if(seq!==loadSequence)return;
   if(accessError||!access||access.approved!==true){await supabaseClient.auth.signOut();window.location.replace('./');return;}
 
+  // Load shared periods only after the authenticated session and app access
+  // have been confirmed, matching the working FTO Import request sequence.
+  const periodsPromise=loadPeriods();
   if(query.get("days") && /^\d+$/.test(query.get("days"))) $("days").value=query.get("days");
   applyWorkflowVisibility();
   status('Loading active MIS data and Contribution balances…');

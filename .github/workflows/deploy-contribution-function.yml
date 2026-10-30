@@ -2,6 +2,11 @@ name: Deploy contribution Edge Function
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/vbgramg-contribution-data/**'
+      - '.github/workflows/deploy-contribution-function.yml'
 
 permissions:
   contents: read

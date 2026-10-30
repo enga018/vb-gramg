@@ -164,7 +164,7 @@ try{
 const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
-let entries=[], citizens=[], citizenRegistry=[], applicantsByCard={}, extraCharges=[], exemptions=[], periods=[], paymentAllocations=[], currentCitizen=null, busy=false, currentPage=0, pageSize=50, appRole="";
+let entries=[], citizens=[], citizenRegistry=[], applicantsByCard={}, extraCharges=[], exemptions=[], periods=[], paymentAllocations=[], paymentRefundReconciliations=[], currentCitizen=null, busy=false, currentPage=0, pageSize=50, appRole="";
 const exemptCardSet=()=>new Set(exemptions.map(x=>String(x.job_card_number||"").trim()));
 const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -410,20 +410,24 @@ function openCitizen(id){
   const extraReason=isExtra?(String(extraCharges.find(x=>String(x.job_card_number)===String(c.id)&&String(x.period_id||"")===String(e.period_id||"")&&String(x.charge_period||"")===String(e.charge_period||""))?.reason||String(e.note||"").replace(/^FTO EXTRA:\\s*/i,"").replace(/\\s*\\(legacy(?:;[^)]*)?\\)\\s*$/i,"").trim())):"";
   const allocationRows=isPayment?paymentAllocations.filter(a=>String(a.transaction_id)===String(e.id)):[];
   const savedAllocationTotal=allocationRows.reduce((sum,a)=>sum+Math.max(0,Number(a.amount)||0),0);
-  const unallocatedAmount=Math.max(0,amount-savedAllocationTotal);
-  const overAllocatedAmount=Math.max(0,savedAllocationTotal-amount);
+  const reconciliationRows=isPayment?paymentRefundReconciliations.filter(r=>String(r.payment_id)===String(e.id)):[];
+  const reconciledTotal=reconciliationRows.reduce((sum,r)=>sum+Math.max(0,Number(r.amount)||0),0);
+  const unallocatedAmount=Math.max(0,amount-savedAllocationTotal-reconciledTotal);
+  const overAllocatedAmount=Math.max(0,savedAllocationTotal+reconciledTotal-amount);
+  const refundReconciliation=type==='refund'||type==='return'?paymentRefundReconciliations.find(r=>String(r.refund_id)===String(e.id)):null;
   const allocationDetails=isPayment
-   ?'<details class="payment-allocation-details"><summary>'+ (allocationRows.length?'Allocations · '+fmt(savedAllocationTotal):'No saved allocations') + (unallocatedAmount>0?' · Unallocated '+fmt(unallocatedAmount):'') +'</summary><div class="payment-allocation-list">'+
+   ?'<details class="payment-allocation-details"><summary>'+ (allocationRows.length?'Allocations · '+fmt(savedAllocationTotal):'No saved allocations') + (reconciledTotal>0?' · Reconciled with refund '+fmt(reconciledTotal):'') + (unallocatedAmount>0?' · Unallocated '+fmt(unallocatedAmount):'') +'</summary><div class="payment-allocation-list">'+
     (allocationRows.length?allocationRows.map(a=>{
      const p=periods.find(x=>String(x.id)===String(a.period_id));
      const periodName=String(p?.period_name||'').trim()||String(p?.contribution_month||p?.period_date||'').slice(0,10)||'Period '+String(a.period_id||'unknown');
      return '<div class="payment-allocation-row"><span>'+esc(periodName)+'</span><b>'+fmt(a.amount)+'</b></div>';
     }).join(''):'<div class="payment-allocation-empty">No allocation records are saved for this payment.</div>')+
+    (reconciliationRows.length?reconciliationRows.map(r=>'<div class="payment-allocation-row"><span>Reconciled with refund'+(r.note?' · '+esc(r.note):'')+'</span><b>'+fmt(r.amount)+'</b></div>').join(''):'')+
     (unallocatedAmount>0?'<div class="payment-allocation-total"><span>Unallocated</span><b>'+fmt(unallocatedAmount)+'</b></div>':'')+
     (overAllocatedAmount>0?'<div class="payment-allocation-warning">Saved allocations exceed this payment by '+fmt(overAllocatedAmount)+'. Please review this payment.</div>':'')+
-    '<div class="payment-allocation-note">These are saved historical allocations. Amounts counted toward the current balance may differ when a period has deferred or inactive charges.</div></div></details>'
+    '<div class="payment-allocation-note">Refund reconciliations are separate from contribution-period allocations. Refunds do not settle contribution periods.</div></div></details>'
    :'';
-  return '<div class="entry"><div class="desc"><b>'+esc(label)+(isExtra&&extraReason?' · '+esc(extraReason):type!=='charge'&&displayNote?' · '+esc(displayNote):'')+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+allocationDetails+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+(appRole==='admin'&&!isExtra&&!c.exempt?'<div class="entry-actions">'+(isPayment?'<button class="btn ghost small" type="button" data-review-allocation="'+esc(e.id)+'">Review allocation</button>':'')+'<button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button></div>':'')+'</div>';
+  return '<div class="entry"><div class="desc"><b>'+esc(label)+(isExtra&&extraReason?' · '+esc(extraReason):type!=='charge'&&displayNote?' · '+esc(displayNote):'')+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+(refundReconciliation?'<div class="payment-allocation-note">Matched to payment · '+fmt(refundReconciliation.amount)+' (not a period allocation)</div>':'')+allocationDetails+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+(appRole==='admin'&&!isExtra&&!c.exempt?'<div class="entry-actions">'+(isPayment?'<button class="btn ghost small" type="button" data-review-allocation="'+esc(e.id)+'">Review allocation</button>':'')+'<button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button></div>':'')+'</div>';
  }).join('');
  $('sheetBody').innerHTML=(c.exempt?'<div class="notice info"><b>Exempt job card.</b> This job card is exempt. Contribution ledger entries are removed while exempt; its FTO transactions remain available in FTO history.</div>':'')+'<div class="section-title">Transaction history · oldest first</div>'+(lines||'<div class="empty">No ledger entries.</div>');
  document.querySelectorAll('[data-fifo-toggle]').forEach(toggle=>toggle.addEventListener('click',()=>{
@@ -670,7 +674,7 @@ async function load(){
   status('Loading active MIS and contribution ledger…');
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}});
   if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
-  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");entries=data.entries||[];periods=data.periods||[];paymentAllocations=Array.from(new Map((data.payment_allocations||[]).filter(a=>a&&a.id).map(a=>[String(a.id),a])).values());extraCharges=data.extras||[];citizenRegistry=data.citizens||[];applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];deriveCitizens();renderExemptions();
+  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");entries=data.entries||[];periods=data.periods||[];paymentAllocations=Array.from(new Map((data.payment_allocations||[]).filter(a=>a&&a.id).map(a=>[String(a.id),a])).values());paymentRefundReconciliations=data.payment_refund_reconciliations||[];extraCharges=data.extras||[];citizenRegistry=data.citizens||[];applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];deriveCitizens();renderExemptions();
   $('app').classList.remove('hidden');$('status').classList.add('hidden');
   render();
  }catch(err){status(err.message||'Could not load contribution data.','err');}

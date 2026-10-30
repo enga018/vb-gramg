@@ -73,7 +73,10 @@ header .top-actions > button:hover {
 
 
 .payment-allocation-details{margin-top:7px;font-size:.82rem;line-height:1.4}
-.payment-allocation-details summary{cursor:pointer;color:var(--muted,#64748b);padding:3px 0;list-style-position:inside}
+.entry-payment[data-payment-toggle]{cursor:pointer}
+.entry-payment[data-payment-toggle]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.entry-payment[data-payment-toggle][aria-expanded="true"]{border-color:#a7d8bd}
+.entry-payment .payment-allocation-list{cursor:default}
 .payment-allocation-list{margin-top:5px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--surface,#f8fafc)}
 .payment-allocation-row,.payment-allocation-total{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:5px 0}
 .payment-allocation-row+ .payment-allocation-row{border-top:1px solid var(--line)}
@@ -417,7 +420,7 @@ function openCitizen(id){
   const overAllocatedAmount=Math.max(0,savedAllocationTotal+reconciledTotal-amount);
   const refundReconciliation=type==='refund'||type==='return'?paymentRefundReconciliations.find(r=>String(r.refund_id)===String(e.id)):null;
   const allocationDetails=isPayment
-   ?'<details class="payment-allocation-details"><summary>View payment breakdown</summary><div class="payment-allocation-list">'+
+   ?'<div class="payment-allocation-details"><div class="payment-allocation-list hidden" data-payment-breakdown>'+
     '<div class="payment-allocation-row"><span>Allocated to periods</span><b>'+fmt(savedAllocationTotal)+'</b></div>'+
     '<div class="payment-allocation-row"><span>Reconciled with refund</span><b>'+fmt(reconciledTotal)+'</b></div>'+
     '<div class="payment-allocation-total"><span>Unallocated remainder</span><b>'+fmt(unallocatedAmount)+'</b></div>'+
@@ -429,10 +432,10 @@ function openCitizen(id){
     (reconciliationRows.length?reconciliationRows.map(r=>'<div class="payment-allocation-row"><span>Reconciled with refund'+(r.note?' · '+esc(r.note):'')+'</span><b>'+fmt(r.amount)+'</b></div>').join(''):'')+
     (unallocatedAmount>0?'<div class="payment-allocation-total"><span>Unallocated</span><b>'+fmt(unallocatedAmount)+'</b></div>':'')+
     (overAllocatedAmount>0?'<div class="payment-allocation-warning">Saved allocations exceed this payment by '+fmt(overAllocatedAmount)+'. Please review this payment.</div>':'')+
-    '<div class="payment-allocation-note">Refund reconciliations are separate from contribution-period allocations. Refunds do not settle contribution periods.</div></div></details>'
+    '<div class="payment-allocation-note">Refund reconciliations are separate from contribution-period allocations. Refunds do not settle contribution periods.</div></div></div>'
    :'';
   const entryClass=isPayment?'entry-payment':(type==='refund'||type==='return')?'entry-refund':(type==='charge_waiver'||type==='forgive')?'entry-waiver':(type==='charge'||type==='other_charge'||type==='sanitationFee')?'entry-charge':'entry-other';
-  return '<div class="entry '+entryClass+'"><div class="desc"><b>'+esc(label)+(isExtra&&extraReason?' · '+esc(extraReason):type!=='charge'&&displayNote?' · '+esc(displayNote):'')+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+(refundReconciliation?'<div class="payment-allocation-note">Matched to payment · '+fmt(refundReconciliation.amount)+' (not a period allocation)</div>':'')+allocationDetails+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+(appRole==='admin'&&!isExtra&&!c.exempt?'<div class="entry-actions">'+(isPayment?'<button class="btn ghost small" type="button" data-review-allocation="'+esc(e.id)+'">Review allocation</button>':'')+'<button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button></div>':'')+'</div>';
+  return '<div class="entry '+entryClass+'"'+(isPayment?' data-payment-toggle role="button" tabindex="0" aria-expanded="false" title="Tap to view payment allocation details"':'')+'><div class="desc"><b>'+esc(label)+(isExtra&&extraReason?' · '+esc(extraReason):type!=='charge'&&displayNote?' · '+esc(displayNote):'')+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+(refundReconciliation?'<div class="payment-allocation-note">Matched to payment · '+fmt(refundReconciliation.amount)+' (not a period allocation)</div>':'')+allocationDetails+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+(appRole==='admin'&&!isExtra&&!c.exempt?'<div class="entry-actions">'+(isPayment?'<button class="btn ghost small" type="button" data-review-allocation="'+esc(e.id)+'">Review allocation</button>':'')+'<button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button></div>':'')+'</div>';
  }).join('');
  $('sheetBody').innerHTML=(c.exempt?'<div class="notice info"><b>Exempt job card.</b> This job card is exempt. Contribution ledger entries are removed while exempt; its FTO transactions remain available in FTO history.</div>':'')+'<div class="section-title">Transaction history · oldest first</div>'+(lines||'<div class="empty">No ledger entries.</div>');
  document.querySelectorAll('[data-fifo-toggle]').forEach(toggle=>toggle.addEventListener('click',()=>{
@@ -708,7 +711,30 @@ $('toggleEditMode').addEventListener('click',()=>{
 });
 $('closeSheet').addEventListener('click',()=>$('overlay').classList.add('hidden'));
 $('overlay').addEventListener('click',e=>{if(e.target===$('overlay'))$('overlay').classList.add('hidden');});
+$('sheetBody').addEventListener('keydown',ev=>{
+ const paymentEntry=ev.target.closest('[data-payment-toggle]');
+ if(paymentEntry&&(ev.key==='Enter'||ev.key===' ')){
+  if(ev.target.closest('button,a,input,select,textarea'))return;
+  ev.preventDefault();
+  paymentEntry.click();
+ }
+});
 $('sheetBody').addEventListener('click',ev=>{
+ const paymentEntry=ev.target.closest('[data-payment-toggle]');
+ if(paymentEntry&&!ev.target.closest('button,a,input,select,textarea,[data-fifo-edit-entry]')){
+  const willOpen=paymentEntry.getAttribute('aria-expanded')!=='true';
+  $('sheetBody').querySelectorAll('[data-payment-toggle]').forEach(entry=>{
+   entry.setAttribute('aria-expanded','false');
+   const panel=entry.querySelector('[data-payment-breakdown]');
+   if(panel)panel.classList.add('hidden');
+  });
+  if(willOpen){
+   paymentEntry.setAttribute('aria-expanded','true');
+   const panel=paymentEntry.querySelector('[data-payment-breakdown]');
+   if(panel)panel.classList.remove('hidden');
+  }
+  return;
+ }
  const editButton=ev.target.closest('[data-fifo-edit-entry]');
  if(editButton){ev.preventDefault();ev.stopPropagation();showEditForm(editButton.dataset.fifoEditEntry);return;}
  const toggle=ev.target.closest('[data-fifo-toggle]');

@@ -171,7 +171,14 @@ Deno.serve(async(req:Request)=>{
     paymentAllocations.push(...(data||[]));
     if(!data||data.length<1000)break;
    }
-   return reply({approved:true,role:approved.role,entries:all,imports:imports||[],extras:extras||[],citizens,periods:periodRows||[],payment_allocations:paymentAllocations||[],applicants_by_job_card:Object.fromEntries(applicantsByCard),exemptions:exemptions||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:misRows.length});
+   const paymentRefundReconciliations:Record<string,unknown>[]=[];
+   for(let offset=0;;offset+=1000){
+    const {data,error}=await admin.from("vbgramg_payment_refund_reconciliations").select("id,payment_id,refund_id,job_card_number,amount,note,created_at").order("created_at",{ascending:true}).range(offset,offset+999);
+    if(error)throw error;
+    paymentRefundReconciliations.push(...(data||[]));
+    if(!data||data.length<1000)break;
+   }
+   return reply({approved:true,role:approved.role,entries:all,imports:imports||[],extras:extras||[],citizens,periods:periodRows||[],payment_allocations:paymentAllocations||[],payment_refund_reconciliations:paymentRefundReconciliations||[],applicants_by_job_card:Object.fromEntries(applicantsByCard),exemptions:exemptions||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:misRows.length});
   }
   if(action==="check-fto-duplicates"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can import FTO charges."},403);

@@ -80,6 +80,7 @@ header .top-actions > button:hover {
 .payment-allocation-row span{min-width:0;overflow-wrap:anywhere}
 .payment-allocation-row b,.payment-allocation-total b{white-space:nowrap}
 .payment-allocation-total{border-top:1px solid var(--line);font-weight:600}
+.payment-allocation-heading{margin-top:9px;padding-top:8px;border-top:1px solid var(--line);font-size:.72rem;font-weight:750;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 .payment-allocation-empty,.payment-allocation-note{margin-top:5px;color:var(--muted,#64748b);font-size:.76rem}
 .payment-allocation-warning{margin-top:7px;color:#b45309;font-size:.78rem}
 /* Mobile contribution history: keep ledger details readable and actions easy to tap. */
@@ -416,8 +417,11 @@ function openCitizen(id){
   const overAllocatedAmount=Math.max(0,savedAllocationTotal+reconciledTotal-amount);
   const refundReconciliation=type==='refund'||type==='return'?paymentRefundReconciliations.find(r=>String(r.refund_id)===String(e.id)):null;
   const allocationDetails=isPayment
-   ?'<details class="payment-allocation-details"><summary>'+ (allocationRows.length?'Allocations · '+fmt(savedAllocationTotal):'No saved allocations') + (reconciledTotal>0?' · Reconciled with refund '+fmt(reconciledTotal):'') + (unallocatedAmount>0?' · Unallocated '+fmt(unallocatedAmount):'') +'</summary><div class="payment-allocation-list">'+
-    (allocationRows.length?allocationRows.map(a=>{
+   ?'<details class="payment-allocation-details"><summary>View payment breakdown</summary><div class="payment-allocation-list">'+
+    '<div class="payment-allocation-row"><span>Allocated to periods</span><b>'+fmt(savedAllocationTotal)+'</b></div>'+
+    '<div class="payment-allocation-row"><span>Reconciled with refund</span><b>'+fmt(reconciledTotal)+'</b></div>'+
+    '<div class="payment-allocation-total"><span>Unallocated remainder</span><b>'+fmt(unallocatedAmount)+'</b></div>'+
+    (allocationRows.length?'<div class="payment-allocation-heading">Period allocations</div>'+allocationRows.map(a=>{
      const p=periods.find(x=>String(x.id)===String(a.period_id));
      const periodName=String(p?.period_name||'').trim()||String(p?.contribution_month||p?.period_date||'').slice(0,10)||'Period '+String(a.period_id||'unknown');
      return '<div class="payment-allocation-row"><span>'+esc(periodName)+'</span><b>'+fmt(a.amount)+'</b></div>';

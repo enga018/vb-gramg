@@ -129,7 +129,7 @@ body:has(#overlay:not(.hidden)) .global-nav{visibility:hidden!important;pointer-
  <button class="btn" id="saveExemptionBtn" type="button">Add exemption</button><div id="exemptionStatus" class="muted" style="margin-top:8px"></div>
  <div class="section-title">Current exemptions</div><div id="exemptionList"></div>
 </section>
-<div class="toolbar"><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="deferred">Has deferred charges</option></select></div></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button></div></div>
+<div class="toolbar"><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="deferred">Has deferred charges</option></select></div><button class="btn" id="exportDueBtn" type="button">Export Due List</button></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button></div></div>
 </section>
 </div>
 </main>
@@ -298,6 +298,17 @@ function render(){
  $('count').textContent=list.length.toLocaleString('en-IN')+' job card'+(list.length===1?'':'s')+' matching filters';
  $('page-label').textContent=list.length?'Showing '+(start+1)+'–'+Math.min(start+pageSize,list.length)+' of '+list.length:'No matching job cards';
  $('prev-button').disabled=currentPage<=0;$('next-button').disabled=currentPage>=totalPages-1;
+}
+function exportOutstandingDueList(){
+ const due=citizens.filter(c=>!c.exempt&&Number(c.balance)>0)
+  .sort((a,b)=>jobCardSuffixNumber(a.id)-jobCardSuffixNumber(b.id)||a.id.localeCompare(b.id,undefined,{numeric:true})||a.name.localeCompare(b.name));
+ if(!due.length){status('There are no job cards with outstanding contribution.','info');return;}
+ const total=due.reduce((sum,c)=>sum+Math.max(0,Number(c.balance)||0),0);
+ const rows=due.map((c,index)=>'<tr><td>'+String(index+1)+'</td><td>'+esc(c.id)+'</td><td>'+esc(c.name||'—')+'</td><td class="amount">'+fmt(c.balance)+'</td></tr>').join('');
+ const popup=window.open('','_blank');
+ if(!popup){status('Allow pop-ups for this site to export the due list.','err');return;}
+ const report='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contribution Outstanding Due List</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#172033;margin:28px}h1{font-size:20px;margin:0 0 5px}.meta{color:#667085;font-size:12px;margin-bottom:18px}.summary{display:flex;gap:24px;margin:0 0 18px;font-size:13px}.summary b{font-size:15px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;border-bottom:1px solid #dfe5ee;text-align:left}th{background:#edf2f8;text-transform:uppercase;font-size:10px;letter-spacing:.04em}.amount{text-align:right;white-space:nowrap;font-weight:700}.total td{font-weight:800;border-top:2px solid #667085}@media print{body{margin:12mm}thead{display:table-header-group}tr{break-inside:avoid}}@media(max-width:600px){body{margin:14px;overflow-x:auto}.summary{gap:14px;flex-wrap:wrap}}</style></head><body><h1>Contribution Outstanding Due List</h1><div class="meta">VBGRAMG · Generated on '+esc(new Date().toLocaleDateString('en-IN'))+'</div><div class="summary"><div>Job cards with due<br><b>'+due.length.toLocaleString('en-IN')+'</b></div><div>Total outstanding<br><b>'+fmt(total)+'</b></div></div><table><thead><tr><th>Sl. No.</th><th>Job Card Number</th><th>Head of Household</th><th style="text-align:right">Outstanding</th></tr></thead><tbody>'+rows+'<tr class="total"><td colspan="3">Total Outstanding</td><td class="amount">'+fmt(total)+'</td></tr></tbody></table></body></html>';
+ popup.document.open();popup.document.write(report);popup.document.close();popup.focus();popup.print();
 }
 function buildFifoBreakdown(c){
  if(!c||c.exempt)return '';
@@ -695,6 +706,7 @@ $('statusFilter').addEventListener('change',()=>{currentPage=0;render()});
 $('prev-button').addEventListener('click',()=>{currentPage--;render()});$('next-button').addEventListener('click',()=>{currentPage++;render()});
 window.addEventListener('resize',()=>render());
 $('refreshBtn').addEventListener('click',load);
+$('exportDueBtn').addEventListener('click',exportOutstandingDueList);
 $('bulkPaymentBtn').addEventListener('click',showBulkPaymentForm);
 
 

@@ -224,9 +224,9 @@ header .top-actions > button:hover {
 body>main{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 
-.mis-kpi-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-width:0;flex-wrap:wrap}
+.mis-kpi-actions{grid-column:5;display:flex;align-items:center;justify-content:flex-end;justify-self:stretch;gap:8px;min-width:0;flex-wrap:wrap}
 .mis-kpi-actions button{min-height:42px;padding:9px 13px;border-radius:10px;font-weight:650;white-space:nowrap}
-@media(max-width:700px){.mis-kpi-actions{grid-column:1/-1;justify-content:flex-end}.mis-kpi-actions button{white-space:normal}}
+@media(max-width:900px){.mis-kpi-actions{grid-column:1/-1;justify-content:flex-end;justify-self:stretch}.mis-kpi-actions button{white-space:normal}}
 .mis-import-backdrop{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;padding:clamp(8px,2vw,24px);background:rgb(15 23 42 / 62%)}
 .mis-import-backdrop.hidden{display:none!important}
 .mis-import-dialog{width:min(1500px,100%);height:min(94vh,1100px);min-height:0;background:#f3f6fb;border:1px solid #d7deea;border-radius:18px;box-shadow:0 24px 80px rgb(0 0 0 / 28%);display:flex;flex-direction:column;overflow:hidden}

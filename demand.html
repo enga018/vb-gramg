@@ -185,7 +185,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 <div class="table-wrap"><table id="reviewTable"><thead><tr><th>Job Card No.</th><th>Head of Household</th><th>Outstanding Amount</th><th>Action</th></tr></thead><tbody id="reviewBody"><tr><td colspan="4" class="empty">Loading applicants…</td></tr></tbody></table></div><div class="table-foot"><span id="reviewPageLabel" class="page-label"></span><div class="page-actions"><button id="reviewPrev" class="secondary" type="button">Previous</button><button id="reviewNext" class="secondary" type="button">Next</button></div></div>
 </section>
 <section id="demandPanel" class="panel hidden" aria-labelledby="demand-heading">
-<div class="section-heading"><h2 id="demand-heading">Demand</h2><span id="demandBadge" class="count">0</span><div id="demandExportActions" class="export-actions hidden"><button id="demandPdfBtn" type="button" disabled>Export PDF</button><button id="demandCsvBtn" class="secondary" type="button" disabled>Export CSV</button></div></div>
+<div class="section-heading"><h2 id="demand-heading">Demand</h2><span id="demandBadge" class="count">0</span><div id="demandExportActions" class="export-actions hidden"><button id="demandExportBtn" type="button" disabled>Export</button></div></div>
 <p class="sub">Applicants selected in MIS are included automatically when their Job Cards have no outstanding balance. Applicants you include from the review list are added here.</p>
 <div class="table-wrap"><table id="demandTable"><thead><tr><th>Job Card No.</th><th>Name of Applicant</th><th>Applicant No.</th></tr></thead><tbody id="demandBody"><tr><td colspan="3" class="empty">Loading applicants…</td></tr></tbody></table></div><div class="table-foot"><span id="demandPageLabel" class="page-label"></span><div class="page-actions"><button id="demandPrev" class="secondary" type="button">Previous</button><button id="demandNext" class="secondary" type="button">Next</button></div></div>
 
@@ -194,12 +194,20 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 
 
 <section id="unwillingPanel" class="panel hidden" aria-labelledby="unwilling-heading">
-<div class="section-heading"><h2 id="unwilling-heading">Unwilling to Work</h2><span id="unwillingBadge" class="count">0</span><div id="unwillingExportActions" class="export-actions hidden"><button id="unwillingPdfBtn" type="button" disabled>Export PDF</button><button id="unwillingCsvBtn" class="secondary" type="button" disabled>Export CSV</button></div></div>
+<div class="section-heading"><h2 id="unwilling-heading">Unwilling to Work</h2><span id="unwillingBadge" class="count">0</span><div id="unwillingExportActions" class="export-actions hidden"><button id="unwillingExportBtn" type="button" disabled>Export</button></div></div>
 <p class="sub">Active MIS Job Cards not represented in Work Demand. This list is recalculated when you include an applicant or reload data.</p>
 <div class="table-wrap"><table id="unwillingTable"><thead><tr><th>Job Card No.</th><th>Head of Household</th></tr></thead><tbody id="unwillingBody"><tr><td colspan="2" class="empty">Loading Job Cards…</td></tr></tbody></table></div>
 <div class="table-foot"><span id="unwillingPageLabel" class="page-label"></span><div class="page-actions"><button id="unwillingPrev" class="secondary" type="button">Previous</button><button id="unwillingNext" class="secondary" type="button">Next</button></div></div>
 </section>
 </div>
+
+<dialog id="exportFormatDialog" aria-labelledby="export-format-heading">
+<div class="confirm-content">
+<h2 id="export-format-heading">Export report</h2>
+<p>Choose how you want to export this report.</p>
+<div class="confirm-actions"><button id="exportPrintChoice" type="button">Print / Save as PDF</button><button id="exportExcelChoice" class="secondary" type="button">Download Excel</button><button id="cancelExportChoice" class="secondary" type="button">Cancel</button></div>
+</div>
+</dialog>
 
 <dialog id="confirmDialog" aria-labelledby="confirm-heading" aria-describedby="confirm-description">
 <div class="confirm-content">
@@ -242,6 +250,7 @@ window.addEventListener('unhandledrejection',function(e){
  if(s){s.className='status error';s.textContent='Page request error: '+String(e.reason&&e.reason.message||e.reason||'Unknown error');}
 });
 </script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="document.getElementById('status').className='status error';document.getElementById('status').textContent='Could not load the sign-in library. Check your internet connection, then refresh this page.'"></script>
 <script>
 const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
@@ -329,7 +338,7 @@ function generatedStatus(message,type='info'){const el=$('generateStatus');el.te
 function invalidateGenerated(){
  generated=null;demandFinalised=false;
  ['demandExportActions','unwillingExportActions'].forEach(id=>$(id).classList.add('hidden'));
- ['demandPdfBtn','demandCsvBtn','unwillingPdfBtn','unwillingCsvBtn'].forEach(id=>{const el=$(id);if(el)el.disabled=true;});
+ ['demandExportBtn','unwillingExportBtn'].forEach(id=>{const el=$(id);if(el)el.disabled=true;});
  const f=$('finaliseDemandBtn');if(f){f.disabled=!workflowStarted;f.textContent='Finalise Demand';}
 }
 function stableApplicantKey(jobCard,values,nameIndex,numberIndex,uniqueIdIndex){
@@ -548,33 +557,68 @@ $('finaliseDemandBtn').addEventListener('click',()=>{
  generated={period:monthLabel(month)||p.period_name||'',contributionMonth:month+'-01',periodId:p.id||'',periodName:p.period_name||'',draftId,days,demand:demandApplicants.map(a=>({...a})),unwilling:getUnwillingCards().map(a=>({...a})),createdAt:new Date().toISOString()};
  demandFinalised=true;
  $('demandExportActions').classList.remove('hidden');$('unwillingExportActions').classList.remove('hidden');
- ['demandPdfBtn','demandCsvBtn','unwillingPdfBtn','unwillingCsvBtn'].forEach(id=>$(id).disabled=false);
+ ['demandExportBtn','unwillingExportBtn'].forEach(id=>$(id).disabled=false);
  $('finaliseDemandBtn').textContent='Finalised';$('finaliseDemandBtn').disabled=true;
  renderLists();status('Demand finalised. Both exports now use the same locked snapshot.','success');
 });
-function csvCell(value){const s=String(value??'');return '"'+s.replace(/"/g,'""')+'"';}
-function downloadCsv(filename,rows){
- const csv='\ufeff'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n');
- const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),link=document.createElement('a');
- link.href=url;link.download=filename;document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
-}
 function safeFilename(value){return String(value||'demand').normalize('NFKD').replace(/[^a-zA-Z0-9_-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,70)||'demand';}
 function demandRows(){return [['Serial No.','Job Card No.','Name of Applicant','Applicant No.'],...generated.demand.map((a,i)=>[i+1,a.jobCard,a.name,a.number])];}
 function unwillingRows(){return [['Serial No.','Job Card No.','Name of Head of Household'],...generated.unwilling.map((a,i)=>[i+1,a.jobCard,a.household])];}
-function exportCsv(kind){
+let exportKind=null;
+function openExportChoice(kind){
  if(!generated)return;
- const base=safeFilename(generated.period);
- if(kind==='demand')downloadCsv('work-demand-'+base+'.csv',[
-  ['New Serchhip North Work Demand'],
-  ['for the month of '+generated.period+' for '+generated.days+' days'],
-  [],
-  ...demandRows()
- ]);
- else downloadCsv('unwilling-to-work-'+base+'.csv',[
-  ['Unwilling to Work for '+generated.period],
-  [],
-  ...unwillingRows()
- ]);
+ exportKind=kind;
+ const dialog=$('exportFormatDialog');
+ if(typeof dialog.showModal==='function')dialog.showModal();else dialog.setAttribute('open','');
+}
+async function exportExcel(kind){
+ if(!generated)return;
+ if(!window.ExcelJS){status('Excel export library did not load. Check your internet connection and try again.','error');return;}
+ const isDemand=kind==='demand',rows=isDemand?demandRows():unwillingRows();
+ const title=isDemand?'New Serchhip North Work Demand':'Unwilling to Work for '+generated.period;
+ const workbook=new ExcelJS.Workbook();
+ workbook.creator='VBGRAMG';workbook.subject=title;workbook.title=title;
+ const sheet=workbook.addWorksheet(isDemand?'Work Demand':'Unwilling to Work',{
+  pageSetup:{paperSize:9,orientation:'portrait',fitToPage:true,fitToWidth:1,fitToHeight:0},
+  pageMargins:{left:0.25,right:0.25,top:0.45,bottom:0.45,header:0.2,footer:0.2},
+  views:[{state:'normal',showGridLines:false}]
+ });
+ const count=rows[0].length;
+ sheet.mergeCells(1,1,1,count);
+ sheet.getCell(1,1).value=title;
+ sheet.getCell(1,1).font={name:'Arial',size:15,bold:true};
+ sheet.getCell(1,1).alignment={horizontal:'center',vertical:'middle'};
+ sheet.getRow(1).height=28;
+ let headerRow=3;
+ if(isDemand){
+  sheet.mergeCells(2,1,2,count);
+  sheet.getCell(2,1).value='for the month of '+generated.period+' for '+generated.days+' days';
+  sheet.getCell(2,1).font={name:'Arial',size:11,bold:true};
+  sheet.getCell(2,1).alignment={horizontal:'center'};
+  headerRow=4;
+ }
+ rows.forEach((row,index)=>{
+  const target=sheet.getRow(headerRow+index);
+  target.values=row;
+  target.height=index===0?24:21;
+  target.eachCell(cell=>{
+   cell.font={name:'Arial',size:10,bold:index===0};
+   cell.alignment={vertical:'middle',horizontal:index===0?'center':(cell.col===1?'center':'left'),wrapText:true};
+   cell.border={top:{style:'thin',color:{argb:'FF333333'}},left:{style:'thin',color:{argb:'FF333333'}},bottom:{style:'thin',color:{argb:'FF333333'}},right:{style:'thin',color:{argb:'FF333333'}}};
+   if(index===0)cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE9EEF5'}};
+  });
+ });
+ const widths=isDemand?[10,24,39,16]:[12,27,51];
+ widths.forEach((width,i)=>sheet.getColumn(i+1).width=width);
+ sheet.autoFilter={from:{row:headerRow,column:1},to:{row:headerRow+rows.length-1,column:count}};
+ sheet.pageSetup.printArea='A1:'+String.fromCharCode(64+count)+(headerRow+rows.length-1);
+ sheet.pageSetup.printTitlesRow=headerRow+':'+headerRow;
+ sheet.headerFooter.oddFooter='&P of &N';
+ const buffer=await workbook.xlsx.writeBuffer();
+ const blob=new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+ const url=URL.createObjectURL(blob),link=document.createElement('a');
+ link.href=url;link.download=(isDemand?'work-demand-':'unwilling-to-work-')+safeFilename(generated.period)+'.xlsx';
+ document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 function exportPrint(kind){
  if(!generated)return;
@@ -589,10 +633,11 @@ function exportPrint(kind){
  printWindow.document.write('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(title)+'</title><style>body{font-family:Arial,"Noto Sans",sans-serif;color:#111;margin:22px;font-size:12pt}h1{text-align:center;font-size:17pt;margin:0 0 12px}p{text-align:center;margin:5px 0;font-weight:600}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #222;padding:8px;text-align:left;overflow-wrap:anywhere}th{text-align:center;font-weight:700}td:first-child{text-align:center;width:70px}thead{display:table-header-group}tr{break-inside:avoid}@page{size:auto;margin:14mm}@media print{body{margin:0}}</style></head><body><h1>'+esc(title)+'</h1>'+subtitle+table+'</body></html>');
  printWindow.document.close();
 }
-$('demandPdfBtn').addEventListener('click',()=>exportPrint('demand'));
-$('unwillingPdfBtn').addEventListener('click',()=>exportPrint('unwilling'));
-$('demandCsvBtn').addEventListener('click',()=>exportCsv('demand'));
-$('unwillingCsvBtn').addEventListener('click',()=>exportCsv('unwilling'));
+$('demandExportBtn').addEventListener('click',()=>openExportChoice('demand'));
+$('unwillingExportBtn').addEventListener('click',()=>openExportChoice('unwilling'));
+$('exportPrintChoice').addEventListener('click',()=>{const kind=exportKind;$('exportFormatDialog').close();if(kind)exportPrint(kind);});
+$('exportExcelChoice').addEventListener('click',async()=>{const kind=exportKind;$('exportFormatDialog').close();if(kind){try{await exportExcel(kind);}catch(error){status('Excel export failed: '+(error.message||error),'error');}}});
+$('cancelExportChoice').addEventListener('click',()=>$('exportFormatDialog').close());
 supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'||!session)window.location.replace('./');});
 load();
 // Independent UI watchdog: if auth initialization stalls before load() reaches

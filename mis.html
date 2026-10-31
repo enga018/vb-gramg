@@ -224,8 +224,9 @@ header .top-actions > button:hover {
 body>main{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 
-.mis-data-actions{display:flex;justify-content:flex-end;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 0}
-.mis-data-actions button{min-height:42px;padding:10px 17px;border-radius:10px;font-weight:650}
+.mis-kpi-actions{display:flex;align-items:center;justify-content:center;gap:8px;min-width:0}
+.mis-kpi-actions button{min-height:42px;padding:9px 13px;border-radius:10px;font-weight:650;white-space:nowrap}
+@media(max-width:700px){.mis-kpi-actions{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr}.mis-kpi-actions button{width:100%;white-space:normal}}
 .mis-data-actions #import-link{background:#2457c5;color:#fff;border:1px solid #2457c5}
 .mis-data-actions #import-link:hover{background:#1d46a0}
 .mis-import-backdrop{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;padding:clamp(8px,2vw,24px);background:rgb(15 23 42 / 62%)}
@@ -247,17 +248,14 @@ body.mis-import-open{overflow:hidden}
 <header class="topbar app-header"><div class="brand"><h1>MIS</h1><p>Search job cards and manage applicant selections.</p></div></header>
 
 <section class="panel">
-<div class="meta"><div class="stat"><small>Total Job Card</small><strong id="total-jobcards">—</strong></div><div class="stat"><small>Total Applicants from MIS</small><strong id="total-applicants">—</strong></div><div class="stat"><small>Last Updated</small><strong id="updated-at">—</strong></div></div>
+<div class="meta"><div class="stat"><small>Total Job Card</small><strong id="total-jobcards">—</strong></div><div class="stat"><small>Total Applicants from MIS</small><strong id="total-applicants">—</strong></div><div class="stat"><small>Last Updated</small><strong id="updated-at">—</strong></div><div class="mis-kpi-actions"><button id="desktop-fetch-button" class="secondary hidden desktop-only-fetch" type="button" title="Fetch the official MIS register using visible Brave on this Windows PC">Fetch Official MIS</button><button id="import-link" class="hidden" type="button">Import</button></div></div>
 <div class="toolbar"><div class="search"><label for="search-input">Search job cards or applicants</label><input id="search-input" type="search" placeholder="Job card number, household, applicant name or number…"></div><div class="filter-control"><label for="selection-filter">Selection status</label><select id="selection-filter"><option value="all">All job cards</option><option value="selected">Selected</option><option value="none">None selected</option></select></div><span id="result-count" class="muted"></span></div>
 <div id="data-status" class="status" aria-live="polite">Loading MIS data…</div>
 
 <div id="table-wrap" class="table-wrap hidden"><table id="mis-table"><thead></thead><tbody></tbody></table></div>
 <div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="secondary" type="button">Previous</button><button id="next-button" class="secondary" type="button">Next</button></div></div>
 </section>
-<div class="mis-data-actions" aria-label="MIS data actions">
- <button id="desktop-fetch-button" class="secondary hidden desktop-only-fetch" type="button" title="Fetch the official MIS register using visible Brave on this Windows PC">Fetch Official MIS</button>
- <button id="import-link" class="hidden" type="button">Import</button>
-</div>
+
 <section id="desktop-fetch-panel" class="panel hidden desktop-only-fetch" style="margin-top:14px">
  <h2>Fetch Official MIS Register</h2>
  <p class="muted">This opens a separate visible Brave window on this Windows PC. The Payload URL is sent only to the local Selenium service. Retrieved rows are preview-only; active MIS is not changed.</p>

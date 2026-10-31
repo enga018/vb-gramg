@@ -534,7 +534,7 @@ $('generateBtn').addEventListener('click',()=>{
  if(!chosenPeriod||chosenPeriod.status!=="open"||!monthValue){$('periodSelect').focus();generatedStatus('Select an existing open period before generating.','error');$('generateStatus').classList.remove('hidden');return;}
  if(!Number.isInteger(days)||days<1||days>365){$('days').focus();generatedStatus('Enter a whole number of days from 1 to 365.','error');$('generateStatus').classList.remove('hidden');return;}
  generated={
-  period:chosenPeriod.period_name||monthLabel(monthValue),
+  period:monthLabel(monthValue)||chosenPeriod.period_name||'',
   contributionMonth:monthValue?monthValue+'-01':'',
   periodId:chosenPeriod.id||'',
   periodName:chosenPeriod.period_name||'',

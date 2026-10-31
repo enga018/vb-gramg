@@ -20,7 +20,7 @@ dialog#confirmDialog{width:min(92vw,520px);max-width:520px;border:1px solid var(
 .demand-unwilling-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:stretch}
 .demand-unwilling-grid>.panel{min-width:0;margin-bottom:16px;display:flex;flex-direction:column}
 .demand-unwilling-grid>.panel>.table-wrap{flex:1 1 auto;min-height:0}
-.demand-unwilling-grid>.panel>.table-foot{margin-top:auto}
+.demand-unwilling-grid>.panel>.table-action-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:12px;padding:12px 0 2px;border-top:1px solid var(--line)}.table-action-note{color:var(--muted);font-size:.82rem;line-height:1.4}.table-action-bar>button{min-height:42px;padding:9px 18px;white-space:nowrap}.finalise-action-bar>button{min-width:190px}.export-action-bar{justify-content:flex-end}.export-action-bar .table-action-note{margin-right:auto}.export-action-bar>button{min-width:190px}.table-foot{margin-top:auto}
 /* Keep Manual Review and Demand tables within their panels without horizontal scrolling. */
 #reviewPanel .table-wrap,#demandPanel .table-wrap{width:100%;min-width:0;overflow-x:hidden;overflow-y:auto}
 #reviewTable,#demandTable{width:100%;min-width:0;table-layout:fixed}
@@ -132,7 +132,7 @@ header .top-actions > button:hover {
     th,td{padding:9px 6px;font-size:.78rem;line-height:1.35}
     th{font-size:.65rem;line-height:1.3}
     #reviewTable .include-btn{min-height:40px;padding:7px 6px;font-size:.78rem}
-    .table-foot{gap:8px;margin-top:11px}
+    .table-action-bar{align-items:stretch;flex-direction:column;gap:8px;margin-top:10px;padding-top:10px}.table-action-note{font-size:.78rem}.table-action-bar>button{width:100%;min-height:44px}.finalise-action-bar>button,.export-action-bar>button{min-width:0}.export-action-bar{justify-content:stretch}.table-foot{gap:8px;margin-top:11px}
     .table-foot .page-label{font-size:.78rem}
     .table-foot .page-actions{gap:7px}
     .table-foot button{min-height:42px;padding:9px 12px}
@@ -281,24 +281,24 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 
 <div class="demand-unwilling-grid">
 <section id="reviewPanel" class="panel hidden" aria-labelledby="review-heading">
-<div class="section-heading"><h2 id="review-heading">Manual Review</h2><span id="reviewBadge" class="count">0</span><button id="finaliseDemandBtn" type="button" disabled>Finalise Demand</button></div>
+<div class="section-heading"><h2 id="review-heading">Manual Review</h2><span id="reviewBadge" class="count">0</span></div>
 <p class="sub">Only MIS-selected applicants with an outstanding contribution balance appear here. Check the amount before using Include to add an applicant to Work Demand.</p>
-<div class="table-wrap"><table id="reviewTable"><thead><tr><th>Job Card No.</th><th>Head of Household</th><th>Outstanding Amount</th><th>Action</th></tr></thead><tbody id="reviewBody"><tr><td colspan="4" class="empty">Loading applicants…</td></tr></tbody></table></div><div class="table-foot"><span id="reviewPageLabel" class="page-label"></span><div class="page-actions"><button id="reviewPrev" class="secondary" type="button">Previous</button><button id="reviewNext" class="secondary" type="button">Next</button></div></div>
+<div class="table-wrap"><table id="reviewTable"><thead><tr><th>Job Card No.</th><th>Head of Household</th><th>Outstanding Amount</th><th>Action</th></tr></thead><tbody id="reviewBody"><tr><td colspan="4" class="empty">Loading applicants…</td></tr></tbody></table></div><div class="table-foot"><span id="reviewPageLabel" class="page-label"></span><div class="page-actions"><button id="reviewPrev" class="secondary" type="button">Previous</button><button id="reviewNext" class="secondary" type="button">Next</button></div></div><div class="table-action-bar finalise-action-bar"><span class="table-action-note">Review the outstanding amounts and applicant selections before locking this demand.</span><button id="finaliseDemandBtn" type="button" disabled>Finalise Demand</button></div>
 </section>
 <section id="demandPanel" class="panel hidden" aria-labelledby="demand-heading">
-<div class="section-heading"><h2 id="demand-heading">Demand</h2><span id="demandBadge" class="count">0</span><div id="demandExportActions" class="export-actions hidden"><button id="demandExportBtn" type="button" disabled>Export</button></div></div>
+<div class="section-heading"><h2 id="demand-heading">Demand</h2><span id="demandBadge" class="count">0</span></div>
 <p class="sub">Applicants selected in MIS are included automatically when their Job Cards have no outstanding balance. Applicants you include from the review list are added here.</p>
-<div class="table-wrap"><table id="demandTable"><thead><tr><th>Job Card No.</th><th>Name of Applicant</th><th>Applicant No.</th></tr></thead><tbody id="demandBody"><tr><td colspan="3" class="empty">Loading applicants…</td></tr></tbody></table></div><div class="table-foot"><span id="demandPageLabel" class="page-label"></span><div class="page-actions"><button id="demandPrev" class="secondary" type="button">Previous</button><button id="demandNext" class="secondary" type="button">Next</button></div></div>
+<div class="table-wrap"><table id="demandTable"><thead><tr><th>Job Card No.</th><th>Name of Applicant</th><th>Applicant No.</th></tr></thead><tbody id="demandBody"><tr><td colspan="3" class="empty">Loading applicants…</td></tr></tbody></table></div><div class="table-foot"><span id="demandPageLabel" class="page-label"></span><div class="page-actions"><button id="demandPrev" class="secondary" type="button">Previous</button><button id="demandNext" class="secondary" type="button">Next</button></div></div><div id="demandExportActions" class="table-action-bar export-action-bar hidden"><span class="table-action-note">Export the finalised Work Demand list.</span><button id="demandExportBtn" type="button" disabled>Export Demand</button></div>
 
 </section>
 
 
 
 <section id="unwillingPanel" class="panel hidden" aria-labelledby="unwilling-heading">
-<div class="section-heading"><h2 id="unwilling-heading">Unwilling to Work</h2><span id="unwillingBadge" class="count">0</span><div id="unwillingExportActions" class="export-actions hidden"><button id="unwillingExportBtn" type="button" disabled>Export</button></div></div>
+<div class="section-heading"><h2 id="unwilling-heading">Unwilling to Work</h2><span id="unwillingBadge" class="count">0</span></div>
 <p class="sub">Active MIS Job Cards not represented in Work Demand. This list is recalculated when you include an applicant or reload data.</p>
 <div class="table-wrap"><table id="unwillingTable"><thead><tr><th>Job Card No.</th><th>Head of Household</th></tr></thead><tbody id="unwillingBody"><tr><td colspan="2" class="empty">Loading Job Cards…</td></tr></tbody></table></div>
-<div class="table-foot"><span id="unwillingPageLabel" class="page-label"></span><div class="page-actions"><button id="unwillingPrev" class="secondary" type="button">Previous</button><button id="unwillingNext" class="secondary" type="button">Next</button></div></div>
+<div class="table-foot"><span id="unwillingPageLabel" class="page-label"></span><div class="page-actions"><button id="unwillingPrev" class="secondary" type="button">Previous</button><button id="unwillingNext" class="secondary" type="button">Next</button></div></div><div id="unwillingExportActions" class="table-action-bar export-action-bar hidden"><span class="table-action-note">Export the Job Cards not included in Work Demand.</span><button id="unwillingExportBtn" type="button" disabled>Export Unwilling List</button></div>
 </section>
 </div>
 

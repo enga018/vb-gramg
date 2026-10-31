@@ -520,9 +520,9 @@ function renderTable(){
    });
    dropdown.value=selectedApplicants.get(group.key)||'';
    dropdown.addEventListener('change',async()=>{
-    const applicantKey=dropdown.value;dropdown.disabled=true;
+    const applicantKey=dropdown.value,previousApplicantKey=selectedApplicants.get(group.key);dropdown.disabled=true;
     try{
-     await invokeSelection({action:applicantKey?'set':'clear',jobCardNumber:group.key,applicantKey:applicantKey||undefined});
+     await invokeSelection({action:applicantKey?'set':'clear',jobCardNumber:group.key,applicantKey:applicantKey||previousApplicantKey});
      selectedApplicants=await loadSavedSelections();updateKpis();
      const selectedApplicant=group.applicants.find(applicant=>applicant.selectionKey===applicantKey);
      status($('data-status'),applicantKey?'Selection saved: '+(selectedApplicant?.name||'applicant')+' for job card '+group.key+'.':'Selection cleared for job card '+group.key+'.','success');

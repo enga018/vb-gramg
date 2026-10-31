@@ -54,6 +54,7 @@
     panel.className = "global-nav-panel";
     panel.setAttribute("aria-label", "Main navigation");
     panel.hidden = true;
+    panel.style.setProperty("display", "none", "important");
     panel.style.setProperty("position", "absolute", "important");
     panel.style.setProperty("top", "calc(100% + 8px)", "important");
     panel.style.setProperty("right", "0", "important");

@@ -595,6 +595,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
         setStatus('MIS update successful.\nSource: ' + filename + '\nAdded applicants: ' + result.added.length + '\nDeleted applicants: ' + result.deleted.length + '\nUpdated applicants: ' + result.updated.length + '\nUnchanged applicants: ' + result.unchanged + '\nCurrent applicants: ' + result.newCount + '\nThe updated MIS is active. Old MIS row data has been removed; import metadata remains for history.' + (result.cleanupWarning ? '\nWARNING: ' + result.cleanupWarning : ''), 'success');
         document.getElementById('diff-title').textContent = 'MIS changes applied';
         document.getElementById('diff-intro').textContent = 'These are the changes that were applied to the active MIS.';
+        if (window.parent !== window) window.parent.postMessage({ type: 'vbgramg-mis-import-complete' }, window.location.origin);
         document.querySelector('.diff-actions').classList.add('hidden');
         pendingImportId = null; pendingComparison = null;
       } catch (error) {

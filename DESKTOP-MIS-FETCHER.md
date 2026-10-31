@@ -21,7 +21,7 @@ This is a Windows-only, read-only companion service. It is separate from the exi
 - Only the VBGRAMG GitHub Pages origin and localhost development origins are accepted.
 - The service does not call Supabase and does not modify active MIS.
 - The report is returned in memory as table rows.
-- This first stage is intended for controlled testing. Website UI integration and full report-field mapping are separate follow-up work.
+- The MIS page now exposes a desktop-only Fetch Official MIS control for administrators. It connects to this local service and displays a read-only sample of the retrieved report rows. Full report-field mapping and comparison with active MIS remain follow-up work.
 - Stop the service with Ctrl+C in its window.
 
 ## Troubleshooting

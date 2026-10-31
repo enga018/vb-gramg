@@ -251,6 +251,21 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
     padding-right:16px!important;
   }
 }
+
+/* Desktop: tighten the KPI, action and filter area to give the table more room. */
+@media(min-width:701px){
+  .kpi-row{gap:8px;margin-bottom:10px}
+  .kpi-row .stats{gap:7px}
+  .kpi-row .stat{padding:8px 11px;border-radius:9px}
+  .kpi-row .stat .k{font-size:.72rem;margin-bottom:3px}
+  .kpi-row .stat .v{font-size:1rem;line-height:1.2}
+  .kpi-actions{gap:6px}
+  .kpi-actions .btn{min-height:34px;padding:6px 10px;font-size:.8rem}
+  .toolbar{gap:8px;margin-bottom:9px}
+  .toolbar input,.filter-control select{min-height:38px;padding:7px 10px}
+  .filter-control label{font-size:.76rem;margin-bottom:3px}
+  .count{margin-bottom:6px;font-size:.8rem}
+}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>

@@ -120,7 +120,11 @@ font:650 .92rem/1.2 system-ui,sans-serif!important;text-decoration:none!importan
 box-shadow:none!important;transform:none!important}
 .page-actions-bar>.btn:hover{background:#e3e9f1!important;color:#263449!important}
 .page-actions-bar>.btn.hidden{display:none!important}
-.page-actions-bar{display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;margin:0 auto 16px;width:min(100%,1440px)}@media(max-width:700px){.page-actions-bar{justify-content:stretch}.page-actions-bar>*{flex:1 1 auto}}</style>
+.page-actions-bar{display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;margin:0 auto 16px;width:min(100%,1440px)}@media(max-width:700px){.page-actions-bar{justify-content:stretch}.page-actions-bar>*{flex:1 1 auto}}/* Shared desktop content width across every VBGRAMG page. */
+:root{--app-content-width:1440px}
+body>main{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
+body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
+</style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
 <body>
@@ -317,10 +321,6 @@ function exportOutstandingDueList(){
  const popup=window.open('','_blank');
  if(!popup){status('Allow pop-ups for this site to export the due list.','err');return;}
  const report='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contribution Outstanding Due List</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#172033;margin:28px}h1{font-size:20px;margin:0 0 5px}.meta{color:#667085;font-size:12px;margin-bottom:18px}.summary{display:flex;gap:24px;margin:0 0 18px;font-size:13px}.summary b{font-size:15px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;border-bottom:1px solid #dfe5ee;text-align:left}th{background:#edf2f8;text-transform:uppercase;font-size:10px;letter-spacing:.04em}.amount{text-align:right;white-space:nowrap;font-weight:700}.total td{font-weight:800;border-top:2px solid #667085}@media print{body{margin:12mm}thead{display:table-header-group}tr{break-inside:avoid}}@media(max-width:600px){body{margin:14px;overflow-x:auto}.summary{gap:14px;flex-wrap:wrap}}
-/* Shared desktop content width across every VBGRAMG page. */
-:root{--app-content-width:1440px}
-body>main{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
-body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 </style></head><body><h1>Contribution Outstanding Due List</h1><div class="meta">VBGRAMG · Generated on '+esc(new Date().toLocaleDateString('en-IN'))+'</div><div class="summary"><div>Job cards with due<br><b>'+due.length.toLocaleString('en-IN')+'</b></div><div>Total outstanding<br><b>'+fmt(total)+'</b></div></div><table><thead><tr><th>Sl. No.</th><th>Job Card Number</th><th>Head of Household</th><th style="text-align:right">Outstanding</th></tr></thead><tbody>'+rows+'<tr class="total"><td colspan="3">Total Outstanding</td><td class="amount">'+fmt(total)+'</td></tr></tbody></table></body></html>';
  popup.document.open();popup.document.write(report);popup.document.close();popup.focus();popup.print();
 }

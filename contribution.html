@@ -142,13 +142,15 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  #contribution-table tbody tr.contribution-row.settled{box-shadow:inset 3px 0 #16a34a}
 }
 
-/* Desktop contribution table: show only the settled and due balances. */
+/* Desktop contribution table: show latest charge status and due balance. */
 @media(min-width:701px){
  #contribution-table{table-layout:auto}
  #contribution-table thead th:nth-child(1){width:29%}
  #contribution-table thead th:nth-child(2){width:39%}
  #contribution-table thead th:nth-child(3),#contribution-table thead th:nth-child(4){width:16%;text-align:right}
- #contribution-table tbody td.settled-cell,#contribution-table tbody td.outstanding-cell{font-weight:750;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+ #contribution-table tbody td.last-charge-cell,#contribution-table tbody td.outstanding-cell{font-weight:750;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+ #contribution-table .last-charge-amount{display:inline-block}
+ #contribution-table .deferred-tag{display:inline-block;margin-left:6px;padding:3px 6px;border-radius:5px;background:#fff4d6;color:#9a6700;font-size:.68rem;font-weight:800;letter-spacing:.01em;vertical-align:middle}
  #contribution-table tbody td.jobcard{white-space:nowrap}
  #contribution-table tbody td.person{font-weight:650}
 }
@@ -313,7 +315,7 @@ function render(){
  const start=currentPage*pageSize,shown=list.slice(start,start+pageSize),isMobile=window.matchMedia('(max-width: 700px)').matches;
  const thead=$('contribution-table').querySelector('thead'),tbody=$('contribution-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
  const head=document.createElement('tr');
- (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Settled','Due']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Settled'||label==='Due'){th.style.textAlign='right';th.className=label==='Settled'?'settled-heading':'due-heading';}head.appendChild(th)});thead.appendChild(head);
+ (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Last Charges','Due']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Last Charges'||label==='Due'){th.style.textAlign='right';th.className=label==='Last Charges'?'last-charge-heading':'due-heading';}head.appendChild(th)});thead.appendChild(head);
  shown.forEach((c,index)=>{
   const state=c.balance<=0?'settled':'due',tr=document.createElement('tr');tr.className='contribution-row '+state;tr.tabIndex=0;tr.dataset.card=c.id;tr.setAttribute('role','button');tr.setAttribute('aria-label','Open contribution history for '+c.name+' job card '+c.id);
   const cell=(value,cls)=>{const td=document.createElement('td');td.textContent=value;if(cls)td.className=cls;tr.appendChild(td);return td};
@@ -346,11 +348,26 @@ function render(){
    }
   }else{
    cell(c.id,'jobcard');cell(c.name+(c.exempt?' · EXEMPT':''),'person');
-   const totalCharged=Math.max(0,Number(c.totalCharged)||0);
+   const lastChargeCell=cell('','last-charge-cell');
+   lastChargeCell.style.textAlign='right';
+   lastChargeCell.style.whiteSpace='nowrap';
+   if(lastCharge){
+    const amount=document.createElement('span');
+    amount.textContent=fmt(lastCharge.amount);
+    amount.className='last-charge-amount';
+    lastChargeCell.appendChild(amount);
+    if(lastCharge.is_deferred){
+     const deferredTag=document.createElement('span');
+     deferredTag.className='deferred-tag';
+     deferredTag.textContent='Deferred';
+     deferredTag.setAttribute('aria-label','Deferred charge');
+     lastChargeCell.appendChild(deferredTag);
+    }
+   }else{
+    lastChargeCell.textContent='—';
+    lastChargeCell.style.color='var(--muted)';
+   }
    const dueAmount=Math.max(0,Number(c.balance)||0);
-   const settledAmount=Math.max(0,Math.min(totalCharged,totalCharged-dueAmount));
-   const settledCell=cell(fmt(settledAmount),'settled-cell');
-   settledCell.style.color=settledAmount>0?'#15803d':'var(--muted)';
    const dueCell=cell(fmt(dueAmount),'outstanding-cell');
    dueCell.style.color=dueAmount>0?'var(--due)':'var(--muted)';
   }

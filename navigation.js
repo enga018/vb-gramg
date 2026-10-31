@@ -10,8 +10,19 @@
 
     header.querySelectorAll("a.menu-link").forEach(function (a) { a.remove(); });
 
+    // Apply critical positioning inline so malformed/overridden shared CSS
+    // cannot push the menu into the header's normal document flow.
+    header.style.position = "relative";
+    header.style.paddingRight = "60px";
+
     var wrap = document.createElement("div");
     wrap.className = "global-nav";
+    wrap.style.position = "absolute";
+    wrap.style.top = "8px";
+    wrap.style.right = "8px";
+    wrap.style.display = "inline-flex";
+    wrap.style.alignItems = "center";
+    wrap.style.zIndex = "1000";
 
     var button = document.createElement("button");
     button.type = "button";

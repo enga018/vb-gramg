@@ -167,12 +167,12 @@ header .top-actions > button:hover {
 
 <div class="demand-unwilling-grid">
 <section id="reviewPanel" class="panel hidden" aria-labelledby="review-heading">
-<div class="section-heading"><h2 id="review-heading">Manual Review Needed</h2><span id="reviewBadge" class="count">0</span></div>
+<div class="section-heading"><h2 id="review-heading">Manual Review Needed</h2><span id="reviewBadge" class="count">0</span><button id="finaliseDemandBtn" type="button" disabled>Finalise Demand</button></div>
 <p class="sub">Only MIS-selected applicants with an outstanding contribution balance appear here. Check the amount before using Include to add an applicant to Work Demand.</p>
 <div class="table-wrap"><table id="reviewTable"><thead><tr><th>Job Card No.</th><th>Head of Household</th><th>Outstanding Amount</th><th>Action</th></tr></thead><tbody id="reviewBody"><tr><td colspan="4" class="empty">Loading applicants…</td></tr></tbody></table></div><div class="table-foot"><span id="reviewPageLabel" class="page-label"></span><div class="page-actions"><button id="reviewPrev" class="secondary" type="button">Previous</button><button id="reviewNext" class="secondary" type="button">Next</button></div></div>
 </section>
 <section id="demandPanel" class="panel hidden" aria-labelledby="demand-heading">
-<div class="section-heading"><h2 id="demand-heading">Demand</h2><span id="demandBadge" class="count">0</span><div class="export-actions"><button id="demandPdfBtn" type="button" disabled>Export PDF</button><button id="demandCsvBtn" class="secondary" type="button" disabled>Export CSV</button></div></div>
+<div class="section-heading"><h2 id="demand-heading">Demand</h2><span id="demandBadge" class="count">0</span><div id="demandExportActions" class="export-actions hidden"><button id="demandPdfBtn" type="button" disabled>Export PDF</button><button id="demandCsvBtn" class="secondary" type="button" disabled>Export CSV</button></div></div>
 <p class="sub">Applicants selected in MIS are included automatically when their Job Cards have no outstanding balance. Applicants you include from the review list are added here.</p>
 <div class="table-wrap"><table id="demandTable"><thead><tr><th>Job Card No.</th><th>Name of Applicant</th><th>Applicant No.</th></tr></thead><tbody id="demandBody"><tr><td colspan="3" class="empty">Loading applicants…</td></tr></tbody></table></div><div class="table-foot"><span id="demandPageLabel" class="page-label"></span><div class="page-actions"><button id="demandPrev" class="secondary" type="button">Previous</button><button id="demandNext" class="secondary" type="button">Next</button></div></div>
 
@@ -181,7 +181,7 @@ header .top-actions > button:hover {
 
 
 <section id="unwillingPanel" class="panel hidden" aria-labelledby="unwilling-heading">
-<div class="section-heading"><h2 id="unwilling-heading">Unwilling to Work</h2><span id="unwillingBadge" class="count">0</span><div class="export-actions"><button id="unwillingPdfBtn" type="button" disabled>Export PDF</button><button id="unwillingCsvBtn" class="secondary" type="button" disabled>Export CSV</button></div></div>
+<div class="section-heading"><h2 id="unwilling-heading">Unwilling to Work</h2><span id="unwillingBadge" class="count">0</span><div id="unwillingExportActions" class="export-actions hidden"><button id="unwillingPdfBtn" type="button" disabled>Export PDF</button><button id="unwillingCsvBtn" class="secondary" type="button" disabled>Export CSV</button></div></div>
 <p class="sub">Active MIS Job Cards not represented in Work Demand. This list is recalculated when you include an applicant or reload data.</p>
 <div class="table-wrap"><table id="unwillingTable"><thead><tr><th>Job Card No.</th><th>Head of Household</th></tr></thead><tbody id="unwillingBody"><tr><td colspan="2" class="empty">Loading Job Cards…</td></tr></tbody></table></div>
 <div class="table-foot"><span id="unwillingPageLabel" class="page-label"></span><div class="page-actions"><button id="unwillingPrev" class="secondary" type="button">Previous</button><button id="unwillingNext" class="secondary" type="button">Next</button></div></div>
@@ -237,6 +237,7 @@ const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHA
 const $=id=>document.getElementById(id);
 const query = new URLSearchParams(location.search);
 let workflowStarted = false;
+let demandFinalised = false;
 const draftId = query.get("draftId") || crypto.randomUUID();
 if(query.get("days")) $("days").value = query.get("days");
 const includedKey = id => "vbgramg-demand-included:" + id;
@@ -313,14 +314,10 @@ async function loadPeriods(){
 function status(message,type='info'){const el=$('status');el.textContent=message;el.className='status'+(type==='error'?' error':type==='success'?' success':'');}
 function generatedStatus(message,type='info'){const el=$('generateStatus');el.textContent=message;el.className='status'+(type==='error'?' error':type==='success'?' success':'');}
 function invalidateGenerated(){
- pendingSnapshot=null;
- if($('confirmDialog').open&&!saving)$('confirmDialog').close();
- const p=selectedPeriod(),month=p?monthOfPeriod(p):'',days=Number($('days').value);
- generated=workflowStarted&&p&&p.status==='open'&&month&&Number.isInteger(days)&&days>=1&&days<=365?{
-  period:monthLabel(month)||p.period_name||'',contributionMonth:month+'-01',periodId:p.id||'',periodName:p.period_name||'',draftId,days,
-  demand:demandApplicants.map(a=>({...a})),unwilling:getUnwillingCards(),createdAt:new Date().toISOString()
- }:null;
- ['demandPdfBtn','demandCsvBtn','unwillingPdfBtn','unwillingCsvBtn'].forEach(id=>{const el=$(id);if(el)el.disabled=!generated;});
+ generated=null;demandFinalised=false;
+ ['demandExportActions','unwillingExportActions'].forEach(id=>$(id).classList.add('hidden'));
+ ['demandPdfBtn','demandCsvBtn','unwillingPdfBtn','unwillingCsvBtn'].forEach(id=>{const el=$(id);if(el)el.disabled=true;});
+ const f=$('finaliseDemandBtn');if(f){f.disabled=!workflowStarted;f.textContent='Finalise Demand';}
 }
 function stableApplicantKey(jobCard,values,nameIndex,numberIndex,uniqueIdIndex){
  const uniqueId=normalize(uniqueIdIndex>=0?values[uniqueIdIndex]:'');
@@ -476,7 +473,6 @@ function renderLists(){
  $('reviewBadge').textContent=reviewApplicants.length;$('reviewCount').textContent=reviewApplicants.length;
  $('demandBadge').textContent=demandApplicants.length;$('demandCount').textContent=demandApplicants.length;
  $('jobCardCount').textContent=allCards.length;
- invalidateGenerated();
  const reviewBody=$('reviewBody');reviewBody.replaceChildren();
  const reviewPage=renderPageControls('review',reviewApplicants.length);
  if(!reviewApplicants.length){reviewBody.innerHTML='<tr><td colspan="4" class="empty">No selected applicants with outstanding contributions need review.</td></tr>';}
@@ -484,6 +480,7 @@ function renderLists(){
   const index=reviewPage.start+offset;
   const tr=document.createElement('tr');
   const included=demandApplicants.some(a=>a.identity===applicant.identity);tr.innerHTML='<td class="jobcard" data-label="Job Card No.">'+esc(applicant.jobCard)+'</td><td class="applicant" data-label="Head of Household">'+esc(applicant.household||'—')+'</td><td class="outstanding" data-label="Outstanding Amount">'+esc(formatRupees(applicant.outstanding))+'</td><td class="action-cell" data-label="Action"><button type="button" class="include-btn" data-include="'+index+'">'+(included?'Remove':'Include')+'</button></td>';
+  tr.querySelector('.include-btn').disabled=demandFinalised;
   reviewBody.appendChild(tr);
  });
  const demandBody=$('demandBody');demandBody.replaceChildren();
@@ -512,6 +509,7 @@ $('reviewBody').addEventListener('click',event=>{
  const button=event.target.closest('[data-include]');if(!button)return;
  const index=Number(button.dataset.include),applicant=reviewApplicants[index];if(!applicant)return;
  const existing=demandApplicants.findIndex(a=>a.identity===applicant.identity);
+ if(demandFinalised)return;
  if(existing>=0)demandApplicants.splice(existing,1);else demandApplicants.push(applicant);
  const ids=new Set(demandApplicants.filter(a=>allReviewCandidates.some(c=>c.identity===a.identity)).map(a=>a.identity));
  saveIncludedIds(currentPeriodId(),ids);tablePages.demand=Math.max(0,Math.ceil(demandApplicants.length/pageSize)-1);invalidateGenerated();renderLists();
@@ -526,10 +524,21 @@ $('continueReviewBtn').addEventListener('click',()=>{
  workflowStarted=true;
  applyWorkflowVisibility();
  renderLists();
- status('Applicants loaded. Review outstanding balances and include or remove applicants. Lists and exports update automatically.','success');
+ invalidateGenerated();
+ status('Applicants loaded. Review outstanding balances, then finalise the demand to enable both exports.','success');
  $('reviewPanel').scrollIntoView({behavior:'smooth',block:'start'});
 });
 $('days').addEventListener('input',()=>{invalidateGenerated();});
+$('finaliseDemandBtn').addEventListener('click',()=>{
+ const p=selectedPeriod(),month=p?monthOfPeriod(p):'',days=Number($('days').value);
+ if(!workflowStarted||!p||p.status!=='open'||!month||!Number.isInteger(days)||days<1||days>365){status('Select a valid open period and enter the number of days before finalising.','error');return;}
+ generated={period:monthLabel(month)||p.period_name||'',contributionMonth:month+'-01',periodId:p.id||'',periodName:p.period_name||'',draftId,days,demand:demandApplicants.map(a=>({...a})),unwilling:getUnwillingCards().map(a=>({...a})),createdAt:new Date().toISOString()};
+ demandFinalised=true;
+ $('demandExportActions').classList.remove('hidden');$('unwillingExportActions').classList.remove('hidden');
+ ['demandPdfBtn','demandCsvBtn','unwillingPdfBtn','unwillingCsvBtn'].forEach(id=>$(id).disabled=false);
+ $('finaliseDemandBtn').textContent='Finalised';$('finaliseDemandBtn').disabled=true;
+ renderLists();status('Demand finalised. Both exports now use the same locked snapshot.','success');
+});
 function csvCell(value){const s=String(value??'');return '"'+s.replace(/"/g,'""')+'"';}
 function downloadCsv(filename,rows){
  const csv='\ufeff'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n');

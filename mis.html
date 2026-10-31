@@ -223,6 +223,21 @@ header .top-actions > button:hover {
 :root{--app-content-width:1440px}
 body>main{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
+
+.mis-data-actions{display:flex;justify-content:flex-end;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 0}
+.mis-data-actions button{min-height:42px;padding:10px 17px;border-radius:10px;font-weight:650}
+.mis-data-actions #import-link{background:#2457c5;color:#fff;border:1px solid #2457c5}
+.mis-data-actions #import-link:hover{background:#1d46a0}
+.mis-import-backdrop{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;padding:clamp(8px,2vw,24px);background:rgb(15 23 42 / 62%)}
+.mis-import-backdrop.hidden{display:none!important}
+.mis-import-dialog{width:min(1500px,100%);height:min(94vh,1100px);min-height:0;background:#f3f6fb;border:1px solid #d7deea;border-radius:18px;box-shadow:0 24px 80px rgb(0 0 0 / 28%);display:flex;flex-direction:column;overflow:hidden}
+.mis-import-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;background:#fff;border-bottom:1px solid #e3e8f0}
+.mis-import-dialog-head strong{font-size:.96rem;color:#172033}
+.mis-import-dialog-head button{min-height:38px;padding:8px 13px}
+.mis-import-frame{display:block;width:100%;height:100%;min-height:0;border:0;background:#f3f6fb;flex:1}
+body.mis-import-open{overflow:hidden}
+@media(max-width:700px){.mis-data-actions{display:grid;grid-template-columns:1fr}.mis-data-actions button{width:100%}.mis-import-backdrop{padding:0}.mis-import-dialog{width:100%;height:100dvh;max-height:100dvh;border:0;border-radius:0}.mis-import-dialog-head{padding:9px 12px}.mis-import-frame{height:calc(100dvh - 56px)}}
+
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -230,11 +245,20 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 <main>
 <div id="app-panel" class="hidden">
 <header class="topbar app-header"><div class="brand"><h1>MIS</h1><p>Search job cards and manage applicant selections.</p></div></header>
-<div class="header-actions page-actions-bar" aria-label="MIS actions"><a class="link-button secondary menu-link" href="./">Back to menu</a><button id="desktop-fetch-button" class="secondary hidden desktop-only-fetch" type="button" title="Fetch the official MIS register using visible Brave on this Windows PC">Fetch Official MIS</button><a id="import-link" class="link-button hidden" href="./mis-import.html">Import</a></div>
+
 <section class="panel">
-<div class="meta"><div class="stat"><small>Total Job Card</small><strong id="total-jobcards">—</strong></div><div class="stat"><small>Total Applicants from MIS</small><strong id="total-applicants">—</strong></div><div class="stat"><small>Demand</small><strong id="total-demand">—</strong></div><div class="stat"><small>Unwilling</small><strong id="total-unwilling">—</strong></div><div class="stat"><small>Last Updated</small><strong id="updated-at">—</strong></div></div>
+<div class="meta"><div class="stat"><small>Total Job Card</small><strong id="total-jobcards">—</strong></div><div class="stat"><small>Total Applicants from MIS</small><strong id="total-applicants">—</strong></div><div class="stat"><small>Last Updated</small><strong id="updated-at">—</strong></div></div>
 <div class="toolbar"><div class="search"><label for="search-input">Search job cards or applicants</label><input id="search-input" type="search" placeholder="Job card number, household, applicant name or number…"></div><div class="filter-control"><label for="selection-filter">Selection status</label><select id="selection-filter"><option value="all">All job cards</option><option value="selected">Selected</option><option value="none">None selected</option></select></div><span id="result-count" class="muted"></span></div>
 <div id="data-status" class="status" aria-live="polite">Loading MIS data…</div>
+
+<div id="table-wrap" class="table-wrap hidden"><table id="mis-table"><thead></thead><tbody></tbody></table></div>
+<div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="secondary" type="button">Previous</button><button id="next-button" class="secondary" type="button">Next</button></div></div>
+</section>
+</section>
+<div class="mis-data-actions" aria-label="MIS data actions">
+ <button id="desktop-fetch-button" class="secondary hidden desktop-only-fetch" type="button" title="Fetch the official MIS register using visible Brave on this Windows PC">Fetch Official MIS</button>
+ <button id="import-link" class="hidden" type="button">Import</button>
+</div>
 <section id="desktop-fetch-panel" class="panel hidden desktop-only-fetch" style="margin-top:14px">
  <h2>Fetch Official MIS Register</h2>
  <p class="muted">This opens a separate visible Brave window on this Windows PC. The Payload URL is sent only to the local Selenium service. Retrieved rows are preview-only; active MIS is not changed.</p>
@@ -244,9 +268,12 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  <div id="desktop-fetch-status" class="status" aria-live="polite">Start the local MIS service first by running start-mis-desktop-service.bat on this PC.</div>
  <div id="desktop-fetch-preview" class="table-wrap hidden" style="margin-top:12px;max-height:420px"><table><thead id="desktop-fetch-head"></thead><tbody id="desktop-fetch-body"></tbody></table></div>
 </section>
-<div id="table-wrap" class="table-wrap hidden"><table id="mis-table"><thead></thead><tbody></tbody></table></div>
-<div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="secondary" type="button">Previous</button><button id="next-button" class="secondary" type="button">Next</button></div></div>
-</section>
+<div id="mis-import-modal" class="mis-import-backdrop hidden" role="presentation">
+ <section class="mis-import-dialog" role="dialog" aria-modal="true" aria-labelledby="mis-import-modal-title">
+  <header class="mis-import-dialog-head"><strong id="mis-import-modal-title">Import MIS</strong><button id="close-mis-import" class="secondary" type="button">Close</button></header>
+  <iframe id="mis-import-frame" class="mis-import-frame" title="MIS import form" src="about:blank"></iframe>
+ </section>
+</div>
 </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -268,6 +295,25 @@ async function verifyAccess(user){
  $('app-panel').classList.remove('hidden');
  await loadData();return true;
 }
+function openMisImportModal(){
+ const modal=$("mis-import-modal"),frame=$("mis-import-frame");
+ if(frame.src==="about:blank"||!frame.src.endsWith("/mis-import.html"))frame.src="./mis-import.html";
+ modal.classList.remove("hidden");document.body.classList.add("mis-import-open");$("close-mis-import").focus();
+}
+function closeMisImportModal(){
+ $("mis-import-modal").classList.add("hidden");document.body.classList.remove("mis-import-open");$("import-link").focus();
+}
+$("import-link").addEventListener("click",()=>{
+ if(currentRole!=="admin"){status($("data-status"),"Administrator access is required to import MIS.","error");return}
+ openMisImportModal();
+});
+$("close-mis-import").addEventListener("click",closeMisImportModal);
+$("mis-import-modal").addEventListener("click",event=>{if(event.target===$("mis-import-modal"))closeMisImportModal();});
+document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!$("mis-import-modal").classList.contains("hidden"))closeMisImportModal();});
+window.addEventListener("message",event=>{
+ if(event.origin!==window.location.origin||!event.data||event.data.type!=="vbgramg-mis-import-complete")return;
+ loadData();
+});
 $('desktop-fetch-button').addEventListener('click',()=>{
  if(currentRole!=='admin'){status($('data-status'),'Administrator access is required to fetch official MIS.','error');return}
  if(window.matchMedia('(max-width: 700px)').matches){status($('data-status'),'Official MIS fetching is available on desktop only.','error');return}

@@ -158,14 +158,13 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 /* Desktop split view: keep the contribution list and selected ledger side by side. */
 #contribution-layout{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(430px,.88fr);gap:16px;align-items:start}
 #contribution-layout>.panel{min-width:0;margin:0}
-#desktop-detail-panel{min-width:0;min-height:260px;position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:hidden;border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:0 2px 8px rgb(23 32 51 / 3%)}
+#desktop-detail-panel{min-width:0;min-height:0;height:calc(100vh - 24px);position:sticky;top:12px;overflow:hidden;border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:0 2px 8px rgb(23 32 51 / 3%)}
 #desktop-detail-panel:not(.has-selection){display:none}
 #contribution-layout.no-detail{grid-template-columns:minmax(0,1fr)}
-#desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer{position:sticky;bottom:0;z-index:3}
-#desktop-detail-panel .sheet.desktop-inline-sheet{width:100%;max-width:none;height:calc(100vh - 26px);max-height:calc(100vh - 26px);border:0;border-radius:13px;box-shadow:none}
-#desktop-detail-panel .sheet.desktop-inline-sheet .sheet-head{position:sticky;top:0}
-#desktop-detail-panel .sheet.desktop-inline-sheet .sheet-body{padding:16px;overflow-y:auto}
-#desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer{padding:12px 16px}
+#desktop-detail-panel .sheet.desktop-inline-sheet{display:flex;flex-direction:column;width:100%;max-width:none;height:100%;min-height:0;max-height:none;overflow:hidden;border:0;border-radius:13px;box-shadow:none}
+#desktop-detail-panel .sheet.desktop-inline-sheet .sheet-head{position:relative;flex:0 0 auto}
+#desktop-detail-panel .sheet.desktop-inline-sheet .sheet-body{flex:1 1 auto;min-height:0;padding:16px;overflow-y:auto;overscroll-behavior:contain}
+#desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer{position:relative;flex:0 0 auto;z-index:3;padding:12px 16px}
 @media(min-width:701px){#contribution-table tbody tr.selected{background:#edf5ff;box-shadow:inset 4px 0 #3972df}}
 @media(max-width:1100px) and (min-width:701px){#contribution-layout{grid-template-columns:minmax(0,1fr) minmax(360px,.95fr);gap:12px}#desktop-detail-panel .sheet.desktop-inline-sheet .sheet-body{padding:12px}}
 @media(max-width:700px){#contribution-layout{display:block}#desktop-detail-panel{display:none!important}}

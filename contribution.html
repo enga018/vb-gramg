@@ -439,7 +439,7 @@ function buildFifoBreakdown(c){
 function openCitizen(id){
  currentCitizen=citizens.find(c=>c.id===id);if(!currentCitizen)return;
  const c=currentCitizen;
- const sheet=$('overlay').querySelector('.sheet');
+ const sheet=$('desktop-detail-panel').querySelector('.sheet')||$('overlay').querySelector('.sheet');
  const desktop=window.matchMedia('(min-width: 701px)').matches;
  if(desktop){
   $('desktop-detail-panel').appendChild(sheet);
@@ -839,7 +839,7 @@ function closeCitizenDetail(){
  }
 }
 $('closeSheet').addEventListener('click',closeCitizenDetail);
-$('overlay').addEventListener('click',e=>{if(e.target===$('overlay'))$('overlay').classList.add('hidden');});
+$('overlay').addEventListener('click',e=>{if(e.target===$('overlay'))closeCitizenDetail();});
 $('sheetBody').addEventListener('keydown',ev=>{
  const paymentEntry=ev.target.closest('[data-payment-toggle]');
  if(paymentEntry&&(ev.key==='Enter'||ev.key===' ')){

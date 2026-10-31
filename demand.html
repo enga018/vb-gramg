@@ -229,15 +229,17 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
     overflow-wrap:normal;
     word-break:normal;
   }
+  /* Keep identifiers on one line while reclaiming width for names and amounts. */
   #reviewTable td:nth-child(1),
-  #demandTable td:nth-child(1),
+  #demandTable td:nth-child(1){min-width:185px}
   #unwillingTable td:nth-child(1){min-width:205px}
   #reviewTable td:nth-child(2),
   #demandTable td:nth-child(2),
   #unwillingTable td:nth-child(2){min-width:145px}
   #reviewTable td:nth-child(3){min-width:112px}
   #reviewTable td:nth-child(4){min-width:76px}
-  #demandTable td:nth-child(3){min-width:68px}
+  #demandTable th:nth-child(3),
+  #demandTable td:nth-child(3){min-width:52px;width:52px;padding-left:4px;padding-right:4px;text-align:center}
 }
 </style>
 </head>

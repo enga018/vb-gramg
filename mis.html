@@ -486,4 +486,4 @@ $('search-input').addEventListener('input',()=>{currentPage=0;renderTable()});$(
 $('prev-button').addEventListener('click',()=>{currentPage--;renderTable()});$('next-button').addEventListener('click',()=>{currentPage++;renderTable()});
 supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){loadSequence++;window.location.replace('./')}else if(event==='TOKEN_REFRESHED'&&session)Promise.resolve().then(()=>verifyAccess(session.user))});
 supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){window.location.replace('./');return}return verifyAccess(data.session.user)});
-</script><script src="./navigation.js?v=20261031e"></script></body></html>
+</script><script src="./navigation.js?v=20261031f"></script></body></html>

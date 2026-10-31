@@ -126,6 +126,12 @@ tbody tr:last-child td{border-bottom:0}
  th{font-size:.68rem}
  
  .jobcard-row td{padding-top:12px;padding-bottom:12px}
+ .mobile-jobcard-meta{display:flex;align-items:center;gap:6px 10px;flex-wrap:wrap;margin-top:8px}
+ .mobile-applicant-count{font-size:.76rem;color:#64748b;font-weight:600}
+ .mobile-selection-status{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;font-size:.72rem;font-weight:700;line-height:1.35}
+ .mobile-selection-status.is-selected{background:#dcfce7;color:#166534}
+ .mobile-selection-status.is-unselected{background:#fff1df;color:#9a3412}
+ .mobile-expand-hint{margin-left:auto;font-size:.72rem;color:#64748b;font-weight:600;white-space:nowrap}
  .applicant-detail td{padding:10px!important}
  .applicant-detail th{font-size:.64rem;letter-spacing:.025em}
  .applicant-detail td{font-size:.8rem}
@@ -553,7 +559,18 @@ function renderTable(){
   const firstLine=document.createElement('div');firstLine.style.display='flex';firstLine.style.alignItems='baseline';firstLine.style.justifyContent='flex-start';firstLine.style.gap='3px 5px';firstLine.style.flexWrap='wrap';
   const cardNumber=document.createElement('div');cardNumber.textContent=group.key;cardNumber.style.fontWeight='750';cardNumber.style.fontSize='0.98rem';cardNumber.style.overflowWrap='anywhere';firstLine.appendChild(cardNumber);
   const household=document.createElement('span');household.textContent=' • '+(group.household||'—');household.style.fontWeight='500';household.style.color='#64748b';household.style.fontSize='0.94rem';household.style.overflowWrap='anywhere';firstLine.appendChild(household);
-  detailCell.appendChild(firstLine);tr.appendChild(detailCell);tbody.appendChild(tr);
+  detailCell.appendChild(firstLine);
+  const mobileMeta=document.createElement('div');mobileMeta.className='mobile-jobcard-meta';
+  const applicantCount=document.createElement('span');applicantCount.className='mobile-applicant-count';
+  applicantCount.textContent=group.applicants.length+' applicant'+(group.applicants.length===1?'':'s');
+  mobileMeta.appendChild(applicantCount);
+  const selectionStatus=document.createElement('span');selectionStatus.className='mobile-selection-status '+(hasSelection?'is-selected':'is-unselected');
+  selectionStatus.textContent=hasSelection?'✓ Applicant selected':'⚠ No applicant selected';
+  mobileMeta.appendChild(selectionStatus);
+  const expandHint=document.createElement('span');expandHint.className='mobile-expand-hint';
+  expandHint.textContent=expandedCards.has(group.key)?'Close ▲':'View applicants ▼';
+  mobileMeta.appendChild(expandHint);
+  detailCell.appendChild(mobileMeta);tr.appendChild(detailCell);tbody.appendChild(tr);
   if(expandedCards.has(group.key)){
    const detailTr=document.createElement('tr');detailTr.className='applicant-detail';const detailTd=document.createElement('td');detailTd.colSpan=1;detailTd.style.padding='12px 14px 16px';detailTd.style.background='#f8fafc';
    const subtable=document.createElement('table');subtable.style.width='100%';subtable.style.maxWidth='none';subtable.style.tableLayout='fixed';

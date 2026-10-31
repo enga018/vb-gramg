@@ -158,7 +158,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 /* Desktop split view: keep the contribution list and selected ledger side by side. */
 #contribution-layout{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(430px,.88fr);gap:16px;align-items:start}
 #contribution-layout>.panel{min-width:0;margin:0}
-#desktop-detail-panel{min-width:0;min-height:0;margin-top:var(--detail-top-offset,0px);height:calc(100vh - var(--detail-top-offset,0px) - 24px);position:sticky;top:12px;overflow:hidden;border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:0 2px 8px rgb(23 32 51 / 3%)}
+#desktop-detail-panel{min-width:0;min-height:0;margin-top:var(--detail-top-offset,0px);height:var(--detail-panel-height,calc(100vh - 24px));box-sizing:border-box;position:sticky;top:12px;overflow:hidden;border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:0 2px 8px rgb(23 32 51 / 3%)}
 #desktop-detail-panel:not(.has-selection){display:none}
 #contribution-layout.no-detail{grid-template-columns:minmax(0,1fr)}
 #desktop-detail-panel .sheet.desktop-inline-sheet{display:flex;flex-direction:column;width:100%;max-width:none;height:100%;min-height:0;max-height:none;overflow:hidden;border:0;border-radius:13px;box-shadow:none}
@@ -456,8 +456,11 @@ function syncDesktopDetailOffset(){
   detail.style.removeProperty('--detail-top-offset');
   return;
  }
- const offset=Math.max(0,table.getBoundingClientRect().top-leftPanel.getBoundingClientRect().top);
+ const panelRect=leftPanel.getBoundingClientRect(),tableRect=table.getBoundingClientRect();
+ const offset=Math.max(0,tableRect.top-panelRect.top);
+ const remainingHeight=Math.max(240,panelRect.height-offset);
  detail.style.setProperty('--detail-top-offset',Math.round(offset)+'px');
+ detail.style.setProperty('--detail-panel-height',Math.round(remainingHeight)+'px');
 }
 function exportOutstandingDueList(){
  const due=citizens.filter(c=>!c.exempt&&Number(c.balance)>0)

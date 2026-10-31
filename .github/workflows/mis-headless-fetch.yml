@@ -2,6 +2,11 @@ name: Selenium MIS portal diagnostics (read-only)
 
 on:
   workflow_dispatch:
+    inputs:
+      payload_url:
+        description: "Village Council Payload URL from the official VBGRAMG portal"
+        required: true
+        type: string
   push:
     paths:
       - "scripts/fetch_mis_preview.py"
@@ -33,7 +38,11 @@ jobs:
           pip install "selenium>=4.26"
 
       - name: Navigate the official portal and inspect report
-        run: python scripts/fetch_mis_preview.py
+        env:
+          MIS_PAYLOAD_URL: ${{ github.event.inputs.payload_url }}
+        run: |
+          echo "::add-mask::${MIS_PAYLOAD_URL}"
+          python scripts/fetch_mis_preview.py
 
       - name: Upload HTML and JSON diagnostics
         if: always()

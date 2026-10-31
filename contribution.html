@@ -722,7 +722,10 @@ async function load(){
  }catch(err){status(err.message||'Could not load contribution data.','err');}
 }
 
-$('search').addEventListener('input',()=>{currentPage=0;render()});
+const syncSearchClear=()=>$('clearSearch').classList.toggle('visible',Boolean($('search').value));
+$('search').addEventListener('input',()=>{currentPage=0;syncSearchClear();render()});
+$('clearSearch').addEventListener('click',()=>{$('search').value='';syncSearchClear();currentPage=0;render();$('search').focus()});
+syncSearchClear();
 $('statusFilter').addEventListener('change',()=>{currentPage=0;render()});
 
 $('prev-button').addEventListener('click',()=>{currentPage--;render()});$('next-button').addEventListener('click',()=>{currentPage++;render()});

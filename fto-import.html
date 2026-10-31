@@ -635,6 +635,6 @@ supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT')
 supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){window.location.replace('./');return}return verifyAccess(data.session.user)});
 
 </script>
-<script src="./navigation.js?v=20261031e"></script>
+<script src="./navigation.js?v=20261031f"></script>
 </body>
 </html>

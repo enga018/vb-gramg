@@ -218,6 +218,11 @@ header .top-actions > button:hover {
 /* Official MIS fetch is desktop-only; mobile remains unchanged. */
 .desktop-only-fetch{display:block}
 @media(max-width:700px){.desktop-only-fetch{display:none!important}}
+
+/* Shared desktop content width across every VBGRAMG page. */
+:root{--app-content-width:1440px}
+body>main{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
+body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>

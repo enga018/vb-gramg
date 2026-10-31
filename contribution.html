@@ -152,6 +152,23 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  #contribution-table tbody td.jobcard{white-space:nowrap}
  #contribution-table tbody td.person{font-weight:650}
 }
+
+/* Desktop split view: keep the contribution list and selected ledger side by side. */
+#contribution-layout{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(430px,.88fr);gap:16px;align-items:start}
+#contribution-layout>.panel{min-width:0;margin:0}
+#desktop-detail-panel{min-width:0;min-height:260px;position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:hidden;border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:0 2px 8px rgb(23 32 51 / 3%)}
+#desktop-detail-panel:not(.has-selection){display:flex;align-items:center;justify-content:center}
+.detail-placeholder{display:flex;flex-direction:column;align-items:center;gap:9px;padding:36px 24px;text-align:center;color:var(--muted);max-width:320px}
+.detail-placeholder-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:var(--surface-soft);font-size:1.35rem}
+.detail-placeholder b{color:var(--ink);font-size:.98rem}
+.detail-placeholder span{font-size:.83rem;line-height:1.5}
+#desktop-detail-panel .sheet.desktop-inline-sheet{width:100%;max-width:none;height:calc(100vh - 26px);max-height:calc(100vh - 26px);border:0;border-radius:13px;box-shadow:none}
+#desktop-detail-panel .sheet.desktop-inline-sheet .sheet-head{position:sticky;top:0}
+#desktop-detail-panel .sheet.desktop-inline-sheet .sheet-body{padding:16px;overflow-y:auto}
+#desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer{padding:12px 16px}
+#contribution-table tbody tr.selected{background:#edf5ff;box-shadow:inset 4px 0 #3972df}
+@media(max-width:1100px) and (min-width:701px){#contribution-layout{grid-template-columns:minmax(0,1fr) minmax(360px,.95fr);gap:12px}#desktop-detail-panel .sheet.desktop-inline-sheet .sheet-body{padding:12px}}
+@media(max-width:700px){#contribution-layout{display:block}#desktop-detail-panel{display:none!important}}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -161,12 +178,12 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 <main>
 <div id="status" class="notice info hidden" role="status" aria-live="polite"></div>
 <div id="app" class="hidden">
-<section class="panel">
+<div id="contribution-layout"><section class="panel">
 <div class="kpi-row"><div class="stats"><div class="stat"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred total</div><div class="v" id="deferred">—</div></div></div><div class="kpi-actions"><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk Payment</button><button class="btn hidden" id="exportDueBtn" type="button">Export</button></div></div>
 
 
 <div class="toolbar"><div class="search-wrap"><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><button id="clearSearch" class="search-clear" type="button" aria-label="Clear search" title="Clear search">×</button></div><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="deferred">Has deferred charges</option></select></div></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button></div></div>
-</section>
+</section><aside id="desktop-detail-panel" aria-label="Selected citizen ledger"><div class="detail-placeholder"><div class="detail-placeholder-icon">←</div><b>Select a job card</b><span>Choose a row from the contribution table to view its transaction history here.</span></div></aside></div>
 </div>
 </main>
 <div id="overlay" class="overlay hidden" role="dialog" aria-modal="true"><div class="sheet"><div class="sheet-head"><div class="sheet-heading"><h2 id="sheetTitle">Job card number</h2><div id="sheetSubtitle" class="sheet-subtitle"></div></div><div class="sheet-head-actions"><button class="btn ghost small" id="toggleEditMode" type="button" aria-pressed="false">Edit</button><button class="x" id="closeSheet" aria-label="Close">×</button></div></div><div id="sheetBody" class="sheet-body"></div><div id="sheetFooter" class="sheet-footer hidden"></div></div></div>
@@ -422,6 +439,18 @@ function buildFifoBreakdown(c){
 function openCitizen(id){
  currentCitizen=citizens.find(c=>c.id===id);if(!currentCitizen)return;
  const c=currentCitizen;
+ const sheet=$('overlay').querySelector('.sheet');
+ const desktop=window.matchMedia('(min-width: 701px)').matches;
+ if(desktop){
+  $('desktop-detail-panel').appendChild(sheet);
+  $('desktop-detail-panel').classList.add('has-selection');
+  $('overlay').classList.add('hidden');
+  sheet.classList.add('desktop-inline-sheet');
+ }else{
+  $('overlay').appendChild(sheet);
+  $('desktop-detail-panel').classList.remove('has-selection');
+  sheet.classList.remove('desktop-inline-sheet');
+ }
  $('sheetTitle').textContent=c.id;
  $('sheetSubtitle').textContent=c.name||'Head of household not recorded';
  $('sheetFooter').classList.remove('hidden');
@@ -508,7 +537,8 @@ function openCitizen(id){
   }
  }));
  $('sheetFooter').innerHTML='<div class="balance"><div class="label">Outstanding</div><div class="amount '+(c.balance<=0?'zero':'owing')+'">'+fmt(Math.max(0,c.balance))+'</div></div>'+(c.exempt?'<div class="muted">This job card is exempt from contribution.</div>':'<div class="transaction-actions"><button class="btn" type="button" id="addPaymentBtn">Record payment</button>'+(c.balance>0?'<button class="btn" type="button" id="payFullBtn">Pay in full</button>':'')+(appRole==='admin'?'<button class="btn ghost" type="button" id="extraChargeBtn">Add / edit extra amount</button><button class="btn ghost" type="button" id="waiveBtn">Waive</button><button class="btn ghost" type="button" id="returnBtn">Return</button>':'')+'</div>');
- $('overlay').classList.remove('hidden');
+ if(!desktop)$('overlay').classList.remove('hidden');
+ document.querySelectorAll('#contribution-table tbody tr').forEach(row=>row.classList.toggle('selected',row.dataset.card===c.id));
  const addPayment=$('addPaymentBtn');if(addPayment)addPayment.addEventListener('click',showPaymentForm);
  const payFull=$('payFullBtn');if(payFull)payFull.addEventListener('click',payInFull);
  const waive=$('waiveBtn');if(waive)waive.addEventListener('click',()=>showAdjustmentForm('add-waiver'));
@@ -776,7 +806,19 @@ $('toggleEditMode').addEventListener('click',()=>{
  $('toggleEditMode').textContent=enabled?'Done':'Edit';
  $('toggleEditMode').setAttribute('aria-pressed',String(enabled));
 });
-$('closeSheet').addEventListener('click',()=>$('overlay').classList.add('hidden'));
+function closeCitizenDetail(){
+ const sheet=document.querySelector('.sheet');
+ if(window.matchMedia('(min-width: 701px)').matches&&sheet&&sheet.classList.contains('desktop-inline-sheet')){
+  $('overlay').appendChild(sheet);
+  sheet.classList.remove('desktop-inline-sheet');
+  $('desktop-detail-panel').classList.remove('has-selection');
+  currentCitizen=null;
+  document.querySelectorAll('#contribution-table tbody tr').forEach(row=>row.classList.remove('selected'));
+ }else{
+  $('overlay').classList.add('hidden');
+ }
+}
+$('closeSheet').addEventListener('click',closeCitizenDetail);
 $('overlay').addEventListener('click',e=>{if(e.target===$('overlay'))$('overlay').classList.add('hidden');});
 $('sheetBody').addEventListener('keydown',ev=>{
  const paymentEntry=ev.target.closest('[data-payment-toggle]');

@@ -371,18 +371,20 @@ function render(){
   }
   tr.addEventListener('click',()=>openCitizen(c.id));tr.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();openCitizen(c.id)}});tbody.appendChild(tr);
  });
- const selectedCard=shown.find(c=>currentCitizen&&c.id===currentCitizen.id)||shown[0]||null;
- $('contribution-layout').classList.toggle('no-detail',!selectedCard);
- if(selectedCard){
-  openCitizen(selectedCard.id);
- }else{
-  const activeSheet=$('desktop-detail-panel').querySelector('.sheet');
-  if(activeSheet){
-   $('overlay').appendChild(activeSheet);
-   activeSheet.classList.remove('desktop-inline-sheet');
+ if(window.matchMedia('(min-width: 701px)').matches){
+  const selectedCard=shown.find(c=>currentCitizen&&c.id===currentCitizen.id)||shown[0]||null;
+  $('contribution-layout').classList.toggle('no-detail',!selectedCard);
+  if(selectedCard){
+   openCitizen(selectedCard.id);
+  }else{
+   const activeSheet=$('desktop-detail-panel').querySelector('.sheet');
+   if(activeSheet){
+    $('overlay').appendChild(activeSheet);
+    activeSheet.classList.remove('desktop-inline-sheet');
+   }
+   $('desktop-detail-panel').classList.remove('has-selection');
+   currentCitizen=null;
   }
-  $('desktop-detail-panel').classList.remove('has-selection');
-  currentCitizen=null;
  }
  $('table-wrap').classList.toggle('hidden',list.length===0);$('empty').classList.toggle('hidden',list.length!==0);
  $('count').textContent=list.length.toLocaleString('en-IN')+' job card'+(list.length===1?'':'s')+' matching filters';

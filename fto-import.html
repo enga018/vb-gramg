@@ -600,7 +600,9 @@ async function executeFtoSync(payload,button){
  hideApplicantReview();
  const syncMessage='FTO '+data.fto_number+' synchronized. Saved period: '+data.contribution_period+'. Rows checked: '+data.rows_seen+'. Local transactions: '+data.local_transactions+'. Other-village/unclear transactions excluded: '+data.excluded_other_village+'. Charges created: '+data.inserted+', updated: '+data.updated+', matching rejected charges removed: '+data.deleted+'. Calculated local total: ₹'+Number(data.total_amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'.';
  syncStatus(syncMessage,'success');button.textContent='Synchronization completed';
- await lookupFtoBatch();await loadFtoHistory();return true;
+ await lookupFtoBatch();await loadFtoHistory();
+ if(window.parent!==window)window.parent.postMessage({type:"vbgramg-fto-import-complete"},window.location.origin);
+ return true;
 }
 $('fto-import-button').addEventListener('click',async()=>{
  if($('fto-import-button').disabled)return;

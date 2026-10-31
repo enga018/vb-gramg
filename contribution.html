@@ -159,11 +159,9 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 #contribution-layout{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(430px,.88fr);gap:16px;align-items:start}
 #contribution-layout>.panel{min-width:0;margin:0}
 #desktop-detail-panel{min-width:0;min-height:260px;position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:hidden;border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:0 2px 8px rgb(23 32 51 / 3%)}
-#desktop-detail-panel:not(.has-selection){display:flex;align-items:center;justify-content:center}
-.detail-placeholder{display:flex;flex-direction:column;align-items:center;gap:9px;padding:36px 24px;text-align:center;color:var(--muted);max-width:320px}
-.detail-placeholder-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:var(--surface-soft);font-size:1.35rem}
-.detail-placeholder b{color:var(--ink);font-size:.98rem}
-.detail-placeholder span{font-size:.83rem;line-height:1.5}
+#desktop-detail-panel:not(.has-selection){display:none}
+#contribution-layout.no-detail{grid-template-columns:minmax(0,1fr)}
+#desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer{position:sticky;bottom:0;z-index:3}
 #desktop-detail-panel .sheet.desktop-inline-sheet{width:100%;max-width:none;height:calc(100vh - 26px);max-height:calc(100vh - 26px);border:0;border-radius:13px;box-shadow:none}
 #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-head{position:sticky;top:0}
 #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-body{padding:16px;overflow-y:auto}
@@ -185,7 +183,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 
 
 <div class="toolbar"><div class="search-wrap"><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><button id="clearSearch" class="search-clear" type="button" aria-label="Clear search" title="Clear search">×</button></div><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="deferred">Has deferred charges</option></select></div></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button></div></div>
-</section><aside id="desktop-detail-panel" aria-label="Selected citizen ledger"><div class="detail-placeholder"><div class="detail-placeholder-icon">←</div><b>Select a job card</b><span>Choose a row from the contribution table to view its transaction history here.</span></div></aside></div>
+</section><aside id="desktop-detail-panel" aria-label="Selected citizen ledger"></aside></div>
 </div>
 </main>
 <div id="overlay" class="overlay hidden" role="dialog" aria-modal="true"><div class="sheet"><div class="sheet-head"><div class="sheet-heading"><h2 id="sheetTitle">Job card number</h2><div id="sheetSubtitle" class="sheet-subtitle"></div></div><div class="sheet-head-actions"><button class="btn ghost small" id="toggleEditMode" type="button" aria-pressed="false">Edit</button><button class="x" id="closeSheet" aria-label="Close">×</button></div></div><div id="sheetBody" class="sheet-body"></div><div id="sheetFooter" class="sheet-footer hidden"></div></div></div>
@@ -373,6 +371,19 @@ function render(){
   }
   tr.addEventListener('click',()=>openCitizen(c.id));tr.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();openCitizen(c.id)}});tbody.appendChild(tr);
  });
+ const selectedCard=shown.find(c=>currentCitizen&&c.id===currentCitizen.id)||shown[0]||null;
+ $('contribution-layout').classList.toggle('no-detail',!selectedCard);
+ if(selectedCard){
+  openCitizen(selectedCard.id);
+ }else{
+  const activeSheet=$('desktop-detail-panel').querySelector('.sheet');
+  if(activeSheet){
+   $('overlay').appendChild(activeSheet);
+   activeSheet.classList.remove('desktop-inline-sheet');
+  }
+  $('desktop-detail-panel').classList.remove('has-selection');
+  currentCitizen=null;
+ }
  $('table-wrap').classList.toggle('hidden',list.length===0);$('empty').classList.toggle('hidden',list.length!==0);
  $('count').textContent=list.length.toLocaleString('en-IN')+' job card'+(list.length===1?'':'s')+' matching filters';
  $('page-label').textContent=list.length?'Showing '+(start+1)+'–'+Math.min(start+pageSize,list.length)+' of '+list.length:'No matching job cards';
@@ -831,7 +842,8 @@ $('bulkPaymentBtn').addEventListener('click',showBulkPaymentForm);
 
 $('manageExemptionsBtn').addEventListener('click',showExemptionsForm);
 $('toggleEditMode').addEventListener('click',()=>{
- const sheet=$('overlay').querySelector('.sheet');
+ const sheet=document.querySelector('.sheet');
+ if(!sheet)return;
  const enabled=!sheet.classList.contains('edit-mode');
  sheet.classList.toggle('edit-mode',enabled);
  $('toggleEditMode').textContent=enabled?'Done':'Edit';

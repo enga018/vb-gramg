@@ -292,8 +292,9 @@ async function verifyAccess(user){
 }
 function openMisImportModal(){
  const modal=$("mis-import-modal"),frame=$("mis-import-frame");
+ modal.classList.remove("hidden");document.body.classList.add("mis-import-open");
  if(frame.src==="about:blank"||!frame.src.endsWith("/mis-import.html"))frame.src="./mis-import.html";
- modal.classList.remove("hidden");document.body.classList.add("mis-import-open");$("close-mis-import").focus();
+ requestAnimationFrame(()=>$("close-mis-import").focus({preventScroll:true}));
 }
 function closeMisImportModal(){
  $("mis-import-modal").classList.add("hidden");document.body.classList.remove("mis-import-open");$("import-link").focus();

@@ -129,6 +129,18 @@ box-shadow:none!important;transform:none!important}
 :root{--app-content-width:1440px}
 body>main{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
+
+/* Contribution list: clean, due-first mobile rows. */
+@media(max-width:700px){
+ #contribution-table tbody tr.contribution-row{display:block;border-bottom:1px solid #e8edf4;background:#fff}
+ #contribution-table tbody tr.contribution-row td.mobile-details{display:grid!important;grid-template-columns:minmax(0,5fr) minmax(0,1fr);align-items:center;gap:10px;padding:14px 12px;border:0;min-width:0}
+ #contribution-table tbody tr.contribution-row td.mobile-details:has(.mobile-jobcard-line):not(:has(.mobile-outstanding)){grid-template-columns:minmax(0,1fr)}
+ .mobile-jobcard-line{font-size:.88rem;font-weight:650;line-height:1.45;color:#344054;overflow-wrap:anywhere}
+ .mobile-jobcard-line .suffix{font-weight:800;color:var(--ink)}
+ .mobile-outstanding{font-size:.96rem;font-weight:800;letter-spacing:-.02em;color:var(--due)!important;text-align:right;white-space:nowrap}
+ #contribution-table tbody tr.contribution-row.due{box-shadow:inset 3px 0 #e9a23b}
+ #contribution-table tbody tr.contribution-row.settled{box-shadow:inset 3px 0 #16a34a}
+}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -289,7 +301,7 @@ function render(){
   const lastPeriodShort=lastPeriod;
   if(isMobile){
    const detail=cell('','mobile-details');
-   detail.style.display='grid';detail.style.gridTemplateColumns='minmax(0,5fr) minmax(0,1fr)';detail.style.alignItems='center';detail.style.gap='10px';detail.style.minWidth='0';
+   detail.style.display='grid';detail.style.gridTemplateColumns=c.balance>0?'minmax(0,5fr) minmax(0,1fr)':'minmax(0,1fr)';detail.style.alignItems='center';detail.style.gap='10px';detail.style.minWidth='0';
    const topLine=document.createElement('div');topLine.className='mobile-jobcard-line';topLine.style.minWidth='0';
    const slashIndex=String(c.id).lastIndexOf('/');
    if(slashIndex>=0){topLine.append(document.createTextNode(String(c.id).slice(0,slashIndex+1)));const suffix=document.createElement('span');suffix.className='suffix';suffix.textContent=String(c.id).slice(slashIndex+1);topLine.appendChild(suffix);}
@@ -304,9 +316,7 @@ function render(){
    const displayApplicant=chargeName||String(latestApplicant?.applicant_name||latestApplicant?.name||'').trim()||c.name;
    topLine.append(document.createTextNode(' • '+displayApplicant));detail.appendChild(topLine);
    if(c.balance>0){
-    const balance=document.createElement('div');balance.className='mobile-outstanding';balance.textContent=fmt(c.balance);balance.style.color='#b45309';balance.style.minWidth='0';balance.style.textAlign='right';detail.appendChild(balance);
-   }else{
-    const settled=document.createElement('div');settled.className='mobile-settled';settled.textContent='Settled';settled.style.color='#15803d';settled.style.minWidth='0';settled.style.textAlign='right';detail.appendChild(settled);
+    const balance=document.createElement('div');balance.className='mobile-outstanding';balance.textContent=fmt(c.balance);balance.style.color='var(--due)';balance.style.minWidth='0';balance.style.textAlign='right';balance.setAttribute('aria-label','Due '+fmt(c.balance));detail.appendChild(balance);
    }
   }else{
    cell(c.id,'jobcard');cell(c.name+(c.exempt?' · EXEMPT':''),'person');

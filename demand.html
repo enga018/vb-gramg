@@ -382,7 +382,7 @@ function monthOfPeriod(p){return String(p?.contribution_month||p?.period_date||"
 function renderPeriodOptions(){
  const select=$("periodSelect"),wanted=query.get("periodId")||select.value||"";
  const open=periods.filter(p=>p.status==="open")
-  .sort((a,b)=>String(a.contribution_month||a.period_date||"").localeCompare(String(b.contribution_month||b.period_date||""))||String(a.period_name||"").localeCompare(String(b.period_name||"")));
+  .sort((a,b)=>String(b.contribution_month||b.period_date||"").localeCompare(String(a.contribution_month||a.period_date||""))||String(b.period_name||"").localeCompare(String(a.period_name||"")));
  select.replaceChildren();
  const first=document.createElement("option");first.value="";
  first.textContent=open.length?"Choose an open period":"No open periods available";

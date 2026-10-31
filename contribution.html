@@ -302,8 +302,8 @@ function render(){
    cell(chargeName||'—','person');
    const desktopChargeCell=cell(lastCharge?fmt(lastCharge.amount):'—','amount');
    if(lastCharge&&lastCharge.is_deferred){desktopChargeCell.textContent=fmt(lastCharge.amount)+' · Deferred';desktopChargeCell.style.color='var(--partial)';}
-   const desktopBalanceCell=cell(c.balance>0?fmt(c.balance):'—','balance');
-   if(c.balance>0)desktopBalanceCell.style.color='#e9a23b';
+   const desktopBalanceCell=cell('','balance');
+   if(c.balance>0){const pill=document.createElement('span');pill.className='table-balance-pill';pill.textContent=fmt(c.balance);desktopBalanceCell.appendChild(pill);}else desktopBalanceCell.textContent='—';
   }
   tr.addEventListener('click',()=>openCitizen(c.id));tr.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();openCitizen(c.id)}});tbody.appendChild(tr);
  });

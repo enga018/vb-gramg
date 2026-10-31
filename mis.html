@@ -241,20 +241,18 @@ body.mis-import-open{overflow:hidden}
 /* Desktop MIS: one visible row per applicant, with subtle job-card grouping. */
 @media(min-width:701px){
  #mis-table{table-layout:fixed}
- #mis-table th:nth-child(1),#mis-table td:nth-child(1){width:25%}
- #mis-table th:nth-child(2),#mis-table td:nth-child(2){width:19%}
- #mis-table th:nth-child(3),#mis-table td:nth-child(3){width:29%}
- #mis-table th:nth-child(4),#mis-table td:nth-child(4){width:15%}
- #mis-table th:nth-child(5),#mis-table td:nth-child(5){width:12%}
+ #mis-table th:nth-child(1),#mis-table td:nth-child(1){width:28%}
+ #mis-table th:nth-child(2),#mis-table td:nth-child(2){width:27%}
+ #mis-table th:nth-child(3),#mis-table td:nth-child(3){width:45%}
  #mis-table .desktop-applicant-row td{background:#fff}
  #mis-table .desktop-applicant-row.group-alt td{background:#f8fafc}
  #mis-table .desktop-applicant-row td:first-child{background:#f1f5f9;font-weight:700}
  #mis-table .desktop-applicant-row.group-alt td:first-child{background:#eaf0f7}
  #mis-table .desktop-applicant-row:hover td{background:#f0f5fc}
- #mis-table .desktop-applicant-row.group-start td{border-top:2px solid #cbd5e1}
- #mis-table .desktop-applicant-row.group-start:first-child td{border-top:0}
- #mis-table .desktop-select-cell{text-align:center}
- #mis-table .desktop-select-cell input{width:19px;height:19px;min-height:19px;margin:0;accent-color:#2457c5;cursor:pointer}
+ #mis-table .desktop-applicant-cell{padding:7px 10px}
+ #mis-table .desktop-applicant-dropdown{width:100%;max-width:100%;min-height:38px;padding:7px 34px 7px 10px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#1e293b;font:inherit;font-size:.92rem;cursor:pointer}
+ #mis-table .desktop-applicant-dropdown:focus{outline:2px solid #93c5fd;outline-offset:1px}
+ #mis-table .desktop-applicant-dropdown:disabled{opacity:.65;cursor:wait}
 }
 
 </style>
@@ -504,33 +502,36 @@ function renderTable(){
  const thead=$('mis-table').querySelector('thead'),tbody=$('mis-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
  const isMobile=window.matchMedia('(max-width: 700px)').matches;
  const hr=document.createElement('tr');
- (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Applicant Name','Applicant No.','Select']).forEach(label=>{const th=document.createElement('th');th.textContent=label;hr.appendChild(th)});
+ (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Applicant']).forEach(label=>{const th=document.createElement('th');th.textContent=label;hr.appendChild(th)});
  thead.appendChild(hr);
  shown.forEach((group,visibleIndex)=>{
   const hasSelection=selectedApplicants.has(group.key);
   if(!isMobile){
-   group.applicants.forEach((applicant,applicantIndex)=>{
-    const tr=document.createElement('tr');tr.className='desktop-applicant-row'+(visibleIndex%2===1?' group-alt':'')+(applicantIndex===0?' group-start':'');
-    const jobCell=document.createElement('td');jobCell.textContent=group.key;jobCell.style.fontWeight='700';jobCell.style.whiteSpace='nowrap';tr.appendChild(jobCell);
-    const householdCell=document.createElement('td');householdCell.textContent=group.household||'—';householdCell.style.fontWeight='600';tr.appendChild(householdCell);
-    const nameCell=document.createElement('td');nameCell.textContent=applicant.name||'—';tr.appendChild(nameCell);
-    const noCell=document.createElement('td');noCell.textContent=applicant.number||'—';noCell.style.whiteSpace='nowrap';tr.appendChild(noCell);
-    const selectCell=document.createElement('td');selectCell.className='desktop-select-cell';
-    const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=selectedApplicants.get(group.key)===applicant.selectionKey;checkbox.setAttribute('aria-label','Select '+(applicant.name||'applicant')+' for job card '+group.key);
-    checkbox.addEventListener('click',event=>event.stopPropagation());
-    checkbox.addEventListener('change',async()=>{
-     const shouldSelect=checkbox.checked;checkbox.disabled=true;
-     try{
-      await invokeSelection({action:shouldSelect?'set':'clear',jobCardNumber:group.key,applicantKey:applicant.selectionKey});
-      selectedApplicants=await loadSavedSelections();updateKpis();
-      status($('data-status'),shouldSelect?'Selection saved for job card '+group.key+'.':'Selection cleared for job card '+group.key+'.','success');
-     }catch(error){
-      status($('data-status'),'Could not save selection: '+(error&&error.message?error.message:String(error))+'. Reload the page if another user may have changed this selection.','error');
-     }
-     renderTable();
-    });
-    selectCell.appendChild(checkbox);tr.appendChild(selectCell);tbody.appendChild(tr);
+   const tr=document.createElement('tr');tr.className='desktop-applicant-row'+(visibleIndex%2===1?' group-alt':'');
+   const jobCell=document.createElement('td');jobCell.textContent=group.key;jobCell.style.fontWeight='700';jobCell.style.whiteSpace='nowrap';tr.appendChild(jobCell);
+   const householdCell=document.createElement('td');householdCell.textContent=group.household||'—';householdCell.style.fontWeight='600';tr.appendChild(householdCell);
+   const applicantCell=document.createElement('td');applicantCell.className='desktop-applicant-cell';
+   const dropdown=document.createElement('select');dropdown.className='desktop-applicant-dropdown';dropdown.setAttribute('aria-label','Applicant for job card '+group.key);
+   const emptyOption=document.createElement('option');emptyOption.value='';emptyOption.textContent='— Select applicant —';dropdown.appendChild(emptyOption);
+   group.applicants.forEach(applicant=>{
+    const option=document.createElement('option');option.value=applicant.selectionKey;
+    option.textContent=[applicant.name||'Unnamed applicant',applicant.number||''].filter(Boolean).join(' · ');
+    dropdown.appendChild(option);
    });
+   dropdown.value=selectedApplicants.get(group.key)||'';
+   dropdown.addEventListener('change',async()=>{
+    const applicantKey=dropdown.value;dropdown.disabled=true;
+    try{
+     await invokeSelection({action:applicantKey?'set':'clear',jobCardNumber:group.key,applicantKey:applicantKey||undefined});
+     selectedApplicants=await loadSavedSelections();updateKpis();
+     const selectedApplicant=group.applicants.find(applicant=>applicant.selectionKey===applicantKey);
+     status($('data-status'),applicantKey?'Selection saved: '+(selectedApplicant?.name||'applicant')+' for job card '+group.key+'.':'Selection cleared for job card '+group.key+'.','success');
+    }catch(error){
+     status($('data-status'),'Could not save selection: '+(error&&error.message?error.message:String(error))+'. Reload the page if another user may have changed this selection.','error');
+    }
+    renderTable();
+   });
+   applicantCell.appendChild(dropdown);tr.appendChild(applicantCell);tbody.appendChild(tr);
    return;
   }
   const tr=document.createElement('tr');tr.className='jobcard-row '+(hasSelection?'has-selection':'no-selection');

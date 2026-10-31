@@ -151,6 +151,62 @@ header .top-actions > button:hover {
 :root{--app-content-width:1440px}
 body>main{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
+/* Desktop Work Demand tables: allocate width by content, not equal columns. */
+@media(min-width:901px){
+  .demand-unwilling-grid{
+    grid-template-columns:minmax(0,1.12fr) minmax(0,1fr) minmax(0,.92fr);
+    gap:12px;
+  }
+  .demand-unwilling-grid>.panel{
+    padding:16px;
+  }
+  .demand-unwilling-grid .section-heading{
+    gap:8px;
+    margin-bottom:9px;
+  }
+  .demand-unwilling-grid .section-heading h2{
+    font-size:1.02rem;
+  }
+  .demand-unwilling-grid .sub{
+    font-size:.82rem;
+    line-height:1.4;
+    margin-bottom:10px;
+  }
+  .demand-unwilling-grid th,
+  .demand-unwilling-grid td{
+    padding:9px 8px;
+    font-size:.82rem;
+    min-width:0;
+  }
+  .demand-unwilling-grid th{
+    font-size:.66rem;
+    letter-spacing:.025em;
+    white-space:normal;
+    line-height:1.25;
+  }
+  #reviewTable{table-layout:fixed}
+  #reviewTable th:nth-child(1),#reviewTable td:nth-child(1){width:31%}
+  #reviewTable th:nth-child(2),#reviewTable td:nth-child(2){width:31%}
+  #reviewTable th:nth-child(3),#reviewTable td:nth-child(3){width:23%;text-align:right}
+  #reviewTable th:nth-child(4),#reviewTable td:nth-child(4){width:15%;text-align:center}
+  #reviewTable .include-btn{
+    min-height:32px;
+    padding:5px 8px;
+    font-size:.76rem;
+  }
+  #demandTable{table-layout:fixed}
+  #demandTable th:nth-child(1),#demandTable td:nth-child(1){width:34%}
+  #demandTable th:nth-child(2),#demandTable td:nth-child(2){width:48%}
+  #demandTable th:nth-child(3),#demandTable td:nth-child(3){
+    width:18%;
+    text-align:center;
+    white-space:nowrap;
+  }
+  #demandTable td:nth-child(3){font-variant-numeric:tabular-nums}
+  #unwillingTable{table-layout:fixed}
+  #unwillingTable th:nth-child(1),#unwillingTable td:nth-child(1){width:42%}
+  #unwillingTable th:nth-child(2),#unwillingTable td:nth-child(2){width:58%}
+}
 </style>
 </head>
 <body>
@@ -631,62 +687,7 @@ function exportPrint(kind){
  printWindow.onload=()=>setTimeout(()=>printWindow.print(),250);
  printWindow.document.open();
  printWindow.document.write('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(title)+'</title><style>body{font-family:Arial,"Noto Sans",sans-serif;color:#111;margin:22px;font-size:12pt}h1{text-align:center;font-size:17pt;margin:0 0 12px}p{text-align:center;margin:5px 0;font-weight:600}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #222;padding:8px;text-align:left;overflow-wrap:anywhere}th{text-align:center;font-weight:700}td:first-child{text-align:center;width:70px}thead{display:table-header-group}tr{break-inside:avoid}@page{size:A4 portrait;margin:14mm}@media print{body{margin:0}}
-/* Desktop Work Demand tables: allocate width by content, not equal columns. */
-@media(min-width:901px){
-  .demand-unwilling-grid{
-    grid-template-columns:minmax(0,1.12fr) minmax(0,1fr) minmax(0,.92fr);
-    gap:12px;
-  }
-  .demand-unwilling-grid>.panel{
-    padding:16px;
-  }
-  .demand-unwilling-grid .section-heading{
-    gap:8px;
-    margin-bottom:9px;
-  }
-  .demand-unwilling-grid .section-heading h2{
-    font-size:1.02rem;
-  }
-  .demand-unwilling-grid .sub{
-    font-size:.82rem;
-    line-height:1.4;
-    margin-bottom:10px;
-  }
-  .demand-unwilling-grid th,
-  .demand-unwilling-grid td{
-    padding:9px 8px;
-    font-size:.82rem;
-    min-width:0;
-  }
-  .demand-unwilling-grid th{
-    font-size:.66rem;
-    letter-spacing:.025em;
-    white-space:normal;
-    line-height:1.25;
-  }
-  #reviewTable{table-layout:fixed}
-  #reviewTable th:nth-child(1),#reviewTable td:nth-child(1){width:31%}
-  #reviewTable th:nth-child(2),#reviewTable td:nth-child(2){width:31%}
-  #reviewTable th:nth-child(3),#reviewTable td:nth-child(3){width:23%;text-align:right}
-  #reviewTable th:nth-child(4),#reviewTable td:nth-child(4){width:15%;text-align:center}
-  #reviewTable .include-btn{
-    min-height:32px;
-    padding:5px 8px;
-    font-size:.76rem;
-  }
-  #demandTable{table-layout:fixed}
-  #demandTable th:nth-child(1),#demandTable td:nth-child(1){width:34%}
-  #demandTable th:nth-child(2),#demandTable td:nth-child(2){width:48%}
-  #demandTable th:nth-child(3),#demandTable td:nth-child(3){
-    width:18%;
-    text-align:center;
-    white-space:nowrap;
-  }
-  #demandTable td:nth-child(3){font-variant-numeric:tabular-nums}
-  #unwillingTable{table-layout:fixed}
-  #unwillingTable th:nth-child(1),#unwillingTable td:nth-child(1){width:42%}
-  #unwillingTable th:nth-child(2),#unwillingTable td:nth-child(2){width:58%}
-}
+
 </style></head><body><h1>'+esc(title)+'</h1>'+subtitle+table+'</body></html>');
  printWindow.document.close();
 }

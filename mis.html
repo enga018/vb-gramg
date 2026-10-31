@@ -254,7 +254,6 @@ body.mis-import-open{overflow:hidden}
 <div id="table-wrap" class="table-wrap hidden"><table id="mis-table"><thead></thead><tbody></tbody></table></div>
 <div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="secondary" type="button">Previous</button><button id="next-button" class="secondary" type="button">Next</button></div></div>
 </section>
-</section>
 <div class="mis-data-actions" aria-label="MIS data actions">
  <button id="desktop-fetch-button" class="secondary hidden desktop-only-fetch" type="button" title="Fetch the official MIS register using visible Brave on this Windows PC">Fetch Official MIS</button>
  <button id="import-link" class="hidden" type="button">Import</button>
@@ -435,8 +434,6 @@ function updateKpis(){
  const selectedCount=validJobCards.filter(g=>selectedApplicants.has(g.key)).length;
  $('total-jobcards').textContent=validJobCards.length;
  $('total-applicants').textContent=totalApplications;
- $('total-demand').textContent=selectedCount;
- $('total-unwilling').textContent=Math.max(0,validJobCards.length-selectedCount);
 }
 function buildJobCards(){
  const jobIndex=headers.findIndex(h=>/^(job card number|jobcard number)$/i.test(h.trim()));

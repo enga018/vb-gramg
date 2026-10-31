@@ -137,7 +137,11 @@ header .top-actions > button:hover {
     .actions>button{font-size:.84rem}
     th,td{padding:8px 4px;font-size:.74rem}th{font-size:.61rem}
   }
-  </style>
+  /* Shared desktop content width across every VBGRAMG page. */
+:root{--app-content-width:1440px}
+body>main{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
+body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
+</style>
 </head>
 <body>
 <main>
@@ -573,12 +577,7 @@ function exportPrint(kind){
  if(!printWindow){status('Your browser blocked the print window. Allow pop-ups for this app and try again.','error');return;}
  printWindow.onload=()=>setTimeout(()=>printWindow.print(),250);
  printWindow.document.open();
- printWindow.document.write('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(title)+'</title><style>body{font-family:Arial,"Noto Sans",sans-serif;color:#111;margin:22px;font-size:12pt}h1{text-align:center;font-size:17pt;margin:0 0 12px}p{text-align:center;margin:5px 0;font-weight:600}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #222;padding:8px;text-align:left;overflow-wrap:anywhere}th{text-align:center;font-weight:700}td:first-child{text-align:center;width:70px}thead{display:table-header-group}tr{break-inside:avoid}@page{size:auto;margin:14mm}@media print{body{margin:0}}
-/* Shared desktop content width across every VBGRAMG page. */
-:root{--app-content-width:1440px}
-body>main{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
-body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
-</style></head><body><h1>'+esc(title)+'</h1>'+subtitle+table+'</body></html>');
+ printWindow.document.write('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(title)+'</title><style>body{font-family:Arial,"Noto Sans",sans-serif;color:#111;margin:22px;font-size:12pt}h1{text-align:center;font-size:17pt;margin:0 0 12px}p{text-align:center;margin:5px 0;font-weight:600}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #222;padding:8px;text-align:left;overflow-wrap:anywhere}th{text-align:center;font-weight:700}td:first-child{text-align:center;width:70px}thead{display:table-header-group}tr{break-inside:avoid}@page{size:auto;margin:14mm}@media print{body{margin:0}}</style></head><body><h1>'+esc(title)+'</h1>'+subtitle+table+'</body></html>');
  printWindow.document.close();
 }
 $('demandPdfBtn').addEventListener('click',()=>exportPrint('demand'));

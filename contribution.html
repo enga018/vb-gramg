@@ -29,7 +29,7 @@ table{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem;white
 .field{margin-bottom:12px}.field label{display:block;font-size:.82rem;font-weight:650;color:#344054;margin-bottom:6px}.field input,.field select{width:100%;min-height:44px;padding:10px 12px;font:inherit;border:1px solid #cfd7e4;border-radius:10px;background:#fff;outline:0}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}footer{text-align:center;color:var(--muted);font-size:.78rem;padding:10px}
 
 @media(max-width:700px){.overlay{padding:0}.sheet{width:100%;max-width:none;height:100vh;height:100dvh;max-height:100vh;max-height:100dvh;border:0;border-radius:0}.sheet-head{padding:14px 16px}.sheet-body{padding:14px}.table-wrap{max-height:none;overflow:visible;overscroll-behavior:visible}.table-wrap #contribution-table tbody td{padding:12px 11px}.table-wrap #contribution-table thead{display:none}#contribution-table{table-layout:fixed}#contribution-table th,#contribution-table td{width:100%}#contribution-table th{white-space:normal}body{padding:10px}.topbar{padding:15px;gap:14px;border-radius:13px;margin-bottom:12px}.brand h1{font-size:1.3rem}.top-actions{width:100%;justify-content:flex-start;gap:8px}.panel{padding:14px;border-radius:13px}.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}.stat{padding:11px 12px;border-radius:10px}.stat .k{font-size:.74rem;margin-bottom:5px}.stat .v{font-size:1rem}.toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.toolbar input{min-width:0;width:100%;grid-column:1/-1}.filter-control{min-width:0;width:100%}.filter-control select{min-width:0}.citizen{padding:12px 10px;gap:8px}.citizen .bal{font-size:.88rem}.grid2{grid-template-columns:1fr}.split>div{padding:10px 6px}.split .k{font-size:.61rem}.split .v{font-size:.84rem}.sheet-body{padding:14px}.sheet-footer{padding:10px 14px max(10px,env(safe-area-inset-bottom))}.sheet-footer .balance{padding:10px 12px;margin-bottom:8px}.sheet-footer .balance .amount{font-size:32px}.sheet-footer .transaction-actions .btn{min-height:58px;font-size:.95rem}.sheet-footer .transaction-actions .btn{min-height:54px;padding:13px 12px;font-size:.95rem;font-weight:750}}
-@media(max-width:360px){body{padding:7px}.panel{padding:11px}.topbar{padding:12px}.citizen{padding:10px 8px}.citizen .info b{font-size:.86rem}.citizen .info small{font-size:.73rem}.badge{font-size:.6rem;padding:3px 6px}.split .v{font-size:.78rem}}
+.kpi-row{display:flex;align-items:stretch;gap:12px;margin:0 0 18px}.kpi-row .stats{flex:1;min-width:0;margin:0}.kpi-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.exemption-dialog{width:min(620px,calc(100% - 28px));max-height:88vh;padding:0;border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--ink);box-shadow:0 18px 60px rgb(15 23 42 / 25%)}.exemption-dialog::backdrop{background:rgba(15,23,42,.58)}.exemption-dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px;border-bottom:1px solid var(--line)}.exemption-dialog-head h2{margin:0 0 5px;font-size:1.1rem}.exemption-dialog-head .sub{margin:0}.exemption-dialog-body{padding:18px;overflow:auto;max-height:calc(88vh - 100px)}.exemption-dialog .grid2{grid-template-columns:1fr 1fr}@media(max-width:700px){.kpi-row{align-items:stretch;flex-direction:column;gap:10px}.kpi-actions{justify-content:flex-start}.kpi-actions .btn{flex:1}.exemption-dialog{width:calc(100% - 20px);max-height:92vh}.exemption-dialog-body{padding:14px;max-height:calc(92vh - 100px)}.exemption-dialog .grid2{grid-template-columns:1fr}}@media(max-width:360px){body{padding:7px}.panel{padding:11px}.topbar{padding:12px}.citizen{padding:10px 8px}.citizen .info b{font-size:.86rem}.citizen .info small{font-size:.73rem}.badge{font-size:.6rem;padding:3px 6px}.split .v{font-size:.78rem}}
 
 /* Consistent page header: title left, navigation/actions right. */
 .app-header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
@@ -129,19 +129,18 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 </head>
 <body>
 <header class="topbar app-header"><div class="brand"><h1>Contribution</h1><p>Track contribution charges, payments and outstanding balances.</p></div></header>
-<div class="top-actions page-actions-bar"><a class="btn ghost small menu-link" href="./">Back to menu</a><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk Payment</button><button class="btn ghost small" id="refreshBtn" type="button">Refresh</button></div>
+
 <main>
 <div id="status" class="notice info hidden" role="status" aria-live="polite"></div>
 <div id="app" class="hidden">
 <section class="panel">
-<div class="stats"><div class="stat"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred total</div><div class="v" id="deferred">—</div></div></div>
+<div class="kpi-row"><div class="stats"><div class="stat"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred total</div><div class="v" id="deferred">—</div></div></div><div class="kpi-actions"><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk Payment</button></div></div>
 
-<section class="panel hidden" id="exemptionPanel" style="margin-bottom:16px">
- <h1>Exemptions</h1><p class="sub">Exempt job cards remain visible in FTO history. Their Contribution ledger entries, extra charges, and contribution-citizen records are removed while exempt; FTO transactions and FTO status history are preserved.</p>
+<dialog id="exemptionDialog" class="exemption-dialog"><div class="exemption-dialog-head"><div><h2>Exemptions</h2><p class="sub">Exempt job cards remain visible in FTO history. Their Contribution ledger entries, extra charges, and contribution-citizen records are removed while exempt; FTO transactions and FTO status history are preserved.</p></div><button class="x" id="closeExemptionDialog" type="button" aria-label="Close">×</button></div><div class="exemption-dialog-body">
  <div class="grid2"><div class="field"><label for="exemptJobCard">Full job card number</label><input id="exemptJobCard" maxlength="100" placeholder="Enter full job card number" autocomplete="off"></div><div class="field"><label for="exemptNote">Reason / note (optional)</label><input id="exemptNote" maxlength="300" placeholder="Reason for exemption"></div></div>
  <button class="btn" id="saveExemptionBtn" type="button">Add exemption</button><div id="exemptionStatus" class="muted" style="margin-top:8px"></div>
  <div class="section-title">Current exemptions</div><div id="exemptionList"></div>
-</section>
+</div></dialog>
 <div class="toolbar"><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="deferred">Has deferred charges</option></select></div><button class="btn" id="exportDueBtn" type="button">Export Due List</button></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button></div></div>
 </section>
 </div>
@@ -691,7 +690,6 @@ async function payInFull(){
 
 async function load(){
  if(busy)return;
- $('refreshBtn').disabled=true;
  try{
   status('Restoring your sign-in session…');
   // Never leave the page on its initial account-check message if session storage stalls.
@@ -710,7 +708,6 @@ async function load(){
   $('app').classList.remove('hidden');$('status').classList.add('hidden');
   render();
  }catch(err){status(err.message||'Could not load contribution data.','err');}
- finally{$('refreshBtn').disabled=false;}
 }
 
 $('search').addEventListener('input',()=>{currentPage=0;render()});
@@ -718,13 +715,14 @@ $('statusFilter').addEventListener('change',()=>{currentPage=0;render()});
 
 $('prev-button').addEventListener('click',()=>{currentPage--;render()});$('next-button').addEventListener('click',()=>{currentPage++;render()});
 window.addEventListener('resize',()=>render());
-$('refreshBtn').addEventListener('click',load);
 $('exportDueBtn').addEventListener('click',exportOutstandingDueList);
 $('bulkPaymentBtn').addEventListener('click',showBulkPaymentForm);
 
 
 
-$('manageExemptionsBtn').addEventListener('click',()=>{$('exemptionPanel').classList.toggle('hidden');if(!$('exemptionPanel').classList.contains('hidden')){$('exemptJobCard').focus();$('exemptionPanel').scrollIntoView({behavior:'smooth',block:'start'});}});
+$('manageExemptionsBtn').addEventListener('click',()=>{$('exemptionDialog').showModal();$('exemptJobCard').focus();});
+$('closeExemptionDialog').addEventListener('click',()=>$('exemptionDialog').close());
+$('exemptionDialog').addEventListener('click',ev=>{if(ev.target===$('exemptionDialog'))$('exemptionDialog').close();});
 $('saveExemptionBtn').addEventListener('click',saveExemption);
 $('exemptionList').addEventListener('click',async ev=>{const btn=ev.target.closest('[data-remove-exemption]');if(!btn)return;await removeExemption(btn.dataset.removeExemption);});
 $('toggleEditMode').addEventListener('click',()=>{
@@ -779,7 +777,7 @@ supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'|
 load().catch(err=>setStartupError(err&&err.message?err.message:'Could not start the Contribution page.'));
 })().catch(err=>{
  const node=document.getElementById('status');
- if(node){node.className='notice err';node.textContent='Could not start the Contribution page. Tap Refresh or return to the main menu and reopen it.';}
+ if(node){node.className='notice err';node.textContent='Could not start the Contribution page. Return to the main menu, sign in again, then reopen Contribution.';}
 });
 </script>
 <script src="./navigation.js?v=20261031f"></script>

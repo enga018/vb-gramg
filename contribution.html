@@ -166,7 +166,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-head{position:sticky;top:0}
 #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-body{padding:16px;overflow-y:auto}
 #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer{padding:12px 16px}
-#contribution-table tbody tr.selected{background:#edf5ff;box-shadow:inset 4px 0 #3972df}
+@media(min-width:701px){#contribution-table tbody tr.selected{background:#edf5ff;box-shadow:inset 4px 0 #3972df}}
 @media(max-width:1100px) and (min-width:701px){#contribution-layout{grid-template-columns:minmax(0,1fr) minmax(360px,.95fr);gap:12px}#desktop-detail-panel .sheet.desktop-inline-sheet .sheet-body{padding:12px}}
 @media(max-width:700px){#contribution-layout{display:block}#desktop-detail-panel{display:none!important}}
 </style>
@@ -644,6 +644,13 @@ function showPaymentForm(){
 
 
 function showExemptionsForm(){
+ if(window.matchMedia('(min-width: 701px)').matches){
+  const sheet=document.querySelector('.sheet');
+  $('overlay').appendChild(sheet);
+  sheet.classList.remove('desktop-inline-sheet');
+  $('desktop-detail-panel').classList.remove('has-selection');
+  $('overlay').classList.remove('hidden');
+ }
  $('sheetTitle').textContent='Exemptions';
  $('sheetSubtitle').textContent='Manage job cards excluded from Contribution.';
  $('sheetFooter').classList.add('hidden');
@@ -674,6 +681,13 @@ function parseBulkPayments(raw){
  return {rows,errors};
 }
 function showBulkPaymentForm(){
+ if(window.matchMedia('(min-width: 701px)').matches){
+  const sheet=document.querySelector('.sheet');
+  $('overlay').appendChild(sheet);
+  sheet.classList.remove('desktop-inline-sheet');
+  $('desktop-detail-panel').classList.remove('has-selection');
+  $('overlay').classList.remove('hidden');
+ }
  $('sheetFooter').classList.add('hidden');
  if(appRole!=="admin"){status("Only an approved administrator can register bulk bank payments.","err");return;}
  $('sheetTitle').textContent="Bulk bank payments";
@@ -808,12 +822,18 @@ $('toggleEditMode').addEventListener('click',()=>{
 });
 function closeCitizenDetail(){
  const sheet=document.querySelector('.sheet');
- if(window.matchMedia('(min-width: 701px)').matches&&sheet&&sheet.classList.contains('desktop-inline-sheet')){
-  $('overlay').appendChild(sheet);
-  sheet.classList.remove('desktop-inline-sheet');
-  $('desktop-detail-panel').classList.remove('has-selection');
-  currentCitizen=null;
-  document.querySelectorAll('#contribution-table tbody tr').forEach(row=>row.classList.remove('selected'));
+ if(window.matchMedia('(min-width: 701px)').matches){
+  if(sheet&&sheet.classList.contains('desktop-inline-sheet')){
+   $('overlay').appendChild(sheet);
+   sheet.classList.remove('desktop-inline-sheet');
+   $('desktop-detail-panel').classList.remove('has-selection');
+   currentCitizen=null;
+   document.querySelectorAll('#contribution-table tbody tr').forEach(row=>row.classList.remove('selected'));
+  }else{
+   $('overlay').classList.add('hidden');
+   if(currentCitizen&&citizens.some(c=>c.id===currentCitizen.id))openCitizen(currentCitizen.id);
+   else $('desktop-detail-panel').classList.remove('has-selection');
+  }
  }else{
   $('overlay').classList.add('hidden');
  }

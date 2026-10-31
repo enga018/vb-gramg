@@ -151,7 +151,7 @@ header .top-actions > button:hover {
 <div class="field"><label for="periodSelect">Select an open period</label><select id="periodSelect" required style="font:inherit;min-height:44px;padding:10px 12px;border:1px solid #cfd7e4;border-radius:10px;width:100%;background:#fff;color:var(--ink)"><option value="">Loading open periods…</option></select></div>
 <div class="field"><label for="days">No. of Days</label><input id="days" type="number" min="1" max="365" step="1" inputmode="numeric" placeholder="Days"></div>
 </div>
-<div class="actions" style="margin-top:10px"><button id="continueReviewBtn" type="button">Continue</button><button id="generateBtn" class="hidden" type="button" disabled>Generate Documents</button></div>
+<div class="actions" style="margin-top:10px"><button id="continueReviewBtn" type="button">Load Applicants</button></div>
 <div id="generateStatus" class="status hidden" aria-live="polite"></div>
 <div class="metrics hidden">
 <div class="metric"><span>Work Demand applicants</span><strong id="demandCount">—</strong></div>
@@ -163,13 +163,7 @@ header .top-actions > button:hover {
 
 
 
-<section id="exportsPanel" class="panel hidden" aria-labelledby="exports-heading">
-<h2 id="exports-heading">Export generated documents</h2>
-<p class="sub">Generate the lists after reviewing applicants. If you change applicant inclusion, period, or number of days, generate again before exporting.</p>
-<div class="export-group"><div class="export-title">Work Demand</div><div class="export-actions"><button id="demandPdfBtn" type="button" disabled>Export PDF</button><button id="demandCsvBtn" class="secondary" type="button" disabled>Export CSV</button></div></div>
-<div class="export-group"><div class="export-title">Unwilling to Work</div><div class="export-actions"><button id="unwillingPdfBtn" type="button" disabled>Export PDF</button><button id="unwillingCsvBtn" class="secondary" type="button" disabled>Export CSV</button></div></div>
-<p class="muted">Unwilling to Work is calculated only when you generate: active MIS Job Cards minus Job Cards represented in Work Demand.</p>
-</section>
+
 
 <div class="demand-unwilling-grid">
 <section id="reviewPanel" class="panel hidden" aria-labelledby="review-heading">
@@ -178,7 +172,7 @@ header .top-actions > button:hover {
 <div class="table-wrap"><table id="reviewTable"><thead><tr><th>Job Card No.</th><th>Head of Household</th><th>Outstanding Amount</th><th>Action</th></tr></thead><tbody id="reviewBody"><tr><td colspan="4" class="empty">Loading applicants…</td></tr></tbody></table></div><div class="table-foot"><span id="reviewPageLabel" class="page-label"></span><div class="page-actions"><button id="reviewPrev" class="secondary" type="button">Previous</button><button id="reviewNext" class="secondary" type="button">Next</button></div></div>
 </section>
 <section id="demandPanel" class="panel hidden" aria-labelledby="demand-heading">
-<div class="section-heading"><h2 id="demand-heading">Demand</h2><span id="demandBadge" class="count">0</span></div>
+<div class="section-heading"><h2 id="demand-heading">Demand</h2><span id="demandBadge" class="count">0</span><div class="export-actions"><button id="demandPdfBtn" type="button" disabled>Export PDF</button><button id="demandCsvBtn" class="secondary" type="button" disabled>Export CSV</button></div></div>
 <p class="sub">Applicants selected in MIS are included automatically when their Job Cards have no outstanding balance. Applicants you include from the review list are added here.</p>
 <div class="table-wrap"><table id="demandTable"><thead><tr><th>Job Card No.</th><th>Name of Applicant</th><th>Applicant No.</th></tr></thead><tbody id="demandBody"><tr><td colspan="3" class="empty">Loading applicants…</td></tr></tbody></table></div><div class="table-foot"><span id="demandPageLabel" class="page-label"></span><div class="page-actions"><button id="demandPrev" class="secondary" type="button">Previous</button><button id="demandNext" class="secondary" type="button">Next</button></div></div>
 
@@ -187,7 +181,7 @@ header .top-actions > button:hover {
 
 
 <section id="unwillingPanel" class="panel hidden" aria-labelledby="unwilling-heading">
-<div class="section-heading"><h2 id="unwilling-heading">Unwilling to Work</h2><span id="unwillingBadge" class="count">0</span></div>
+<div class="section-heading"><h2 id="unwilling-heading">Unwilling to Work</h2><span id="unwillingBadge" class="count">0</span><div class="export-actions"><button id="unwillingPdfBtn" type="button" disabled>Export PDF</button><button id="unwillingCsvBtn" class="secondary" type="button" disabled>Export CSV</button></div></div>
 <p class="sub">Active MIS Job Cards not represented in Work Demand. This list is recalculated when you include an applicant or reload data.</p>
 <div class="table-wrap"><table id="unwillingTable"><thead><tr><th>Job Card No.</th><th>Head of Household</th></tr></thead><tbody id="unwillingBody"><tr><td colspan="2" class="empty">Loading Job Cards…</td></tr></tbody></table></div>
 <div class="table-foot"><span id="unwillingPageLabel" class="page-label"></span><div class="page-actions"><button id="unwillingPrev" class="secondary" type="button">Previous</button><button id="unwillingNext" class="secondary" type="button">Next</button></div></div>
@@ -254,8 +248,6 @@ function applyWorkflowVisibility(){
  const setup=$("period-heading").closest("section");
  setup.classList.remove("hidden");
  for(const id of ["reviewPanel","demandPanel","unwillingPanel"]) $(id).classList.toggle("hidden",!workflowStarted);
- $("generateBtn").classList.toggle("hidden",!workflowStarted);
- if(!generated) $("exportsPanel").classList.add("hidden");
  $("continueReviewBtn").textContent=workflowStarted?"Review applicants":"Load Applicants";
 }
 const normalize=value=>String(value==null?'':value).trim();
@@ -320,7 +312,16 @@ async function loadPeriods(){
  }}
 function status(message,type='info'){const el=$('status');el.textContent=message;el.className='status'+(type==='error'?' error':type==='success'?' success':'');}
 function generatedStatus(message,type='info'){const el=$('generateStatus');el.textContent=message;el.className='status'+(type==='error'?' error':type==='success'?' success':'');}
-function invalidateGenerated(){generated=null;pendingSnapshot=null;if($('confirmDialog').open&&!saving)$('confirmDialog').close();$('exportsPanel').classList.add('hidden');$('generateBtn').disabled=loading||!allCards.length;}
+function invalidateGenerated(){
+ pendingSnapshot=null;
+ if($('confirmDialog').open&&!saving)$('confirmDialog').close();
+ const p=selectedPeriod(),month=p?monthOfPeriod(p):'',days=Number($('days').value);
+ generated=workflowStarted&&p&&p.status==='open'&&month&&Number.isInteger(days)&&days>=1&&days<=365?{
+  period:monthLabel(month)||p.period_name||'',contributionMonth:month+'-01',periodId:p.id||'',periodName:p.period_name||'',draftId,days,
+  demand:demandApplicants.map(a=>({...a})),unwilling:getUnwillingCards(),createdAt:new Date().toISOString()
+ }:null;
+ ['demandPdfBtn','demandCsvBtn','unwillingPdfBtn','unwillingCsvBtn'].forEach(id=>{const el=$(id);if(el)el.disabled=!generated;});
+}
 function stableApplicantKey(jobCard,values,nameIndex,numberIndex,uniqueIdIndex){
  const uniqueId=normalize(uniqueIdIndex>=0?values[uniqueIdIndex]:'');
  if(uniqueId)return 'uid:'+uniqueId.toLocaleLowerCase();
@@ -390,10 +391,10 @@ function buildCards(headers,rows){
 function withTimeout(promise,ms,label){return Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(new Error(label+' timed out after '+Math.round(ms/1000)+' seconds. Refresh the page; if it repeats, sign in again from the main menu.')),ms))]);}
 async function load(){
  if(loading)return;
- loading=true;const seq=++loadSequence;$('refreshBtn').disabled=true;$('generateBtn').disabled=true;
+ loading=true;const seq=++loadSequence;$('refreshBtn').disabled=true;
  $('reviewBody').innerHTML='<tr><td colspan="4" class="empty">Loading applicants…</td></tr>';
  $('demandBody').innerHTML='<tr><td colspan="3" class="empty">Loading applicants…</td></tr>';
- $('exportsPanel').classList.add('hidden');generated=null;
+ generated=null;
  try{
   status('Checking your sign-in session…');
   const {data:sessionData,error:sessionError}=await withTimeout(supabaseClient.auth.getSession(),6000,'Sign-in session check');
@@ -444,7 +445,7 @@ async function load(){
   reviewApplicants=allReviewCandidates.map(a=>({...a}));
   renderLists();
   status('MIS and Contribution data loaded.','success');
-  $('generateBtn').disabled=false;
+  
  }catch(error){
   // Never leave the period selector displaying an indefinite loading state.
   const periodSelect=$('periodSelect');
@@ -455,7 +456,7 @@ async function load(){
   status('Could not prepare Work Demand: '+(error&&error.message?error.message:String(error)),'error');
   $('reviewBody').innerHTML='<tr><td colspan="4" class="empty">Could not load the review list.</td></tr>';
   $('demandBody').innerHTML='<tr><td colspan="3" class="empty">Could not load Work Demand.</td></tr>';
- }finally{loading=false;$('refreshBtn').disabled=false;$('generateBtn').disabled=!allCards.length;}
+ }finally{loading=false;$('refreshBtn').disabled=false;}
 }
 function renderPageControls(kind,total){
  const totalPages=Math.max(1,Math.ceil(total/pageSize));
@@ -475,6 +476,7 @@ function renderLists(){
  $('reviewBadge').textContent=reviewApplicants.length;$('reviewCount').textContent=reviewApplicants.length;
  $('demandBadge').textContent=demandApplicants.length;$('demandCount').textContent=demandApplicants.length;
  $('jobCardCount').textContent=allCards.length;
+ invalidateGenerated();
  const reviewBody=$('reviewBody');reviewBody.replaceChildren();
  const reviewPage=renderPageControls('review',reviewApplicants.length);
  if(!reviewApplicants.length){reviewBody.innerHTML='<tr><td colspan="4" class="empty">No selected applicants with outstanding contributions need review.</td></tr>';}
@@ -524,32 +526,10 @@ $('continueReviewBtn').addEventListener('click',()=>{
  workflowStarted=true;
  applyWorkflowVisibility();
  renderLists();
- status('Applicants loaded. Review outstanding balances, include or remove applicants, then generate the lists.','success');
+ status('Applicants loaded. Review outstanding balances and include or remove applicants. Lists and exports update automatically.','success');
  $('reviewPanel').scrollIntoView({behavior:'smooth',block:'start'});
 });
 $('days').addEventListener('input',()=>{invalidateGenerated();});
-$('generateBtn').addEventListener('click',()=>{
- const chosenPeriod=selectedPeriod(),monthValue=chosenPeriod?monthOfPeriod(chosenPeriod):"",days=Number($('days').value);
- if(!workflowStarted){status('Load applicants first.','error');return;}
- if(!chosenPeriod||chosenPeriod.status!=="open"||!monthValue){$('periodSelect').focus();generatedStatus('Select an existing open period before generating.','error');$('generateStatus').classList.remove('hidden');return;}
- if(!Number.isInteger(days)||days<1||days>365){$('days').focus();generatedStatus('Enter a whole number of days from 1 to 365.','error');$('generateStatus').classList.remove('hidden');return;}
- generated={
-  period:monthLabel(monthValue)||chosenPeriod.period_name||'',
-  contributionMonth:monthValue?monthValue+'-01':'',
-  periodId:chosenPeriod.id||'',
-  periodName:chosenPeriod.period_name||'',
-  draftId,
-  days,
-  demand:demandApplicants.map(a=>({...a})),
-  unwilling:getUnwillingCards(),
-  createdAt:new Date().toISOString()
- };
- $('exportsPanel').classList.remove('hidden');
- ['demandPdfBtn','demandCsvBtn','unwillingPdfBtn','unwillingCsvBtn'].forEach(id=>$(id).disabled=false);
- generatedStatus('Lists generated in this session. Nothing was saved as a permanent demand record. Work Demand: '+generated.demand.length+' applicant(s). Unwilling to Work: '+generated.unwilling.length+' Job Card(s). Export the files you need.','success');
- $('generateStatus').classList.remove('hidden');
- $('exportsPanel').scrollIntoView({behavior:'smooth',block:'start'});
-});
 function csvCell(value){const s=String(value??'');return '"'+s.replace(/"/g,'""')+'"';}
 function downloadCsv(filename,rows){
  const csv='\ufeff'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n');

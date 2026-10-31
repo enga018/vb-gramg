@@ -1,41 +1,32 @@
 #!/usr/bin/env python3
-"""Read-only Selenium diagnostics for the official VBGRAMG registration register.
+"""Read-only headless navigation to the VBGRAMG Registration Application Register.
 
-This script only navigates the portal and saves HTML/JSON diagnostics. It never
-contacts Supabase or modifies active MIS. It does not bypass CAPTCHA, bot
-protection, or use supplied session cookies.
+The Payload URL is supplied at workflow dispatch time and is never printed.
+This script does not contact Supabase or modify active MIS data.
 """
 from __future__ import annotations
 
 import json
+import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlsplit
 
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, WebDriverException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import Select, WebDriverWait
+from selenium.webdriver.support.ui import WebDriverWait
 
-VILLAGE = "New Serchhip North"
-REPORTING_ROOT = "https://vbgramgrep.dord.gov.in/VBGRAMG/"
-PUBLIC_HOME = "https://vbgramg.dord.gov.in/vbgramg/home.aspx"
-START_URL = REPORTING_ROOT + "Progofficer/PoIndexFrame.aspx?" + urlencode({
-    "flag_debited": "S", "lflag": "eng", "District_Code": "2207",
-    "district_name": "SERCHHIP", "state_name": "MIZORAM", "state_Code": "22",
-    "finyear": "2026-2027", "check": "1", "block_name": "serchhip",
-    "Block_Code": "2207001",
-})
-DIRECT_REGISTER_URL = REPORTING_ROOT + "writereaddata/citizen_out/panchregpeople_2207001005_eng2627.html"
 OUT = Path("output")
 OUT.mkdir(parents=True, exist_ok=True)
+PAYLOAD_URL = os.environ.get("MIS_PAYLOAD_URL", "").strip()
 
 
 def snapshot(driver, label):
     try:
-        WebDriverWait(driver, 12).until(
+        WebDriverWait(driver, 18).until(
             lambda d: d.execute_script("return document.readyState") in ("interactive", "complete")
         )
     except TimeoutException:
@@ -45,18 +36,14 @@ def snapshot(driver, label):
       return {
         finalUrl: location.href, title: document.title || '',
         readyState: document.readyState,
-        bodyText: norm(document.body?.innerText || '').slice(0,5000),
+        bodyText: norm(document.body?.innerText || '').slice(0,8000),
         links: [...document.querySelectorAll('a[href]')].map(a => ({
           text: norm(a.innerText || a.textContent).slice(0,180), href:a.href
-        })).filter(x => /job card|registration application|register|new serchhip north|panchregpeople/i.test(x.text+' '+x.href)).slice(0,100),
+        })).filter(x => /job card|registration application|register|panchregpeople/i.test(x.text+' '+x.href)).slice(0,120),
         frames: [...document.querySelectorAll('iframe,frame')].map(f => ({
           name:f.name||'', title:f.title||'', src:f.src||''
         })).slice(0,50),
-        selects: [...document.querySelectorAll('select')].map(s => ({
-          name:s.name||'', id:s.id||'',
-          options:[...s.options].map(o=>({text:norm(o.text),value:o.value})).slice(0,100)
-        })).slice(0,30),
-        tableCount: document.querySelectorAll('table').length,
+        tables: document.querySelectorAll('table').length,
         tableRowCounts: [...document.querySelectorAll('table')].map(t=>t.rows.length).slice(0,30)
       };
     })()""")
@@ -67,77 +54,69 @@ def snapshot(driver, label):
     return data
 
 
-def all_windows_and_frames(driver):
-    """Yield each available top-level window/frame, restoring the default frame after each."""
-    original = driver.current_window_handle
+def each_context(driver):
+    """Visit each window and its immediate frames, restoring default content."""
     for handle in list(driver.window_handles):
         try:
             driver.switch_to.window(handle)
             driver.switch_to.default_content()
-            yield driver, driver.current_url
+            yield
             frames = driver.find_elements(By.CSS_SELECTOR, "iframe,frame")
             for frame in frames:
                 try:
                     driver.switch_to.default_content()
                     driver.switch_to.frame(frame)
-                    yield driver, driver.current_url
+                    yield
                 except WebDriverException:
                     continue
         except WebDriverException:
             continue
     try:
-        driver.switch_to.window(original)
         driver.switch_to.default_content()
     except WebDriverException:
         pass
 
 
-def click_text_any_frame(driver, pattern, timeout=3):
+def click_text_any_context(driver, pattern, label, timeout=5):
     rx = re.compile(pattern, re.I)
-    for _, frame_url in all_windows_and_frames(driver):
+    for _ in each_context(driver):
         try:
-            candidates = driver.find_elements(By.CSS_SELECTOR, "a,button,input[type=button],input[type=submit],[onclick]")
-            for el in candidates:
-                text = " ".join(filter(None, [el.text, el.get_attribute("value"), el.get_attribute("title")]))
-                if rx.search(text) and el.is_displayed() and el.is_enabled():
-                    before = driver.current_url
-                    driver.execute_script("arguments[0].click()", el)
+            candidates = driver.find_elements(
+                By.CSS_SELECTOR, "a,button,input[type=button],input[type=submit],[onclick],[role=button]"
+            )
+            for element in candidates:
+                text = " ".join(filter(None, [
+                    element.text, element.get_attribute("value"),
+                    element.get_attribute("title"), element.get_attribute("aria-label")
+                ]))
+                if rx.search(text) and element.is_displayed() and element.is_enabled():
+                    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", element)
+                    driver.execute_script("arguments[0].click();", element)
                     try:
-                        WebDriverWait(driver, timeout).until(lambda d: d.current_url != before)
+                        WebDriverWait(driver, timeout).until(
+                            lambda d: d.execute_script("return document.readyState") in ("interactive", "complete")
+                        )
                     except TimeoutException:
                         pass
-                    return {"clicked": pattern, "frameUrl": frame_url, "urlAfterClick": driver.current_url}
+                    return {"step": label, "matchedText": text[:200], "contextUrl": driver.current_url}
         except WebDriverException:
             continue
     try:
         driver.switch_to.default_content()
     except WebDriverException:
         pass
-    return None
-
-
-def select_village_any_frame(driver):
-    for _, frame_url in all_windows_and_frames(driver):
-        try:
-            for sel_el in driver.find_elements(By.TAG_NAME, "select"):
-                try:
-                    select = Select(sel_el)
-                    matches = [o.text.strip() for o in select.options if VILLAGE.casefold() in o.text.casefold()]
-                    if matches:
-                        select.select_by_visible_text(matches[0])
-                        return {"selectedVillage": matches[0], "frameUrl": frame_url}
-                except WebDriverException:
-                    continue
-        except WebDriverException:
-            continue
-    try:
-        driver.switch_to.default_content()
-    except WebDriverException:
-        pass
-    return None
+    return {"step": label, "matchedText": None, "error": "No matching visible control found"}
 
 
 def main():
+    if not PAYLOAD_URL:
+        print("No Payload URL supplied. Run this workflow manually and provide the Payload URL input.")
+        return
+
+    parsed = urlsplit(PAYLOAD_URL)
+    if parsed.scheme != "https" or parsed.hostname != "vbgramgrep.dord.gov.in" or "/VBGRAMG/IndexFrame.aspx" not in parsed.path:
+        raise SystemExit("Payload URL rejected: expected the official VBGRAMG IndexFrame HTTPS URL.")
+
     pages, actions = [], []
     options = Options()
     options.add_argument("--headless=new")
@@ -145,83 +124,69 @@ def main():
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--window-size=1440,1200")
     options.add_argument("--lang=en-US")
-    driver = webdriver.Chrome(options=options)  # Selenium Manager resolves ChromeDriver.
-    driver.set_page_load_timeout(45)
-    driver.set_script_timeout(20)
+    driver = webdriver.Chrome(options=options)
+    driver.set_page_load_timeout(60)
+    driver.set_script_timeout(25)
 
     try:
-        for label, url in [("public-home", PUBLIC_HOME), ("reporting-entry", START_URL)]:
-            try:
-                driver.get(url)
-                pages.append(snapshot(driver, label))
-            except Exception as exc:
-                pages.append({"label": label, "requestedUrl": url, "error": f"{type(exc).__name__}: {exc}"})
+        driver.get(PAYLOAD_URL)
+        pages.append(snapshot(driver, "village-council-entry"))
 
-        action = select_village_any_frame(driver)
-        if action:
-            actions.append(action)
-            pages.append(snapshot(driver, "after-village-selection"))
-        action = click_text_any_frame(driver, r"R1\.?\s*Job Card|Job Card")
-        if action:
-            actions.append(action)
-            pages.append(snapshot(driver, "after-job-card"))
-        action = click_text_any_frame(driver, r"Registration Application Register")
-        if action:
-            actions.append(action)
-            pages.append(snapshot(driver, "after-registration-register"))
+        actions.append(click_text_any_context(
+            driver, r"R1\\s*\\.?\\s*Job\\s*Card\\s*/\\s*Registration",
+            "expand-r1-job-card-registration"
+        ))
+        pages.append(snapshot(driver, "after-expanding-r1"))
 
-        # Inspect frames and windows for the final report URL after navigation.
-        for handle in list(driver.window_handles):
+        actions.append(click_text_any_context(
+            driver, r"Registration\\s+Application\\s+Register",
+            "open-registration-application-register", timeout=12
+        ))
+        pages.append(snapshot(driver, "registration-application-register"))
+
+        # Capture any report loaded in a frame or a newly opened window.
+        for _ in each_context(driver):
             try:
-                driver.switch_to.window(handle)
-                driver.switch_to.default_content()
-                for frame in [None] + driver.find_elements(By.CSS_SELECTOR, "iframe,frame"):
-                    try:
-                        driver.switch_to.default_content()
-                        if frame is not None:
-                            driver.switch_to.frame(frame)
-                        if "panchregpeople_" in driver.current_url:
-                            report = {
-                                "label": "registration-report",
-                                "finalUrl": driver.current_url,
-                                "title": driver.title,
-                                "bodyText": driver.find_element(By.TAG_NAME, "body").text[:2000],
-                                "tableCount": len(driver.find_elements(By.TAG_NAME, "table")),
-                                "tableRowCounts": driver.execute_script("return [...document.querySelectorAll('table')].map(t=>t.rows.length)")
-                            }
-                            pages.append(report)
-                            (OUT / "registration-report.html").write_text(driver.page_source, encoding="utf-8")
-                    except WebDriverException:
-                        continue
+                current = driver.current_url
+                body = driver.find_element(By.TAG_NAME, "body").text[:5000]
+                if "panchregpeople" in current.lower() or "registration application register" in body.lower():
+                    pages.append({
+                        "label": "report-context",
+                        "finalUrl": current,
+                        "title": driver.title,
+                        "bodyText": body,
+                        "tableCount": len(driver.find_elements(By.TAG_NAME, "table")),
+                        "tableRowCounts": driver.execute_script(
+                            "return [...document.querySelectorAll('table')].map(t=>t.rows.length)"
+                        )
+                    })
+                    (OUT / "report-context.html").write_text(driver.page_source, encoding="utf-8")
             except WebDriverException:
                 continue
-
-        # Direct navigation is diagnostic only; it does not replace portal navigation.
-        try:
-            driver.switch_to.default_content()
-            driver.get(DIRECT_REGISTER_URL)
-            pages.append(snapshot(driver, "direct-register-diagnostic"))
-        except Exception as exc:
-            pages.append({"label": "direct-register-diagnostic", "error": f"{type(exc).__name__}: {exc}"})
+    except Exception as exc:
+        pages.append({"label": "navigation-error", "error": f"{type(exc).__name__}: {exc}"})
     finally:
         driver.quit()
 
     report = {
-        "mode": "selenium-cloud-diagnostics-only",
-        "target": {"village": VILLAGE, "district": "SERCHHIP", "state": "MIZORAM",
-                   "block": "serchhip", "financialYear": "2026-2027"},
+        "mode": "read-only-headless-navigation",
+        "target": {"village": "New Serchhip North", "district": "SERCHHIP",
+                   "state": "MIZORAM", "block": "serchhip", "financialYear": "2026-2027"},
+        "payloadUrlHost": parsed.hostname,
+        "payloadUrlPath": parsed.path,
         "capturedAtUtc": datetime.now(timezone.utc).isoformat(),
         "actions": actions, "pages": pages,
-        "activeMisUpdated": False, "supabaseContacted": False,
-        "nextStep": "Review diagnostics. Payload URL cache validation is not yet wired in because the original VBA's exact payload-validation routine has not been inspected."
+        "activeMisUpdated": False, "supabaseContacted": False
     }
-    (OUT / "portal-diagnostics.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    (OUT / "portal-diagnostics.json").write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     print(json.dumps({
         "mode": report["mode"], "actions": actions,
-        "pages": [{"label": x.get("label"), "finalUrl": x.get("finalUrl"),
-                   "title": x.get("title"), "bodyText": x.get("bodyText", "")[:350],
-                   "error": x.get("error"), "tableCount": x.get("tableCount"),
-                   "tableRowCounts": x.get("tableRowCounts")} for x in pages],
+        "pages": [{"label": p.get("label"), "finalUrl": p.get("finalUrl"),
+                   "title": p.get("title"), "bodyText": p.get("bodyText", "")[:500],
+                   "error": p.get("error"), "tableCount": p.get("tableCount"),
+                   "tableRowCounts": p.get("tableRowCounts")} for p in pages],
         "activeMisUpdated": False, "supabaseContacted": False
     }, ensure_ascii=False, indent=2))
 

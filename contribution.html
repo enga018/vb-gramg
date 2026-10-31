@@ -227,6 +227,30 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer .transaction-actions{gap:5px}
  #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer .transaction-actions .btn{min-height:36px;padding:6px 8px;font-size:.76rem}
 }
+
+/* Mobile horizontal breathing room: keep text clear of both card edges. */
+@media(max-width:700px){
+  #contribution-table tbody tr.contribution-row td.mobile-details{
+    padding-left:16px;
+    padding-right:16px;
+  }
+  #overlay .sheet-head{
+    padding-left:16px;
+    padding-right:16px;
+  }
+  #overlay .sheet-body{
+    padding-left:16px!important;
+    padding-right:16px!important;
+  }
+  #overlay .sheet-body .entry{
+    padding-left:10px;
+    padding-right:10px;
+  }
+  #overlay .sheet-footer{
+    padding-left:16px!important;
+    padding-right:16px!important;
+  }
+}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>

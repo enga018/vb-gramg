@@ -132,4 +132,4 @@ $('login-form').addEventListener('submit',async e=>{e.preventDefault();$('login-
 $('logout-button').addEventListener('click',async()=>{const {error}=await supabaseClient.auth.signOut();showLoggedOut();setStatus($('login-status'),error?'Sign-out error: '+error.message:'You are signed out.',error?'error':'')});
 supabaseClient.auth.onAuthStateChange((event)=>{if(event==='SIGNED_OUT'){authSequence++;showLoggedOut();setStatus($('login-status'),'You are signed out.')}else if(event==='TOKEN_REFRESHED')Promise.resolve().then(()=>supabaseClient.auth.getSession()).then(({data})=>data&&data.session?verifyAccess(data.session.user):false)});
 supabaseClient.auth.getSession().then(({data,error})=>{if(error){showLoggedOut();setStatus($('login-status'),error.message,'error');return}return verifyAccess(data.session?data.session.user:null)});
-</script><script src="./navigation.js?v=20261031e"></script></body></html>
+</script><script src="./navigation.js?v=20261031f"></script></body></html>

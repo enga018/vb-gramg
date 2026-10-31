@@ -208,7 +208,7 @@ function renderExemptions(){
 }
 async function saveExemption(){
  if(appRole!=="admin"||busy)return;
- const jobCards=[...new Set($('exemptJobCards').value.split(/\\r?\\n/).map(v=>v.trim()).filter(Boolean))],note=$('exemptNote').value.trim();
+ const jobCards=[...new Set($('exemptJobCards').value.split(/\r?\n/).map(v=>v.trim()).filter(Boolean))],note=$('exemptNote').value.trim();
  if(!jobCards.length){$('exemptionStatus').textContent='Enter at least one full job card number, one per line.';$('exemptJobCards').focus();return;}
  if(jobCards.some(v=>v.length>100)){$('exemptionStatus').textContent='A job card number is too long. Check the pasted list.';return;}
  if(jobCards.length>100){$('exemptionStatus').textContent='Add at most 100 job cards in one batch.';return;}

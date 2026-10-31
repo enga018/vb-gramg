@@ -61,7 +61,6 @@
     panel.style.setProperty("left", "auto", "important");
     panel.style.setProperty("width", "min(260px, calc(100vw - 28px))", "important");
     panel.style.setProperty("padding", "9px", "important");
-    panel.style.setProperty("display", "flex", "important");
     panel.style.setProperty("flex-direction", "column", "important");
     panel.style.setProperty("gap", "6px", "important");
     panel.style.setProperty("background", "#ffffff", "important");

@@ -111,12 +111,21 @@ header .top-actions > button:hover {
 
 /* Keep the shared three-dot navigation out of the Citizen View modal. */
 body:has(#overlay:not(.hidden)) .global-nav{visibility:hidden!important;pointer-events:none!important}
+/* Standardize Contribution page action buttons with the other app pages. */
+.page-actions-bar>.btn,.page-actions-bar>button.btn,.page-actions-bar>a.btn{
+box-sizing:border-box!important;min-height:44px!important;padding:10px 16px!important;
+border:1px solid #dfe5ee!important;border-radius:12px!important;
+background:#eef2f7!important;color:#354258!important;
+font:650 .92rem/1.2 system-ui,sans-serif!important;text-decoration:none!important;
+box-shadow:none!important;transform:none!important}
+.page-actions-bar>.btn:hover{background:#e3e9f1!important;color:#263449!important}
+.page-actions-bar>.btn.hidden{display:none!important}
 .page-actions-bar{display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;margin:0 auto 16px;width:min(100%,1440px)}@media(max-width:700px){.page-actions-bar{justify-content:stretch}.page-actions-bar>*{flex:1 1 auto}}</style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
 <body>
 <header class="topbar app-header"><div class="brand"><h1>Contribution</h1><p>Track contribution charges, payments and outstanding balances.</p></div></header>
-<div class="top-actions page-actions-bar"><a class="btn ghost small menu-link" href="./">Back to menu</a><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bank Payment</button><button class="btn ghost small" id="refreshBtn" type="button">Refresh</button></div>
+<div class="top-actions page-actions-bar"><a class="btn ghost small menu-link" href="./">Back to menu</a><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk Payment</button><button class="btn ghost small" id="refreshBtn" type="button">Refresh</button></div>
 <main>
 <div id="status" class="notice info hidden" role="status" aria-live="polite"></div>
 <div id="app" class="hidden">
@@ -769,6 +778,6 @@ load().catch(err=>setStartupError(err&&err.message?err.message:'Could not start 
  if(node){node.className='notice err';node.textContent='Could not start the Contribution page. Tap Refresh or return to the main menu and reopen it.';}
 });
 </script>
-<script src="./navigation.js"></script>
+<script src="./navigation.js?v=20261031d"></script>
 </body>
 </html>

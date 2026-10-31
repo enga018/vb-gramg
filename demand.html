@@ -207,6 +207,38 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
   #unwillingTable th:nth-child(1),#unwillingTable td:nth-child(1){width:42%}
   #unwillingTable th:nth-child(2),#unwillingTable td:nth-child(2){width:58%}
 }
+
+/* Desktop: keep Job Card numbers and person names on a single line. */
+@media(min-width:901px){
+  #reviewPanel .table-wrap,
+  #demandPanel .table-wrap,
+  #unwillingPanel .table-wrap{
+    overflow-x:auto;
+  }
+  #reviewTable,#demandTable,#unwillingTable{
+    table-layout:auto;
+    width:100%;
+  }
+  #reviewTable td:nth-child(1),
+  #reviewTable td:nth-child(2),
+  #demandTable td:nth-child(1),
+  #demandTable td:nth-child(2),
+  #unwillingTable td:nth-child(1),
+  #unwillingTable td:nth-child(2){
+    white-space:nowrap;
+    overflow-wrap:normal;
+    word-break:normal;
+  }
+  #reviewTable td:nth-child(1),
+  #demandTable td:nth-child(1),
+  #unwillingTable td:nth-child(1){min-width:205px}
+  #reviewTable td:nth-child(2),
+  #demandTable td:nth-child(2),
+  #unwillingTable td:nth-child(2){min-width:145px}
+  #reviewTable td:nth-child(3){min-width:112px}
+  #reviewTable td:nth-child(4){min-width:76px}
+  #demandTable td:nth-child(3){min-width:68px}
+}
 </style>
 </head>
 <body>

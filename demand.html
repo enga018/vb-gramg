@@ -239,9 +239,15 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
   #demandTable td:nth-child(2),
   #unwillingTable td:nth-child(2){min-width:145px}
   #reviewTable td:nth-child(3){min-width:112px}
-  #reviewTable td:nth-child(4){min-width:76px}
+  #reviewTable td:nth-child(4){min-width:44px;width:44px;text-align:center}
+  #reviewTable .include-btn{display:none}
+  #reviewTable .include-check{display:inline-flex;align-items:center;justify-content:center;width:100%;min-height:28px;cursor:pointer}
+  #reviewTable .include-check input{width:16px;height:16px;margin:0;accent-color:#2457c5;cursor:pointer}
+  #reviewTable .include-check input:disabled{cursor:not-allowed;opacity:.55}
+  #reviewTable .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  #reviewTable th,#reviewTable td,#demandTable th,#demandTable td{padding-top:7px;padding-bottom:7px}
   #demandTable th:nth-child(3),
-  #demandTable td:nth-child(3){min-width:52px;width:52px;padding-left:4px;padding-right:4px;text-align:center}
+  #demandTable td:nth-child(3){min-width:48px;width:48px;padding-left:4px;padding-right:4px;text-align:center}
 }
 </style>
 </head>
@@ -593,7 +599,8 @@ function renderLists(){
  else reviewApplicants.slice(reviewPage.start,reviewPage.itemsEnd).forEach((applicant,offset)=>{
   const index=reviewPage.start+offset;
   const tr=document.createElement('tr');
-  const included=demandApplicants.some(a=>a.identity===applicant.identity);tr.innerHTML='<td class="jobcard" data-label="Job Card No.">'+esc(applicant.jobCard)+'</td><td class="applicant" data-label="Head of Household">'+esc(applicant.household||'—')+'</td><td class="outstanding" data-label="Outstanding Amount">'+esc(formatRupees(applicant.outstanding))+'</td><td class="action-cell" data-label="Action"><button type="button" class="include-btn" data-include="'+index+'">'+(included?'Remove':'Include')+'</button></td>';
+  const included=demandApplicants.some(a=>a.identity===applicant.identity);
+  tr.innerHTML='<td class="jobcard" data-label="Job Card No.">'+esc(applicant.jobCard)+'</td><td class="applicant" data-label="Head of Household">'+esc(applicant.household||'—')+'</td><td class="outstanding" data-label="Outstanding Amount">'+esc(formatRupees(applicant.outstanding))+'</td><td class="action-cell" data-label="Action"><label class="include-check"><input type="checkbox" data-include="'+index+'" '+(included?'checked':'')+' '+(demandFinalised?'disabled':'')+' aria-label="'+(included?'Remove from Work Demand':'Include in Work Demand')+'" title="'+(included?'Included in Work Demand':'Include in Work Demand')+'"><span class="sr-only">Include in Work Demand</span></label><button type="button" class="include-btn" data-include="'+index+'">'+(included?'Remove':'Include')+'</button></td>';
   tr.querySelector('.include-btn').disabled=demandFinalised;
   reviewBody.appendChild(tr);
  });
@@ -620,8 +627,8 @@ for(const kind of ['review','demand','unwilling']){
  $(kind+'Next').addEventListener('click',()=>{tablePages[kind]++;renderLists();});
 }
 $('reviewBody').addEventListener('click',event=>{
- const button=event.target.closest('[data-include]');if(!button)return;
- const index=Number(button.dataset.include),applicant=reviewApplicants[index];if(!applicant)return;
+ const control=event.target.closest('[data-include]');if(!control||control.disabled)return;
+ const index=Number(control.dataset.include),applicant=reviewApplicants[index];if(!applicant)return;
  const existing=demandApplicants.findIndex(a=>a.identity===applicant.identity);
  if(demandFinalised)return;
  if(existing>=0)demandApplicants.splice(existing,1);else demandApplicants.push(applicant);

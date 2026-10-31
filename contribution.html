@@ -208,18 +208,30 @@ function renderExemptions(){
 }
 async function saveExemption(){
  if(appRole!=="admin"||busy)return;
- const jobCard=$('exemptJobCard').value.trim(),note=$('exemptNote').value.trim();
- if(!jobCard){$('exemptionStatus').textContent='Enter the full job card number.';$('exemptJobCard').focus();return;}
- busy=true;$('saveExemptionBtn').disabled=true;$('saveExemptionBtn').textContent='Saving…';
+ const jobCards=[...new Set($('exemptJobCards').value.split(/\\r?\\n/).map(v=>v.trim()).filter(Boolean))],note=$('exemptNote').value.trim();
+ if(!jobCards.length){$('exemptionStatus').textContent='Enter at least one full job card number, one per line.';$('exemptJobCards').focus();return;}
+ if(jobCards.some(v=>v.length>100)){$('exemptionStatus').textContent='A job card number is too long. Check the pasted list.';return;}
+ if(jobCards.length>100){$('exemptionStatus').textContent='Add at most 100 job cards in one batch.';return;}
+ busy=true;$('saveExemptionBtn').disabled=true;$('saveExemptionBtn').textContent='Saving 0/'+jobCards.length+'…';
+ let saved=0,failed=[];
  try{
-  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'save-exemption',job_card_number:jobCard,exempt:true,note}});
-  if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save exemption.');
-  exemptions=data.exemptions||[];entries=entries.filter(e=>String(e.job_card_number||"").trim()!==jobCard);extraCharges=extraCharges.filter(e=>String(e.job_card_number||"").trim()!==jobCard);deriveCitizens();renderExemptions();render();
-  $('exemptJobCard').value='';$('exemptNote').value='';$('exemptionStatus').textContent=jobCard+' is now exempt. Its FTO history is retained and contribution balance is excluded.';
-  if(currentCitizen&&currentCitizen.id===jobCard)$('overlay').classList.add('hidden');
-  status('Exemption saved. Contribution ledger, extra charges, and contribution-citizen records cleared; FTO history retained.');
- }catch(err){$('exemptionStatus').textContent=err.message||'Could not save exemption.';}
- finally{busy=false;$('saveExemptionBtn').disabled=false;$('saveExemptionBtn').textContent='Add exemption';}
+  for(const jobCard of jobCards){
+   try{
+    const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'save-exemption',job_card_number:jobCard,exempt:true,note}});
+    if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save exemption.');
+    exemptions=data.exemptions||exemptions;
+    entries=entries.filter(e=>String(e.job_card_number||"").trim()!==jobCard);
+    extraCharges=extraCharges.filter(e=>String(e.job_card_number||"").trim()!==jobCard);
+    saved++;
+   }catch(err){failed.push(jobCard+': '+(err.message||'save failed'));}
+   $('saveExemptionBtn').textContent='Saving '+(saved+failed.length)+'/'+jobCards.length+'…';
+  }
+  deriveCitizens();renderExemptions();render();
+  if(saved===jobCards.length){$('exemptJobCards').value='';$('exemptNote').value='';$('exemptionStatus').textContent=saved+' job card(s) are now exempt. FTO history is retained and contribution balances are excluded.';status(saved+' exemption(s) saved.');}
+  else{$('exemptionStatus').textContent=saved+' saved; '+failed.length+' failed. '+failed.join(' | ');status('Some exemptions could not be saved. Review the exemption form.','err');}
+  if(currentCitizen&&jobCards.includes(currentCitizen.id))$('overlay').classList.add('hidden');
+ }catch(err){$('exemptionStatus').textContent=err.message||'Could not save exemptions.';}
+ finally{busy=false;$('saveExemptionBtn').disabled=false;$('saveExemptionBtn').textContent='Add exemptions';}
 }
 async function removeExemption(jobCard){
  if(appRole!=="admin"||busy)return;
@@ -587,11 +599,12 @@ function showExemptionsForm(){
  $('sheetSubtitle').textContent='Manage job cards excluded from Contribution.';
  $('sheetFooter').classList.add('hidden');
  $('toggleEditMode').classList.add('hidden');
- $('sheetBody').innerHTML='<div class="notice info">Exempt job cards remain visible in FTO history. Their Contribution ledger entries, extra charges, and contribution-citizen records are removed while exempt; FTO transactions and FTO status history are preserved.</div><div class="grid2"><div class="field"><label for="exemptJobCard">Full job card number</label><input id="exemptJobCard" maxlength="100" placeholder="Enter full job card number" autocomplete="off"></div><div class="field"><label for="exemptNote">Reason / note (optional)</label><input id="exemptNote" maxlength="300" placeholder="Reason for exemption"></div></div><button class="btn" id="saveExemptionBtn" type="button">Add exemption</button><div id="exemptionStatus" class="muted" style="margin-top:8px"></div><div class="section-title">Current exemptions</div><div id="exemptionList"></div>';
+ $('sheetBody').innerHTML='<div class="notice info">Exempt job cards remain visible in FTO history. Their Contribution ledger entries, extra charges, and contribution-citizen records are removed while exempt; FTO transactions and FTO status history are preserved. To add several, paste one full job card number per line. The note applies to every job card in this batch.</div><div class="field"><label for="exemptJobCards">Full job card number(s)</label><textarea id="exemptJobCards" rows="5" maxlength="12000" placeholder="Paste one full job card number per line" autocomplete="off"></textarea></div><div class="field"><label for="exemptNote">Reason / note (optional, shared by this batch)</label><input id="exemptNote" maxlength="300" placeholder="Reason for exemption"></div><button class="btn" id="saveExemptionBtn" type="button">Add exemptions</button><div id="exemptionStatus" class="muted" style="margin-top:8px"></div><div class="section-title">Current exemptions</div><div id="exemptionList"></div>';
  $('overlay').classList.remove('hidden');
+ renderExemptions();
  $('saveExemptionBtn').addEventListener('click',saveExemption);
  $('exemptionList').addEventListener('click',async ev=>{const btn=ev.target.closest('[data-remove-exemption]');if(btn)await removeExemption(btn.dataset.removeExemption);});
- $('exemptJobCard').focus();
+ $('exemptJobCards').focus();
 }
 function parseBulkPayments(raw){
  const rows=[],errors=[],seen=new Set();

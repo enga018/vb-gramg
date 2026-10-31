@@ -471,8 +471,8 @@ function openCitizen(id){
  $('sheetTitle').textContent=c.id;
  $('sheetSubtitle').textContent=c.name||'Head of household not recorded';
  $('sheetFooter').classList.remove('hidden');
- const sheet=$('overlay').querySelector('.sheet');
- sheet.classList.remove('edit-mode');
+ const activeSheet=$('desktop-detail-panel').querySelector('.sheet')||$('overlay').querySelector('.sheet');
+ activeSheet.classList.remove('edit-mode');
  $('toggleEditMode').classList.remove('hidden');
  $('toggleEditMode').textContent='Edit';
  $('toggleEditMode').setAttribute('aria-pressed','false');

@@ -188,7 +188,12 @@ header .top-actions > button:hover {
   }
 }
 
-.page-actions-bar{display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;margin:0 auto 16px;width:min(100%,1440px)}@media(max-width:700px){.page-actions-bar{justify-content:stretch}.page-actions-bar>*{flex:1 1 auto}}</style>
+.page-actions-bar{display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;margin:0 auto 16px;width:min(100%,1440px)}@media(max-width:700px){.page-actions-bar{justify-content:stretch}.page-actions-bar>*{flex:1 1 auto}}
+/* Shared desktop content width across every VBGRAMG page. */
+:root{--app-content-width:1440px}
+body>main{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
+body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
+</style>
   <link rel="stylesheet" href="./responsive.css"></head><body><main>
 <header class="topbar app-header"><div class="page-title"><h1>Periods</h1><p>Manage shared periods used by Work Demand and FTO.</p></div></header>
 <div class="actions page-actions-bar"><a class="link secondary menu-link" href="./">Back to menu</a><button id="refresh" class="secondary" type="button">Refresh</button></div>

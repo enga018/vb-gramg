@@ -70,7 +70,6 @@
     panel.style.setProperty("z-index", "2000", "important");
 
     var links = [
-      ["Main menu", "./"],
       ["MIS", "./mis.html"],
       ["FTO", "./fto.html"],
       ["Work Demand", "./demand.html"],

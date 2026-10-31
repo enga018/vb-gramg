@@ -214,18 +214,31 @@ header .top-actions > button:hover {
   #contribution-table tbody td,
   #contribution-table tbody td * { font-size:0.85rem !important; }
 }
-.page-actions-bar{display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;margin:0 auto 16px;width:min(100%,1440px)}.page-actions-bar>*{flex-shrink:0}@media(max-width:700px){.page-actions-bar{justify-content:stretch}.page-actions-bar>*{flex:1 1 auto}}</style>
+.page-actions-bar{display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;margin:0 auto 16px;width:min(100%,1440px)}.page-actions-bar>*{flex-shrink:0}@media(max-width:700px){.page-actions-bar{justify-content:stretch}.page-actions-bar>*{flex:1 1 auto}}
+/* Official MIS fetch is desktop-only; mobile remains unchanged. */
+.desktop-only-fetch{display:block}
+@media(max-width:700px){.desktop-only-fetch{display:none!important}}
+</style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
 <body>
 <main>
 <div id="app-panel" class="hidden">
 <header class="topbar app-header"><div class="brand"><h1>MIS</h1><p>Search job cards and manage applicant selections.</p></div></header>
-<div class="header-actions page-actions-bar" aria-label="MIS actions"><a class="link-button secondary menu-link" href="./">Back to menu</a><button id="update-mis-button" class="secondary hidden" type="button" title="Run a headless MIS fetch preview in GitHub Actions">Update MIS</button><a id="import-link" class="link-button hidden" href="./mis-import.html">Import</a></div>
+<div class="header-actions page-actions-bar" aria-label="MIS actions"><a class="link-button secondary menu-link" href="./">Back to menu</a><button id="desktop-fetch-button" class="secondary hidden desktop-only-fetch" type="button" title="Fetch the official MIS register using visible Brave on this Windows PC">Fetch Official MIS</button><a id="import-link" class="link-button hidden" href="./mis-import.html">Import</a></div>
 <section class="panel">
 <div class="meta"><div class="stat"><small>Total Job Card</small><strong id="total-jobcards">—</strong></div><div class="stat"><small>Total Applicants from MIS</small><strong id="total-applicants">—</strong></div><div class="stat"><small>Demand</small><strong id="total-demand">—</strong></div><div class="stat"><small>Unwilling</small><strong id="total-unwilling">—</strong></div><div class="stat"><small>Last Updated</small><strong id="updated-at">—</strong></div></div>
 <div class="toolbar"><div class="search"><label for="search-input">Search job cards or applicants</label><input id="search-input" type="search" placeholder="Job card number, household, applicant name or number…"></div><div class="filter-control"><label for="selection-filter">Selection status</label><select id="selection-filter"><option value="all">All job cards</option><option value="selected">Selected</option><option value="none">None selected</option></select></div><span id="result-count" class="muted"></span></div>
 <div id="data-status" class="status" aria-live="polite">Loading MIS data…</div>
+<section id="desktop-fetch-panel" class="panel hidden desktop-only-fetch" style="margin-top:14px">
+ <h2>Fetch Official MIS Register</h2>
+ <p class="muted">This opens a separate visible Brave window on this Windows PC. The Payload URL is sent only to the local Selenium service. Retrieved rows are preview-only; active MIS is not changed.</p>
+ <label for="mis-payload-url">Village Council Payload URL</label>
+ <input id="mis-payload-url" type="password" autocomplete="off" spellcheck="false" placeholder="Paste the official VBGRAMG Payload URL">
+ <div class="actions" style="margin-top:10px"><button id="run-desktop-fetch" type="button">Start Fetch</button><button id="close-desktop-fetch" class="secondary" type="button">Close</button></div>
+ <div id="desktop-fetch-status" class="status" aria-live="polite">Start the local MIS service first by running start-mis-desktop-service.bat on this PC.</div>
+ <div id="desktop-fetch-preview" class="table-wrap hidden" style="margin-top:12px;max-height:420px"><table><thead id="desktop-fetch-head"></thead><tbody id="desktop-fetch-body"></tbody></table></div>
+</section>
 <div id="table-wrap" class="table-wrap hidden"><table id="mis-table"><thead></thead><tbody></tbody></table></div>
 <div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="secondary" type="button">Previous</button><button id="next-button" class="secondary" type="button">Next</button></div></div>
 </section>
@@ -246,16 +259,44 @@ async function verifyAccess(user){
  if(seq!==loadSequence)return false;
  if(error||!data||data.approved!==true){await supabaseClient.auth.signOut();window.location.replace('./');return false}
  currentRole=data.role;$('import-link').classList.toggle('hidden',currentRole!=='admin');
- $('update-mis-button').classList.toggle('hidden',currentRole!=='admin');
+ $('desktop-fetch-button').classList.toggle('hidden',currentRole!=='admin' || window.matchMedia('(max-width: 700px)').matches);
  $('app-panel').classList.remove('hidden');
  await loadData();return true;
 }
-$('update-mis-button').addEventListener('click',()=>{
- if(currentRole!=='admin'){status($('data-status'),'Administrator access is required to start an MIS fetch.','error');return}
- // GitHub's workflow page requires the repository owner to be signed in and
- // explicitly click "Run workflow". The workflow is preview-only at this stage.
- window.open('https://github.com/enga018/vb-gramg/actions/workflows/mis-headless-fetch.yml','_blank','noopener,noreferrer');
- status($('data-status'),'Opened the headless MIS fetch workflow in GitHub. On GitHub, tap "Run workflow" to fetch a preview. This test does not change active MIS.','success');
+$('desktop-fetch-button').addEventListener('click',()=>{
+ if(currentRole!=='admin'){status($('data-status'),'Administrator access is required to fetch official MIS.','error');return}
+ if(window.matchMedia('(max-width: 700px)').matches){status($('data-status'),'Official MIS fetching is available on desktop only.','error');return}
+ $('desktop-fetch-panel').classList.remove('hidden');
+ $('mis-payload-url').focus();
+});
+$('close-desktop-fetch').addEventListener('click',()=>{$('desktop-fetch-panel').classList.add('hidden');$('mis-payload-url').value='';});
+$('run-desktop-fetch').addEventListener('click',async()=>{
+ if(currentRole!=='admin')return;
+ const payloadUrl=$('mis-payload-url').value.trim();
+ if(!payloadUrl){status($('desktop-fetch-status'),'Paste the official Village Council Payload URL first.','error');return}
+ const button=$('run-desktop-fetch');button.disabled=true;
+ $('desktop-fetch-preview').classList.add('hidden');
+ status($('desktop-fetch-status'),'Connecting to the local Selenium service…');
+ try{
+  const health=await fetch('http://127.0.0.1:8765/health',{cache:'no-store'});
+  if(!health.ok)throw new Error('Local service is not responding. Start start-mis-desktop-service.bat and try again.');
+  const response=await fetch('http://127.0.0.1:8765/fetch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({payloadUrl}),cache:'no-store'});
+  const result=await response.json();
+  if(!response.ok||!result.ok)throw new Error(result.message||'The local MIS fetch failed.');
+  const rows=result.report&&Array.isArray(result.report.rows)?result.report.rows:[];
+  if(!rows.length)throw new Error('No report rows were returned.');
+  const head=$('desktop-fetch-head'),body=$('desktop-fetch-body');head.replaceChildren();body.replaceChildren();
+  const headings=rows[0];
+  const headerRow=document.createElement('tr');
+  headings.forEach(value=>{const th=document.createElement('th');th.textContent=String(value);headerRow.appendChild(th)});
+  head.appendChild(headerRow);
+  rows.slice(1,26).forEach(values=>{const tr=document.createElement('tr');values.forEach(value=>{const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td)});body.appendChild(tr)});
+  $('desktop-fetch-preview').classList.remove('hidden');
+  status($('desktop-fetch-status'),'Report retrieved successfully: '+(rows.length-1)+' data row(s). Showing up to 25 rows for inspection. This is a read-only preview; active MIS and Supabase were not changed.','success');
+  $('mis-payload-url').value='';
+ }catch(error){
+  status($('desktop-fetch-status'),error&&error.message?error.message:String(error),'error');
+ }finally{button.disabled=false}
 });
 async function loadData(){
  const seq=++loadSequence;

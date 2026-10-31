@@ -429,6 +429,35 @@ function exportOutstandingDueList(){
  #overlay .sheet-footer .transaction-actions{gap:6px;margin:0}
  #overlay .sheet-footer .transaction-actions .btn{min-height:44px;padding:9px 8px;font-size:.82rem;font-weight:700}
 }
+
+/* Compact desktop Citizen View so its balance and actions stay immediately visible. */
+@media(min-width:701px){
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-head{padding:9px 12px;gap:8px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-head h2{font-size:.94rem}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-subtitle{font-size:.76rem;margin-top:2px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-head-actions{gap:5px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-head-actions .btn{min-height:32px;padding:6px 9px;font-size:.78rem}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-body{padding:9px 12px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .section-title{margin:9px 0 4px;font-size:.68rem}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .fifo-period-toggle{padding:7px 0;gap:7px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .fifo-label{font-size:.82rem}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .fifo-period-toggle .fifo-side>b{font-size:.82rem}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .fifo-period-details{padding:0 0 5px 8px;margin:0 0 5px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .fifo-period-summary{padding:5px 0 7px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .fifo-period-summary .fifo-summary-row{padding:3px 0}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .fifo-detail-row{padding:6px 0;gap:7px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .entry{gap:7px;padding:7px 9px 7px 10px;margin:0 0 4px;border-radius:8px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .entry .desc b{font-size:.8rem;line-height:1.25}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .entry .desc small{font-size:.69rem;line-height:1.25}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .entry .amt{font-size:.8rem}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .entry .entry-actions .btn{min-height:28px;padding:4px 7px;font-size:.7rem}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer{padding:6px 10px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer .balance{padding:5px 8px;margin:0 0 5px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer .balance .label{font-size:.62rem}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer .balance .amount{font-size:24px;line-height:1.1;margin:1px 0}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer .transaction-actions{gap:5px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer .transaction-actions .btn{min-height:36px;padding:6px 8px;font-size:.76rem}
+}
 </style></head><body><h1>Contribution Outstanding Due List</h1><div class="meta">VBGRAMG · Generated on '+esc(new Date().toLocaleDateString('en-IN'))+'</div><table><thead><tr><th>Sl. No.</th><th>Job Card Number</th><th>Head of Household</th><th style="text-align:right">Outstanding</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
  popup.document.open();popup.document.write(report);popup.document.close();popup.focus();popup.print();
 }

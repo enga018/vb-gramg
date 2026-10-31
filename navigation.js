@@ -12,17 +12,21 @@
 
     // Apply critical positioning inline so malformed/overridden shared CSS
     // cannot push the menu into the header's normal document flow.
-    header.style.position = "relative";
-    header.style.paddingRight = "60px";
+    header.style.setProperty("position", "relative", "important");
+    header.style.setProperty("padding-right", "60px", "important");
 
     var wrap = document.createElement("div");
     wrap.className = "global-nav";
-    wrap.style.position = "absolute";
-    wrap.style.top = "8px";
-    wrap.style.right = "8px";
-    wrap.style.display = "inline-flex";
-    wrap.style.alignItems = "center";
-    wrap.style.zIndex = "1000";
+    wrap.style.setProperty("position", "absolute", "important");
+    wrap.style.setProperty("top", "8px", "important");
+    wrap.style.setProperty("right", "8px", "important");
+    wrap.style.setProperty("left", "auto", "important");
+    wrap.style.setProperty("bottom", "auto", "important");
+    wrap.style.setProperty("display", "inline-flex", "important");
+    wrap.style.setProperty("align-items", "center", "important");
+    wrap.style.setProperty("z-index", "1000", "important");
+    wrap.style.setProperty("margin", "0", "important");
+    wrap.style.setProperty("transform", "none", "important");
 
     var button = document.createElement("button");
     button.type = "button";

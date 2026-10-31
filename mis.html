@@ -241,14 +241,17 @@ body.mis-import-open{overflow:hidden}
 /* Desktop MIS: one visible row per applicant, with subtle job-card grouping. */
 @media(min-width:701px){
  #mis-table{table-layout:fixed}
- #mis-table th:nth-child(1),#mis-table td:nth-child(1){width:28%}
- #mis-table th:nth-child(2),#mis-table td:nth-child(2){width:27%}
- #mis-table th:nth-child(3),#mis-table td:nth-child(3){width:45%}
+ #mis-table th:nth-child(1),#mis-table td:nth-child(1){width:25%}
+ #mis-table th:nth-child(2),#mis-table td:nth-child(2){width:25%}
+ #mis-table th:nth-child(3),#mis-table td:nth-child(3){width:38%}
+ #mis-table th:nth-child(4),#mis-table td:nth-child(4){width:12%}
  #mis-table .desktop-applicant-row td{background:#fff}
  #mis-table .desktop-applicant-row.group-alt td{background:#f8fafc}
  #mis-table .desktop-jobcard-cell,#mis-table .desktop-household-cell{font-weight:600;white-space:normal;overflow-wrap:anywhere}
  #mis-table .desktop-applicant-row:hover td{background:#f0f5fc}
  #mis-table .desktop-applicant-cell{padding:7px 10px}
+ #mis-table .desktop-applicant-count-cell{text-align:center;white-space:nowrap}
+ #mis-table .desktop-applicant-count{display:inline-flex;min-width:28px;height:28px;align-items:center;justify-content:center;padding:0 8px;border-radius:14px;background:#e2e8f0;color:#334155;font-size:.85rem;font-weight:650}
  #mis-table .desktop-applicant-dropdown{width:100%;max-width:100%;min-height:38px;padding:7px 34px 7px 10px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#1e293b;font:inherit;font-size:.92rem;cursor:pointer}
  #mis-table .desktop-applicant-dropdown.no-applicant-selected{border-color:#d97706;background:#fff7ed;color:#9a3412;font-weight:600}
  #mis-table .desktop-applicant-dropdown.no-applicant-selected:focus{outline:2px solid #fdba74;outline-offset:1px}
@@ -503,7 +506,7 @@ function renderTable(){
  const thead=$('mis-table').querySelector('thead'),tbody=$('mis-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
  const isMobile=window.matchMedia('(max-width: 700px)').matches;
  const hr=document.createElement('tr');
- (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Applicant']).forEach(label=>{const th=document.createElement('th');th.textContent=label;hr.appendChild(th)});
+ (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Applicant','Applicants']).forEach(label=>{const th=document.createElement('th');th.textContent=label;hr.appendChild(th)});
  thead.appendChild(hr);
  shown.forEach((group,visibleIndex)=>{
   const hasSelection=selectedApplicants.has(group.key);
@@ -533,7 +536,11 @@ function renderTable(){
     }
     renderTable();
    });
-   applicantCell.appendChild(dropdown);tr.appendChild(applicantCell);tbody.appendChild(tr);
+   applicantCell.appendChild(dropdown);tr.appendChild(applicantCell);
+   const countCell=document.createElement('td');countCell.className='desktop-applicant-count-cell';
+   const count=document.createElement('span');count.className='desktop-applicant-count';count.textContent=String(group.applicants.length);
+   count.setAttribute('aria-label',group.applicants.length+' applicants');countCell.appendChild(count);tr.appendChild(countCell);
+   tbody.appendChild(tr);
    return;
   }
   const tr=document.createElement('tr');tr.className='jobcard-row '+(hasSelection?'has-selection':'no-selection');

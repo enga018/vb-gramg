@@ -133,13 +133,13 @@ def main():
         pages.append(snapshot(driver, "village-council-entry"))
 
         actions.append(click_text_any_context(
-            driver, r"R1\\s*\\.?\\s*Job\\s*Card\\s*/\\s*Registration",
+            driver, r"R1\s*\.?\s*Job\s*Card\s*/\s*Registration",
             "expand-r1-job-card-registration"
         ))
         pages.append(snapshot(driver, "after-expanding-r1"))
 
         actions.append(click_text_any_context(
-            driver, r"Registration\\s+Application\\s+Register",
+            driver, r"Registration\s+Application\s+Register",
             "open-registration-application-register", timeout=12
         ))
         pages.append(snapshot(driver, "registration-application-register"))

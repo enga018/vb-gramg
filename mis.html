@@ -224,11 +224,9 @@ header .top-actions > button:hover {
 body>main{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 
-.mis-kpi-actions{display:flex;align-items:center;justify-content:center;gap:8px;min-width:0}
+.mis-kpi-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-width:0;flex-wrap:wrap}
 .mis-kpi-actions button{min-height:42px;padding:9px 13px;border-radius:10px;font-weight:650;white-space:nowrap}
-@media(max-width:700px){.mis-kpi-actions{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr}.mis-kpi-actions button{width:100%;white-space:normal}}
-.mis-data-actions #import-link{background:#2457c5;color:#fff;border:1px solid #2457c5}
-.mis-data-actions #import-link:hover{background:#1d46a0}
+@media(max-width:700px){.mis-kpi-actions{grid-column:1/-1;justify-content:flex-end}.mis-kpi-actions button{white-space:normal}}
 .mis-import-backdrop{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;padding:clamp(8px,2vw,24px);background:rgb(15 23 42 / 62%)}
 .mis-import-backdrop.hidden{display:none!important}
 .mis-import-dialog{width:min(1500px,100%);height:min(94vh,1100px);min-height:0;background:#f3f6fb;border:1px solid #d7deea;border-radius:18px;box-shadow:0 24px 80px rgb(0 0 0 / 28%);display:flex;flex-direction:column;overflow:hidden}
@@ -248,7 +246,7 @@ body.mis-import-open{overflow:hidden}
 <header class="topbar app-header"><div class="brand"><h1>MIS</h1><p>Search job cards and manage applicant selections.</p></div></header>
 
 <section class="panel">
-<div class="meta"><div class="stat"><small>Total Job Card</small><strong id="total-jobcards">—</strong></div><div class="stat"><small>Total Applicants from MIS</small><strong id="total-applicants">—</strong></div><div class="stat"><small>Last Updated</small><strong id="updated-at">—</strong></div><div class="mis-kpi-actions"><button id="desktop-fetch-button" class="secondary hidden desktop-only-fetch" type="button" title="Fetch the official MIS register using visible Brave on this Windows PC">Fetch Official MIS</button><button id="import-link" class="hidden" type="button">Import</button></div></div>
+<div class="meta"><div class="stat"><small>Total Job Card</small><strong id="total-jobcards">—</strong></div><div class="stat"><small>Total Applicants from MIS</small><strong id="total-applicants">—</strong></div><div class="stat"><small>Last Updated</small><strong id="updated-at">—</strong></div><div class="mis-kpi-actions"><button id="desktop-fetch-button" class="secondary hidden desktop-only-fetch" type="button" title="Fetch the official MIS register using visible Brave on this Windows PC">Fetch Official MIS</button><button id="import-link" class="secondary hidden" type="button">Import</button></div></div>
 <div class="toolbar"><div class="search"><label for="search-input">Search job cards or applicants</label><input id="search-input" type="search" placeholder="Job card number, household, applicant name or number…"></div><div class="filter-control"><label for="selection-filter">Selection status</label><select id="selection-filter"><option value="all">All job cards</option><option value="selected">Selected</option><option value="none">None selected</option></select></div><span id="result-count" class="muted"></span></div>
 <div id="data-status" class="status" aria-live="polite">Loading MIS data…</div>
 

@@ -141,6 +141,17 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  #contribution-table tbody tr.contribution-row.due{box-shadow:inset 3px 0 #e9a23b}
  #contribution-table tbody tr.contribution-row.settled{box-shadow:inset 3px 0 #16a34a}
 }
+
+/* Desktop contribution table: show only the settled and due balances. */
+@media(min-width:701px){
+ #contribution-table{table-layout:auto}
+ #contribution-table thead th:nth-child(1){width:29%}
+ #contribution-table thead th:nth-child(2){width:39%}
+ #contribution-table thead th:nth-child(3),#contribution-table thead th:nth-child(4){width:16%;text-align:right}
+ #contribution-table tbody td.settled-cell,#contribution-table tbody td.outstanding-cell{font-weight:750;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+ #contribution-table tbody td.jobcard{white-space:nowrap}
+ #contribution-table tbody td.person{font-weight:650}
+}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -285,7 +296,7 @@ function render(){
  const start=currentPage*pageSize,shown=list.slice(start,start+pageSize),isMobile=window.matchMedia('(max-width: 700px)').matches;
  const thead=$('contribution-table').querySelector('thead'),tbody=$('contribution-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
  const head=document.createElement('tr');
- (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Last Period','Last Applicant','Last Charges','Outstanding']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Outstanding'||label==='Last Charges')th.style.textAlign='right';head.appendChild(th)});thead.appendChild(head);
+ (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Settled','Due']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Settled'||label==='Due'){th.style.textAlign='right';th.className=label==='Settled'?'settled-heading':'due-heading';}head.appendChild(th)});thead.appendChild(head);
  shown.forEach((c,index)=>{
   const state=c.balance<=0?'settled':'due',tr=document.createElement('tr');tr.className='contribution-row '+state;tr.tabIndex=0;tr.dataset.card=c.id;tr.setAttribute('role','button');tr.setAttribute('aria-label','Open contribution history for '+c.name+' job card '+c.id);
   const cell=(value,cls)=>{const td=document.createElement('td');td.textContent=value;if(cls)td.className=cls;tr.appendChild(td);return td};
@@ -297,8 +308,6 @@ function render(){
    const matched=applicants.find(a=>String(a.applicant_number||'').trim()===String(lastCharge.applicant_number||'').trim());
    chargeName=String(matched?.applicant_name||matched?.name||'').trim();
   }
-  const lastPeriod=lastCharge?(lastCharge.charge_period?formatPeriod(lastCharge.charge_period):lastCharge.entry_date?day(lastCharge.entry_date):'—'):'—';
-  const lastPeriodShort=lastPeriod;
   if(isMobile){
    const detail=cell('','mobile-details');
    detail.style.display='grid';detail.style.gridTemplateColumns=c.balance>0?'minmax(0,5fr) minmax(0,1fr)':'minmax(0,1fr)';detail.style.alignItems='center';detail.style.gap='10px';detail.style.minWidth='0';
@@ -320,13 +329,13 @@ function render(){
    }
   }else{
    cell(c.id,'jobcard');cell(c.name+(c.exempt?' · EXEMPT':''),'person');
-   cell(lastPeriod,'person');
-   cell(chargeName||'—','person');
-   const desktopChargeCell=cell(lastCharge?fmt(lastCharge.amount):'—','amount');
-   if(lastCharge&&lastCharge.is_deferred){desktopChargeCell.textContent=fmt(lastCharge.amount)+' · Deferred';desktopChargeCell.style.color='var(--partial)';}
-   const desktopBalanceCell=cell('','outstanding-cell');
-   desktopBalanceCell.textContent=c.balance>0?fmt(c.balance):'—';
-   if(c.balance>0)desktopBalanceCell.style.color='#e9a23b';
+   const totalCharged=Math.max(0,Number(c.totalCharged)||0);
+   const dueAmount=Math.max(0,Number(c.balance)||0);
+   const settledAmount=Math.max(0,Math.min(totalCharged,totalCharged-dueAmount));
+   const settledCell=cell(fmt(settledAmount),'settled-cell');
+   settledCell.style.color=settledAmount>0?'#15803d':'var(--muted)';
+   const dueCell=cell(fmt(dueAmount),'outstanding-cell');
+   dueCell.style.color=dueAmount>0?'var(--due)':'var(--muted)';
   }
   tr.addEventListener('click',()=>openCitizen(c.id));tr.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();openCitizen(c.id)}});tbody.appendChild(tr);
  });

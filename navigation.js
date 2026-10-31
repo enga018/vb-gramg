@@ -107,12 +107,15 @@
 
     function close() {
       panel.hidden = true;
+      panel.style.setProperty("display", "none", "important");
       button.setAttribute("aria-expanded", "false");
     }
 
-    button.addEventListener("click", function () {
+    button.addEventListener("click", function (event) {
+      event.stopPropagation();
       var opening = panel.hidden;
       panel.hidden = !opening;
+      panel.style.setProperty("display", opening ? "flex" : "none", "important");
       button.setAttribute("aria-expanded", String(opening));
     });
     document.addEventListener("click", function (event) {

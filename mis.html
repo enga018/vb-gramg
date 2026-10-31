@@ -247,11 +247,12 @@ body.mis-import-open{overflow:hidden}
  #mis-table th:nth-child(4),#mis-table td:nth-child(4){width:15%}
  #mis-table th:nth-child(5),#mis-table td:nth-child(5){width:12%}
  #mis-table .desktop-applicant-row td{background:#fff}
- #mis-table .desktop-applicant-row:hover td{background:#f6f9ff}
- #mis-table .desktop-applicant-row.group-start td{border-top:2px solid #d5deeb}
+ #mis-table .desktop-applicant-row.group-alt td{background:#f8fafc}
+ #mis-table .desktop-applicant-row td:first-child{background:#f1f5f9;font-weight:700}
+ #mis-table .desktop-applicant-row.group-alt td:first-child{background:#eaf0f7}
+ #mis-table .desktop-applicant-row:hover td{background:#f0f5fc}
+ #mis-table .desktop-applicant-row.group-start td{border-top:2px solid #cbd5e1}
  #mis-table .desktop-applicant-row.group-start:first-child td{border-top:0}
- #mis-table .desktop-applicant-row.has-selection td:first-child{box-shadow:inset 3px 0 #16a34a}
- #mis-table .desktop-applicant-row.no-selection td:first-child{box-shadow:inset 3px 0 #e9a23b}
  #mis-table .desktop-select-cell{text-align:center}
  #mis-table .desktop-select-cell input{width:19px;height:19px;min-height:19px;margin:0;accent-color:#2457c5;cursor:pointer}
 }
@@ -509,7 +510,7 @@ function renderTable(){
   const hasSelection=selectedApplicants.has(group.key);
   if(!isMobile){
    group.applicants.forEach((applicant,applicantIndex)=>{
-    const tr=document.createElement('tr');tr.className='desktop-applicant-row '+(hasSelection?'has-selection':'no-selection')+(applicantIndex===0?' group-start':'');
+    const tr=document.createElement('tr');tr.className='desktop-applicant-row'+(visibleIndex%2===1?' group-alt':'')+(applicantIndex===0?' group-start':'');
     const jobCell=document.createElement('td');jobCell.textContent=group.key;jobCell.style.fontWeight='700';jobCell.style.whiteSpace='nowrap';tr.appendChild(jobCell);
     const householdCell=document.createElement('td');householdCell.textContent=group.household||'—';householdCell.style.fontWeight='600';tr.appendChild(householdCell);
     const nameCell=document.createElement('td');nameCell.textContent=applicant.name||'—';tr.appendChild(nameCell);

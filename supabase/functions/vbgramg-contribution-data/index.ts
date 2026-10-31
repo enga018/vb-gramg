@@ -141,25 +141,26 @@ Deno.serve(async(req:Request)=>{
    const chargeEntries=all.filter(r=>r.entry_type==="charge");
    if(chargeEntries.length){
     const entryById=new Map(chargeEntries.map(entry=>[String(entry.id),entry]));
-    const chunks:string[][]=[];
-    // Keep PostgREST URLs short: large UUID IN-lists can exceed request limits.
-    for(let offset=0;offset<chargeEntries.length;offset+=100)chunks.push(chargeEntries.slice(offset,offset+100).map(entry=>String(entry.id)));
-    // Run only a few small batches concurrently to avoid oversized requests and connection spikes.
-    for(let wave=0;wave<chunks.length;wave+=5){
-     const attributionBatches=await Promise.all(chunks.slice(wave,wave+5).map(async ids=>{
-      const {data:txRows,error:txError}=await admin.from("vbgramg_fto_transactions").select("ledger_entry_id,person_name").in("ledger_entry_id",ids).gt("calculated_charge",0).in("status",["blank","processed"]);
-      if(txError)throw txError;
-      const txNames=new Map<string,Set<string>>();
-      for(const tx of txRows||[]){const id=String(tx.ledger_entry_id||""),name=String(tx.person_name||"").trim();if(!id||!name)continue;if(!txNames.has(id))txNames.set(id,new Set());txNames.get(id)!.add(name);}
-      return txNames;
-     }));
-     for(const txNames of attributionBatches){
-      for(const [id,names] of txNames){
-       const entry=entryById.get(id);
-       if(!entry||names.size!==1)continue;
-       const match=matchActiveMisApplicant(applicantsByCard,String(entry.job_card_number),[...names][0]);
-       if(match){entry.applicant_name=match.applicant_name;entry.applicant_number=match.applicant_number;entry.applicant_unique_id=match.applicant_unique_id;entry.applicant_attribution="matched_from_fto";}
-      }
+    // Fetch only linked, charge-bearing FTO transactions in one request. The previous
+    // implementation issued repeated UUID batches even when there were no linked FTO rows.
+    const {data:txRows,error:txError}=await admin.from("vbgramg_fto_transactions").select("ledger_entry_id,person_name").not("ledger_entry_id","is",null).gt("calculated_charge",0).in("status",["blank","processed"]);
+    if(txError)throw txError;
+    const txNames=new Map<string,Set<string>>();
+    for(const tx of txRows||[]){
+     const id=String(tx.ledger_entry_id||""),name=String(tx.person_name||"").trim();
+     if(!id||!name||!entryById.has(id))continue;
+     if(!txNames.has(id))txNames.set(id,new Set());
+     txNames.get(id)!.add(name);
+    }
+    for(const [id,names] of txNames){
+     const entry=entryById.get(id);
+     if(!entry||names.size!==1)continue;
+     const match=matchActiveMisApplicant(applicantsByCard,String(entry.job_card_number),[...names][0]);
+     if(match){
+      entry.applicant_name=match.applicant_name;
+      entry.applicant_number=match.applicant_number;
+      entry.applicant_unique_id=match.applicant_unique_id;
+      entry.applicant_attribution="matched_from_fto";
      }
     }
    }

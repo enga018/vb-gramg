@@ -168,6 +168,65 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 @media(min-width:701px){#contribution-table tbody tr.selected{background:#edf5ff;box-shadow:inset 4px 0 #3972df}}
 @media(max-width:1100px) and (min-width:701px){#contribution-layout{grid-template-columns:minmax(0,1fr) minmax(360px,.95fr);gap:12px}#desktop-detail-panel .sheet.desktop-inline-sheet .sheet-body{padding:12px}}
 @media(max-width:700px){#contribution-layout{display:block}#desktop-detail-panel{display:none!important}}
+/* Compact Citizen View on mobile: reclaim space and normalize inner padding. */
+@media(max-width:700px){
+ #overlay{padding:0!important}
+ #overlay>.sheet{
+  width:100%;max-width:none;height:100dvh;max-height:100dvh;
+  border:0;border-radius:0;box-sizing:border-box
+ }
+ #overlay .sheet-head{padding:10px 12px;gap:8px}
+ #overlay .sheet-head h2{font-size:.96rem;line-height:1.25}
+ #overlay .sheet-subtitle{font-size:.78rem;line-height:1.3}
+ #overlay .sheet-head-actions{gap:6px}
+ #overlay .sheet-head-actions .btn{min-height:36px;padding:7px 10px}
+ #overlay .sheet-body{padding:8px 12px 10px!important}
+ #overlay .sheet-body .section-title{margin:8px 0 5px;font-size:.82rem}
+ #overlay .sheet-body .fifo-period-toggle{padding:9px 0;gap:7px}
+ #overlay .sheet-body .fifo-period-details{padding:7px 0}
+ #overlay .sheet-body .entry{gap:6px;padding:9px 0}
+ #overlay .sheet-body .entry .desc{flex:1 1 calc(100% - 96px)}
+ #overlay .sheet-body .entry .desc b{font-size:.84rem;line-height:1.3}
+ #overlay .sheet-body .entry .desc small{font-size:.74rem;line-height:1.3}
+ #overlay .sheet-body .entry .amt{font-size:.84rem}
+ #overlay .sheet-body .entry .entry-actions{gap:6px}
+ #overlay .sheet-body .entry .entry-actions .btn{min-height:38px;padding:7px 9px;font-size:.76rem}
+ #overlay .sheet-footer{padding:7px 10px max(8px,env(safe-area-inset-bottom))!important}
+ #overlay .sheet-footer .balance{padding:7px 10px;margin:0 0 6px}
+ #overlay .sheet-footer .balance .label{font-size:.65rem}
+ #overlay .sheet-footer .balance .amount{font-size:26px;line-height:1.15;margin:2px 0}
+ #overlay .sheet-footer .transaction-actions{gap:6px;margin:0}
+ #overlay .sheet-footer .transaction-actions .btn{min-height:44px;padding:9px 8px;font-size:.82rem;font-weight:700}
+}
+
+/* Compact desktop Citizen View so its balance and actions stay immediately visible. */
+@media(min-width:701px){
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-head{padding:9px 12px;gap:8px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-head h2{font-size:.94rem}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-subtitle{font-size:.76rem;margin-top:2px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-head-actions{gap:5px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-head-actions .btn{min-height:32px;padding:6px 9px;font-size:.78rem}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-body{padding:9px 12px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .section-title{margin:9px 0 4px;font-size:.68rem}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .fifo-period-toggle{padding:7px 0;gap:7px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .fifo-label{font-size:.82rem}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .fifo-period-toggle .fifo-side>b{font-size:.82rem}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .fifo-period-details{padding:0 0 5px 8px;margin:0 0 5px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .fifo-period-summary{padding:5px 0 7px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .fifo-period-summary .fifo-summary-row{padding:3px 0}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .fifo-detail-row{padding:6px 0;gap:7px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .entry{gap:7px;padding:7px 9px 7px 10px;margin:0 0 4px;border-radius:8px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .entry .desc b{font-size:.8rem;line-height:1.25}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .entry .desc small{font-size:.69rem;line-height:1.25}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .entry .amt{font-size:.8rem}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .entry .entry-actions .btn{min-height:28px;padding:4px 7px;font-size:.7rem}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer{padding:6px 10px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer .balance{padding:5px 8px;margin:0 0 5px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer .balance .label{font-size:.62rem}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer .balance .amount{font-size:24px;line-height:1.1;margin:1px 0}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer .transaction-actions{gap:5px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer .transaction-actions .btn{min-height:36px;padding:6px 8px;font-size:.76rem}
+}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -399,65 +458,6 @@ function exportOutstandingDueList(){
  const popup=window.open('','_blank');
  if(!popup){status('Allow pop-ups for this site to export the due list.','err');return;}
  const report='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contribution Outstanding Due List</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#172033;margin:28px}h1{font-size:20px;margin:0 0 5px}.meta{color:#667085;font-size:12px;margin-bottom:18px}.summary{display:flex;gap:24px;margin:0 0 18px;font-size:13px}.summary b{font-size:15px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;border-bottom:1px solid #dfe5ee;text-align:left}th{background:#edf2f8;text-transform:uppercase;font-size:10px;letter-spacing:.04em}.amount{text-align:right;white-space:nowrap;font-weight:700}.total td{font-weight:800;border-top:2px solid #667085}@media print{body{margin:12mm}thead{display:table-header-group}tr{break-inside:avoid}}@media(max-width:600px){body{margin:14px;overflow-x:auto}.summary{gap:14px;flex-wrap:wrap}}
-/* Compact Citizen View on mobile: reclaim space and normalize inner padding. */
-@media(max-width:700px){
- #overlay{padding:0!important}
- #overlay>.sheet{
-  width:100%;max-width:none;height:100dvh;max-height:100dvh;
-  border:0;border-radius:0;box-sizing:border-box
- }
- #overlay .sheet-head{padding:10px 12px;gap:8px}
- #overlay .sheet-head h2{font-size:.96rem;line-height:1.25}
- #overlay .sheet-subtitle{font-size:.78rem;line-height:1.3}
- #overlay .sheet-head-actions{gap:6px}
- #overlay .sheet-head-actions .btn{min-height:36px;padding:7px 10px}
- #overlay .sheet-body{padding:8px 12px 10px!important}
- #overlay .sheet-body .section-title{margin:8px 0 5px;font-size:.82rem}
- #overlay .sheet-body .fifo-period-toggle{padding:9px 0;gap:7px}
- #overlay .sheet-body .fifo-period-details{padding:7px 0}
- #overlay .sheet-body .entry{gap:6px;padding:9px 0}
- #overlay .sheet-body .entry .desc{flex:1 1 calc(100% - 96px)}
- #overlay .sheet-body .entry .desc b{font-size:.84rem;line-height:1.3}
- #overlay .sheet-body .entry .desc small{font-size:.74rem;line-height:1.3}
- #overlay .sheet-body .entry .amt{font-size:.84rem}
- #overlay .sheet-body .entry .entry-actions{gap:6px}
- #overlay .sheet-body .entry .entry-actions .btn{min-height:38px;padding:7px 9px;font-size:.76rem}
- #overlay .sheet-footer{padding:7px 10px max(8px,env(safe-area-inset-bottom))!important}
- #overlay .sheet-footer .balance{padding:7px 10px;margin:0 0 6px}
- #overlay .sheet-footer .balance .label{font-size:.65rem}
- #overlay .sheet-footer .balance .amount{font-size:26px;line-height:1.15;margin:2px 0}
- #overlay .sheet-footer .transaction-actions{gap:6px;margin:0}
- #overlay .sheet-footer .transaction-actions .btn{min-height:44px;padding:9px 8px;font-size:.82rem;font-weight:700}
-}
-
-/* Compact desktop Citizen View so its balance and actions stay immediately visible. */
-@media(min-width:701px){
- #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-head{padding:9px 12px;gap:8px}
- #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-head h2{font-size:.94rem}
- #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-subtitle{font-size:.76rem;margin-top:2px}
- #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-head-actions{gap:5px}
- #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-head-actions .btn{min-height:32px;padding:6px 9px;font-size:.78rem}
- #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-body{padding:9px 12px}
- #desktop-detail-panel .sheet.desktop-inline-sheet .section-title{margin:9px 0 4px;font-size:.68rem}
- #desktop-detail-panel .sheet.desktop-inline-sheet .fifo-period-toggle{padding:7px 0;gap:7px}
- #desktop-detail-panel .sheet.desktop-inline-sheet .fifo-label{font-size:.82rem}
- #desktop-detail-panel .sheet.desktop-inline-sheet .fifo-period-toggle .fifo-side>b{font-size:.82rem}
- #desktop-detail-panel .sheet.desktop-inline-sheet .fifo-period-details{padding:0 0 5px 8px;margin:0 0 5px}
- #desktop-detail-panel .sheet.desktop-inline-sheet .fifo-period-summary{padding:5px 0 7px}
- #desktop-detail-panel .sheet.desktop-inline-sheet .fifo-period-summary .fifo-summary-row{padding:3px 0}
- #desktop-detail-panel .sheet.desktop-inline-sheet .fifo-detail-row{padding:6px 0;gap:7px}
- #desktop-detail-panel .sheet.desktop-inline-sheet .entry{gap:7px;padding:7px 9px 7px 10px;margin:0 0 4px;border-radius:8px}
- #desktop-detail-panel .sheet.desktop-inline-sheet .entry .desc b{font-size:.8rem;line-height:1.25}
- #desktop-detail-panel .sheet.desktop-inline-sheet .entry .desc small{font-size:.69rem;line-height:1.25}
- #desktop-detail-panel .sheet.desktop-inline-sheet .entry .amt{font-size:.8rem}
- #desktop-detail-panel .sheet.desktop-inline-sheet .entry .entry-actions .btn{min-height:28px;padding:4px 7px;font-size:.7rem}
- #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer{padding:6px 10px}
- #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer .balance{padding:5px 8px;margin:0 0 5px}
- #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer .balance .label{font-size:.62rem}
- #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer .balance .amount{font-size:24px;line-height:1.1;margin:1px 0}
- #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer .transaction-actions{gap:5px}
- #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer .transaction-actions .btn{min-height:36px;padding:6px 8px;font-size:.76rem}
-}
 </style></head><body><h1>Contribution Outstanding Due List</h1><div class="meta">VBGRAMG · Generated on '+esc(new Date().toLocaleDateString('en-IN'))+'</div><table><thead><tr><th>Sl. No.</th><th>Job Card Number</th><th>Head of Household</th><th style="text-align:right">Outstanding</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
  popup.document.open();popup.document.write(report);popup.document.close();popup.focus();popup.print();
 }

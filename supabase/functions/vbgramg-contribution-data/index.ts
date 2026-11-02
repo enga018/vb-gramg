@@ -192,8 +192,12 @@ Deno.serve(async(req:Request)=>{
     const {data:selectedRound,error:selectedRoundError}=await admin.from("vbgramg_periods").select("id,contribution_month").eq("id",periodId).maybeSingle();
     if(selectedRoundError)throw selectedRoundError;
     if(!selectedRound||String(selectedRound.contribution_month||"")!==periodDate)return reply({error:"The selected contribution round does not match the month."},400);
-    const cards=Array.isArray(body.job_cards)?[...new Set(body.job_cards.map((v:unknown)=>String(v||"").trim()).filter(Boolean))]:[];
-    const referenceRows=Array.isArray(body.reference_rows)?body.reference_rows.map((v:Record<string,unknown>)=>({job_card_number:String(v.job_card_number||"").trim(),reference_numbers:Array.isArray(v.reference_numbers)?[...new Set(v.reference_numbers.map((r:unknown)=>String(r||"").trim()).filter(Boolean))]:[]})): [];
+    const activeMisApplicants=await loadActiveMisApplicants(admin);
+    if(!activeMisApplicants.size)return reply({error:"There is no active MIS import available. Import or activate MIS before checking FTO duplicates."},409);
+    const activeJobCards=new Set([...activeMisApplicants.keys()].map(card=>String(card).trim().toUpperCase()));
+    const requestedCards=Array.isArray(body.job_cards)?[...new Set(body.job_cards.map((v:unknown)=>String(v||"").trim()).filter(Boolean))]:[];
+    const cards=requestedCards.filter(card=>activeJobCards.has(card.toUpperCase()));
+    const referenceRows=Array.isArray(body.reference_rows)?body.reference_rows.map((v:Record<string,unknown>)=>({job_card_number:String(v.job_card_number||"").trim(),reference_numbers:Array.isArray(v.reference_numbers)?[...new Set(v.reference_numbers.map((r:unknown)=>String(r||"").trim()).filter(Boolean))]:[]})).filter(row=>activeJobCards.has(row.job_card_number.toUpperCase())): [];
     if(cards.length>1000)return reply({error:"Check at most 1,000 job cards at a time."},400);
     if(!cards.length)return reply({approved:true,duplicates:[],duplicate_references:[]});
     const {data:existing,error:existingError}=await admin.from("vbgramg_charge_ledger").select("job_card_number,person_name,amount,is_deferred,note,reference_numbers,period_id").in("job_card_number",cards).eq("entry_type","charge").eq("charge_period",periodDate);

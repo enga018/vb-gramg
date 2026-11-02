@@ -410,13 +410,13 @@ function render(){
  const start=currentPage*pageSize,shown=list.slice(start,start+pageSize),isMobile=window.matchMedia('(max-width: 700px)').matches;
  const thead=$('contribution-table').querySelector('thead'),tbody=$('contribution-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
  const head=document.createElement('tr');
- (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Balance']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Balance'){th.style.textAlign='right';th.className='balance-heading';}head.appendChild(th)});thead.appendChild(head);
+ (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Remarks']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Remarks'){th.style.textAlign='right';th.className='balance-heading';}head.appendChild(th)});thead.appendChild(head);
  shown.forEach((c,index)=>{
   const state=c.exempt?'exempt':c.balance<0?'overpaid':c.balance>0?'due':'settled',tr=document.createElement('tr');tr.className='contribution-row '+state;tr.tabIndex=0;tr.dataset.card=c.id;tr.setAttribute('role','button');tr.setAttribute('aria-label','Open contribution history for '+c.name+' job card '+c.id);
   const cell=(value,cls)=>{const td=document.createElement('td');td.textContent=value;if(cls)td.className=cls;tr.appendChild(td);return td};
   if(isMobile){
    const detail=cell('','mobile-details');
-   detail.style.display='grid';detail.style.gridTemplateColumns=filter==='due'?'minmax(0,1fr)':(c.balance>0?'minmax(0,5fr) minmax(0,1fr)':'minmax(0,1fr)');detail.style.alignItems='center';detail.style.gap='10px';detail.style.minWidth='0';
+   detail.style.display='grid';detail.style.gridTemplateColumns='minmax(0,1fr)';detail.style.alignItems='center';detail.style.gap='10px';detail.style.minWidth='0';
    const topLine=document.createElement('div');topLine.className='mobile-jobcard-line';topLine.style.minWidth='0';
    const slashIndex=String(c.id).lastIndexOf('/');
    if(slashIndex>=0){topLine.append(document.createTextNode(String(c.id).slice(0,slashIndex+1)));const suffix=document.createElement('span');suffix.className='suffix';suffix.textContent=String(c.id).slice(slashIndex+1);topLine.appendChild(suffix);}
@@ -435,9 +435,9 @@ function render(){
    else if(c.balance<0){const tag=document.createElement('span');tag.className='row-status overpaid';tag.textContent='Overpaid '+fmt(Math.abs(c.balance));statusLine.appendChild(tag);}
    else if(c.balance===0){const tag=document.createElement('span');tag.className='row-status settled';tag.textContent='Settled';statusLine.appendChild(tag);}
    if(!c.exempt&&c.deferred>0){const tag=document.createElement('span');tag.className='row-status deferred';tag.textContent='Deferred '+fmt(c.deferred);statusLine.appendChild(tag);}
-   if(filter==='due'&&c.balance>0){const tag=document.createElement('span');tag.className='row-status due';tag.textContent='Outstanding '+fmt(c.balance);statusLine.appendChild(tag);}
+   if(c.balance>0){const tag=document.createElement('span');tag.className='row-status due';tag.textContent='Outstanding '+fmt(c.balance);statusLine.appendChild(tag);}
    if(statusLine.childElementCount)detail.appendChild(statusLine);
-   if(c.balance>0&&filter!=='due'){
+   if(false&&c.balance>0&&filter!=='due'){
     const balance=document.createElement('div');balance.className='mobile-outstanding';balance.textContent=fmt(c.balance);balance.style.color='var(--due)';balance.style.minWidth='0';balance.style.textAlign='right';balance.setAttribute('aria-label','Due '+fmt(c.balance));detail.appendChild(balance);
    }
   }else{

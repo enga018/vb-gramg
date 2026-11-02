@@ -252,7 +252,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  </div>
  <p class="import-help">If a job card already has a charge for the selected period, it will be flagged. Check the existing charge before marking that duplicate as reviewed. Reviewed duplicates can be imported only when you explicitly tick the review checkbox.</p>
  <div id="import-summary" class="status" aria-live="polite">Enter the FTO number and contribution period.</div>
- <div class="table-wrap import-table-wrap"><table id="import-preview-table" class="import-table"><thead><tr><th>#</th><th>Job card</th><th>Village</th><th>Applicant name (from FTO)</th><th>FTO rows</th><th>Reference numbers</th><th>Current status</th><th>Calculated charge</th><th>Duplicate check</th><th>Checks</th></tr></thead><tbody></tbody></table></div>
+ <div class="table-wrap import-table-wrap"><table id="import-preview-table" class="import-table"><thead><tr><th>#</th><th>Job card</th><th>Applicant name (from FTO)</th><th>FTO rows</th><th>Reference numbers</th><th>Current status</th><th>Calculated charge</th><th>Duplicate check</th><th>Checks</th></tr></thead><tbody></tbody></table></div>
  <p class="import-help">Statuses are synchronized automatically per reference number: blank becomes deferred, Processed activates the matching charge, and Rejected removes only a matching FTO charge when no active transaction remains. The system records status history and does not delete unrelated charges. Mixed statuses under one job card are reconciled from individual reference numbers.</p>
  <div class="table-foot"><span id="import-count" class="muted"></span><div class="actions"><button id="fto-import-button" type="button" disabled>Synchronize FTO</button></div></div>
   <div id="sync-status" class="status hidden" aria-live="polite" role="status"></div>
@@ -425,11 +425,8 @@ function renderImportPreview(){
   if(group.inScope){total+=group.amount;localCards++}else excluded++;
   invalid+=group.invalid_amount_rows;
   const tr=document.createElement('tr');
-  if(!group.inScope)tr.style.background='#fff8ed';
   const addCell=(value,cls)=>{const td=document.createElement('td');td.textContent=value;if(cls)td.className=cls;tr.appendChild(td);return td};
   addCell(String(index+1));addCell(group.job_card_number);
-  const villageCell=addCell(group.village||'Village unknown');
-  if(group.inScope){villageCell.style.color='#17663a';villageCell.style.fontWeight='700'}else{villageCell.style.color='#9a5b10';villageCell.style.fontWeight='700'}
   addCell(group.person_name);addCell(String(group.row_count));addCell(group.reference_numbers.join(', ')||'Missing reference');
   addCell(group.status==='blank'?'Blank':group.status==='processed'?'Processed':group.status==='rejected'?'Rejected':group.status==='mixed'?'Mixed statuses':'Other / unknown');
   addCell(group.inScope&&group.amount>0?'₹'+group.amount.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}):'—');
@@ -442,7 +439,7 @@ function renderImportPreview(){
    const flag=document.createElement('span');flag.className='flag';flag.textContent='New job card';duplicateCell.appendChild(flag);
    const detail=document.createElement('div');detail.className='muted';detail.textContent='Not in contribution records';duplicateCell.appendChild(detail);
   }else{
-   const clear=document.createElement('span');clear.className='clear';clear.textContent=group.inScope?'No match':'Review village';duplicateCell.appendChild(clear);
+   const clear=document.createElement('span');clear.className='clear';clear.textContent='No match';duplicateCell.appendChild(clear);
   }
   if(repeatedRefs.length){const flag=document.createElement('div');flag.className='flag';flag.style.marginTop='6px';flag.textContent='Duplicate reference';duplicateCell.appendChild(flag);const detail=document.createElement('div');detail.className='muted';detail.textContent=repeatedRefs.join(', ');duplicateCell.appendChild(detail);}
   const reviewCell=addCell('', 'review-cell');
@@ -456,7 +453,7 @@ function renderImportPreview(){
    const check=document.createElement('input');check.type='checkbox';check.checked=reviewedNewCards.has(group.job_card_number);check.setAttribute('aria-label','Verify new job card '+group.job_card_number);
    check.addEventListener('change',()=>{if(check.checked)reviewedNewCards.add(group.job_card_number);else reviewedNewCards.delete(group.job_card_number);renderImportPreview()});
    label.appendChild(check);const t=document.createElement('span');t.textContent='Verified new card';label.appendChild(t);reviewCell.appendChild(label);
-  }else reviewCell.textContent=group.inScope?'—':'Review village';
+  }else reviewCell.textContent='—';
   tbody.appendChild(tr);
  });
  const period=selectedPeriodName();

@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const corsHeaders={"Access-Control-Allow-Origin":"https://enga018.github.io","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json"};
 function reply(body:Record<string,unknown>,status=200){return new Response(JSON.stringify(body),{status,headers:corsHeaders});}
 function normalizeApplicantName(value:unknown){return String(value||"").normalize("NFKC").replace(/\s+/g," ").trim().toLocaleLowerCase();}
+function normalizeApplicantIdentity(value:unknown){return normalizeApplicantName(value).replace(/[^\p{L}\p{N}]+/gu,"");}
 async function loadActiveMisApplicants(admin:any){
  const {data:state,error:stateError}=await admin.from("vbgramg_mis_state").select("active_import_id").eq("singleton",true).maybeSingle();
  if(stateError)throw stateError;
@@ -402,7 +403,7 @@ Deno.serve(async(req:Request)=>{
    if(txError)throw txError;
    const ledgerIds=[...new Set((transactions||[]).map(t=>String(t.ledger_entry_id)).filter(Boolean))];
    if(!ledgerIds.length)return reply({approved:true,fto_number:ftoNumber,automatic_matches:0,pending:[]});
-   const {data:ledger,error:ledgerError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,applicant_name,applicant_number,applicant_unique_id,entry_type,note").in("id",ledgerIds).eq("entry_type","charge");
+   const {data:ledger,error:ledgerError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,applicant_name,applicant_number,applicant_unique_id,fto_applicant_name,entry_type,note").in("id",ledgerIds).eq("entry_type","charge");
    if(ledgerError)throw ledgerError;
    const ledgerById=new Map((ledger||[]).map(row=>[String(row.id),row]));
    const byLedger=new Map<string,any[]>();
@@ -415,10 +416,16 @@ Deno.serve(async(req:Request)=>{
     const ranked=rankActiveMisApplicants(mis,jobCard,ftoName);
     if(!ranked.length){pending.push({ledger_entry_id:ledgerId,job_card_number:jobCard,fto_name:ftoName,reason:"No active MIS applicants found for this job card",candidates:[]});continue;}
     const best=ranked[0],second=ranked[1],gap=second?best.match_percentage-second.match_percentage:100;
-    const alreadySaved=Boolean((entry.applicant_unique_id&&ranked.some(a=>a.applicant_unique_id&&a.applicant_unique_id===entry.applicant_unique_id))||(!entry.applicant_unique_id&&entry.applicant_name&&ranked.some(a=>String(a.applicant_name)===String(entry.applicant_name)&&String(a.applicant_number||"")===String(entry.applicant_number||""))));
-    if(alreadySaved)continue;
+    const hasSavedMapping=Boolean(entry.applicant_unique_id||entry.applicant_name);
+    const previousFtoName=String(entry.fto_applicant_name||"").trim();
+    if(hasSavedMapping&&!previousFtoName){
+     const {error:baselineError}=await admin.from("vbgramg_charge_ledger").update({fto_applicant_name:ftoName}).eq("id",ledgerId);
+     if(baselineError)throw baselineError;
+     continue;
+    }
+    if(hasSavedMapping&&normalizeApplicantIdentity(previousFtoName)===normalizeApplicantIdentity(ftoName))continue;
     if(best.match_percentage>=80&&(!second||second.match_percentage<80||gap>=10)){
-     const {error:updateError}=await admin.from("vbgramg_charge_ledger").update({applicant_name:best.applicant_name,applicant_number:best.applicant_number,applicant_unique_id:best.applicant_unique_id}).eq("id",ledgerId);
+     const {error:updateError}=await admin.from("vbgramg_charge_ledger").update({applicant_name:best.applicant_name,applicant_number:best.applicant_number,applicant_unique_id:best.applicant_unique_id,fto_applicant_name:ftoName}).eq("id",ledgerId);
      if(updateError)throw updateError;automaticMatches++;
     }else{
      pending.push({ledger_entry_id:ledgerId,job_card_number:jobCard,fto_name:ftoName,reason:best.match_percentage<80?"Best match is below 80%":(second&&second.match_percentage>=80&&gap<10?"Top two candidates are less than 10 percentage points apart":"Needs confirmation"),candidates:ranked.slice(0,10)});
@@ -436,7 +443,7 @@ Deno.serve(async(req:Request)=>{
    const {data:ledger,error:ledgerError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,entry_type").eq("id",ledgerId).maybeSingle();
    if(ledgerError)throw ledgerError;
    if(!ledger||String(ledger.job_card_number)!==jobCard||ledger.entry_type!=="charge")return reply({error:"The contribution charge no longer matches this review."},409);
-   const {error:updateError}=await admin.from("vbgramg_charge_ledger").update({applicant_name:chosen.applicant_name,applicant_number:chosen.applicant_number,applicant_unique_id:chosen.applicant_unique_id}).eq("id",ledgerId);
+   const {error:updateError}=await admin.from("vbgramg_charge_ledger").update({applicant_name:chosen.applicant_name,applicant_number:chosen.applicant_number,applicant_unique_id:chosen.applicant_unique_id,fto_applicant_name:String(body.fto_name||"").trim()||null}).eq("id",ledgerId);
    if(updateError)throw updateError;
    return reply({approved:true,saved:true,applicant:chosen});
   }

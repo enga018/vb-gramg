@@ -406,7 +406,8 @@ function jobCardSuffixNumber(jobCard){
 function render(){
  const q=$('search').value.trim().toLocaleLowerCase(),filter=$('statusFilter').value;
  const list=citizens.filter(c=>{
-  const state=c.exempt?'exempt':c.balance<0?'overpaid':c.balance>0?'due':'paid';
+  if(c.exempt)return false;
+  const state=c.balance<0?'overpaid':c.balance>0?'due':'paid';
   const matchesStatus=filter==='all'||(filter==='deferred'?!c.exempt&&c.deferred>0:state===filter);
   const matchesSearch=c.name.toLocaleLowerCase().includes(q)||c.id.toLocaleLowerCase().includes(q);
   return matchesStatus&&matchesSearch;

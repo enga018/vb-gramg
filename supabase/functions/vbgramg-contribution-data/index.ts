@@ -422,7 +422,7 @@ Deno.serve(async(req:Request)=>{
     if(!localInputRows.length)return reply({error:"No transactions for NEW SERCHHIP North were found. Nothing was imported."},400);
    const normalized:Record<string,any>[]=[];
    const seenReferences=new Map<string,string>();
-   for(const raw of rows){
+   for(const raw of localInputRows){
     const referenceNo=String(raw.reference_no||"").trim().slice(0,200);
     const jobCard=String(raw.job_card_number||"").trim().toUpperCase().slice(0,100);
     const villageName=String(raw.village_name||"").trim().slice(0,150);

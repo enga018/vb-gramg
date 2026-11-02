@@ -437,9 +437,7 @@ function render(){
    if(!c.exempt&&c.deferred>0){const tag=document.createElement('span');tag.className='row-status deferred';tag.textContent='Deferred '+fmt(c.deferred);statusLine.appendChild(tag);}
    if(c.balance>0){const tag=document.createElement('span');tag.className='row-status due';tag.textContent='Outstanding '+fmt(c.balance);statusLine.appendChild(tag);}
    if(statusLine.childElementCount)detail.appendChild(statusLine);
-   if(false&&c.balance>0&&filter!=='due'){
-    const balance=document.createElement('div');balance.className='mobile-outstanding';balance.textContent=fmt(c.balance);balance.style.color='var(--due)';balance.style.minWidth='0';balance.style.textAlign='right';balance.setAttribute('aria-label','Due '+fmt(c.balance));detail.appendChild(balance);
-   }
+
   }else{
    cell(c.id,'jobcard');cell(c.name+(c.exempt?' · EXEMPT':''),'person');
    const dueAmount=Number(c.balance)||0;

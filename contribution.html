@@ -449,11 +449,18 @@ function render(){
    cell(c.id,'jobcard');cell(c.name+(c.exempt?' · EXEMPT':''),'person');
    const dueAmount=Number(c.balance)||0;
    const dueCell=cell('','outstanding-cell');
-   if(c.exempt){const tag=document.createElement('span');tag.className='row-status exempt';tag.textContent='Exempt';dueCell.appendChild(tag);}
-   else if(dueAmount<0){const tag=document.createElement('span');tag.className='row-status overpaid';tag.textContent='Overpaid '+fmt(Math.abs(dueAmount));dueCell.appendChild(tag);}
-   else if(dueAmount>0){dueCell.textContent=fmt(dueAmount);dueCell.style.color='var(--due)';}
-   else{const tag=document.createElement('span');tag.className='row-status settled';tag.textContent='Settled';dueCell.appendChild(tag);}
-   if(!c.exempt&&c.deferred>0){const tag=document.createElement('span');tag.className='row-status deferred';tag.textContent='Deferred '+fmt(c.deferred);tag.style.display='inline-flex';tag.style.marginLeft='5px';dueCell.appendChild(tag);}
+   if(filter==='all'&&!c.exempt){
+    if(dueAmount===0){const tag=document.createElement('span');tag.className='row-status settled';tag.textContent='Settled';dueCell.appendChild(tag);}
+    if(c.deferred>0){const tag=document.createElement('span');tag.className='row-status deferred';tag.textContent='Deferred '+fmt(c.deferred);tag.style.display='inline-flex';tag.style.marginLeft='5px';dueCell.appendChild(tag);}
+    if(dueAmount>0){const tag=document.createElement('span');tag.className='row-status due';tag.textContent='Outstanding '+fmt(dueAmount);tag.style.display='inline-flex';tag.style.marginLeft='5px';dueCell.appendChild(tag);}
+    if(dueAmount<0){const tag=document.createElement('span');tag.className='row-status overpaid';tag.textContent='Overpaid '+fmt(Math.abs(dueAmount));tag.style.display='inline-flex';tag.style.marginLeft='5px';dueCell.appendChild(tag);}
+   }else{
+    if(c.exempt){const tag=document.createElement('span');tag.className='row-status exempt';tag.textContent='Exempt';dueCell.appendChild(tag);}
+    else if(dueAmount<0){const tag=document.createElement('span');tag.className='row-status overpaid';tag.textContent='Overpaid '+fmt(Math.abs(dueAmount));dueCell.appendChild(tag);}
+    else if(dueAmount>0){dueCell.textContent=fmt(dueAmount);dueCell.style.color='var(--due)';}
+    else{const tag=document.createElement('span');tag.className='row-status settled';tag.textContent='Settled';dueCell.appendChild(tag);}
+    if(!c.exempt&&c.deferred>0){const tag=document.createElement('span');tag.className='row-status deferred';tag.textContent='Deferred '+fmt(c.deferred);tag.style.display='inline-flex';tag.style.marginLeft='5px';dueCell.appendChild(tag);}
+   }
   }
   tr.addEventListener('click',()=>openCitizen(c.id));tr.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();openCitizen(c.id)}});tbody.appendChild(tr);
  });

@@ -330,7 +330,7 @@ function renderPastedTable(rows){
  const headerRow=document.createElement('tr');
  FTO_HEADERS.forEach(value=>{const th=document.createElement('th');th.textContent=value;headerRow.appendChild(th)});
  thead.appendChild(headerRow);
- const dataRows=rows.filter(row=>{if(isHeaderOrSeparator(row))return false;const cells=row.map(cell=>String(cell||'').replace(/<br\s*\/?>/gi,' ').replace(/\s+/g,' ').trim());return /^\d+$/.test(cells[0]||'')&&cells.length>=13&&/^MZ-\d{2}-/i.test(cells[2]||'')&&String(cells[3]||'').trim().length>0&&/^\d{2}\/\d{2}\/\d{4}$/.test(cells[4]||'')});
+ const dataRows=rows.filter(row=>{if(isHeaderOrSeparator(row))return false;const cells=row.map(cell=>String(cell||'').replace(/<br\s*\/?>/gi,' ').replace(/\s+/g,' ').trim());return /^\d+$/.test(cells[0]||'')&&cells.length>=13&&!!jobCardFromRow(cells)&&String(cells[3]||'').trim().length>0&&/^\d{2}\/\d{2}\/\d{4}$/.test(cells[4]||'')});
  if(!dataRows.length){$('table-output').classList.add('hidden');$('import-controls').classList.add('hidden');parsedDataRows=[];return null}
  dataRows.forEach(row=>{
   const tr=document.createElement('tr');
@@ -356,15 +356,17 @@ $('load-table-button').addEventListener('click',()=>{
  status('Loaded '+result.rowCount+' FTO rows. Review the applicant names and status changes, then select Synchronize FTO.','success');
 });
 
+const JOB_CARD_PATTERN = /\bMZ-\d{2}-(?:\d{3}-){2,3}\d{3}\/\d+\b/i;
 function jobCardFromRow(row){
- const text=String(row[2]||'').replace(/<br\s*\/?>/gi,' ').replace(/\s+/g,' ').trim();
- const match=text.match(/MZ-\d{2}-[A-Z0-9/-]+/i);
+ const text=String(row[2]||'').replace(/<br\s*\/?>/gi,' ').replace(/[\r\n]+/g,' ').replace(/\s+/g,' ').trim();
+ const match=text.match(JOB_CARD_PATTERN);
  return match?match[0].toUpperCase():'';
 }
 function villageFromRow(row){
- const text=String(row[2]||'').replace(/<br\s*\/?>/gi,' ');
- const match=text.match(/\(([^)]+)\)/);
- return match?match[1].replace(/\s+/g,' ').trim():'';
+ let text=String(row[2]||'').replace(/<br\s*\/?>/gi,' ').replace(/[\r\n]+/g,' ').trim();
+ const jobCard=text.match(JOB_CARD_PATTERN);
+ if(jobCard)text=text.replace(jobCard[0],' ');
+ return text.replace(/[()\[\]{}]/g,' ').replace(/\s+/g,' ').replace(/^[\s,;:.-]+|[\s,;:.-]+$/g,'').trim();
 }
 function normalizeVillage(value){return String(value||'').toUpperCase().replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim()}
 function parseAmount(value){

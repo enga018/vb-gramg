@@ -130,6 +130,18 @@ box-shadow:none!important;transform:none!important}
 body>main{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 
+/* Compact contribution list spacing for desktop and mobile. */
+#contribution-table{font-size:.84rem}
+#contribution-table th,#contribution-table td{padding:8px 10px}
+#contribution-table thead th{font-size:.68rem}
+#contribution-table tbody tr.contribution-row td{line-height:1.3}
+#contribution-table .row-status{margin-top:3px;padding:2px 6px;font-size:.66rem}
+@media(max-width:700px){
+ #contribution-table tbody tr.contribution-row td.mobile-details{padding:8px 10px;gap:6px}
+ #contribution-table .mobile-jobcard-line{font-size:.82rem;line-height:1.3}
+ #contribution-table .row-status{margin-top:2px;padding:2px 5px;font-size:.64rem}
+ #contribution-table .mobile-details .statusLine{gap:4px}
+}
 /* Contribution list: clean, due-first mobile rows. */
 @media(max-width:700px){
  #contribution-table tbody tr.contribution-row{display:block;border-bottom:1px solid #e8edf4;background:#fff}

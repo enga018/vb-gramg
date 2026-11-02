@@ -419,11 +419,24 @@ function buildImportGroups(){
  duplicateCards=new Map();duplicateReferences=new Map();reviewedCards=new Set();unknownCards=new Set();reviewedNewCards=new Set();
  renderImportPreview();refreshDuplicates();
 }
+function importReviewPriority(group){
+ const card=group.job_card_number;
+ const manualReview=group.needs_manual_review===true||group.manual_review===true||group.name_mismatch===true||group.applicant_match_required===true||group.applicant_match_confirmed===false;
+ if(manualReview)return 0;
+ if((duplicateReferences.get(card)||[]).length)return 1;
+ if(unknownCards.has(card))return 2;
+ return 3;
+}
 function renderImportPreview(){
  $('import-summary').classList.remove('error');
  const tbody=$('import-preview-table').querySelector('tbody');tbody.replaceChildren();
  let total=0,invalid=0,excluded=0,localCards=0;
- importGroups.forEach((group,index)=>{
+ const sortedGroups=[...importGroups].sort((a,b)=>{
+  const priority=importReviewPriority(a)-importReviewPriority(b);
+  if(priority)return priority;
+  return a.job_card_number.localeCompare(b.job_card_number,undefined,{numeric:true,sensitivity:'base'});
+ });
+ sortedGroups.forEach((group,index)=>{
   if(group.inScope){total+=group.amount;localCards++}else excluded++;
   invalid+=group.invalid_amount_rows;
   const tr=document.createElement('tr');

@@ -439,11 +439,18 @@ function render(){
    const displayApplicant=String(latestApplicant?.applicant_name||latestApplicant?.name||'').trim()||c.name;
    topLine.append(document.createTextNode(' • '+displayApplicant));detail.appendChild(topLine);
    const statusLine=document.createElement('div');statusLine.style.display='flex';statusLine.style.flexWrap='wrap';statusLine.style.gap='5px';statusLine.style.alignItems='center';statusLine.style.marginTop='5px';
-   if(c.exempt){const tag=document.createElement('span');tag.className='row-status exempt';tag.textContent='Exempt';statusLine.appendChild(tag);}
-   else if(c.balance<0){const tag=document.createElement('span');tag.className='row-status overpaid';tag.textContent='Overpaid '+fmt(Math.abs(c.balance));statusLine.appendChild(tag);}
-   else if(c.balance===0){const tag=document.createElement('span');tag.className='row-status settled';tag.textContent='Settled';statusLine.appendChild(tag);}
-   if(!c.exempt&&c.deferred>0){const tag=document.createElement('span');tag.className='row-status deferred';tag.textContent='Deferred '+fmt(c.deferred);statusLine.appendChild(tag);}
-   if(c.balance>0){const tag=document.createElement('span');tag.className='row-status due';tag.textContent='Outstanding '+fmt(c.balance);statusLine.appendChild(tag);}
+   if(filter==='all'&&!c.exempt){
+    if(c.balance>0){const tag=document.createElement('span');tag.className='row-status due';tag.textContent='Outstanding '+fmt(c.balance);statusLine.appendChild(tag);}
+    if(c.balance===0){const tag=document.createElement('span');tag.className='row-status settled';tag.textContent='Settled';statusLine.appendChild(tag);}
+    if(c.deferred>0){const tag=document.createElement('span');tag.className='row-status deferred';tag.textContent='Deferred '+fmt(c.deferred);statusLine.appendChild(tag);}
+    if(c.balance<0){const tag=document.createElement('span');tag.className='row-status overpaid';tag.textContent='Overpaid '+fmt(Math.abs(c.balance));statusLine.appendChild(tag);}
+   }else{
+    if(c.exempt){const tag=document.createElement('span');tag.className='row-status exempt';tag.textContent='Exempt';statusLine.appendChild(tag);}
+    else if(c.balance<0){const tag=document.createElement('span');tag.className='row-status overpaid';tag.textContent='Overpaid '+fmt(Math.abs(c.balance));statusLine.appendChild(tag);}
+    else if(c.balance===0){const tag=document.createElement('span');tag.className='row-status settled';tag.textContent='Settled';statusLine.appendChild(tag);}
+    if(!c.exempt&&c.deferred>0){const tag=document.createElement('span');tag.className='row-status deferred';tag.textContent='Deferred '+fmt(c.deferred);statusLine.appendChild(tag);}
+    if(c.balance>0){const tag=document.createElement('span');tag.className='row-status due';tag.textContent='Outstanding '+fmt(c.balance);statusLine.appendChild(tag);}
+   }
    if(statusLine.childElementCount)detail.appendChild(statusLine);
 
   }else{
@@ -451,9 +458,9 @@ function render(){
    const dueAmount=Number(c.balance)||0;
    const dueCell=cell('','outstanding-cell');
    if(filter==='all'&&!c.exempt){
+    if(dueAmount>0){const tag=document.createElement('span');tag.className='row-status due';tag.textContent='Outstanding '+fmt(dueAmount);tag.style.display='inline-flex';tag.style.marginLeft='5px';dueCell.appendChild(tag);}
     if(dueAmount===0){const tag=document.createElement('span');tag.className='row-status settled';tag.textContent='Settled';dueCell.appendChild(tag);}
     if(c.deferred>0){const tag=document.createElement('span');tag.className='row-status deferred';tag.textContent='Deferred '+fmt(c.deferred);tag.style.display='inline-flex';tag.style.marginLeft='5px';dueCell.appendChild(tag);}
-    if(dueAmount>0){const tag=document.createElement('span');tag.className='row-status due';tag.textContent='Outstanding '+fmt(dueAmount);tag.style.display='inline-flex';tag.style.marginLeft='5px';dueCell.appendChild(tag);}
     if(dueAmount<0){const tag=document.createElement('span');tag.className='row-status overpaid';tag.textContent='Overpaid '+fmt(Math.abs(dueAmount));tag.style.display='inline-flex';tag.style.marginLeft='5px';dueCell.appendChild(tag);}
    }else{
     if(c.exempt){const tag=document.createElement('span');tag.className='row-status exempt';tag.textContent='Exempt';dueCell.appendChild(tag);}

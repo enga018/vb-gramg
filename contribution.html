@@ -279,7 +279,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 <div class="kpi-row"><div class="stats"><div class="stat"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred total</div><div class="v" id="deferred">—</div></div></div><div class="kpi-actions"><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk Payment</button><button class="btn hidden" id="exportDueBtn" type="button">Export</button></div></div>
 
 
-<div class="toolbar"><div class="search-wrap"><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><button id="clearSearch" class="search-clear" type="button" aria-label="Clear search" title="Clear search">×</button></div><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="overpaid">Overpaid</option><option value="deferred">Has deferred charges</option><option value="exempt">Exempted</option></select></div></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button></div></div>
+<div class="toolbar"><div class="search-wrap"><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><button id="clearSearch" class="search-clear" type="button" aria-label="Clear search" title="Clear search">×</button></div><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="overpaid">Overpaid</option><option value="deferred">Has deferred charges</option></select></div></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button></div></div>
 </section><aside id="desktop-detail-panel" aria-label="Selected citizen ledger"></aside></div>
 </div>
 </main>
@@ -410,18 +410,10 @@ function render(){
  const start=currentPage*pageSize,shown=list.slice(start,start+pageSize),isMobile=window.matchMedia('(max-width: 700px)').matches;
  const thead=$('contribution-table').querySelector('thead'),tbody=$('contribution-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
  const head=document.createElement('tr');
- (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Last Charges','Balance']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Last Charges'||label==='Balance'){th.style.textAlign='right';th.className=label==='Last Charges'?'last-charge-heading':'balance-heading';}head.appendChild(th)});thead.appendChild(head);
+ (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Balance']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Balance'){th.style.textAlign='right';th.className='balance-heading';}head.appendChild(th)});thead.appendChild(head);
  shown.forEach((c,index)=>{
   const state=c.exempt?'exempt':c.balance<0?'overpaid':c.balance>0?'due':'settled',tr=document.createElement('tr');tr.className='contribution-row '+state;tr.tabIndex=0;tr.dataset.card=c.id;tr.setAttribute('role','button');tr.setAttribute('aria-label','Open contribution history for '+c.name+' job card '+c.id);
   const cell=(value,cls)=>{const td=document.createElement('td');td.textContent=value;if(cls)td.className=cls;tr.appendChild(td);return td};
-  const chargeEntries=c.ledger.filter(e=>(e.entry_type==='charge'||e.entry_type==='other_charge'||e.entry_type==='sanitationFee')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return')).sort((a,b)=>String(b.entry_date||'').localeCompare(String(a.entry_date||''))||String(b.created_at||'').localeCompare(String(a.created_at||'')));
-  const lastCharge=chargeEntries[0];
-  let chargeName=String(lastCharge?.applicant_name||'').trim();
-  if(!chargeName&&lastCharge){
-   const applicants=Array.isArray(applicantsByCard[c.id])?applicantsByCard[c.id]:[];
-   const matched=applicants.find(a=>String(a.applicant_number||'').trim()===String(lastCharge.applicant_number||'').trim());
-   chargeName=String(matched?.applicant_name||matched?.name||'').trim();
-  }
   if(isMobile){
    const detail=cell('','mobile-details');
    detail.style.display='grid';detail.style.gridTemplateColumns=c.balance>0?'minmax(0,5fr) minmax(0,1fr)':'minmax(0,1fr)';detail.style.alignItems='center';detail.style.gap='10px';detail.style.minWidth='0';
@@ -436,7 +428,7 @@ function render(){
     String(b.applicant_number||'').localeCompare(String(a.applicant_number||''),undefined,{numeric:true})||
     String(b.applicant_name||b.name||'').localeCompare(String(a.applicant_name||a.name||''))
    )[0];
-   const displayApplicant=chargeName||String(latestApplicant?.applicant_name||latestApplicant?.name||'').trim()||c.name;
+   const displayApplicant=String(latestApplicant?.applicant_name||latestApplicant?.name||'').trim()||c.name;
    topLine.append(document.createTextNode(' • '+displayApplicant));detail.appendChild(topLine);
    const statusLine=document.createElement('div');statusLine.style.display='flex';statusLine.style.flexWrap='wrap';statusLine.style.gap='5px';statusLine.style.alignItems='center';statusLine.style.marginTop='5px';
    if(c.exempt){const tag=document.createElement('span');tag.className='row-status exempt';tag.textContent='Exempt';statusLine.appendChild(tag);}
@@ -449,25 +441,6 @@ function render(){
    }
   }else{
    cell(c.id,'jobcard');cell(c.name+(c.exempt?' · EXEMPT':''),'person');
-   const lastChargeCell=cell('','last-charge-cell');
-   lastChargeCell.style.textAlign='right';
-   lastChargeCell.style.whiteSpace='nowrap';
-   if(lastCharge){
-    const amount=document.createElement('span');
-    amount.textContent=fmt(lastCharge.amount);
-    amount.className='last-charge-amount';
-    lastChargeCell.appendChild(amount);
-    if(lastCharge.is_deferred){
-     const deferredTag=document.createElement('span');
-     deferredTag.className='deferred-tag';
-     deferredTag.textContent='Deferred';
-     deferredTag.setAttribute('aria-label','Deferred charge');
-     lastChargeCell.appendChild(deferredTag);
-    }
-   }else{
-    lastChargeCell.textContent='—';
-    lastChargeCell.style.color='var(--muted)';
-   }
    const dueAmount=Number(c.balance)||0;
    const dueCell=cell('','outstanding-cell');
    if(c.exempt){const tag=document.createElement('span');tag.className='row-status exempt';tag.textContent='Exempt';dueCell.appendChild(tag);}

@@ -251,7 +251,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 </div>
 
 <div id="import-controls" class="import-controls hidden">
- <div class="section-head"><div><h2>Prepare contribution import</h2><p>The FTO number and selected shared period are saved on the first import. Re-importing the same FTO reuses its saved period and synchronizes status changes. Only New Serchhip North transactions are saved; rows from other villages are excluded.</p></div></div>
+ <div class="section-head"><div><h2>Prepare contribution import</h2><p>The FTO number and selected shared period are saved on the first import. Re-importing the same FTO reuses its saved period and synchronizes status changes. Only job cards present in the active MIS are synchronized; the village text is retained as source information.</p></div></div>
  <div class="import-grid">
   <div class="field"><label for="fto-number">FTO number</label><input id="fto-number" type="text" maxlength="100" placeholder="Detected from pasted table or enter it" required></div>
   <div class="field"><label for="charge-period">Contribution period</label><select id="charge-period" required><option value="">Loading open periods…</option></select></div>
@@ -265,11 +265,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  <p class="import-help">Statuses are synchronized automatically per reference number: blank becomes deferred, Processed activates the matching charge, and Rejected removes only a matching FTO charge when no active transaction remains. The system records status history and does not delete unrelated charges. Mixed statuses under one job card are reconciled from individual reference numbers.</p>
  <div class="table-foot"><span id="import-count" class="muted"></span><div class="actions"><button id="fto-import-button" type="button" disabled>Synchronize FTO</button></div></div>
   <div id="sync-status" class="status hidden" aria-live="polite" role="status"></div>
-  <section id="applicant-review" class="applicant-review hidden" aria-labelledby="applicant-review-title">
-   <h3 id="applicant-review-title">Review applicant matches</h3>
-   <p>These FTO names did not match one active MIS applicant automatically. Choose the correct applicant from the same job card. No transactions or contribution charges are changed until all matches are confirmed and synchronization succeeds.</p>
-   <div class="table-wrap applicant-review-table-wrap"><table id="applicant-review-table"><thead><tr><th>Job card</th><th>FTO name</th><th>Suggested active MIS applicant</th></tr></thead><tbody></tbody></table></div>
-   <div class="table-foot"><span id="applicant-review-count" class="muted"></span><button id="save-applicant-matches" type="button" disabled>Save matches and continue</button></div>
+
   </section>
 </div>
 
@@ -403,7 +399,7 @@ async function loadSharedPeriods(selectedId=''){
  if([...select.options].some(o=>o.value===old))select.value=old;
 }
 function currentStatusAction(){return 'all'}
-function actionGroups(){return importGroups.filter(g=>g.inScope)}
+function actionGroups(){return importGroups}
 function rawStatus(row){
  const value=String(row[12]||'').replace(/<br\s*\/?>/gi,' ').trim().toLowerCase();
  return value==='processed'?'processed':value==='rejected'?'rejected':value===''?'blank':'other';
@@ -414,7 +410,7 @@ function buildImportGroups(){
  const map=new Map();
  for(const row of parsedDataRows){
   const jobCard=jobCardFromRow(row);if(!jobCard)continue;
-  const village=villageFromRow(row),local=normalizeVillage(village)===normalizeVillage('NEW SERCHHIP North');
+  const village=villageFromRow(row);
   const creditAmount=parseAmount(row[11]),amount=validFormula&&creditAmount>0?(creditAmount/divisor)*multiplier:0;
   const personName=String(row[7]||row[5]||'').replace(/<br\s*\/?>/gi,' ').replace(/\s+/g,' ').trim();
   const rowState=rawStatus(row),reference=String(row[3]||'').replace(/<br\s*\/?>/gi,' ').replace(/\s+/g,' ').trim();
@@ -423,10 +419,10 @@ function buildImportGroups(){
   if(!group.person_name||group.person_name==='Name needs review')group.person_name=personName||group.person_name;
   group.row_count++;group.statuses.add(rowState);group.villages.add(village||'Village unknown');group.allLocal=group.allLocal&&local;
   if(reference&&!group.references.includes(reference))group.references.push(reference);
-  if(local&&(rowState==='blank'||rowState==='processed')&&amount>0)group.amount+=amount;
+  if((rowState==='blank'||rowState==='processed')&&amount>0)group.amount+=amount;
   if((rowState==='blank'||rowState==='processed')&&amount<=0)group.invalid_amount_rows++;
  }
- importGroups=[...map.values()].map(g=>({...g,status:g.statuses.size===1?[...g.statuses][0]:'mixed',village:[...g.villages].join(' / '),inScope:g.allLocal&&g.villages.size===1&&normalizeVillage([...g.villages][0])===normalizeVillage('NEW SERCHHIP North'),reference_numbers:g.references})).sort((a,b)=>a.job_card_number.localeCompare(b.job_card_number));
+ importGroups=[...map.values()].map(g=>({...g,status:g.statuses.size===1?[...g.statuses][0]:'mixed',village:[...g.villages].join(' / '),inScope:true,reference_numbers:g.references})).sort((a,b)=>a.job_card_number.localeCompare(b.job_card_number));
  duplicateCards=new Map();duplicateReferences=new Map();reviewedCards=new Set();unknownCards=new Set();reviewedNewCards=new Set();
  renderImportPreview();refreshDuplicates();
 }
@@ -448,10 +444,7 @@ function renderImportPreview(){
   addCell(group.inScope&&group.amount>0?'₹'+group.amount.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}):'—');
   const duplicate=duplicateCards.get(group.job_card_number),repeatedRefs=duplicateReferences.get(group.job_card_number)||[],isUnknown=unknownCards.has(group.job_card_number);
   const duplicateCell=addCell('');
-  if(!group.inScope){
-   const flag=document.createElement('span');flag.className='flag';flag.textContent='Excluded from charges';duplicateCell.appendChild(flag);
-   const detail=document.createElement('div');detail.className='muted';detail.textContent='Village does not match New Serchhip North';duplicateCell.appendChild(detail);
-  }else if(duplicate){
+  if(duplicate){
    const flag=document.createElement('span');flag.className='flag';flag.textContent='Existing charge';duplicateCell.appendChild(flag);
    const detail=document.createElement('div');detail.className='muted';detail.textContent='₹'+Number(duplicate.amount||0).toLocaleString('en-IN',{maximumFractionDigits:2})+(duplicate.is_deferred?' · deferred':' · active');duplicateCell.appendChild(detail);
   }else if(isUnknown){
@@ -462,8 +455,7 @@ function renderImportPreview(){
   }
   if(repeatedRefs.length){const flag=document.createElement('div');flag.className='flag';flag.style.marginTop='6px';flag.textContent='Duplicate reference';duplicateCell.appendChild(flag);const detail=document.createElement('div');detail.className='muted';detail.textContent=repeatedRefs.join(', ');duplicateCell.appendChild(detail);}
   const reviewCell=addCell('', 'review-cell');
-  if(!group.inScope){reviewCell.textContent='Not imported';}
-  else if(duplicate){
+  if(duplicate){
    const label=document.createElement('label');label.style.display='flex';label.style.gap='8px';label.style.alignItems='center';label.style.margin='0';
    const check=document.createElement('input');check.type='checkbox';check.checked=reviewedCards.has(group.job_card_number);check.setAttribute('aria-label','I reviewed duplicate '+group.job_card_number);
    check.addEventListener('change',()=>{if(check.checked)reviewedCards.add(group.job_card_number);else reviewedCards.delete(group.job_card_number);renderImportPreview()});
@@ -476,9 +468,9 @@ function renderImportPreview(){
   }else reviewCell.textContent=group.inScope?'—':'Review village';
   tbody.appendChild(tr);
  });
- const period=selectedPeriodName(),excludedRows=parsedDataRows.filter(row=>normalizeVillage(villageFromRow(row))!==normalizeVillage('NEW SERCHHIP North')).length;
- $('import-count').textContent=localCards+' local job cards · '+parsedDataRows.length+' FTO rows · '+excludedRows+' rows outside/unclear village';
- $('import-summary').textContent=(period?'Period label: '+period:'Select a contribution month')+' · Local calculated charges: ₹'+total.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+' · Excluded job-card groups: '+excluded+(invalid?' · '+invalid+' local row(s) have a missing/invalid credit amount':'');
+ const period=selectedPeriodName();
+ $('import-count').textContent=localCards+' FTO job-card groups · '+parsedDataRows.length+' FTO rows · active MIS membership checked during synchronization';
+ $('import-summary').textContent=(period?'Period label: '+period:'Select a contribution month')+' · Preview calculated charges: ₹'+total.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+(invalid?' · '+invalid+' row(s) have a missing/invalid credit amount':'');
  updateImportButton();
 }
 async function refreshDuplicates(){
@@ -533,71 +525,15 @@ $('fto-number').addEventListener('change',lookupFtoBatch);
 $('charge-period').addEventListener('change',()=>{reviewedCards=new Set();reviewedNewCards=new Set();refreshDuplicates()});
 $('amount-divisor').addEventListener('input',()=>buildImportGroups());
 $('amount-multiplier').addEventListener('input',()=>buildImportGroups());
-let pendingSyncPayload=null;
-function hideApplicantReview(){
- $('applicant-review').classList.add('hidden');
- $('applicant-review-table').querySelector('tbody').replaceChildren();
- pendingSyncPayload=null;
-}
-function renderApplicantReview(items,payload){
- pendingSyncPayload=payload;
- const section=$('applicant-review'),tbody=$('applicant-review-table').querySelector('tbody');
- tbody.replaceChildren();
- for(let i=0;i<items.length;i++){
-  const item=items[i],tr=document.createElement('tr');
-  const card=document.createElement('td');card.textContent=item.job_card_number;tr.appendChild(card);
-  const name=document.createElement('td');name.textContent=item.fto_name;tr.appendChild(name);
-  const pick=document.createElement('td'),select=document.createElement('select');
-  select.dataset.reviewIndex=String(i);
-  const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Choose the correct MIS applicant';select.appendChild(placeholder);
-  for(const candidate of (item.candidates||[])){
-   const option=document.createElement('option');option.value=String(candidate.applicant_unique_id||'');
-   option.textContent='Applicant No. '+String(candidate.applicant_number||'—')+' · '+String(candidate.applicant_name||'Name unavailable')+' · '+String(candidate.applicant_unique_id||'');
-   select.appendChild(option);
-  }
-  if(!item.candidates||!item.candidates.length){select.disabled=true;const none=document.createElement('div');none.className='muted';none.textContent='No applicant with a Unique ID was found under this job card in active MIS.';pick.appendChild(none);}
-  pick.appendChild(select);tr.appendChild(pick);tbody.appendChild(tr);
- }
- $('applicant-review-count').textContent=items.length+' FTO name(s) need manual confirmation. Confirm only applicants you can identify reliably.';
- const save=$('save-applicant-matches');
- const refresh=()=>{save.disabled=[...tbody.querySelectorAll('select')].some(s=>!s.value)||[...tbody.querySelectorAll('select')].length!==items.length;};
- tbody.querySelectorAll('select').forEach(s=>s.addEventListener('change',refresh));
- save.onclick=async()=>{
-  if(save.disabled||!pendingSyncPayload)return;
-  save.disabled=true;save.textContent='Saving matches…';
-  try{
-   const matches=items.map((item,i)=>({job_card_number:item.job_card_number,fto_name:item.fto_name,applicant_unique_id:tbody.querySelector('select[data-review-index="'+i+'"]')?.value||''}));
-   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'save-fto-applicant-matches',matches}});
-   if(error||!data||data.error)throw new Error((data&&data.error)||await edgeFunctionErrorMessage(error,'Could not save applicant matches.'));
-   syncStatus(data.saved+' applicant match(es) saved. Retrying synchronization with the confirmed matches…','');
-   const mainButton=$('fto-import-button');mainButton.disabled=true;mainButton.textContent='Synchronizing FTO…';
-   await executeFtoSync(pendingSyncPayload,mainButton);
-  }catch(err){
-   syncStatus(err.message||'Could not save applicant matches. Try again.','error');
-  }finally{
-   save.textContent='Save matches and continue';save.disabled=[...tbody.querySelectorAll('select')].some(s=>!s.value)||!tbody.querySelectorAll('select').length;
-   const mainButton=$('fto-import-button');if(mainButton.textContent!=='Synchronization completed')mainButton.disabled=false;
-  }
- };
- section.classList.remove('hidden');
- refresh();
- section.scrollIntoView({behavior:'smooth',block:'start'});
-}
 async function executeFtoSync(payload,button){
  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:payload});
- if(data&&data.needs_manual_review){
-  renderApplicantReview(data.manual_review||[],payload);
-  syncStatus('Manual applicant review is required. No FTO transactions or contribution charges were changed.','');
-  button.textContent='Review applicant matches';
-  return false;
- }
  if(error||!data||data.error){
   if(data&&Array.isArray(data.duplicates)){duplicateCards=new Map(data.duplicates.map(row=>[String(row.job_card_number),row]));reviewedCards=new Set();}
   if(data&&Array.isArray(data.unknown_job_cards)){unknownCards=new Set(data.unknown_job_cards.map(String));reviewedNewCards=new Set();}
   if(data&&(Array.isArray(data.duplicates)||Array.isArray(data.unknown_job_cards)))renderImportPreview();
   throw new Error((data&&data.error)||await edgeFunctionErrorMessage(error,'FTO synchronization failed.'));
  }
- hideApplicantReview();
+ 
  const syncMessage='FTO '+data.fto_number+' synchronized. Saved period: '+data.contribution_period+'. Rows checked: '+data.rows_seen+'. Local transactions: '+data.local_transactions+'. Outside-active-MIS transactions excluded: '+data.excluded_other_village+'. Charges created: '+data.inserted+', updated: '+data.updated+', matching rejected charges removed: '+data.deleted+'. Calculated local total: ₹'+Number(data.total_amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'.';
  syncStatus(syncMessage,'success');button.textContent='Synchronization completed';
  await lookupFtoBatch();
@@ -608,7 +544,7 @@ $('fto-import-button').addEventListener('click',async()=>{
  if($('fto-import-button').disabled)return;
  const button=$('fto-import-button'),ftoNumber=$('fto-number').value.trim(),periodLabel=selectedPeriodName(),period=periodToDate(selectedPeriodDate()),periodId=$('charge-period').value;
  if(!window.confirm('Synchronize FTO '+ftoNumber+' for contribution period "'+periodLabel+'"? Only job cards present in the active MIS will affect charges. Status changes will be recorded, and unrelated charges will not be deleted.'))return;
- button.disabled=true;button.textContent='Synchronizing FTO…';$('sync-status').textContent='';$('sync-status').classList.add('hidden');$('sync-status').classList.remove('error','success');hideApplicantReview();
+ button.disabled=true;button.textContent='Synchronizing FTO…';$('sync-status').textContent='';$('sync-status').classList.add('hidden');$('sync-status').classList.remove('error','success');
  try{
   const divisor=Number($('amount-divisor').value),multiplier=Number($('amount-multiplier').value);
   const payloadRows=parsedDataRows.map(row=>{

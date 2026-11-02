@@ -558,7 +558,7 @@ async function loadApplicantReview(ftoNumber){
    save.addEventListener('click',async()=>{
     if(select.value==='')return;const candidate=item.candidates[Number(select.value)];save.disabled=true;save.textContent='Saving…';
     try{
-     const {data:result,error:saveError}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'save-fto-applicant-match',ledger_entry_id:item.ledger_entry_id,job_card_number:item.job_card_number,applicant_name:candidate.applicant_name,applicant_number:candidate.applicant_number,applicant_unique_id:candidate.applicant_unique_id}});
+     const {data:result,error:saveError}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'save-fto-applicant-match',ledger_entry_id:item.ledger_entry_id,job_card_number:item.job_card_number,applicant_name:candidate.applicant_name,applicant_number:candidate.applicant_number,applicant_unique_id:candidate.applicant_unique_id,fto_name:item.fto_name}});
      if(saveError||!result||result.error)throw new Error((result&&result.error)||(saveError&&saveError.message)||'Could not save applicant selection.');
      tr.remove();const remaining=tbody.querySelectorAll('tr').length;summary.textContent='Applicant mapping saved. '+remaining+' item(s) still need review.';if(!remaining)summary.classList.add('success');
     }catch(err){reason.textContent=err.message||'Could not save selection.';save.disabled=false;save.textContent='Retry';}

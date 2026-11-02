@@ -421,7 +421,7 @@ function buildImportGroups(){
 }
 function importReviewPriority(group){
  const card=group.job_card_number;
- const manualReview=group.needs_manual_review===true||group.manual_review===true||group.name_mismatch===true||group.applicant_match_required===true||group.applicant_match_confirmed===false;
+ const manualReview=group.needs_manual_review===true||group.manual_review===true||group.name_mismatch===true||group.applicant_match_required===true||group.applicant_match_confirmed===false||duplicateCards.has(card);
  if(manualReview)return 0;
  if((duplicateReferences.get(card)||[]).length)return 1;
  if(unknownCards.has(card))return 2;

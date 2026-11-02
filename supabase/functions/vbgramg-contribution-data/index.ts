@@ -19,7 +19,7 @@ async function loadActiveMisApplicants(admin:any){
  return byCard;
 }
 function applicantNameScore(left:unknown,right:unknown){
- const a=normalizeApplicantName(left).replace(/[^\\p{L}\\p{N}]+/gu,""),b=normalizeApplicantName(right).replace(/[^\\p{L}\\p{N}]+/gu,"");
+ const a=normalizeApplicantName(left).replace(/[^\p{L}\p{N}]+/gu,""),b=normalizeApplicantName(right).replace(/[^\p{L}\p{N}]+/gu,"");
  if(!a||!b)return 0;
  const prev=Array.from({length:b.length+1},(_,i)=>i);
  for(let i=1;i<=a.length;i++){let diagonal=prev[0];prev[0]=i;for(let j=1;j<=b.length;j++){const above=prev[j];prev[j]=Math.min(prev[j]+1,prev[j-1]+1,diagonal+(a[i-1]===b[j-1]?0:1));diagonal=above;}}

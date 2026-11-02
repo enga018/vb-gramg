@@ -405,10 +405,10 @@ function buildImportGroups(){
   const creditAmount=parseAmount(row[11]),amount=validFormula&&creditAmount>0?(creditAmount/divisor)*multiplier:0;
   const personName=String(row[5]||row[7]||'').replace(/<br\s*\/?>/gi,' ').replace(/\s+/g,' ').trim();
   const rowState=rawStatus(row),reference=String(row[3]||'').replace(/<br\s*\/?>/gi,' ').replace(/\s+/g,' ').trim();
-  if(!map.has(jobCard))map.set(jobCard,{job_card_number:jobCard,person_name:personName||'Name needs review',amount:0,row_count:0,invalid_amount_rows:0,statuses:new Set(),villages:new Set(),references:[],allLocal:true});
+  if(!map.has(jobCard))map.set(jobCard,{job_card_number:jobCard,person_name:personName||'Name needs review',amount:0,row_count:0,invalid_amount_rows:0,statuses:new Set(),villages:new Set(),references:[]});
   const group=map.get(jobCard);
   if(!group.person_name||group.person_name==='Name needs review')group.person_name=personName||group.person_name;
-  group.row_count++;group.statuses.add(rowState);group.villages.add(village||'Village unknown');group.allLocal=group.allLocal&&local;
+  group.row_count++;group.statuses.add(rowState);group.villages.add(village||'Village unknown');
   if(reference&&!group.references.includes(reference))group.references.push(reference);
   if((rowState==='blank'||rowState==='processed')&&amount>0)group.amount+=amount;
   if((rowState==='blank'||rowState==='processed')&&amount<=0)group.invalid_amount_rows++;

@@ -598,16 +598,16 @@ async function executeFtoSync(payload,button){
   throw new Error((data&&data.error)||await edgeFunctionErrorMessage(error,'FTO synchronization failed.'));
  }
  hideApplicantReview();
- const syncMessage='FTO '+data.fto_number+' synchronized. Saved period: '+data.contribution_period+'. Rows checked: '+data.rows_seen+'. Local transactions: '+data.local_transactions+'. Other-village/unclear transactions excluded: '+data.excluded_other_village+'. Charges created: '+data.inserted+', updated: '+data.updated+', matching rejected charges removed: '+data.deleted+'. Calculated local total: ₹'+Number(data.total_amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'.';
+ const syncMessage='FTO '+data.fto_number+' synchronized. Saved period: '+data.contribution_period+'. Rows checked: '+data.rows_seen+'. Local transactions: '+data.local_transactions+'. Outside-active-MIS transactions excluded: '+data.excluded_other_village+'. Charges created: '+data.inserted+', updated: '+data.updated+', matching rejected charges removed: '+data.deleted+'. Calculated local total: ₹'+Number(data.total_amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'.';
  syncStatus(syncMessage,'success');button.textContent='Synchronization completed';
- await lookupFtoBatch();await loadFtoHistory();
+ await lookupFtoBatch();
  if(window.parent!==window)window.parent.postMessage({type:"vbgramg-fto-import-complete"},window.location.origin);
  return true;
 }
 $('fto-import-button').addEventListener('click',async()=>{
  if($('fto-import-button').disabled)return;
  const button=$('fto-import-button'),ftoNumber=$('fto-number').value.trim(),periodLabel=selectedPeriodName(),period=periodToDate(selectedPeriodDate()),periodId=$('charge-period').value;
- if(!window.confirm('Synchronize FTO '+ftoNumber+' for contribution period "'+periodLabel+'"? Only New Serchhip North records will affect charges. Status changes will be recorded, and unrelated charges will not be deleted.'))return;
+ if(!window.confirm('Synchronize FTO '+ftoNumber+' for contribution period "'+periodLabel+'"? Only job cards present in the active MIS will affect charges. Status changes will be recorded, and unrelated charges will not be deleted.'))return;
  button.disabled=true;button.textContent='Synchronizing FTO…';$('sync-status').textContent='';$('sync-status').classList.add('hidden');$('sync-status').classList.remove('error','success');hideApplicantReview();
  try{
   const divisor=Number($('amount-divisor').value),multiplier=Number($('amount-multiplier').value);

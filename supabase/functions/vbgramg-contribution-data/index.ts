@@ -404,7 +404,7 @@ Deno.serve(async(req:Request)=>{
    const contributionPeriod=String(body.contribution_period||"").trim().slice(0,100);
    const chargePeriod=String(body.charge_period||"").trim();
    const periodMatch=chargePeriod.match(/^(\d{4})-(\d{2})-01$/);
-   const villageScope="NEW SERCHHIP North";
+   const villageScope="ACTIVE MIS JOB CARDS";
    const rows=body.rows;
    if(!ftoNumber)return reply({error:"Enter the FTO number shown on the government page."},400);
    if(!contributionPeriod)return reply({error:"Select a contribution period from the shared list."},400);
@@ -415,11 +415,13 @@ Deno.serve(async(req:Request)=>{
    if(!/^[a-f0-9]{64}$/.test(sourceSha))return reply({error:"FTO synchronization identity is missing. Reload the preview and try again."},400);
    const reviewed=Array.isArray(body.reviewed_duplicates)?new Set(body.reviewed_duplicates.map((v:unknown)=>String(v||"").trim())):new Set<string>();
    const reviewedNew=Array.isArray(body.reviewed_new_job_cards)?new Set(body.reviewed_new_job_cards.map((v:unknown)=>String(v||"").trim())):new Set<string>();
-   const normVillage=(v:unknown)=>String(v||"").toUpperCase().replace(/[^A-Z0-9 ]/g," ").replace(/\s+/g," ").trim();
-    const rowsSeen=rows.length;
-    const excludedOtherVillage=rows.filter((raw:Record<string,any>)=>normVillage(raw?.village_name)!==normVillage(villageScope)).length;
-    const localInputRows=rows.filter((raw:Record<string,any>)=>normVillage(raw?.village_name)===normVillage(villageScope));
-    if(!localInputRows.length)return reply({error:"No transactions for NEW SERCHHIP North were found. Nothing was imported."},400);
+   const rowsSeen=rows.length;
+   const activeMisApplicants=await loadActiveMisApplicants(admin);
+   if(!activeMisApplicants.size)return reply({error:"There is no active MIS import available. Import or activate MIS before synchronizing an FTO."},409);
+   const activeJobCards=new Set([...activeMisApplicants.keys()].map(card=>String(card).trim().toUpperCase()));
+   const localInputRows=rows.filter((raw:Record<string,any>)=>activeJobCards.has(String(raw?.job_card_number||"").trim().toUpperCase()));
+   const excludedNotInActiveMis=rowsSeen-localInputRows.length;
+   if(!localInputRows.length)return reply({error:"No FTO transactions matched job cards in the active MIS. Nothing was imported."},400);
    const normalized:Record<string,any>[]=[];
    const seenReferences=new Map<string,string>();
    for(const raw of localInputRows){
@@ -448,7 +450,7 @@ Deno.serve(async(req:Request)=>{
       credit_amount:Number.isFinite(creditAmount)&&creditAmount>0?creditAmount:null,
       calculated_charge:status==="rejected"||status==="other"?0:calculatedCharge,
       status,rejection_reason:rejectionReason||null,
-      is_in_scope:normVillage(villageName)===normVillage(villageScope),
+      is_in_scope:true,
       source_row:raw.source_row&&typeof raw.source_row==="object"?raw.source_row:{}
     });
    }
@@ -478,7 +480,6 @@ Deno.serve(async(req:Request)=>{
    const chargeCandidateRows=normalized.filter(r=>r.is_in_scope&&!exemptCards.has(String(r.job_card_number))&&["blank","processed"].includes(String(r.status))&&Number(r.calculated_charge||0)>0);
    const chargeCandidateCards=[...new Set(chargeCandidateRows.map(r=>String(r.job_card_number)))];
    const incomingRefs=chargeCandidateRows.map(r=>String(r.reference_no));
-   const activeMisApplicants=await loadActiveMisApplicants(admin);
    const {data:savedMatchRows,error:savedMatchError}=chargeCandidateCards.length
     ?await admin.from("vbgramg_fto_applicant_matches").select("job_card_number,normalized_fto_name,applicant_unique_id").in("job_card_number",chargeCandidateCards)
     :{data:[],error:null};
@@ -679,7 +680,7 @@ Deno.serve(async(req:Request)=>{
    const totalAmount=Number(normalized.filter(r=>r.is_in_scope&&!exemptCards.has(String(r.job_card_number))&&["blank","processed"].includes(String(r.status))).reduce((sum,r)=>sum+Number(r.calculated_charge||0),0).toFixed(2));
    const {error:completeError}=await admin.from("vbgramg_charge_imports").update({status:"complete",completed_at:new Date().toISOString(),row_count:incomingCards.length,total_amount:totalAmount,notes:("FTO sync "+ftoNumber+"; period label: "+contributionPeriod).slice(0,500)}).eq("id",importId);
    if(completeError)throw completeError;
-   return reply({approved:true,fto_number:ftoNumber,contribution_period:contributionPeriod,charge_period:chargePeriod,rows_seen:rowsSeen,local_transactions:normalized.length,excluded_other_village:excludedOtherVillage,inserted:insertedCount,updated:updatedCount,deleted:deletedCount,total_amount:totalAmount,batch_id:batchId});
+   return reply({approved:true,fto_number:ftoNumber,contribution_period:contributionPeriod,charge_period:chargePeriod,rows_seen:rowsSeen,local_transactions:normalized.length,excluded_not_in_active_mis:excludedNotInActiveMis,excluded_other_village:excludedNotInActiveMis,inserted:insertedCount,updated:updatedCount,deleted:deletedCount,total_amount:totalAmount,batch_id:batchId});
   }
 
   if(action==="sync-fto-status"){

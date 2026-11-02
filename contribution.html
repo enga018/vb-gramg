@@ -410,7 +410,7 @@ function render(){
  const start=currentPage*pageSize,shown=list.slice(start,start+pageSize),isMobile=window.matchMedia('(max-width: 700px)').matches;
  const thead=$('contribution-table').querySelector('thead'),tbody=$('contribution-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
  const head=document.createElement('tr');
- (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Last Charges','Due']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Last Charges'||label==='Due'){th.style.textAlign='right';th.className=label==='Last Charges'?'last-charge-heading':'due-heading';}head.appendChild(th)});thead.appendChild(head);
+ (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Last Charges','Balance']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Last Charges'||label==='Balance'){th.style.textAlign='right';th.className=label==='Last Charges'?'last-charge-heading':'balance-heading';}head.appendChild(th)});thead.appendChild(head);
  shown.forEach((c,index)=>{
   const state=c.balance<0?'overpaid':c.balance>0?'due':'settled',tr=document.createElement('tr');tr.className='contribution-row '+state;tr.tabIndex=0;tr.dataset.card=c.id;tr.setAttribute('role','button');tr.setAttribute('aria-label','Open contribution history for '+c.name+' job card '+c.id);
   const cell=(value,cls)=>{const td=document.createElement('td');td.textContent=value;if(cls)td.className=cls;tr.appendChild(td);return td};

@@ -104,15 +104,6 @@ tbody tr:last-child td{border-bottom:0}
 .import-table input[type=checkbox]{width:19px;height:19px;min-height:19px;accent-color:#2457c5;vertical-align:middle}
 .import-table .review-cell{min-width:180px}
 #fto-import-button{min-width:190px}
-.applicant-review{margin-top:16px;padding:18px;border:1px solid #d7e3fa;border-radius:12px;background:#f8faff}
-.applicant-review h3{margin:0 0 6px;font-size:1rem;color:var(--ink)}
-.applicant-review p{margin:0 0 12px;font-size:.88rem}
-.applicant-review-table-wrap{max-height:42vh;margin-top:10px}
-.applicant-review-table{min-width:720px}
-.applicant-review-table select{min-width:300px}
-.applicant-review-table td:nth-child(1){min-width:190px}
-.applicant-review-table td:nth-child(2){min-width:180px}
-@media(max-width:700px){.applicant-review{padding:12px}.applicant-review .table-foot{align-items:stretch}.applicant-review .table-foot button{width:100%}.applicant-review-table select{min-width:260px}}
 @media(max-width:700px){.import-grid{grid-template-columns:minmax(0,1fr)}.import-table-wrap{max-height:52vh}.import-controls .actions{align-items:stretch}.import-controls .actions button{width:100%}}
 
 .history-section{margin-top:24px;padding-top:22px;border-top:1px solid var(--line)}
@@ -362,7 +353,7 @@ $('load-table-button').addEventListener('click',()=>{
  const result=renderPastedTable(rows);
  if(!result){status('No data rows detected. Paste the FTO table including its data.','error');return}
  if($('fto-number').value.trim())lookupFtoBatch();
- status('Loaded '+result.rowCount+' FTO rows. Review village filtering and status changes, then select Synchronize FTO.','success');
+ status('Loaded '+result.rowCount+' FTO rows. Review the applicant names and status changes, then select Synchronize FTO.','success');
 });
 
 function jobCardFromRow(row){

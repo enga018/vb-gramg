@@ -356,7 +356,7 @@ $('load-table-button').addEventListener('click',()=>{
  status('Loaded '+result.rowCount+' FTO rows. Review the applicant names and status changes, then select Synchronize FTO.','success');
 });
 
-const JOB_CARD_PATTERN = /\bMZ-\d{2}-(?:\d{3}-){2,3}\d{3}\/\d+\b/i;
+const JOB_CARD_PATTERN = /\bMZ-\d{2}-(?:\d{3}-){2,3}\d{3}\/\d+(?:-[A-Z]+)?\b/i;
 function jobCardFromRow(row){
  const text=String(row[2]||'').replace(/<br\s*\/?>/gi,' ').replace(/[\r\n]+/g,' ').replace(/\s+/g,' ').trim();
  const match=text.match(JOB_CARD_PATTERN);

@@ -209,6 +209,7 @@ Deno.serve(async(req:Request)=>{
     const activeJobCards=new Set([...activeMisApplicants.keys()].map(card=>String(card).trim().toUpperCase()));
     const requestedCards=Array.isArray(body.job_cards)?[...new Set(body.job_cards.map((v:unknown)=>String(v||"").trim()).filter(Boolean))]:[];
     const cards=requestedCards.filter(card=>activeJobCards.has(card.toUpperCase()));
+    const notInActiveMis=requestedCards.filter(card=>!activeJobCards.has(card.toUpperCase()));
     const referenceRows=Array.isArray(body.reference_rows)?body.reference_rows.map((v:Record<string,unknown>)=>({job_card_number:String(v.job_card_number||"").trim(),person_name:String(v.person_name||"").trim(),reference_numbers:Array.isArray(v.reference_numbers)?[...new Set(v.reference_numbers.map((r:unknown)=>String(r||"").trim()).filter(Boolean))]:[]})).filter(row=>activeJobCards.has(row.job_card_number.toUpperCase())): [];
     if(cards.length>1000)return reply({error:"Check at most 1,000 job cards at a time."},400);
     if(!cards.length)return reply({approved:true,duplicates:[],duplicate_references:[],unknown_job_cards:[],exempted_job_cards:[],not_in_active_mis_job_cards:notInActiveMis});
@@ -499,9 +500,9 @@ Deno.serve(async(req:Request)=>{
     if(!chosen)return reply({error:"The selected applicant for "+card+" is not in the current active MIS. Refresh the preview and try again."},409);
     reconciliationApplicants.set(card,chosen);
    }
-   const localInputRows=rows.filter((raw:Record<string,any>)=>activeJobCards.has(String(raw?.job_card_number||"").trim().toUpperCase()));
-   const excludedNotInActiveMis=rowsSeen-localInputRows.length;
-   if(!localInputRows.length)return reply({error:"No FTO transactions matched job cards in the active MIS. Nothing was imported."},400);
+   const localInputRows=rows;
+    const excludedNotInActiveMis=rows.filter((raw:Record<string,any>)=>!activeJobCards.has(String(raw?.job_card_number||"").trim().toUpperCase())).length;
+    if(!localInputRows.length)return reply({error:"The pasted FTO contains no transactions."},400);
    const normalized:Record<string,any>[]=[];
    const seenReferences=new Map<string,string>();
    for(const raw of localInputRows){
@@ -530,7 +531,7 @@ Deno.serve(async(req:Request)=>{
       credit_amount:Number.isFinite(creditAmount)&&creditAmount>0?creditAmount:null,
       calculated_charge:status==="rejected"||status==="other"?0:calculatedCharge,
       status,rejection_reason:rejectionReason||null,
-      is_in_scope:true,
+      is_in_scope:activeJobCards.has(jobCard),
       source_row:raw.source_row&&typeof raw.source_row==="object"?raw.source_row:{}
     });
    }

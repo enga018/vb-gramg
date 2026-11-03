@@ -616,13 +616,13 @@ Deno.serve(async(req:Request)=>{
     }
    }
    skippedDuplicateReferences=[...new Set(skippedDuplicateReferences)];
-   const snapshotReferenceSet=new Set(normalized.map(r=>String(r.reference_no)));
    if(skippedDuplicateReferences.length){
     const skippedSet=new Set(skippedDuplicateReferences);
     for(let i=normalized.length-1;i>=0;i--){if(skippedSet.has(String(normalized[i].reference_no)))normalized.splice(i,1);}
     chargeCandidateRows=normalized.filter(r=>r.is_in_scope&&!exemptCards.has(String(r.job_card_number))&&["blank","processed"].includes(String(r.status))&&Number(r.calculated_charge||0)>0);
     incomingRefs=chargeCandidateRows.map(r=>String(r.reference_no));
    }
+   const snapshotReferenceSet=new Set(normalized.map(r=>String(r.reference_no)));
    const incomingCards=[...new Set(normalized.filter(r=>r.is_in_scope).map(r=>String(r.job_card_number)))];
    const chargeCandidateCards=[...new Set(chargeCandidateRows.map(r=>String(r.job_card_number)))];
    if(chargeCandidateCards.length){

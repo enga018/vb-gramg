@@ -479,6 +479,11 @@ Deno.serve(async(req:Request)=>{
    if(!/^[a-f0-9]{64}$/.test(sourceSha))return reply({error:"FTO synchronization identity is missing. Reload the preview and try again."},400);
    const reviewed=Array.isArray(body.reviewed_duplicates)?new Set(body.reviewed_duplicates.map((v:unknown)=>String(v||"").trim())):new Set<string>();
    const reviewedNew=Array.isArray(body.reviewed_new_job_cards)?new Set(body.reviewed_new_job_cards.map((v:unknown)=>String(v||"").trim())):new Set<string>();
+
+   const rowsSeen=rows.length;
+   const activeMisApplicants=await loadActiveMisApplicants(admin);
+   if(!activeMisApplicants.size)return reply({error:"There is no active MIS import available. Import or activate MIS before synchronizing an FTO."},409);
+   const activeJobCards=new Set([...activeMisApplicants.keys()].map(card=>String(card).trim().toUpperCase()));
    const rawReconciliationApplicants=body.reconciliation_applicants&&typeof body.reconciliation_applicants==="object"?body.reconciliation_applicants as Record<string,any>:{};
    const reconciliationApplicants=new Map<string,Record<string,string|null>>();
    for(const [rawCard,rawApplicant] of Object.entries(rawReconciliationApplicants)){
@@ -490,11 +495,6 @@ Deno.serve(async(req:Request)=>{
     if(!chosen)return reply({error:"The selected applicant for "+card+" is not in the current active MIS. Refresh the preview and try again."},409);
     reconciliationApplicants.set(card,chosen);
    }
-
-   const rowsSeen=rows.length;
-   const activeMisApplicants=await loadActiveMisApplicants(admin);
-   if(!activeMisApplicants.size)return reply({error:"There is no active MIS import available. Import or activate MIS before synchronizing an FTO."},409);
-   const activeJobCards=new Set([...activeMisApplicants.keys()].map(card=>String(card).trim().toUpperCase()));
    const localInputRows=rows.filter((raw:Record<string,any>)=>activeJobCards.has(String(raw?.job_card_number||"").trim().toUpperCase()));
    const excludedNotInActiveMis=rowsSeen-localInputRows.length;
    if(!localInputRows.length)return reply({error:"No FTO transactions matched job cards in the active MIS. Nothing was imported."},400);

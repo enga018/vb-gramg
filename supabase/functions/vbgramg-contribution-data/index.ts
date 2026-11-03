@@ -426,7 +426,7 @@ Deno.serve(async(req:Request)=>{
     const ranked=rankActiveMisApplicants(mis,jobCard,ftoName);
     if(!ranked.length){pending.push({ledger_entry_id:ledgerId,job_card_number:jobCard,fto_name:ftoName,reason:"No active MIS applicants found for this job card",candidates:[]});continue;}
     const best=ranked[0],second=ranked[1],gap=second?best.match_percentage-second.match_percentage:100;
-    const hasSavedMapping=Boolean(entry.applicant_unique_id||entry.applicant_name);
+    const hasSavedMapping=Boolean(entry.applicant_unique_id||entry.applicant_name||entry.applicant_number);
     const previousFtoName=String(entry.fto_applicant_name||"").trim();
     if(hasSavedMapping&&!previousFtoName){
      const {error:baselineError}=await admin.from("vbgramg_charge_ledger").update({fto_applicant_name:ftoName}).eq("id",ledgerId);
@@ -489,7 +489,7 @@ Deno.serve(async(req:Request)=>{
    for(const [rawCard,rawApplicant] of Object.entries(rawReconciliationApplicants)){
     const card=String(rawCard||"").trim().toUpperCase();
     if(!card||!rawApplicant||typeof rawApplicant!=="object")return reply({error:"An applicant mapping in the reconciliation preview is invalid."},400);
-    const candidates=activeMisApplicants.get(card)||[];
+    const candidates=activeMisApplicants.get(card)||[...(activeMisApplicants.entries())].find(([key])=>String(key).trim().toUpperCase()===card)?.[1]||[];
     const uniqueId=String(rawApplicant.applicant_unique_id||"").trim(),name=String(rawApplicant.applicant_name||"").trim(),number=String(rawApplicant.applicant_number||"").trim();
     const chosen=candidates.find(a=>(uniqueId&&a.applicant_unique_id===uniqueId)||(!uniqueId&&String(a.applicant_name)===name&&String(a.applicant_number||"")===number));
     if(!chosen)return reply({error:"The selected applicant for "+card+" is not in the current active MIS. Refresh the preview and try again."},409);
@@ -707,7 +707,7 @@ Deno.serve(async(req:Request)=>{
       const linkedManual=manualRows.find(r=>(Array.isArray(r.reference_numbers)?r.reference_numbers:[]).some((ref:string)=>refs.includes(String(ref))))||null;
       const manualKeeper=linkedManual||(reviewed.has(card)&&manualRows.length===1?manualRows[0]:null);
      const applicantChoice=reconciliationApplicants.get(card);
-     if(manualKeeper&&amount>0&&!manualKeeper.applicant_name&&!manualKeeper.applicant_unique_id&&!applicantChoice){throw new Error("Choose or confirm the MIS applicant for "+card+" before reconciling its manual charge.");}
+     if(manualKeeper&&amount>0&&!manualKeeper.applicant_name&&!manualKeeper.applicant_unique_id&&!manualKeeper.applicant_number&&!applicantChoice){throw new Error("Choose or confirm the MIS applicant for "+card+" before reconciling its manual charge.");}
      if(amount>0){
       const isDeferred=active.every(tx=>String(tx.status)==="blank"),entryDate=ftoEntryDate(active,isDeferred);
       const activeApplicantName=String((normalized.find(r=>String(r.job_card_number)===card&&r.is_in_scope)?.person_name)||"");

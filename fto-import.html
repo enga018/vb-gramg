@@ -251,9 +251,9 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
   <div class="field"><label for="amount-multiplier">Input 2 (multiply by)</label><input id="amount-multiplier" type="number" min="0.01" step="any" value="100" required></div>
 
  </div>
- <p class="import-help">When a job card already has a charge for this period, compare its amount with the incoming FTO total. Tick “Link FTO records to this charge” only after review. The existing ledger charge is retained: its amount, date, note, and deferred status are not overwritten, and no second charge is created for that job card. Multiple existing charges require manual resolution before synchronization.</p>
+ <p class="import-help">The editable divisor and multiplier above calculate each FTO charge, using the same formula as normal FTO importing. When a job card already has a manual charge for this period, review the old amount, calculated FTO amount, and applicant mapping. Confirming reconciliation updates that existing ledger entry with the FTO amount, processing date, deferred/processed status, references, and FTO source; it does not create a second charge. Existing payment allocations remain attached. Multiple existing charges require manual resolution.</p>
  <div id="import-summary" class="status" aria-live="polite">Enter the FTO number and contribution period.</div>
- <div class="table-wrap import-table-wrap"><table id="import-preview-table" class="import-table"><thead><tr><th>#</th><th>Job card</th><th>Applicant name (from FTO)</th><th>FTO rows</th><th>Reference numbers</th><th>Current status</th><th>Calculated charge</th><th>Duplicate check</th><th>Checks</th></tr></thead><tbody></tbody></table></div>
+ <div class="table-wrap import-table-wrap"><table id="import-preview-table" class="import-table"><thead><tr><th>#</th><th>Job card</th><th>FTO name</th><th>FTO rows</th><th>Reference numbers</th><th>Current status</th><th>Calculated charge</th><th>Duplicate check</th><th>Checks</th></tr></thead><tbody></tbody></table></div>
  <p class="import-help">Statuses are synchronized automatically per reference number: blank becomes deferred, Processed activates the matching charge, and Rejected removes only a matching FTO charge when no active transaction remains. The system records status history and does not delete unrelated charges. Mixed statuses under one job card are reconciled from individual reference numbers.</p>
  <div class="table-foot"><span id="import-count" class="muted"></span><div class="actions"><button id="fto-import-button" type="button" disabled>Synchronize FTO</button></div></div>
   <div id="sync-status" class="status hidden" aria-live="polite" role="status"></div>
@@ -275,7 +275,7 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let authSequence=0,sharedPeriods=[],parsedDataRows=[],importGroups=[],duplicateCards=new Map(),duplicateReferences=new Map(),reviewedCards=new Set(),unknownCards=new Set(),reviewedNewCards=new Set(),deferredCards=new Map(),duplicateCheckSequence=0,checkingDuplicates=false,duplicateCheckFailed=false;
+let authSequence=0,sharedPeriods=[],parsedDataRows=[],importGroups=[],duplicateCards=new Map(),duplicateReferences=new Map(),reviewedCards=new Set(),unknownCards=new Set(),reviewedNewCards=new Set(),reconciliationApplicantSelections=new Map(),deferredCards=new Map(),duplicateCheckSequence=0,checkingDuplicates=false,duplicateCheckFailed=false;
 function status(msg,type){$('data-status').textContent=msg;$('data-status').classList.toggle('error',type==='error');$('data-status').classList.toggle('success',type==='success')}
 function syncStatus(msg,type){const el=$('sync-status');el.textContent=msg;el.classList.remove('hidden');el.classList.toggle('error',type==='error');el.classList.toggle('success',type==='success')}
 async function edgeFunctionErrorMessage(error,fallback){if(error&&error.context){try{const response=error.context.clone?error.context.clone():error.context;let body=null;if(response&&typeof response.json==='function')body=await response.json();else if(response&&typeof response.text==='function'){const raw=await response.text();try{body=JSON.parse(raw)}catch{body={message:raw}}}if(body&&typeof body==='object'&&(body.error||body.message||body.msg))return String(body.error||body.message||body.msg);if(typeof body==='string'&&body.trim())return body.trim()}catch(_){}}return (error&&error.message)||fallback}
@@ -422,7 +422,7 @@ function buildImportGroups(){
   if((rowState==='blank'||rowState==='processed')&&amount<=0)group.invalid_amount_rows++;
  }
  importGroups=[...map.values()].map(g=>({...g,status:g.statuses.size===1?[...g.statuses][0]:'mixed',village:[...g.villages].join(' / '),inScope:true,reference_numbers:g.references})).sort((a,b)=>a.job_card_number.localeCompare(b.job_card_number));
- duplicateCards=new Map();duplicateReferences=new Map();reviewedCards=new Set();unknownCards=new Set();reviewedNewCards=new Set();
+ duplicateCards=new Map();duplicateReferences=new Map();reviewedCards=new Set();unknownCards=new Set();reviewedNewCards=new Set();reconciliationApplicantSelections=new Map();
  renderImportPreview();refreshDuplicates();
 }
 function importReviewPriority(group){
@@ -454,8 +454,36 @@ function renderImportPreview(){
   const duplicate=duplicateCards.get(group.job_card_number),repeatedRefs=duplicateReferences.get(group.job_card_number)||[],isUnknown=unknownCards.has(group.job_card_number);
   const duplicateCell=addCell('');
   if(duplicate){
-   const flag=document.createElement('span');flag.className='flag';flag.textContent='Existing charge';duplicateCell.appendChild(flag);
-   const detail=document.createElement('div');detail.className='muted';detail.textContent='Existing ₹'+Number(duplicate.amount||0).toLocaleString('en-IN',{maximumFractionDigits:2})+(duplicate.is_deferred?' · deferred':' · active')+' · FTO ₹'+Number(group.amount||0).toLocaleString('en-IN',{maximumFractionDigits:2})+' · existing amount will be preserved';duplicateCell.appendChild(detail);
+   const flag=document.createElement('span');flag.className='flag';flag.textContent='Existing manual charge';duplicateCell.appendChild(flag);
+   const detail=document.createElement('div');detail.className='muted';detail.textContent='Existing ₹'+Number(duplicate.amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+(duplicate.is_deferred?' · deferred':' · active')+' → FTO ₹'+Number(group.amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+' · amount/date/status will be replaced';duplicateCell.appendChild(detail);
+   const attached=duplicate.applicant_name||duplicate.applicant_number||duplicate.applicant_unique_id;
+   const applicantDetail=document.createElement('div');applicantDetail.className='muted';applicantDetail.style.marginTop='7px';
+   applicantDetail.textContent=attached?'Attached applicant: '+(duplicate.applicant_name||'Name unavailable')+' · '+(duplicate.applicant_number||'No applicant number'):'No applicant attached';duplicateCell.appendChild(applicantDetail);
+   if(duplicate.applicant_mismatch){
+    const warning=document.createElement('div');warning.className='flag';warning.style.marginTop='6px';warning.textContent='FTO name differs from attached applicant — existing mapping will be kept';duplicateCell.appendChild(warning);
+   }
+   const candidates=duplicate.candidates||[];
+   if(candidates.length){
+    const select=document.createElement('select');select.style.display='block';select.style.width='100%';select.style.minWidth='190px';select.style.marginTop='7px';select.setAttribute('aria-label','Confirm MIS applicant mapping for '+group.job_card_number);
+    const keep=document.createElement('option');keep.value='';keep.textContent=attached?'Keep attached applicant':'Choose MIS applicant';select.appendChild(keep);
+    candidates.forEach((candidate,idx)=>{
+     const option=document.createElement('option');option.value=String(idx);option.textContent=candidate.applicant_name+' · '+(candidate.applicant_number||'No number')+' · '+Number(candidate.match_percentage||0).toFixed(1)+'%';select.appendChild(option);
+    });
+    const currentChoice=reconciliationApplicantSelections.get(group.job_card_number);
+    if(currentChoice){
+     const idx=candidates.findIndex(c=>(currentChoice.applicant_unique_id&&c.applicant_unique_id===currentChoice.applicant_unique_id)||(!currentChoice.applicant_unique_id&&c.applicant_name===currentChoice.applicant_name&&String(c.applicant_number||'')===String(currentChoice.applicant_number||'')));
+     if(idx>=0)select.value=String(idx);
+    }else if(!attached&&duplicate.suggested_applicant){
+     const idx=candidates.findIndex(c=>(duplicate.suggested_applicant.applicant_unique_id&&c.applicant_unique_id===duplicate.suggested_applicant.applicant_unique_id)||c.applicant_name===duplicate.suggested_applicant.applicant_name);
+     if(idx>=0){select.value=String(idx);reconciliationApplicantSelections.set(group.job_card_number,candidates[idx]);}
+    }
+    select.addEventListener('change',()=>{
+     if(select.value==='')reconciliationApplicantSelections.delete(group.job_card_number);
+     else reconciliationApplicantSelections.set(group.job_card_number,candidates[Number(select.value)]);
+     reviewedCards.delete(group.job_card_number);renderImportPreview();
+    });
+    duplicateCell.appendChild(select);
+   }
   }else if(isUnknown){
    const flag=document.createElement('span');flag.className='flag';flag.textContent='New job card';duplicateCell.appendChild(flag);
    const detail=document.createElement('div');detail.className='muted';detail.textContent='Not in contribution records';duplicateCell.appendChild(detail);
@@ -466,7 +494,7 @@ function renderImportPreview(){
   const reviewCell=addCell('', 'review-cell');
   if(duplicate){
    const label=document.createElement('label');label.style.display='flex';label.style.gap='8px';label.style.alignItems='center';label.style.margin='0';
-   const check=document.createElement('input');check.type='checkbox';check.disabled=Number(duplicate.charge_count||1)>1;check.checked=reviewedCards.has(group.job_card_number);check.setAttribute('aria-label','I reviewed duplicate '+group.job_card_number);
+   const check=document.createElement('input');check.type='checkbox';check.disabled=Number(duplicate.charge_count||1)>1||(!duplicate.applicant_name&&!duplicate.applicant_unique_id&&!reconciliationApplicantSelections.has(group.job_card_number));check.checked=reviewedCards.has(group.job_card_number);check.setAttribute('aria-label','I reviewed duplicate '+group.job_card_number);
    check.addEventListener('change',()=>{if(check.checked)reviewedCards.add(group.job_card_number);else reviewedCards.delete(group.job_card_number);renderImportPreview()});
    label.appendChild(check);const t=document.createElement('span');t.textContent=Number(duplicate.charge_count||1)>1?'Multiple charges — resolve first':'Link FTO records to this charge';label.appendChild(t);reviewCell.appendChild(label);
   }else if(isUnknown){
@@ -489,10 +517,12 @@ async function refreshDuplicates(){
  checkingDuplicates=true;duplicateCheckFailed=false;renderImportPreview();
  try{
   const groups=actionGroups();
-  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'check-fto-duplicates',period_id:$('charge-period').value,charge_period:period,job_cards:groups.map(g=>g.job_card_number),reference_rows:groups.map(g=>({job_card_number:g.job_card_number,reference_numbers:g.reference_numbers}))}});
+  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'check-fto-duplicates',period_id:$('charge-period').value,charge_period:period,job_cards:groups.map(g=>g.job_card_number),reference_rows:groups.map(g=>({job_card_number:g.job_card_number,person_name:g.person_name,reference_numbers:g.reference_numbers}))}});
   if(seq!==duplicateCheckSequence)return;
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not check for duplicate charges.');
   duplicateCards=new Map((data.duplicates||[]).map(row=>[String(row.job_card_number),row]));
+  reconciliationApplicantSelections=new Map();
+  for(const row of data.duplicates||[]){if(!row.applicant_name&&!row.applicant_unique_id&&row.suggested_applicant)reconciliationApplicantSelections.set(String(row.job_card_number),row.suggested_applicant)}
   duplicateReferences=new Map((data.duplicate_references||[]).map(row=>[String(row.job_card_number),row.reference_numbers||[]]));
   unknownCards=new Set((data.unknown_job_cards||[]).map(String));
   checkingDuplicates=false;duplicateCheckFailed=false;renderImportPreview();
@@ -506,7 +536,7 @@ async function refreshDuplicates(){
 function updateImportButton(){
  const ftoNumber=$('fto-number').value.trim(),period=periodToDate(selectedPeriodDate()),selected=actionGroups();
  const invalid=parsedDataRows.some(row=>!String(row[3]||'').trim()||!jobCardFromRow(row)||!String(row[5]||row[7]||'').trim()||(['blank','processed'].includes(rawStatus(row))&&parseAmount(row[11])<=0));
- const unreviewed=[...duplicateCards.keys()].some(card=>!reviewedCards.has(card)||Number(duplicateCards.get(card)?.charge_count||1)>1);
+ const unreviewed=[...duplicateCards.keys()].some(card=>!reviewedCards.has(card)||Number(duplicateCards.get(card)?.charge_count||1)>1||(!(duplicateCards.get(card)?.applicant_name||duplicateCards.get(card)?.applicant_unique_id)&&!reconciliationApplicantSelections.has(card)));
  const unverifiedNew=[...unknownCards].some(card=>!reviewedNewCards.has(card));
  const hasDuplicateReferences=[...duplicateReferences.values()].some(refs=>refs.length>0);
  $('fto-import-button').textContent='Synchronize FTO statuses';
@@ -600,7 +630,7 @@ $('fto-import-button').addEventListener('click',async()=>{
    return {reference_no:String(row[3]||'').replace(/\s+/g,' ').trim(),job_card_number:jobCardFromRow(row),village_name:villageFromRow(row),person_name:String(row[5]||row[7]||'').replace(/\s+/g,' ').trim(),transaction_date:dateMatch?dateMatch[3]+'-'+dateMatch[2]+'-'+dateMatch[1]:'',processed_date:processedDateMatch?processedDateMatch[3]+'-'+processedDateMatch[2]+'-'+processedDateMatch[1]:'',amount_to_be_credited:amountToCredit,credit_amount:creditAmount,status:statusValue,calculated_charge:Number(calculatedCharge.toFixed(2)),rejection_reason:String(row[16]||'').trim(),source_row:row};
   });
   const sourceSha=await sha256(JSON.stringify({raw:$('table-input').value,ftoNumber,periodLabel,period,divisor,multiplier,rows:payloadRows}));
-  const payload={action:'sync-fto-batch',fto_number:ftoNumber,period_id:periodId,contribution_period:periodLabel,charge_period:period,rows:payloadRows,source_sha256:sourceSha,reviewed_duplicates:[...reviewedCards],reviewed_new_job_cards:[...reviewedNewCards]};
+  const payload={action:'sync-fto-batch',fto_number:ftoNumber,period_id:periodId,contribution_period:periodLabel,charge_period:period,rows:payloadRows,source_sha256:sourceSha,reviewed_duplicates:[...reviewedCards],reviewed_new_job_cards:[...reviewedNewCards],reconciliation_applicants:Object.fromEntries([...reconciliationApplicantSelections.entries()])};
   await executeFtoSync(payload,button);
  }catch(err){const message=err.message||'FTO synchronization failed. Review the preview and try again.';syncStatus(message,'error');button.textContent='Synchronize FTO statuses';checkingDuplicates=false;updateImportButton()}
  finally{if(button.textContent!=='Synchronization completed')button.disabled=false}

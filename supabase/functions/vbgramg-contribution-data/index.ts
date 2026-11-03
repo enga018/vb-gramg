@@ -681,6 +681,7 @@ Deno.serve(async(req:Request)=>{
       if(!linkedByLedger.has(ledgerId))linkedByLedger.set(ledgerId,new Map());
       const identity=txBatchId+"::"+ref;
       const incoming=txBatchId===batchId?incomingByReference.get(ref):undefined;
+      if(txBatchId===batchId&&!snapshotReferenceSet.has(ref))continue;
       linkedByLedger.get(ledgerId)!.set(identity,incoming||tx);
      }
           const allocationTotals=new Map<string,number>();
@@ -753,7 +754,13 @@ Deno.serve(async(req:Request)=>{
      if(historyError)throw historyError;
     }
    });
-   const omittedTransactions=(oldBatchTransactions||[]).filter(tx=>!snapshotReferenceSet.has(String(tx.reference_no||"")));\n   if(omittedTransactions.length){\n    const omittedIds=omittedTransactions.map(tx=>String(tx.id));\n    const {error:omittedError}=await admin.from("vbgramg_fto_transactions").update({is_current:false,updated_at:nowIso}).in("id",omittedIds);\n    if(omittedError)throw omittedError;\n   }\n   const {error:batchUpdateError}=await admin.from("vbgramg_fto_batches").update({last_checked_at:nowIso,last_source_sha256:sourceSha}).eq("id",batchId);
+   const omittedTransactions=(oldBatchTransactions||[]).filter(tx=>!snapshotReferenceSet.has(String(tx.reference_no||"")));
+   if(omittedTransactions.length){
+    const omittedIds=omittedTransactions.map(tx=>String(tx.id));
+    const {error:omittedError}=await admin.from("vbgramg_fto_transactions").update({is_current:false,updated_at:nowIso}).in("id",omittedIds);
+    if(omittedError)throw omittedError;
+   }
+   const {error:batchUpdateError}=await admin.from("vbgramg_fto_batches").update({last_checked_at:nowIso,last_source_sha256:sourceSha}).eq("id",batchId);
    if(batchUpdateError)throw batchUpdateError;
    const {data:priorImport,error:priorImportError}=await admin.from("vbgramg_charge_imports").select("id,status").eq("source_sha256",sourceSha).maybeSingle();
    if(priorImportError)throw priorImportError;
@@ -835,7 +842,7 @@ Deno.serve(async(req:Request)=>{
        const {data:newLedger,error:insertLedgerError}=await admin.from("vbgramg_charge_ledger").insert({
         job_card_number:card,person_name:name||"Name needs review",entry_type:"charge",amount,
         charge_period:chargePeriod,period_id:periodId,entry_date:entryDate,note:"FTO import",
-        reference_numbers:refs,is_deferred:isDeferred,created_by:authData.user.id,import_id:importId,
+        reference_numbers:refs,is_deferred:isDeferred,is_voided:false,created_by:authData.user.id,import_id:importId,
         ...(applicantChoice?{applicant_name:applicantChoice.applicant_name,applicant_number:applicantChoice.applicant_number,applicant_unique_id:applicantChoice.applicant_unique_id,fto_applicant_name:activeApplicantName||null}:{})
        }).select("id").single();
        if(insertLedgerError)throw insertLedgerError;ledgerId=String(newLedger.id);insertedCount++;

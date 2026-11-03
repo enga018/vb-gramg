@@ -597,7 +597,7 @@ Deno.serve(async(req:Request)=>{
    const {data:exemptionRows,error:exemptionError}=await admin.from("vbgramg_contribution_exemptions").select("job_card_number");
    if(exemptionError)throw exemptionError;
    const exemptCards=new Set((exemptionRows||[]).map(r=>String(r.job_card_number)));
-   const snapshotReferenceSet=new Set(normalized.map(r=>String(r.reference_no)));\n   let skippedDuplicateReferences:string[]=[];
+   let skippedDuplicateReferences:string[]=[];
    let chargeCandidateRows=normalized.filter(r=>r.is_in_scope&&!exemptCards.has(String(r.job_card_number))&&["blank","processed"].includes(String(r.status))&&Number(r.calculated_charge||0)>0);
    let incomingRefs=chargeCandidateRows.map(r=>String(r.reference_no));
    // Check all incoming references, including rejected rows. A reference already
@@ -616,6 +616,7 @@ Deno.serve(async(req:Request)=>{
     }
    }
    skippedDuplicateReferences=[...new Set(skippedDuplicateReferences)];
+   const snapshotReferenceSet=new Set(normalized.map(r=>String(r.reference_no)));
    if(skippedDuplicateReferences.length){
     const skippedSet=new Set(skippedDuplicateReferences);
     for(let i=normalized.length-1;i>=0;i--){if(skippedSet.has(String(normalized[i].reference_no)))normalized.splice(i,1);}

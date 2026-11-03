@@ -98,6 +98,27 @@ td.amount{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
  .bottom-actions .note{margin:0}
  .bottom-actions button{width:100%}
 }
+
+.category-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}
+.category-kpi{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;min-height:108px;padding:14px;background:#fff;border:1px solid var(--line);border-radius:12px;color:var(--ink)}
+.category-kpi span{font-size:.82rem;color:#475467;font-weight:750}.category-kpi strong{font-size:1.55rem;line-height:1.2}.category-kpi small{font-size:.72rem;color:var(--muted);font-weight:500}
+.category-kpi.active{border:2px solid #2457c5;background:#f5f8ff;padding:13px}
+.category-panel{border:1px solid var(--line);border-radius:13px;padding:16px;background:#fbfcfe}
+.category-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:13px}
+.jobcard-view{background:#fff;border:1px solid #dfe5ee;border-radius:12px;padding:15px}
+.jobcard-title{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid #edf0f5}
+.jobcard-title strong{font-size:.94rem;overflow-wrap:anywhere}.jobcard-person{font-size:.82rem;color:var(--muted);margin-top:4px}
+.jobcard-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:13px 0}
+.jobcard-stats div{padding:10px;border-radius:9px;background:#f5f7fb}.jobcard-stats span{display:block;font-size:.7rem;color:var(--muted);margin-bottom:3px}.jobcard-stats strong{font-size:.88rem}
+.reason-box{padding:10px 12px;border-radius:9px;background:var(--red-bg);color:var(--red);font-size:.82rem;font-weight:700;margin:12px 0}
+.transaction-title{font-size:.8rem;font-weight:750;color:#475467;margin:14px 0 8px}
+.tx-list{display:grid;gap:8px}.tx-item{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:10px;padding:10px;border:1px solid #edf0f5;border-radius:9px;align-items:center}
+.tx-item span{display:block;font-size:.67rem;color:var(--muted);margin-bottom:2px}.tx-item strong{font-size:.78rem;overflow-wrap:anywhere}
+.manual-confirm{display:flex;align-items:flex-start;gap:9px;margin-top:14px;padding:12px;border:1px solid #efd6a9;border-radius:10px;background:#fffaf0;font-size:.82rem;color:#805b2c}
+.manual-confirm input{width:18px;min-height:18px;margin:1px 0 0;flex:0 0 auto}
+.pager{display:flex;justify-content:center;align-items:center;gap:14px;margin-top:13px}.pager span{min-width:55px;text-align:center;font-size:.8rem;font-weight:700;color:#475467}
+.pager button{min-width:94px}.pager button:disabled{opacity:.4;cursor:not-allowed}
+@media(max-width:700px){.category-kpis{gap:7px}.category-kpi{min-height:104px;padding:10px 8px}.category-kpi.active{padding:9px 7px}.category-kpi span{font-size:.72rem;line-height:1.25}.category-kpi strong{font-size:1.35rem}.category-kpi small{font-size:.64rem;line-height:1.25}.category-panel{padding:11px}.jobcard-view{padding:11px}.jobcard-stats{gap:6px}.jobcard-stats div{padding:8px 6px}.jobcard-stats span{font-size:.64rem}.jobcard-stats strong{font-size:.77rem}.tx-item{grid-template-columns:1fr 1fr;gap:8px}.pager{gap:8px}.pager button{min-width:0;flex:1}}
 </style>
 </head>
 <body>
@@ -153,46 +174,34 @@ MZ-07-001-005-001/219    Zoramthangi    1900    Rejected</textarea>
  </div>
 </section>
 
-<section class="panel">
- <section class="review-panel">
-  <div class="section-head"><div><h2>4. Reconcile Existing Charges</h2><p class="review-intro">These job cards already have a charge for this period. Review the comparison and applicant mapping before confirming.</p></div><span class="badge amber">2 need review</span></div>
-  <div class="table-wrap desktop-table"><table><thead><tr><th>Job Card</th><th>FTO Name</th><th>Incoming Status</th><th>FTO Amount</th><th>Existing Charge → FTO</th><th>Review</th></tr></thead><tbody>
-   <tr><td>MZ-07-001-005-001/197</td><td>Lalbiakdika</td><td><span class="badge green">Processed</span></td><td class="amount">₹800</td><td>₹700 → ₹800</td><td><span class="badge amber">Confirm mapping</span></td></tr>
-   <tr><td>MZ-07-001-005-001/211</td><td>Lalhmingmawii</td><td><span class="badge amber">Deferred</span></td><td class="amount">₹533</td><td>₹700 → ₹533</td><td><span class="badge amber">Review amount</span></td></tr>
-  </tbody></table></div>
-  <div class="mobile-cards">
-   <article class="mobile-card"><div class="mobile-card-top"><strong>MZ-07-001-005-001/197</strong><span class="badge amber">Confirm mapping</span></div><div class="mobile-meta"><div><span>FTO name</span><strong>Lalbiakdika</strong></div><div><span>Status</span><strong>Processed</strong></div><div><span>FTO amount</span><strong>₹800</strong></div><div><span>Existing → FTO</span><strong>₹700 → ₹800</strong></div></div></article>
-   <article class="mobile-card"><div class="mobile-card-top"><strong>MZ-07-001-005-001/211</strong><span class="badge amber">Review amount</span></div><div class="mobile-meta"><div><span>FTO name</span><strong>Lalhmingmawii</strong></div><div><span>Status</span><strong>Deferred</strong></div><div><span>FTO amount</span><strong>₹533</strong></div><div><span>Existing → FTO</span><strong>₹700 → ₹533</strong></div></div></article>
-  </div>
- </section>
 
- <section class="standard-section">
-  <div class="section-head"><div><h2>5. New FTO Imports</h2><p class="subtext">Job cards without an existing charge for this period.</p></div><span class="section-count">3 records</span></div>
-  <div class="table-wrap desktop-table" style="margin-top:12px"><table><thead><tr><th>Job Card</th><th>FTO Name</th><th>Reference Numbers</th><th>Current Status</th><th>Calculated Charge</th><th>Check</th></tr></thead><tbody>
-   <tr><td>MZ-07-001-005-001/198</td><td>Lalnunpuii</td><td>…842B</td><td><span class="badge green">Processed</span></td><td class="amount">₹600</td><td><span class="badge green">Clear</span></td></tr>
-   <tr><td>MZ-07-001-005-001/203</td><td>Rohmingliani</td><td>…842C</td><td><span class="badge green">Processed</span></td><td class="amount">₹700</td><td><span class="badge green">Clear</span></td></tr>
-   <tr><td>MZ-07-001-005-001/219</td><td>Zoramthangi</td><td>…842E</td><td><span class="badge red">Rejected</span></td><td class="amount">₹633</td><td><span class="badge blue">Status check</span></td></tr>
-  </tbody></table></div>
-  <div class="mobile-cards">
-   <article class="mobile-card"><div class="mobile-card-top"><strong>MZ-07-001-005-001/198</strong><span class="badge green">Clear</span></div><div class="mobile-meta"><div><span>FTO name</span><strong>Lalnunpuii</strong></div><div><span>Status</span><strong>Processed</strong></div><div><span>Calculated charge</span><strong>₹600</strong></div><div><span>Reference</span><strong>…842B</strong></div></div></article>
-   <article class="mobile-card"><div class="mobile-card-top"><strong>MZ-07-001-005-001/203</strong><span class="badge green">Clear</span></div><div class="mobile-meta"><div><span>FTO name</span><strong>Rohmingliani</strong></div><div><span>Status</span><strong>Processed</strong></div><div><span>Calculated charge</span><strong>₹700</strong></div><div><span>Reference</span><strong>…842C</strong></div></div></article>
-   <article class="mobile-card"><div class="mobile-card-top"><strong>MZ-07-001-005-001/219</strong><span class="badge blue">Status check</span></div><div class="mobile-meta"><div><span>FTO name</span><strong>Zoramthangi</strong></div><div><span>Status</span><strong>Rejected</strong></div><div><span>Calculated charge</span><strong>₹633</strong></div><div><span>Reference</span><strong>…842E</strong></div></div></article>
-  </div>
- </section>
-
- <section class="applicant-panel">
-  <div class="section-head"><div><h2>6. Applicant Matching Review</h2><p class="subtext">Review applicant matches where confirmation is needed. Current selections are shown alongside the FTO name.</p></div><span class="badge amber">1 requires confirmation</span></div>
-  <div class="table-wrap desktop-table" style="margin-top:12px"><table><thead><tr><th>Job Card</th><th>Name on FTO</th><th>Currently Attached</th><th>MIS Applicant Selection</th></tr></thead><tbody>
-   <tr><td>MZ-07-001-005-001/197</td><td>Lalbiakdika</td><td>Lalbiakdika</td><td><select aria-label="MIS applicant selection"><option>Lalbiakdika · Applicant 01</option><option>Choose another applicant</option></select></td></tr>
-  </tbody></table></div>
-  <div class="mobile-cards">
-   <article class="mobile-card"><div class="mobile-card-top"><strong>MZ-07-001-005-001/197</strong><span class="badge amber">Confirm</span></div><div class="mobile-meta"><div><span>Name on FTO</span><strong>Lalbiakdika</strong></div><div><span>Currently attached</span><strong>Lalbiakdika</strong></div></div><label for="mobile-applicant" style="margin-top:10px">MIS applicant</label><select id="mobile-applicant"><option>Lalbiakdika · Applicant 01</option><option>Choose another applicant</option></select></article>
-  </div>
- </section>
-
- <div class="bottom-actions"><span class="note">Preview only · No records will be imported from this page.</span><button class="primary" type="button" id="preview-import">Import and Synchronize FTO</button></div>
+<section class="panel" id="step5-preview">
+ <div class="panel-head"><div><h2>5. Review FTO Import</h2><p class="subtext">Review job cards by category, one at a time.</p></div></div>
+ <div class="demo-note" style="margin-top:14px">Dummy data for layout preview · No live MIS, ledger, or Supabase data is used.</div>
+ <div class="category-kpis">
+  <button class="category-kpi active" type="button" data-category="automatic" aria-expanded="true"><span>Automatic Import</span><strong>3</strong><small>Eligible without manual review</small></button>
+  <button class="category-kpi" type="button" data-category="manual" aria-expanded="false"><span>Manual Review</span><strong>2</strong><small>Requires confirmation</small></button>
+  <button class="category-kpi" type="button" data-category="cannot" aria-expanded="false"><span>Cannot Import</span><strong>2</strong><small>Excluded from synchronization</small></button>
+ </div>
+ <div class="category-panel" id="automatic-panel">
+  <div class="category-heading"><div><h3>Automatic Import</h3><p class="subtext">Eligible job cards. Browsing does not require individual approval.</p></div><span class="badge green">Ready</span></div>
+  <div id="automatic-card" class="jobcard-view"></div>
+  <div class="pager"><button type="button" class="quiet" id="automatic-prev">Previous</button><span id="automatic-position"></span><button type="button" class="quiet" id="automatic-next">Next</button></div>
+ </div>
+ <div class="category-panel" id="manual-panel" hidden>
+  <div class="category-heading"><div><h3>Manual Review Needed</h3><p class="subtext">Review transaction details and confirm each job card.</p></div><span class="badge amber">Action required</span></div>
+  <div id="manual-card" class="jobcard-view"></div>
+  <div class="pager"><button type="button" class="quiet" id="manual-prev">Previous</button><span id="manual-position"></span><button type="button" class="quiet" id="manual-next">Next</button></div>
+ </div>
+ <div class="category-panel" id="cannot-panel" hidden>
+  <div class="category-heading"><div><h3>Cannot Import</h3><p class="subtext">Excluded job cards and the reason for exclusion.</p></div><span class="badge red">Excluded</span></div>
+  <div id="cannot-card" class="jobcard-view"></div>
+  <div class="pager"><button type="button" class="quiet" id="cannot-prev">Previous</button><span id="cannot-position"></span><button type="button" class="quiet" id="cannot-next">Next</button></div>
+ </div>
+ <div class="bottom-actions"><span class="note" id="sync-note">Complete all manual reviews before synchronization.</span><button class="primary" type="button" id="preview-import" disabled>Synchronize FTO</button></div>
  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </section>
+
 </main>
 <script>
 let toastTimer;
@@ -207,8 +216,57 @@ document.getElementById('load-button').addEventListener('click',()=>{
  showToast('Table loaded · 5 transactions detected');
 });
 document.getElementById('preview-import').addEventListener('click',()=>{
- showToast('Preview only · Live import is disabled');
+ showToast('Preview only · No live import performed');
 });
+
+const demoGroups={
+ automatic:[
+  {jc:'MZ-07-001-005-001/198',name:'Lalnunpuii',charge:600,status:'Processed',tx:[['…842B','03 Nov 2026','₹1,800','₹600']]},
+  {jc:'MZ-07-001-005-001/203',name:'Rohmingliani',charge:700,status:'Processed',tx:[['…842C','03 Nov 2026','₹2,100','₹700']]},
+  {jc:'MZ-07-001-005-001/225',name:'Lalhriatpuii',charge:500,status:'Processed',tx:[['…842F','03 Nov 2026','₹1,500','₹500']]}
+ ],
+ manual:[
+  {jc:'MZ-07-001-005-001/197',name:'Lalbiakdika',charge:800,status:'Duplicate reference check',reason:'An existing charge/reference needs reconciliation.',tx:[['…842A','03 Nov 2026','₹2,400','₹800']],check:'I reviewed the existing charge, reference, and applicant mapping and confirm this reconciliation.'},
+  {jc:'MZ-07-001-005-001/211',name:'Lalhmingmawii',charge:533,status:'New ledger mapping',reason:'This job card needs applicant/ledger verification before import.',tx:[['…842D','Deferred','₹1,600','₹533']],check:'I verified this job card and its applicant mapping.'}
+ ],
+ cannot:[
+  {jc:'MZ-07-001-005-001/219',name:'Zoramthangi',charge:633,status:'Rejected',reason:'Rejected transaction only — no eligible contribution charge.',tx:[['…842E','—','₹1,900','₹633']]},
+  {jc:'MZ-07-001-005-001/231',name:'Lalremruati',charge:700,status:'Outside active MIS',reason:'Outside active MIS — history only. This job card will not be imported.',tx:[['…842G','03 Nov 2026','₹2,100','₹700']]}
+ ]
+};
+const demoIndex={automatic:0,manual:0,cannot:0},demoConfirmed=new Set();
+function renderDemo(type){
+ const list=demoGroups[type],i=demoIndex[type],g=list[i],target=document.getElementById(type+'-card');
+ document.getElementById(type+'-position').textContent=(i+1)+' of '+list.length;
+ document.getElementById(type+'-prev').disabled=i===0;
+ document.getElementById(type+'-next').disabled=i===list.length-1;
+ let html='<div class="jobcard-title"><div><strong>'+g.jc+'</strong><div class="jobcard-person">FTO applicant: '+g.name+'</div></div><span class="badge '+(type==='automatic'?'green':type==='manual'?'amber':'red')+'">'+(type==='automatic'?'Ready to import':type==='manual'?'Manual review':'Cannot import')+'</span></div>';
+ if(g.reason)html+='<div class="reason-box">'+g.reason+'</div>';
+ html+='<div class="jobcard-stats"><div><span>Transactions</span><strong>'+g.tx.length+'</strong></div><div><span>Current status</span><strong>'+g.status+'</strong></div><div><span>Calculated charge</span><strong>₹'+g.charge+'</strong></div></div><div class="transaction-title">FTO transactions</div><div class="tx-list">';
+ g.tx.forEach(t=>{html+='<div class="tx-item"><div><span>Reference</span><strong>'+t[0]+'</strong></div><div><span>Processed date</span><strong>'+t[1]+'</strong></div><div><span>Credit amount</span><strong>'+t[2]+'</strong></div><div><span>Calculated charge</span><strong>'+t[3]+'</strong></div></div>'});
+ html+='</div>';
+ if(type==='manual')html+='<label class="manual-confirm"><input type="checkbox" id="manual-confirm-check" '+(demoConfirmed.has(g.jc)?'checked':'')+'><span>'+g.check+'</span></label>';
+ target.innerHTML=html;
+ const check=document.getElementById('manual-confirm-check');
+ if(check)check.addEventListener('change',()=>{if(check.checked)demoConfirmed.add(g.jc);else demoConfirmed.delete(g.jc);updateDemoSync()});
+}
+function updateDemoSync(){
+ const ready=demoGroups.manual.every(g=>demoConfirmed.has(g.jc));
+ document.getElementById('preview-import').disabled=!ready;
+ document.getElementById('sync-note').textContent=ready?'All manual reviews confirmed. Automatic imports are ready; excluded cards remain untouched.':'Complete the confirmation for every Manual Review job card before synchronization.';
+}
+function openDemo(type){
+ document.querySelectorAll('.category-kpi').forEach(b=>{const active=b.dataset.category===type;b.classList.toggle('active',active);b.setAttribute('aria-expanded',String(active))});
+ document.querySelectorAll('.category-panel').forEach(p=>p.hidden=p.id!==type+'-panel');
+}
+document.querySelectorAll('.category-kpi').forEach(b=>b.addEventListener('click',()=>openDemo(b.dataset.category)));
+['automatic','manual','cannot'].forEach(type=>{
+ document.getElementById(type+'-prev').addEventListener('click',()=>{demoIndex[type]=Math.max(0,demoIndex[type]-1);renderDemo(type)});
+ document.getElementById(type+'-next').addEventListener('click',()=>{demoIndex[type]=Math.min(demoGroups[type].length-1,demoIndex[type]+1);renderDemo(type)});
+ renderDemo(type);
+});
+updateDemoSync();
+
 </script>
 <script src="./toast.js?v=20261103"></script>
 </body>

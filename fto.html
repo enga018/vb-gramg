@@ -608,7 +608,9 @@ function periodToDate(value){
 }
 let ftoHistoryRows=[],expandedFtoId=null,historyLoadSequence=0;
 function historyMessage(message,type=""){
- const el=$("fto-history-status");el.textContent=message;el.classList.toggle("error",type==="error");el.classList.toggle("success",type==="success");
+ const el=$("fto-history-status");
+ if((type==="error"||type==="success")&&window.showToast){window.showToast(message,type);el.textContent="";el.classList.add("hidden");el.classList.remove("error","success");return;}
+ el.textContent=message;el.classList.remove("error","success");el.classList.toggle("hidden",!message);
 }
 function fmtHistoryDate(value){
  if(!value)return "—";

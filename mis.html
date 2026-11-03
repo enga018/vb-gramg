@@ -306,7 +306,7 @@ const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
 let currentRole=null,allRows=[],headers=[],jobCards=[],currentPage=0,pageSize=50,loadSequence=0,expandedCards=new Set(),selectedApplicants=new Map(),scrollExpandedCardKey=null;
-function status(el,msg,type){el.textContent=msg;el.classList.toggle('error',type==='error');el.classList.toggle('success',type==='success')}
+function status(el,msg,type){if(type==='error'||type==='success'){if(window.showToast)window.showToast(msg,type);el.textContent='';el.classList.remove('error','success');return}el.textContent=msg;el.classList.remove('error','success')}
 async function verifyAccess(user){
  const seq=++loadSequence;
  if(!user){window.location.replace('./');return false}
@@ -610,4 +610,4 @@ $('search-input').addEventListener('input',()=>{currentPage=0;renderTable()});$(
 $('prev-button').addEventListener('click',()=>{currentPage--;renderTable()});$('next-button').addEventListener('click',()=>{currentPage++;renderTable()});
 supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){loadSequence++;window.location.replace('./')}else if(event==='TOKEN_REFRESHED'&&session)Promise.resolve().then(()=>verifyAccess(session.user))});
 supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){window.location.replace('./');return}return verifyAccess(data.session.user)});
-</script><script src="./navigation.js?v=20261031f"></script></body></html>
+</script><script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261031f"></script></body></html>

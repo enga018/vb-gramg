@@ -145,6 +145,12 @@ MZ-07-001-005-001/219    Zoramthangi    1900    Rejected</textarea>
   <div class="field"><label for="fto-number">FTO number</label><input id="fto-number" value="FTO/2026-27/001842" readonly></div>
   <div class="field"><label for="period">Contribution period</label><select id="period"><option>NOV26</option><option>OCT26</option><option>SEP26</option><option>AUG26</option></select></div>
  </div>
+ <div class="settings-subhead">Charge calculation</div>
+ <p class="help-line">The FTO credit amount is converted into the contribution charge using the calculation below. This calculated amount is the charge recorded in Contribution.</p>
+ <div class="settings-grid">
+  <div class="field"><label for="divisor">Divide credit amount by</label><input id="divisor" type="number" min="1" value="300"></div>
+  <div class="field"><label for="multiplier">Multiply result by</label><input id="multiplier" type="number" min="0" value="100"></div>
+ </div>
 </section>
 
 <section class="panel">
@@ -162,13 +168,13 @@ MZ-07-001-005-001/219    Zoramthangi    1900    Rejected</textarea>
 
  <section class="standard-section">
   <div class="section-head"><div><h2>5. New FTO Imports</h2><p class="subtext">Job cards without an existing charge for this period.</p></div><span class="section-count">3 records</span></div>
-  <div class="table-wrap desktop-table" style="margin-top:12px"><table><thead><tr><th>Job Card</th><th>FTO Name</th><th>Reference Numbers</th><th>Current Status</th><th>Credit Amount</th><th>Check</th></tr></thead><tbody>
+  <div class="table-wrap desktop-table" style="margin-top:12px"><table><thead><tr><th>Job Card</th><th>FTO Name</th><th>Reference Numbers</th><th>Current Status</th><th>Calculated Charge</th><th>Check</th></tr></thead><tbody>
    <tr><td>MZ-07-001-005-001/198</td><td>Lalnunpuii</td><td>…842B</td><td><span class="badge green">Processed</span></td><td class="amount">₹600</td><td><span class="badge green">Clear</span></td></tr>
    <tr><td>MZ-07-001-005-001/203</td><td>Rohmingliani</td><td>…842C</td><td><span class="badge green">Processed</span></td><td class="amount">₹700</td><td><span class="badge green">Clear</span></td></tr>
    <tr><td>MZ-07-001-005-001/219</td><td>Zoramthangi</td><td>…842E</td><td><span class="badge red">Rejected</span></td><td class="amount">₹633</td><td><span class="badge blue">Status check</span></td></tr>
   </tbody></table></div>
   <div class="mobile-cards">
-   <article class="mobile-card"><div class="mobile-card-top"><strong>MZ-07-001-005-001/198</strong><span class="badge green">Clear</span></div><div class="mobile-meta"><div><span>FTO name</span><strong>Lalnunpuii</strong></div><div><span>Status</span><strong>Processed</strong></div><div><span>Credit amount</span><strong>₹600</strong></div><div><span>Reference</span><strong>…842B</strong></div></div></article>
+   <article class="mobile-card"><div class="mobile-card-top"><strong>MZ-07-001-005-001/198</strong><span class="badge green">Clear</span></div><div class="mobile-meta"><div><span>FTO name</span><strong>Lalnunpuii</strong></div><div><span>Status</span><strong>Processed</strong></div><div><span>Calculated charge</span><strong>₹600</strong></div><div><span>Reference</span><strong>…842B</strong></div></div></article>
    <article class="mobile-card"><div class="mobile-card-top"><strong>MZ-07-001-005-001/203</strong><span class="badge green">Clear</span></div><div class="mobile-meta"><div><span>FTO name</span><strong>Rohmingliani</strong></div><div><span>Status</span><strong>Processed</strong></div><div><span>Calculated charge</span><strong>₹700</strong></div><div><span>Reference</span><strong>…842C</strong></div></div></article>
    <article class="mobile-card"><div class="mobile-card-top"><strong>MZ-07-001-005-001/219</strong><span class="badge blue">Status check</span></div><div class="mobile-meta"><div><span>FTO name</span><strong>Zoramthangi</strong></div><div><span>Status</span><strong>Rejected</strong></div><div><span>Calculated charge</span><strong>₹633</strong></div><div><span>Reference</span><strong>…842E</strong></div></div></article>
   </div>

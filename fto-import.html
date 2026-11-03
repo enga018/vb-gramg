@@ -324,9 +324,10 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  </div>
  <section id="step5-review" class="reconciliation-panel" aria-live="polite" style="margin-top:18px">
   <div class="section-head"><div><h2>Review FTO Import</h2><p>Review each job card before synchronization.</p></div></div>
-  <div class="meta" style="grid-template-columns:repeat(3,minmax(0,1fr));margin:14px 0">
+  <div class="meta" style="grid-template-columns:repeat(4,minmax(0,1fr));margin:14px 0">
    <div class="stat"><small>Automatic Import</small><strong id="auto-count">0</strong></div>
    <div class="stat"><small>Manual Review</small><strong id="manual-count">0</strong></div>
+   <div class="stat"><small>Already Imported</small><strong id="already-imported-count">0</strong></div>
    <div class="stat"><small>Cannot Import</small><strong id="cannot-count">0</strong></div>
   </div>
   <div id="manual-review-panel" class="hidden" style="padding:14px;border:1px solid #e8b45f;border-radius:12px;background:#fffdf8;margin:14px 0">
@@ -638,7 +639,7 @@ function renderManualTransactionDetails(group){
 }
 function renderImportPreview(){
  $('import-summary').classList.remove('error');
- const manualGroups=[],automaticGroups=[],cannotGroups=[];
+ const manualGroups=[],automaticGroups=[],cannotGroups=[],alreadyGroups=[];
  let automaticTotal=0;
  const sorted=[...importGroups].sort((a,b)=>a.job_card_number.localeCompare(b.job_card_number,undefined,{numeric:true,sensitivity:'base'}));
  sorted.forEach(group=>{
@@ -647,14 +648,16 @@ function renderImportPreview(){
   let reason='';
   if(outOfMis)reason='Outside active MIS';
   else if(refs.length)reason='Duplicate reference number';
+  else if(alreadyImportedReferences.size&&group.reference_numbers.length&&group.reference_numbers.every(ref=>alreadyImportedReferences.has(ref)))alreadyGroups.push(group);
   else if(duplicate||(hasCharge&&match?.requires_manual))manualGroups.push(group);
   else automaticGroups.push(group);
-  if(!reason&&!exempt&&group.status!=='rejected'&&!(duplicate||(hasCharge&&match?.requires_manual)))automaticTotal+=group.amount;
+  if(!reason&&!exempt&&group.status!=='rejected'&&!(duplicate||(hasCharge&&match?.requires_manual))&&!alreadyGroups.includes(group))automaticTotal+=group.amount;
   if(reason)cannotGroups.push({group,reason});
  });
  $('auto-count').textContent=automaticGroups.length+' · ₹'+automaticTotal.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
  $('manual-count').textContent=String(manualGroups.length);
  $('cannot-count').textContent=String(cannotGroups.length);
+ const alreadyCount=$('already-imported-count');if(alreadyCount)alreadyCount.textContent=String(alreadyGroups.length);
  const manualPanel=$('manual-review-panel');
  manualPanel.classList.toggle('hidden',manualGroups.length===0);
  const selector=$('manual-jobcard-select'),previous=selector.value;
@@ -721,6 +724,7 @@ async function lookupFtoBatch(){
    ftoIdentityMismatch=false;
    if(data.unchanged){existingFtoUnchanged=true;$('import-controls').classList.add('hidden');status('Already imported — no changes detected. Saved contribution period: '+data.batch.contribution_period+'. No synchronization is needed.','success');return;}
    existingFtoUnchanged=false;const changeCount=Number(data.changed_count||0);const changedRefs=data.changed_references||[];
+   alreadyImportedReferences=new Set((data.unchanged_references||[]).map(String));
    const changedSet=new Set(changedRefs);$('parsed-table').querySelectorAll('tbody tr').forEach(tr=>tr.classList.toggle('changed-transaction',changedSet.has(tr.dataset.reference||'')));
    status('Known FTO found. Saved period "'+data.batch.contribution_period+'" restored. '+changeCount+' transaction change(s) detected'+(changedRefs.length?' · changed references: '+changedRefs.slice(0,8).join(', ')+(changeCount>8?' …':''):'')+'. Review the highlighted changes before synchronizing.','success');
    reviewedCards=new Set();reviewedNewCards=new Set();refreshDuplicates();

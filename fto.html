@@ -504,6 +504,29 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 }
 @media(max-width:370px){.fto-card{padding:10px 9px;grid-template-columns:minmax(0,1fr) 98px}.fto-number{font-size:.82rem}}
 
+
+/* Compact FTO details header: keep the identifier and period on one line. */
+.fto-view-modal-header{padding:9px 14px;gap:10px}
+.fto-view-modal-header>div:first-child{display:flex;align-items:baseline;gap:9px;min-width:0;flex:1}
+.fto-view-modal-header h2{font-size:1rem;white-space:nowrap}
+.fto-view-modal-header p{margin:0;font-size:.76rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fto-modal-actions{gap:6px;flex-wrap:nowrap}
+.fto-modal-actions button{min-height:32px;padding:6px 10px;font-size:.76rem}
+.fto-view-modal-content{padding:9px 12px 12px}
+.fto-view-summary{gap:4px 10px;margin-bottom:7px;padding:6px 9px;font-size:.74rem}
+@media(max-width:700px){
+ .fto-view-modal-header{display:flex;flex-direction:column;align-items:stretch;padding:7px 10px;gap:6px}
+ .fto-view-modal-header>div:first-child{gap:7px;min-height:24px}
+ .fto-view-modal-header h2{font-size:.9rem}
+ .fto-view-modal-header p{font-size:.7rem}
+ .fto-modal-actions{display:flex;justify-content:flex-start;gap:6px}
+ .fto-modal-actions button{min-height:30px;padding:5px 9px;font-size:.72rem}
+ .fto-view-modal-content{padding:7px 9px 10px}
+ .fto-view-summary{display:flex;flex-wrap:wrap;gap:3px 9px;margin:0 0 6px;padding:5px 8px;font-size:.7rem}
+ .fto-view-summary .summary-tile span{font-size:.68rem}
+ .fto-view-summary .summary-tile strong{font-size:.72rem}
+}
+
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>

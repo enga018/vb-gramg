@@ -102,6 +102,7 @@ tbody tr:last-child td{border-bottom:0}
 .import-table .flag{display:inline-block;padding:4px 8px;border-radius:7px;background:#fff2d9;color:#8a4b08;font-size:.78rem;font-weight:750}
 .import-table .clear{display:inline-block;padding:4px 8px;border-radius:7px;background:#eaf8ef;color:#17663a;font-size:.78rem;font-weight:750}
 .import-table .exempt{display:inline-block;padding:4px 8px;border-radius:7px;background:#eaf2ff;color:#1d4f91;font-size:.78rem;font-weight:750}
+#parsed-table tr.changed-transaction td{background:#fff4d9;border-bottom-color:#f2d28e}
 .import-table input[type=checkbox]{width:19px;height:19px;min-height:19px;accent-color:#2457c5;vertical-align:middle}
 .import-table .review-cell{min-width:180px}
 #fto-import-button{min-width:190px}
@@ -309,7 +310,7 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let authSequence=0,sharedPeriods=[],previewPages={reconciliation:1,imports:1,applicants:1},parsedDataRows=[],importGroups=[],duplicateCards=new Map(),duplicateReferences=new Map(),alreadyAllocatedCards=new Map(),exemptedCards=new Set(),reviewedCards=new Set(),unknownCards=new Set(),reviewedNewCards=new Set(),reconciliationApplicantSelections=new Map(),deferredCards=new Map(),duplicateCheckSequence=0,checkingDuplicates=false,duplicateCheckFailed=false,existingFtoUnchanged=false;
+let authSequence=0,sharedPeriods=[],previewPages={reconciliation:1,imports:1,applicants:1},parsedDataRows=[],importGroups=[],duplicateCards=new Map(),duplicateReferences=new Map(),alreadyAllocatedCards=new Map(),exemptedCards=new Set(),reviewedCards=new Set(),unknownCards=new Set(),reviewedNewCards=new Set(),reconciliationApplicantSelections=new Map(),deferredCards=new Map(),duplicateCheckSequence=0,checkingDuplicates=false,duplicateCheckFailed=false,existingFtoUnchanged=false,existingFtoKnown=false;
 function status(msg,type){$('data-status').textContent=msg;$('data-status').classList.toggle('error',type==='error');$('data-status').classList.toggle('success',type==='success')}
 function syncStatus(msg,type){const el=$('sync-status');el.textContent=msg;el.classList.remove('hidden');el.classList.toggle('error',type==='error');el.classList.toggle('success',type==='success')}
 async function edgeFunctionErrorMessage(error,fallback){if(error&&error.context){try{const response=error.context.clone?error.context.clone():error.context;let body=null;if(response&&typeof response.json==='function')body=await response.json();else if(response&&typeof response.text==='function'){const raw=await response.text();try{body=JSON.parse(raw)}catch{body={message:raw}}}if(body&&typeof body==='object'&&(body.error||body.message||body.msg))return String(body.error||body.message||body.msg);if(typeof body==='string'&&body.trim())return body.trim()}catch(_){}}return (error&&error.message)||fallback}
@@ -373,7 +374,7 @@ function renderPastedTable(rows){
  const dataRows=rows.filter(row=>{if(isHeaderOrSeparator(row))return false;const cells=row.map(cell=>String(cell||'').replace(/<br\s*\/?>/gi,' ').replace(/\s+/g,' ').trim());return /^\d+$/.test(cells[0]||'')&&cells.length>=13&&!!jobCardFromRow(cells)&&String(cells[3]||'').trim().length>0&&/^\d{2}\/\d{2}\/\d{4}$/.test(cells[4]||'')});
  if(!dataRows.length){$('table-output').classList.add('hidden');$('import-controls').classList.add('hidden');parsedDataRows=[];return null}
  dataRows.forEach(row=>{
-  const tr=document.createElement('tr');
+  const tr=document.createElement('tr');tr.dataset.reference=String(row[3]||'').trim();
   FTO_HEADERS.forEach((_,index)=>{const td=document.createElement('td');td.textContent=(row[index]||'').replace(/<br\s*\/?>/gi,'\n');td.style.whiteSpace='pre-line';tr.appendChild(td)});
   tbody.appendChild(tr);
  });
@@ -393,7 +394,7 @@ $('load-table-button').addEventListener('click',async()=>{
  const result=renderPastedTable(rows);
  if(!result){status('No data rows detected. Paste the FTO table including its data.','error');return}
  if($('fto-number').value.trim())await lookupFtoBatch();
- if(!existingFtoUnchanged)status('Loaded '+result.rowCount+' FTO rows. Review the applicant names and status changes, then select Synchronize FTO.','success');
+ if(!existingFtoUnchanged&&!existingFtoKnown)status('Loaded '+result.rowCount+' FTO rows. Review the applicant names and status changes, then select Synchronize FTO.','success');
 });
 
 const JOB_CARD_PATTERN = /\bMZ-\d{2}-(?:\d{3}-){2,3}\d{3}\/\d+(?:-[A-Z]+)?\b/i;
@@ -620,12 +621,13 @@ async function lookupFtoBatch(){
   if(data.found&&data.batch){
    const nameMatches=sharedPeriods.filter(p=>p.period_name.toLowerCase()===String(data.batch.contribution_period||'').toLowerCase());const monthMatches=sharedPeriods.filter(p=>p.contribution_month===data.batch.ledger_charge_period);const savedPeriod=sharedPeriods.find(p=>p.id===data.batch.period_id)||(nameMatches.length===1?nameMatches[0]:(monthMatches.length===1?monthMatches[0]:null));
    if(savedPeriod){await loadSharedPeriods(savedPeriod.id);$('charge-period').value=savedPeriod.id;}
-   if(data.unchanged){existingFtoUnchanged=true;$('import-controls').classList.add('hidden');status('Already imported — no changes detected. Saved contribution period: '+data.batch.contribution_period+'. No synchronization is needed.','success');return;}
-   existingFtoUnchanged=false;const changeCount=Number(data.changed_count||0);
-   status('Known FTO found. Saved period "'+data.batch.contribution_period+'" restored. '+changeCount+' transaction change(s) detected; review before synchronizing.','success');
+   if(data.unchanged){existingFtoKnown=true;existingFtoUnchanged=true;$('import-controls').classList.add('hidden');status('Already imported — no changes detected. Saved contribution period: '+data.batch.contribution_period+'. No synchronization is needed.','success');return;}
+   existingFtoKnown=true;existingFtoUnchanged=false;const changeCount=Number(data.changed_count||0);const changedRefs=data.changed_references||[];
+   const changedSet=new Set(changedRefs);$('parsed-table').querySelectorAll('tbody tr').forEach(tr=>tr.classList.toggle('changed-transaction',changedSet.has(tr.dataset.reference||'')));
+   status('Known FTO found. Saved period "'+data.batch.contribution_period+'" restored. '+changeCount+' transaction change(s) detected'+(changedRefs.length?' · changed references: '+changedRefs.slice(0,8).join(', ')+(changeCount>8?' …':''):'')+'. Review the highlighted changes before synchronizing.','success');
    reviewedCards=new Set();reviewedNewCards=new Set();refreshDuplicates();
   }else{
-   existingFtoUnchanged=false;status('New FTO number. Select its contribution period from the shared periods list.','');updateImportButton();
+   existingFtoKnown=false;existingFtoUnchanged=false;$('parsed-table').querySelectorAll('tbody tr').forEach(tr=>tr.classList.remove('changed-transaction'));status('New FTO number. Select its contribution period from the shared periods list.','');updateImportButton();
   }
  }catch(err){status('Could not look up saved FTO details: '+(err.message||'unknown error'),'error')}
 }

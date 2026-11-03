@@ -208,10 +208,10 @@ Deno.serve(async(req:Request)=>{
     const activeJobCards=new Set([...activeMisApplicants.keys()].map(card=>String(card).trim().toUpperCase()));
     const requestedCards=Array.isArray(body.job_cards)?[...new Set(body.job_cards.map((v:unknown)=>String(v||"").trim()).filter(Boolean))]:[];
     const cards=requestedCards.filter(card=>activeJobCards.has(card.toUpperCase()));
-    const referenceRows=Array.isArray(body.reference_rows)?body.reference_rows.map((v:Record<string,unknown>)=>({job_card_number:String(v.job_card_number||"").trim(),reference_numbers:Array.isArray(v.reference_numbers)?[...new Set(v.reference_numbers.map((r:unknown)=>String(r||"").trim()).filter(Boolean))]:[]})).filter(row=>activeJobCards.has(row.job_card_number.toUpperCase())): [];
+    const referenceRows=Array.isArray(body.reference_rows)?body.reference_rows.map((v:Record<string,unknown>)=>({job_card_number:String(v.job_card_number||"").trim(),person_name:String(v.person_name||"").trim(),reference_numbers:Array.isArray(v.reference_numbers)?[...new Set(v.reference_numbers.map((r:unknown)=>String(r||"").trim()).filter(Boolean))]:[]})).filter(row=>activeJobCards.has(row.job_card_number.toUpperCase())): [];
     if(cards.length>1000)return reply({error:"Check at most 1,000 job cards at a time."},400);
     if(!cards.length)return reply({approved:true,duplicates:[],duplicate_references:[]});
-    const {data:existing,error:existingError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,note,reference_numbers,period_id").in("job_card_number",cards).eq("entry_type","charge").eq("charge_period",periodDate);
+    const {data:existing,error:existingError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,note,reference_numbers,period_id,applicant_name,applicant_number,applicant_unique_id,fto_applicant_name").in("job_card_number",cards).eq("entry_type","charge").eq("charge_period",periodDate);
     if(existingError)throw existingError;
     const {data:knownLedger,error:knownLedgerError}=await admin.from("vbgramg_charge_ledger").select("job_card_number").in("job_card_number",cards);
     if(knownLedgerError)throw knownLedgerError;
@@ -223,7 +223,17 @@ Deno.serve(async(req:Request)=>{
     if(allReferences.length){const {data,error}=await admin.from("vbgramg_charge_ledger").select("job_card_number,charge_period,period_id,note,reference_numbers").overlaps("reference_numbers",allReferences);if(error)throw error;referenceMatches.push(...(data||[]));}
     const duplicateMap=new Map<string,Set<string>>();
     for(const input of referenceRows){for(const reference of input.reference_numbers){for(const old of referenceMatches){if(!(old.reference_numbers||[]).includes(reference))continue;const sameExistingCharge=String(old.job_card_number)===input.job_card_number&&String(old.charge_period||"")===periodDate&&(!old.period_id||String(old.period_id)===periodId);if(!sameExistingCharge){if(!duplicateMap.has(input.job_card_number))duplicateMap.set(input.job_card_number,new Set());duplicateMap.get(input.job_card_number)!.add(reference);}}}}
-    return reply({approved:true,charge_period:periodDate,duplicates:[...new Map((existing||[]).filter(r=>(!r.period_id||String(r.period_id)===periodId)&&!(/^FTO\b/i.test(String(r.note||"")))&&!referenceRows.some(input=>input.job_card_number===String(r.job_card_number)&&(r.reference_numbers||[]).some((ref:string)=>input.reference_numbers.includes(String(ref))))).map(r=>[r.job_card_number,{id:r.id,job_card_number:r.job_card_number,person_name:r.person_name,amount:r.amount,is_deferred:r.is_deferred,charge_count:(existing||[]).filter(x=>String(x.job_card_number)===String(r.job_card_number)&&(!x.period_id||String(x.period_id)===periodId)&&!/^FTO\b/i.test(String(x.note||""))).length}])).values()],unknown_job_cards:cards.filter(card=>!known.has(card)),duplicate_references:[...duplicateMap].map(([job_card_number,refs])=>({job_card_number,reference_numbers:[...refs]}))});
+    const duplicateRows=[...new Map((existing||[]).filter(r=>(!r.period_id||String(r.period_id)===periodId)&&!(/^FTO\b/i.test(String(r.note||"")))&&!referenceRows.some(input=>input.job_card_number===String(r.job_card_number)&&(r.reference_numbers||[]).some((ref:string)=>input.reference_numbers.includes(String(ref))))).map(r=>[r.job_card_number,r])).values()];
+    const duplicates=duplicateRows.map(r=>{
+     const input=referenceRows.find(item=>item.job_card_number===String(r.job_card_number)),ftoName=String(input?.person_name||"");
+     const candidates=rankActiveMisApplicants(activeMisApplicants,String(r.job_card_number),ftoName).slice(0,10);
+     const best=candidates[0],second=candidates[1],gap=second?best.match_percentage-second.match_percentage:100;
+     const matchConfident=Boolean(best&&best.match_percentage>=80&&(!second||second.match_percentage<80||gap>=10));
+     const hasAttachedApplicant=Boolean(r.applicant_unique_id||r.applicant_name);
+     const applicantMismatch=Boolean(hasAttachedApplicant&&ftoName&&normalizeApplicantIdentity(r.applicant_name)!==normalizeApplicantIdentity(ftoName));
+     return {id:r.id,job_card_number:r.job_card_number,person_name:r.person_name,amount:r.amount,is_deferred:r.is_deferred,charge_count:(existing||[]).filter(x=>String(x.job_card_number)===String(r.job_card_number)&&(!x.period_id||String(x.period_id)===periodId)&&!/^FTO\b/i.test(String(x.note||""))).length,applicant_name:r.applicant_name||null,applicant_number:r.applicant_number||null,applicant_unique_id:r.applicant_unique_id||null,fto_applicant_name:r.fto_applicant_name||null,fto_name:ftoName,applicant_mismatch:applicantMismatch,match_confident:matchConfident,suggested_applicant:!hasAttachedApplicant&&matchConfident?best:null,candidates};
+    });
+    return reply({approved:true,charge_period:periodDate,duplicates,unknown_job_cards:cards.filter(card=>!known.has(card)),duplicate_references:[...duplicateMap].map(([job_card_number,refs])=>({job_card_number,reference_numbers:[...refs]}))});
    }
    const rows=body.rows,sourceSha=String(body.source_sha256||"").toLowerCase(),sourceFilename=String(body.source_filename||"").trim().slice(0,255),ftoNumber=String(body.fto_number||"").trim().toUpperCase().slice(0,100);
    const reviewed=Array.isArray(body.reviewed_duplicates)?new Set(body.reviewed_duplicates.map((v:unknown)=>String(v||"").trim())):new Set<string>();
@@ -423,7 +433,11 @@ Deno.serve(async(req:Request)=>{
      if(baselineError)throw baselineError;
      continue;
     }
-    if(hasSavedMapping&&normalizeApplicantIdentity(previousFtoName)===normalizeApplicantIdentity(ftoName))continue;
+    if(hasSavedMapping){
+     if(normalizeApplicantIdentity(previousFtoName)===normalizeApplicantIdentity(ftoName))continue;
+     pending.push({ledger_entry_id:ledgerId,job_card_number:jobCard,fto_name:ftoName,attached_applicant:entry.applicant_name||null,reason:"FTO name differs from the applicant already attached. Existing mapping has been retained; confirm any change explicitly.",candidates:ranked.slice(0,10)});
+     continue;
+    }
     if(best.match_percentage>=80&&(!second||second.match_percentage<80||gap>=10)){
      const {error:updateError}=await admin.from("vbgramg_charge_ledger").update({applicant_name:best.applicant_name,applicant_number:best.applicant_number,applicant_unique_id:best.applicant_unique_id,fto_applicant_name:ftoName}).eq("id",ledgerId);
      if(updateError)throw updateError;automaticMatches++;
@@ -465,6 +479,18 @@ Deno.serve(async(req:Request)=>{
    if(!/^[a-f0-9]{64}$/.test(sourceSha))return reply({error:"FTO synchronization identity is missing. Reload the preview and try again."},400);
    const reviewed=Array.isArray(body.reviewed_duplicates)?new Set(body.reviewed_duplicates.map((v:unknown)=>String(v||"").trim())):new Set<string>();
    const reviewedNew=Array.isArray(body.reviewed_new_job_cards)?new Set(body.reviewed_new_job_cards.map((v:unknown)=>String(v||"").trim())):new Set<string>();
+   const rawReconciliationApplicants=body.reconciliation_applicants&&typeof body.reconciliation_applicants==="object"?body.reconciliation_applicants as Record<string,any>:{};
+   const reconciliationApplicants=new Map<string,Record<string,string|null>>();
+   for(const [rawCard,rawApplicant] of Object.entries(rawReconciliationApplicants)){
+    const card=String(rawCard||"").trim().toUpperCase();
+    if(!card||!rawApplicant||typeof rawApplicant!=="object")return reply({error:"An applicant mapping in the reconciliation preview is invalid."},400);
+    const candidates=activeMisApplicants.get(card)||[];
+    const uniqueId=String(rawApplicant.applicant_unique_id||"").trim(),name=String(rawApplicant.applicant_name||"").trim(),number=String(rawApplicant.applicant_number||"").trim();
+    const chosen=candidates.find(a=>(uniqueId&&a.applicant_unique_id===uniqueId)||(!uniqueId&&String(a.applicant_name)===name&&String(a.applicant_number||"")===number));
+    if(!chosen)return reply({error:"The selected applicant for "+card+" is not in the current active MIS. Refresh the preview and try again."},409);
+    reconciliationApplicants.set(card,chosen);
+   }
+
    const rowsSeen=rows.length;
    const activeMisApplicants=await loadActiveMisApplicants(admin);
    if(!activeMisApplicants.size)return reply({error:"There is no active MIS import available. Import or activate MIS before synchronizing an FTO."},409);
@@ -666,7 +692,7 @@ Deno.serve(async(req:Request)=>{
     for(const tx of relevant){const key=String(tx.reference_no),old=latestByReference.get(key);if(!old||String(tx.last_seen_at)>String(old.last_seen_at))latestByReference.set(key,tx);}
     const txByCard=new Map<string,Record<string,any>[]>();
     for(const tx of latestByReference.values()){const card=String(tx.job_card_number);if(!txByCard.has(card))txByCard.set(card,[]);txByCard.get(card)!.push(tx);}
-    const {data:ledgerRows,error:ledgerRowsError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,note,reference_numbers,import_id,period_id").in("job_card_number",affectedCards).eq("entry_type","charge").eq("charge_period",chargePeriod);
+    const {data:ledgerRows,error:ledgerRowsError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,note,reference_numbers,import_id,period_id,applicant_name,applicant_number,applicant_unique_id,fto_applicant_name").in("job_card_number",affectedCards).eq("entry_type","charge").eq("charge_period",chargePeriod);
     if(ledgerRowsError)throw ledgerRowsError;
         await runInBatches(affectedCards,8,async(card)=>{
      if(exemptCards.has(card))return;
@@ -680,6 +706,8 @@ Deno.serve(async(req:Request)=>{
       const manualRows=cardLedgerRows.filter(r=>!/^FTO\b/i.test(String(r.note||"")));
       const linkedManual=manualRows.find(r=>(Array.isArray(r.reference_numbers)?r.reference_numbers:[]).some((ref:string)=>refs.includes(String(ref))))||null;
       const manualKeeper=linkedManual||(reviewed.has(card)&&manualRows.length===1?manualRows[0]:null);
+     const applicantChoice=reconciliationApplicants.get(card);
+     if(manualKeeper&&amount>0&&!manualKeeper.applicant_name&&!manualKeeper.applicant_unique_id&&!applicantChoice){throw new Error("Choose or confirm the MIS applicant for "+card+" before reconciling its manual charge.");}
      if(amount>0){
       const isDeferred=active.every(tx=>String(tx.status)==="blank"),entryDate=ftoEntryDate(active,isDeferred);
       const activeApplicantName=String((normalized.find(r=>String(r.job_card_number)===card&&r.is_in_scope)?.person_name)||"");
@@ -688,7 +716,8 @@ Deno.serve(async(req:Request)=>{
       if(manualKeeper){
        const existingRefs=Array.isArray(manualKeeper.reference_numbers)?manualKeeper.reference_numbers.map(String):[];
        const mergedRefs=[...new Set([...existingRefs,...refs])];
-       const {error:linkLedgerError}=await admin.from("vbgramg_charge_ledger").update({reference_numbers:mergedRefs}).eq("id",manualKeeper.id);
+       const applicantFields=applicantChoice?{applicant_name:applicantChoice.applicant_name,applicant_number:applicantChoice.applicant_number,applicant_unique_id:applicantChoice.applicant_unique_id}:{};
+       const {error:linkLedgerError}=await admin.from("vbgramg_charge_ledger").update({period_id:periodId,charge_period:chargePeriod,person_name:name||manualKeeper.person_name,amount,is_deferred:isDeferred,entry_date:entryDate,note:"FTO import",reference_numbers:mergedRefs,import_id:importId,fto_applicant_name:activeApplicantName||manualKeeper.fto_applicant_name||null,...applicantFields}).eq("id",manualKeeper.id);
        if(linkLedgerError)throw linkLedgerError;
        ledgerId=String(manualKeeper.id);updatedCount++;reconciledCount++;
       }else if(keeper){

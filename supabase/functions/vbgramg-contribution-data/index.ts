@@ -62,16 +62,10 @@ Deno.serve(async(req:Request)=>{
    if(exempt){
     const {error}=await admin.from("vbgramg_contribution_exemptions").upsert({job_card_number:jobCard,note,created_by:authData.user.id,updated_at:new Date().toISOString()},{onConflict:"job_card_number"});
     if(error)throw error;
-    // Exemption is authoritative: remove contribution-side records while preserving all FTO batches,
-    // FTO transactions, and FTO status history. Clear the FK link before deleting ledger rows.
-    const {error:extraDeleteError}=await admin.from("vbgramg_contribution_extras").delete().eq("job_card_number",jobCard);
-    if(extraDeleteError)throw extraDeleteError;
-    const {error:unlinkFtoError}=await admin.from("vbgramg_fto_transactions").update({ledger_entry_id:null}).eq("job_card_number",jobCard);
-    if(unlinkFtoError)throw unlinkFtoError;
-    const {error:ledgerDeleteError}=await admin.from("vbgramg_charge_ledger").delete().eq("job_card_number",jobCard);
-    if(ledgerDeleteError)throw ledgerDeleteError;
-    const {error:citizenDeleteError}=await admin.from("vbgramg_contribution_citizens").delete().eq("job_card_number",jobCard);
-    if(citizenDeleteError)throw citizenDeleteError;
+    // Exemption changes contribution eligibility, not financial history.
+    // Keep ledger rows, payments, allocations, extras, citizen metadata, and FTO links intact.
+    // The list action and contribution UI suppress balances for exempt cards while retaining
+    // the original ledger for audit/history and for a possible later un-exemption.
    }else{
     const {error}=await admin.from("vbgramg_contribution_exemptions").delete().eq("job_card_number",jobCard);
     if(error)throw error;

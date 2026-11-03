@@ -238,7 +238,7 @@ Deno.serve(async(req:Request)=>{
     const {data:exemptionRows,error:exemptionError}=await admin.from("vbgramg_contribution_exemptions").select("job_card_number");
      if(exemptionError)throw exemptionError;
      const exemptSet=new Set((exemptionRows||[]).map(r=>String(r.job_card_number).toUpperCase()));
-     return reply({approved:true,charge_period:periodDate,duplicates,unknown_job_cards:cards.filter(card=>!known.has(card)),duplicate_references:[...duplicateMap].map(([job_card_number,refs])=>({job_card_number,reference_numbers:[...refs]})),exempted_job_cards:requestedCards.filter(card=>exemptSet.has(card.toUpperCase())),not_in_active_mis_job_cards:notInActiveMis});
+     return reply({approved:true,charge_period:periodDate,duplicates,unknown_job_cards:cards.filter(card=>!known.has(card)),duplicate_references:[...duplicateMap].map(([job_card_number,refs])=>({job_card_number,reference_numbers:[...refs]})),already_allocated,exempted_job_cards:requestedCards.filter(card=>exemptSet.has(card.toUpperCase())),not_in_active_mis_job_cards:notInActiveMis});
    }
    const rows=body.rows,sourceSha=String(body.source_sha256||"").toLowerCase(),sourceFilename=String(body.source_filename||"").trim().slice(0,255),ftoNumber=String(body.fto_number||"").trim().toUpperCase().slice(0,100);
    const reviewed=Array.isArray(body.reviewed_duplicates)?new Set(body.reviewed_duplicates.map((v:unknown)=>String(v||"").trim())):new Set<string>();

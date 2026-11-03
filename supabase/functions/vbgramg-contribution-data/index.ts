@@ -719,7 +719,11 @@ Deno.serve(async(req:Request)=>{
    const runInBatches=async<T,>(items:T[],size:number,worker:(item:T)=>Promise<void>)=>{for(let offset=0;offset<items.length;offset+=size){await Promise.all(items.slice(offset,offset+size).map(worker));}};
       await runInBatches(normalized,8,async(row)=>{
     const old=oldByRef.get(String(row.reference_no));
-    if(old&&String(old.job_card_number||"").toUpperCase()===String(row.job_card_number||"").toUpperCase()&&String(old.person_name||"")===String(row.person_name||"")&&String(old.transaction_date||"")===String(row.transaction_date||"")&&String(old.processed_date||"")===String(row.processed_date||"")&&Number(old.amount_to_be_credited||0)===Number(row.amount_to_be_credited||0)&&Number(old.credit_amount||0)===Number(row.credit_amount||0)&&Number(old.calculated_charge||0)===Number(row.calculated_charge||0)&&String(old.status||"")===String(row.status||"")&&String(old.rejection_reason||"")===String(row.rejection_reason||""))return;
+    if(old&&String(old.job_card_number||"").toUpperCase()===String(row.job_card_number||"").toUpperCase()&&String(old.person_name||"")===String(row.person_name||"")&&String(old.transaction_date||"")===String(row.transaction_date||"")&&String(old.processed_date||"")===String(row.processed_date||"")&&Number(old.amount_to_be_credited||0)===Number(row.amount_to_be_credited||0)&&Number(old.credit_amount||0)===Number(row.credit_amount||0)&&Number(old.calculated_charge||0)===Number(row.calculated_charge||0)&&String(old.status||"")===String(row.status||"")&&String(old.rejection_reason||"")===String(row.rejection_reason||"")){
+     const {error:seenError}=await admin.from("vbgramg_fto_transactions").update({last_seen_at:nowIso,updated_at:nowIso}).eq("id",old.id);
+     if(seenError)throw seenError;
+     return;
+    }
     if(old&&(String(old.status)!==String(row.status)||Number(old.calculated_charge||0)!==Number(row.calculated_charge||0)||String(old.processed_date||"")!==String(row.processed_date||""))){
      const {error:historyError}=await admin.from("vbgramg_fto_status_history").insert({
       transaction_id:old.id,old_status:old.status,new_status:row.status,
@@ -816,10 +820,11 @@ Deno.serve(async(req:Request)=>{
       const name=activeApplicantName||keeper?.person_name||manualKeeper?.person_name||"";
       let ledgerId="";
       if(manualKeeper){
-       const existingRefs=Array.isArray(manualKeeper.reference_numbers)?manualKeeper.reference_numbers.map(String):[];
-       const mergedRefs=[...new Set([...existingRefs,...refs])];
+       // This paste is the complete current snapshot for the FTO batch/period.
+       // Replace linked references with the current set; do not retain stale refs from older snapshots.
+       const snapshotRefs=refs;
        const applicantFields=applicantChoice?{applicant_name:applicantChoice.applicant_name,applicant_number:applicantChoice.applicant_number,applicant_unique_id:applicantChoice.applicant_unique_id}:{};
-       const {error:linkLedgerError}=await admin.from("vbgramg_charge_ledger").update({period_id:periodId,charge_period:chargePeriod,person_name:name||manualKeeper.person_name,amount,is_deferred:isDeferred,entry_date:entryDate,note:"FTO import",reference_numbers:mergedRefs,import_id:importId,fto_applicant_name:activeApplicantName||manualKeeper.fto_applicant_name||null,...applicantFields}).eq("id",manualKeeper.id);
+       const {error:linkLedgerError}=await admin.from("vbgramg_charge_ledger").update({period_id:periodId,charge_period:chargePeriod,person_name:name||manualKeeper.person_name,amount,is_deferred:isDeferred,entry_date:entryDate,note:"FTO import",reference_numbers:snapshotRefs,import_id:importId,fto_applicant_name:activeApplicantName||manualKeeper.fto_applicant_name||null,...applicantFields}).eq("id",manualKeeper.id);
        if(linkLedgerError)throw linkLedgerError;
        ledgerId=String(manualKeeper.id);updatedCount++;reconciledCount++;
       }else if(keeper){

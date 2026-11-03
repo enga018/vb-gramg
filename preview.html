@@ -53,9 +53,20 @@ input,select{width:100%;min-width:0;min-height:44px;padding:10px 12px;border:1px
 .menu button:hover{background:#f1f5f9}
 .empty{padding:32px 16px;text-align:center;color:var(--muted);border:1px dashed #cfd7e4;border-radius:12px;background:#fafbfd;font-size:.88rem}
 .list-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:13px;color:var(--muted);font-size:.78rem}
-dialog{width:min(92vw,440px);border:1px solid var(--line);border-radius:16px;padding:0;box-shadow:0 18px 55px rgb(15 23 42 / 22%);color:var(--ink)}
+dialog{width:min(96vw,1120px);max-width:1120px;max-height:92vh;border:1px solid var(--line);border-radius:16px;padding:0;box-shadow:0 18px 55px rgb(15 23 42 / 22%);color:var(--ink)}
 dialog::backdrop{background:rgb(15 23 42 / 48%)}
 .dialog-content{padding:22px}
+.view-content{max-height:92vh;overflow:auto}.view-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:14px 0}
+.summary-tile{padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--soft)}
+.summary-tile span{display:block;color:var(--muted);font-size:.72rem}.summary-tile strong{display:block;margin-top:3px}
+.transaction-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:12px 0}
+.transaction-table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px}
+.transaction-table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:.8rem}
+.transaction-table th,.transaction-table td{padding:10px 11px;text-align:left;border-bottom:1px solid #edf0f5}
+.transaction-table th{background:#f7f9fc;color:#475467;font-size:.72rem}
+.transaction-table td.amount{text-align:right;font-variant-numeric:tabular-nums}
+.tx-status{font-weight:700}.tx-status.processed{color:var(--green)}.tx-status.deferred{color:var(--amber)}.tx-status.rejected{color:var(--red)}
+.transaction-mobile{display:none}.privacy-note{color:var(--muted);font-size:.74rem}
 .dialog-content h2{font-size:1.05rem}
 .dialog-content p{margin:7px 0 18px;color:var(--muted);font-size:.84rem}
 .dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
@@ -80,7 +91,17 @@ dialog::backdrop{background:rgb(15 23 42 / 48%)}
  .last-checked strong{font-size:.7rem;max-width:112px}
  .action-wrap{align-self:flex-end}
  .list-foot{align-items:flex-start}
- .dialog-content{padding:18px}
+ dialog{width:calc(100vw - 16px);max-width:none;max-height:94vh}
+ .dialog-content{padding:16px}.view-content{max-height:94vh}
+ .view-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .transaction-table-wrap{display:none}.transaction-mobile{display:grid;gap:8px;max-height:44vh;overflow:auto}
+ .transaction-mobile-card{border:1px solid var(--line);border-radius:10px;padding:10px}
+ .transaction-mobile-card .tx-top{display:flex;justify-content:space-between;gap:8px;font-size:.78rem;font-weight:750}
+ .transaction-mobile-card .tx-name{margin:4px 0;color:#344054;font-size:.82rem}
+ .transaction-mobile-card .tx-meta{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;color:var(--muted);font-size:.72rem}
+ .transaction-mobile-card strong{display:block;color:var(--ink);font-size:.76rem}
+ .transaction-toolbar{align-items:flex-start;flex-direction:column}
+ .privacy-note{font-size:.7rem}
  .dialog-actions{display:grid;grid-template-columns:1fr 1fr}
  .dialog-actions button{width:100%}
 }
@@ -141,7 +162,15 @@ dialog::backdrop{background:rgb(15 23 42 / 48%)}
  <div class="list-foot"><span id="showing">Showing 10 of 11 matching FTOs</span><span>Newest checked first</span></div>\n <div style="display:flex;justify-content:center;margin-top:14px"><button class="quiet" id="see-more" type="button">See more</button></div>
 </section>
 </main>
-<dialog id="view-dialog"><div class="dialog-content"><h2 id="view-title">FTO details</h2><p>This is a preview-only action. The existing transaction viewer in the live app will remain unchanged.</p><div class="sample-view" id="view-details"></div><div class="dialog-actions"><button class="quiet" onclick="document.getElementById('view-dialog').close()">Close</button></div></div></dialog>
+<dialog id="view-dialog"><div class="dialog-content view-content">
+ <div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><div><h2 id="view-title">FTO details</h2><p id="view-subtitle">All transactions in this FTO</p></div><button class="icon-button quiet" type="button" onclick="document.getElementById('view-dialog').close()">×</button></div>
+ <div class="view-summary" id="view-summary"></div>
+ <div class="transaction-toolbar"><strong id="transaction-count">Transaction details</strong><button class="quiet" type="button" id="toggle-sensitive">Show UTR &amp; rejection reason</button></div>
+ <div class="transaction-table-wrap"><table class="transaction-table"><thead id="transaction-head"></thead><tbody id="transaction-body"></tbody></table></div>
+ <div class="transaction-mobile" id="transaction-mobile"></div>
+ <p class="privacy-note">UTR and rejection reason are hidden by default. Sample transaction records are illustrative.</p>
+ <div class="dialog-actions"><button class="quiet" onclick="document.getElementById('view-dialog').close()">Close</button></div>
+ </div></dialog>
 <dialog id="period-dialog"><form class="dialog-content" id="period-form"><h2>Change contribution period</h2><p>Preview only. Changing a period here updates only this sample card.</p><label for="period-choice">Contribution period</label><select id="period-choice"><option>NOV26</option><option>OCT26</option><option>SEP26</option><option>AUG26</option></select><div class="dialog-actions"><button class="quiet" type="button" onclick="document.getElementById('period-dialog').close()">Cancel</button><button class="primary" type="submit">Save</button></div></form></dialog>
 <script>
 const list=document.getElementById('history-list'),search=document.getElementById('search'),filter=document.getElementById('period-filter');
@@ -177,14 +206,36 @@ list.addEventListener('click',e=>{
  const action=e.target.closest('[data-action]');if(!action)return;
  activeCard=action.closest('.fto-card');action.closest('.menu').hidden=true;activeCard.querySelector('.action-trigger').setAttribute('aria-expanded','false');
  if(action.dataset.action==='view'){
-  document.getElementById('view-title').textContent=activeCard.dataset.fto;
-  document.getElementById('view-details').innerHTML='<div><span>Contribution period</span><strong>'+activeCard.dataset.period+'</strong></div><div><span>Processed</span><strong>'+activeCard.dataset.processed+'</strong></div><div><span>Deferred</span><strong>'+activeCard.dataset.blank+'</strong></div><div><span>Rejected</span><strong>'+activeCard.dataset.rejected+'</strong></div><div><span>Last checked</span><strong>'+activeCard.dataset.updated+'</strong></div>';
+  renderFtoDetails(activeCard);
   document.getElementById('view-dialog').showModal();
- }else{
-  document.getElementById('period-choice').value=activeCard.dataset.period;
+ }else{  document.getElementById('period-choice').value=activeCard.dataset.period;
   document.getElementById('period-dialog').showModal();
  }
 });
+
+const sampleTransactions=[
+ {job:'MZ-07-001-005-001/197',name:'Lalbiakdika',amount:2400,status:'Processed',date:'03 Nov 2026',utr:'UTR20261103001842A',reason:''},
+ {job:'MZ-07-001-005-001/198',name:'Lalnunpuii',amount:1800,status:'Processed',date:'03 Nov 2026',utr:'UTR20261103001842B',reason:''},
+ {job:'MZ-07-001-005-001/203',name:'Rohmingliani',amount:2100,status:'Processed',date:'03 Nov 2026',utr:'UTR20261103001842C',reason:''},
+ {job:'MZ-07-001-005-001/211',name:'Lalhmingmawii',amount:1600,status:'Deferred',date:'—',utr:'',reason:''},
+ {job:'MZ-07-001-005-001/219',name:'Zoramthangi',amount:1900,status:'Rejected',date:'—',utr:'',reason:'Invalid account details'},
+ {job:'MZ-07-001-005-001/225',name:'Lalremruati',amount:2200,status:'Processed',date:'03 Nov 2026',utr:'UTR20261103001842D',reason:''}
+];
+let sensitiveVisible=false;
+function renderFtoDetails(card){
+ const p=Number(card.dataset.processed||0),d=Number(card.dataset.blank||0),r=Number(card.dataset.rejected||0);
+ document.getElementById('view-title').textContent=card.dataset.fto;
+ document.getElementById('view-subtitle').textContent='Contribution period: '+card.dataset.period+' · Last checked: '+card.dataset.updated;
+ document.getElementById('view-summary').innerHTML=[['Total transactions',p+d+r],['Processed',p],['Deferred',d],['Rejected',r],['Period',card.dataset.period]].map(x=>'<div class="summary-tile"><span>'+x[0]+'</span><strong>'+x[1]+'</strong></div>').join('');
+ const rows=sampleTransactions;
+ document.getElementById('transaction-count').textContent='Transaction details · '+rows.length+' sample rows shown';
+ document.getElementById('transaction-head').innerHTML='<tr><th>Job Card No.</th><th>Applicant Name</th><th>Credit Amount</th><th>Status</th><th>Processed Date</th>'+(sensitiveVisible?'<th>UTR</th><th>Rejection Reason</th>':'')+'</tr>';
+ document.getElementById('transaction-body').innerHTML=rows.map(t=>'<tr><td>'+t.job+'</td><td>'+t.name+'</td><td class="amount">₹'+t.amount.toLocaleString('en-IN')+'</td><td><span class="tx-status '+t.status.toLowerCase()+'">'+t.status+'</span></td><td>'+t.date+'</td>'+(sensitiveVisible?'<td>'+(t.utr||'—')+'</td><td>'+(t.reason||'—')+'</td>':'')+'</tr>').join('');
+ document.getElementById('transaction-mobile').innerHTML=rows.map(t=>'<article class="transaction-mobile-card"><div class="tx-top"><span>'+t.job+'</span><span class="tx-status '+t.status.toLowerCase()+'">'+t.status+'</span></div><div class="tx-name">'+t.name+'</div><div class="tx-meta"><div>Credit amount<strong>₹'+t.amount.toLocaleString('en-IN')+'</strong></div><div>Processed date<strong>'+t.date+'</strong></div>'+(sensitiveVisible?'<div>UTR<strong>'+(t.utr||'—')+'</strong></div><div>Rejection reason<strong>'+(t.reason||'—')+'</strong></div>':'')+'</div></article>').join('');
+ document.getElementById('toggle-sensitive').textContent=sensitiveVisible?'Hide UTR & rejection reason':'Show UTR & rejection reason';
+}
+document.getElementById('toggle-sensitive').addEventListener('click',()=>{sensitiveVisible=!sensitiveVisible;if(activeCard)renderFtoDetails(activeCard);});
+
 document.addEventListener('click',e=>{if(!e.target.closest('.action-wrap')){document.querySelectorAll('.menu').forEach(m=>m.hidden=true);document.querySelectorAll('.action-trigger').forEach(b=>b.setAttribute('aria-expanded','false'));}});
 document.getElementById('period-form').addEventListener('submit',e=>{e.preventDefault();if(!activeCard)return;activeCard.dataset.period=document.getElementById('period-choice').value;activeCard.querySelector('.period-line').textContent=activeCard.dataset.period;document.getElementById('period-dialog').close();refresh();});
 </script>

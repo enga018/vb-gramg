@@ -117,7 +117,7 @@ const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
 let authSequence=0;
-function setStatus(el,msg,type){el.textContent=msg;el.classList.toggle('error',type==='error');el.classList.toggle('success',type==='success')}
+function setStatus(el,msg,type){if(type==='error'||type==='success'){if(window.showToast)window.showToast(msg,type);el.textContent='';el.classList.remove('error','success');return}el.textContent=msg;el.classList.remove('error','success')}
 function showLoggedOut(){ $('login-panel').classList.remove('hidden');$('home-panel').classList.add('hidden') }
 async function verifyAccess(user){
  const seq=++authSequence;
@@ -137,4 +137,4 @@ $('login-form').addEventListener('submit',async e=>{e.preventDefault();$('login-
 $('logout-button').addEventListener('click',async()=>{const {error}=await supabaseClient.auth.signOut();showLoggedOut();setStatus($('login-status'),error?'Sign-out error: '+error.message:'You are signed out.',error?'error':'')});
 supabaseClient.auth.onAuthStateChange((event)=>{if(event==='SIGNED_OUT'){authSequence++;showLoggedOut();setStatus($('login-status'),'You are signed out.')}else if(event==='TOKEN_REFRESHED')Promise.resolve().then(()=>supabaseClient.auth.getSession()).then(({data})=>data&&data.session?verifyAccess(data.session.user):false)});
 supabaseClient.auth.getSession().then(({data,error})=>{if(error){showLoggedOut();setStatus($('login-status'),error.message,'error');return}return verifyAccess(data.session?data.session.user:null)});
-</script><script src="./navigation.js?v=20261031f"></script></body></html>
+</script><script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261031f"></script></body></html>

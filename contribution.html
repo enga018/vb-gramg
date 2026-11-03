@@ -273,6 +273,88 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
   .filter-control label{font-size:.76rem;margin-bottom:3px}
   .count{margin-bottom:6px;font-size:.8rem}
 }
+
+/* Contribution UI refresh — ported from the approved preview; data and actions remain unchanged. */
+body{padding:16px;background:#f3f6fb}
+main{width:min(100%,1200px);padding-bottom:36px}
+.topbar{position:relative;padding:17px 20px;margin:0 auto 13px;border-radius:15px}
+.brand h1{font-size:1.35rem;letter-spacing:-.025em}
+.brand p{font-size:.86rem}
+#contribution-layout{grid-template-columns:minmax(0,1.12fr) minmax(400px,.88fr);gap:14px}
+#contribution-layout>.panel{padding:18px;border-radius:15px}
+.kpi-row{gap:12px;margin-bottom:15px}
+.kpi-row .stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.kpi-row .stat{padding:12px 14px;border-radius:12px;box-shadow:none}
+.kpi-row .stat .k{font-size:.76rem;margin-bottom:5px}
+.kpi-row .stat .v{font-size:1.08rem}
+.kpi-actions{gap:7px}
+.kpi-actions .btn{min-height:40px;padding:8px 12px;font-size:.83rem}
+.toolbar{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:10px;align-items:end;margin-bottom:10px}
+.search-wrap{min-width:0;width:100%}
+.toolbar input{min-width:0;width:100%;min-height:44px;padding:9px 42px 9px 12px;border-radius:10px;font-size:16px}
+.filter-control{min-width:0;width:100%}
+.filter-control label{font-size:.78rem;margin-bottom:5px}
+.filter-control select{min-height:44px;border-radius:10px;font-size:16px}
+.count{font-size:.8rem;margin:0 0 9px}
+.table-wrap{max-height:none;overflow:visible;border:0;border-radius:0;background:transparent;box-shadow:none}
+#contribution-table{width:100%;border-collapse:separate;border-spacing:0 7px;table-layout:fixed}
+#contribution-table thead{display:none}
+#contribution-table tbody{display:block;width:100%}
+#contribution-table tbody tr.contribution-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(170px,220px);grid-template-rows:auto auto;gap:0 14px;align-items:center;margin:0 0 7px;padding:12px 15px;border:1px solid var(--line);border-radius:11px;background:#fff;box-shadow:none;cursor:pointer}
+#contribution-table tbody tr.contribution-row:hover{background:#f6f9ff;border-color:#cbd8f0}
+#contribution-table tbody tr.contribution-row td{display:block;min-width:0;padding:0;border:0;background:transparent}
+#contribution-table tbody tr.contribution-row td.jobcard{grid-column:1;grid-row:1;font-size:.9rem;font-weight:750;overflow-wrap:anywhere;white-space:normal}
+#contribution-table tbody tr.contribution-row td.person{grid-column:1;grid-row:2;font-size:.83rem;color:#475467;font-weight:500;margin-top:3px}
+#contribution-table tbody tr.contribution-row td.outstanding-cell{grid-column:2;grid-row:1 / span 2;display:flex;justify-content:flex-end;align-items:center;gap:5px;flex-wrap:wrap;text-align:right;white-space:normal}
+#contribution-table .row-status{margin:0!important}
+#contribution-table tbody tr.contribution-row.due{border-left:3px solid var(--due)}
+#contribution-table tbody tr.contribution-row.settled{border-left:3px solid var(--paid)}
+#contribution-table tbody tr.contribution-row.overpaid{border-left:3px solid var(--overpaid)}
+#contribution-table tbody tr.contribution-row td.mobile-details{grid-column:1 / -1;grid-row:1;display:block;padding:0}
+#contribution-table .mobile-jobcard-line{font-size:.83rem;line-height:1.35;font-weight:750;overflow-wrap:anywhere}
+#contribution-table .mobile-jobcard-line .suffix{font-weight:850}
+#contribution-table .mobile-details .row-status{font-size:.65rem;padding:4px 6px}
+.table-foot{margin-top:12px;gap:10px}
+.table-foot .actions{gap:7px}
+.table-foot .btn{min-height:40px;padding:8px 12px}
+#desktop-detail-panel{border-radius:14px}
+@media(max-width:700px){
+ body{padding:9px}
+ .topbar{padding:14px 15px;padding-right:58px;margin-bottom:10px}
+ .panel,#contribution-layout>.panel{padding:13px;margin-bottom:10px}
+ #contribution-layout{display:block}
+ #desktop-detail-panel{display:none!important}
+ .kpi-row{flex-direction:column;gap:8px;margin-bottom:12px}
+ .kpi-row .stats{gap:7px}
+ .kpi-row .stat{padding:10px 11px}
+ .kpi-row .stat .k{font-size:.72rem}
+ .kpi-row .stat .v{font-size:1rem}
+ .kpi-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;width:100%}
+ .kpi-actions .btn{width:100%;min-height:39px;padding:7px 4px;font-size:.76rem}
+ .toolbar{grid-template-columns:minmax(0,1fr);gap:8px}
+ .search-wrap{grid-column:1}
+ .filter-control{grid-column:1}
+ .table-wrap{overflow:visible}
+ #contribution-table{border-spacing:0}
+ #contribution-table tbody tr.contribution-row{grid-template-columns:minmax(0,5fr) minmax(0,1fr);gap:7px;padding:12px 10px;margin-bottom:7px;border:1px solid var(--line);border-radius:11px}
+ #contribution-table tbody tr.contribution-row td.mobile-details{grid-column:1 / -1}
+ #contribution-table .mobile-jobcard-line{font-size:.83rem}
+ #contribution-table .mobile-details>div:nth-child(2){justify-content:flex-end;align-content:center}
+ #contribution-table .mobile-details .row-status{font-size:.65rem;padding:4px 6px}
+ .table-foot{align-items:flex-start;flex-direction:column}
+ .table-foot .actions{width:100%}
+ .table-foot .actions .btn{flex:1}
+}
+@media(max-width:360px){
+ body{padding:7px}
+ #contribution-layout>.panel{padding:11px}
+ .topbar{padding:12px}
+ #contribution-table tbody tr.contribution-row{padding:10px 8px;gap:5px}
+ #contribution-table .mobile-jobcard-line{font-size:.78rem}
+ #contribution-table .mobile-details .row-status{font-size:.6rem;padding:3px 5px}
+ .kpi-actions .btn{font-size:.7rem}
+}
+
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -325,7 +407,7 @@ try{
 const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
-let entries=[], citizens=[], citizenRegistry=[], applicantsByCard={}, extraCharges=[], exemptions=[], periods=[], paymentAllocations=[], paymentRefundReconciliations=[], currentCitizen=null, busy=false, currentPage=0, pageSize=50, appRole="";
+let entries=[], citizens=[], citizenRegistry=[], applicantsByCard={}, extraCharges=[], exemptions=[], periods=[], paymentAllocations=[], paymentRefundReconciliations=[], currentCitizen=null, busy=false, currentPage=0, pageSize=10, appRole="";
 const exemptCardSet=()=>new Set(exemptions.map(x=>String(x.job_card_number||"").trim()));
 const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

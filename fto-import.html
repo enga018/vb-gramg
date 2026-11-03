@@ -562,7 +562,7 @@ function buildImportGroups(){
   if((rowState==='blank'||rowState==='processed')&&amount<=0)group.invalid_amount_rows++;
  }
  importGroups=[...map.values()].map(g=>({...g,status:g.statuses.size===1?[...g.statuses][0]:'mixed',village:[...g.villages].join(' / '),inScope:true,reference_numbers:g.references})).sort((a,b)=>a.job_card_number.localeCompare(b.job_card_number));
- duplicateCards=new Map();duplicateReferences=new Map();alreadyAllocatedCards=new Map();exemptedCards=new Set();reviewedCards=new Set();unknownCards=new Set();reviewedNewCards=new Set();reconciliationApplicantSelections=new Map();applicantMatchSuggestions=new Map();alreadyImportedReferences=new Set();existingFtoUnchanged=false;
+ duplicateCards=new Map();duplicateReferences=new Map();alreadyAllocatedCards=new Map();exemptedCards=new Set();reviewedCards=new Set();unknownCards=new Set();reviewedNewCards=new Set();reconciliationApplicantSelections=new Map();manualChargeActions=new Map();applicantMatchSuggestions=new Map();alreadyImportedReferences=new Set();existingFtoUnchanged=false;
  renderImportPreview();refreshDuplicates();
 }
 function importReviewPriority(group){
@@ -737,7 +737,7 @@ async function lookupFtoBatch(){
  }catch(err){status('Could not look up saved FTO details: '+(err.message||'unknown error'),'error')}
 }
 $('fto-number').addEventListener('change',lookupFtoBatch);
-$('charge-period').addEventListener('change',()=>{reviewedCards=new Set();reviewedNewCards=new Set();refreshDuplicates()});
+$('charge-period').addEventListener('change',()=>{reviewedCards=new Set();reviewedNewCards=new Set();manualChargeActions=new Map();refreshDuplicates()});
 $('amount-divisor').addEventListener('input',()=>buildImportGroups());
 $('amount-multiplier').addEventListener('input',()=>buildImportGroups());
 

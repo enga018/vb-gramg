@@ -286,6 +286,9 @@ header .top-actions > button:hover {
 body>main{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 .applicant-review{margin-top:18px;padding:18px;border:1px solid var(--line);border-radius:12px;background:#fbfcfe}.applicant-review .section-head p{font-size:.86rem}.applicant-review select{min-width:230px}.applicant-review .review-save{min-height:36px;padding:7px 11px}.applicant-review .table-wrap{max-height:none;overflow-x:auto;overflow-y:visible}.applicant-review .review-choice{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.applicant-review .review-choice .muted{max-width:240px}@media(max-width:700px){.applicant-review{padding:12px}.applicant-review .review-choice{align-items:stretch}.applicant-review select,.applicant-review .review-save{width:100%}}
+
+/* Keep Step 2 transaction preview hidden; parsing and validation still run in JavaScript. */
+#table-output{display:none!important}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>

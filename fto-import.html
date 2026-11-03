@@ -134,15 +134,15 @@ tbody tr:last-child td{border-bottom:0}
  #parsed-table tbody td:nth-child(13){border-bottom:0}
  #parsed-table tbody tr.changed-transaction td{background:#fff4d9;border-bottom-color:#f2d28e}
  #table-output>.table-wrap{display:none}
- #parsed-mobile-groups{display:grid;gap:9px;margin-top:12px}
- .parsed-jobcard-dropdown{border:1px solid #dfe5ee;border-radius:12px;background:#fff;overflow:hidden}
- .parsed-jobcard-dropdown>summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 12px;cursor:pointer;list-style:none;font-size:.86rem;font-weight:750}
- .parsed-jobcard-dropdown>summary::-webkit-details-marker{display:none}
- .parsed-jobcard-dropdown>summary:after{content:'+';font-size:1.15rem;color:#667085;line-height:1}
- .parsed-jobcard-dropdown[open]>summary:after{content:'−'}
- .parsed-jobcard-number{min-width:0;overflow-wrap:anywhere}
- .parsed-jobcard-count{flex:none;color:#667085;font-size:.73rem;font-weight:600}
- .parsed-transaction-cards{display:grid;gap:9px;padding:0 9px 9px}
+ #parsed-mobile-groups{display:grid;gap:12px;margin-top:12px}
+ .parsed-jobcard-selectors{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+ .parsed-jobcard-select-field{min-width:0}
+ .parsed-jobcard-select-field label{margin-bottom:5px;font-size:.78rem}
+ .parsed-jobcard-select-field select{width:100%;min-width:0;font-size:.82rem}
+ .parsed-selected-jobcards{display:grid;gap:12px}
+ .parsed-selected-jobcard{display:grid;gap:9px;padding:11px;border:1px solid #dfe5ee;border-radius:12px;background:#fff}
+ .parsed-selected-jobcard-heading{display:flex;justify-content:space-between;align-items:start;gap:8px;overflow-wrap:anywhere;font-size:.82rem}
+ .parsed-selected-jobcard-heading span{flex:none;color:#667085;font-size:.72rem;font-weight:600}
  .parsed-transaction-card{border:1px solid #e7ebf1;border-radius:10px;padding:10px;background:#fbfcfe}
  .parsed-transaction-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:9px;font-size:.8rem}
  .parsed-transaction-status{padding:3px 7px;border-radius:6px;background:#eef2f7;color:#475467;font-size:.7rem;font-weight:700}
@@ -411,40 +411,73 @@ function renderMobileTransactionGroups(rows){
   if(!groups.has(jobCard))groups.set(jobCard,[]);
   groups.get(jobCard).push(row);
  });
- groups.forEach((transactions,jobCard)=>{
-  const details=document.createElement('details');
-  details.className='parsed-jobcard-dropdown';
-  const summary=document.createElement('summary');
-  const title=document.createElement('span');title.className='parsed-jobcard-number';title.textContent=jobCard;
-  const count=document.createElement('span');count.className='parsed-jobcard-count';count.textContent=transactions.length+' transaction'+(transactions.length===1?'':'s');
-  summary.append(title,count);
-  details.appendChild(summary);
-  const cards=document.createElement('div');cards.className='parsed-transaction-cards';
-  transactions.forEach((row,index)=>{
-   const card=document.createElement('article');card.className='parsed-transaction-card';
-   const heading=document.createElement('div');heading.className='parsed-transaction-heading';
-   const label=document.createElement('strong');label.textContent='Transaction '+(index+1);
-   const status=document.createElement('span');status.className='parsed-transaction-status';
-   status.textContent=String(row[12]||'—').replace(/<br\s*\/?>/gi,' ').trim()||'—';
-   heading.append(label,status);card.appendChild(heading);
-   const fields=[
-    ['Applicant Name',row[5]||row[7]||'—'],
-    ['Reference Number',row[3]||'—'],
-    ['Transaction Date',row[4]||'—'],
-    ['Credit Amount',row[11]||'—'],
-    ['Processed Date',row[13]||'—']
-   ];
-   const grid=document.createElement('div');grid.className='parsed-transaction-fields';
-   fields.forEach(([name,value])=>{
-    const field=document.createElement('div');field.className='parsed-transaction-field';
-    const caption=document.createElement('span');caption.textContent=name;
-    const content=document.createElement('strong');content.textContent=String(value).replace(/<br\s*\/?>/gi,' ').trim()||'—';
-    field.append(caption,content);grid.appendChild(field);
+ const selected=Array.from({length:5},()=> '');
+ const selectors=document.createElement('div');selectors.className='parsed-jobcard-selectors';
+ const details=document.createElement('div');details.className='parsed-selected-jobcards';
+ function renderSelected(){
+  details.replaceChildren();
+  selected.forEach((jobCard,slotIndex)=>{
+   if(!jobCard||!groups.has(jobCard))return;
+   const transactions=groups.get(jobCard);
+   const section=document.createElement('section');section.className='parsed-selected-jobcard';
+   const heading=document.createElement('div');heading.className='parsed-selected-jobcard-heading';
+   const title=document.createElement('strong');title.textContent=jobCard;
+   const count=document.createElement('span');count.textContent=transactions.length+' transaction'+(transactions.length===1?'':'s');
+   heading.append(title,count);section.appendChild(heading);
+   transactions.forEach((row,index)=>{
+    const card=document.createElement('article');card.className='parsed-transaction-card';
+    const transactionHeading=document.createElement('div');transactionHeading.className='parsed-transaction-heading';
+    const label=document.createElement('strong');label.textContent='Transaction '+(index+1);
+    const status=document.createElement('span');status.className='parsed-transaction-status';
+    status.textContent=String(row[12]||'—').replace(/<br\\s*\\/?>/gi,' ').trim()||'—';
+    transactionHeading.append(label,status);card.appendChild(transactionHeading);
+    const fields=[
+     ['Applicant Name',row[5]||row[7]||'—'],
+     ['Reference Number',row[3]||'—'],
+     ['Transaction Date',row[4]||'—'],
+     ['Credit Amount',row[11]||'—'],
+     ['Processed Date',row[13]||'—']
+    ];
+    const grid=document.createElement('div');grid.className='parsed-transaction-fields';
+    fields.forEach(([name,value])=>{
+     const field=document.createElement('div');field.className='parsed-transaction-field';
+     const caption=document.createElement('span');caption.textContent=name;
+     const content=document.createElement('strong');content.textContent=String(value).replace(/<br\\s*\\/?>/gi,' ').trim()||'—';
+     field.append(caption,content);grid.appendChild(field);
+    });
+    card.appendChild(grid);section.appendChild(card);
    });
-   card.appendChild(grid);cards.appendChild(card);
+   details.appendChild(section);
   });
-  details.appendChild(cards);container.appendChild(details);
- });
+ }
+ for(let i=0;i<5;i++){
+  const field=document.createElement('div');field.className='parsed-jobcard-select-field';
+  const label=document.createElement('label');label.textContent='Job Card '+(i+1);label.htmlFor='parsed-jobcard-select-'+i;
+  const select=document.createElement('select');select.id='parsed-jobcard-select-'+i;
+  select.setAttribute('aria-label','Select job card '+(i+1));
+  const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Select a job card';select.appendChild(placeholder);
+  groups.forEach((transactions,jobCard)=>{
+   const option=document.createElement('option');option.value=jobCard;
+   option.textContent=jobCard+' · '+transactions.length+' transaction'+(transactions.length===1?'':'s');
+   select.appendChild(option);
+  });
+  select.addEventListener('change',()=>{
+   const value=select.value;
+   if(value&&selected.some((item,index)=>index!==i&&item===value)){
+    select.value=selected[i];
+    return;
+   }
+   selected[i]=value;
+   selectors.querySelectorAll('select').forEach((other,index)=>{
+    Array.from(other.options).forEach(option=>{
+     if(option.value)option.disabled=selected.some((item,selectedIndex)=>selectedIndex!==index&&item===option.value);
+    });
+   });
+   renderSelected();
+  });
+  field.append(label,select);selectors.appendChild(field);
+ }
+ container.append(selectors,details);
 }
 function renderPastedTable(rows){
  const table=$('parsed-table'),thead=table.querySelector('thead'),tbody=table.querySelector('tbody');

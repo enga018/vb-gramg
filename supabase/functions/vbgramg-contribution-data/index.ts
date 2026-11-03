@@ -27,7 +27,8 @@ function applicantNameScore(left:unknown,right:unknown){
  return Math.round((1-prev[b.length]/Math.max(a.length,b.length))*1000)/10;
 }
 function rankActiveMisApplicants(byCard:Map<string,Record<string,string|null>[]>,jobCard:string,name:string){
- return (byCard.get(jobCard)||[]).map(applicant=>({...applicant,match_percentage:applicantNameScore(name,applicant.applicant_name)})).sort((a,b)=>b.match_percentage-a.match_percentage||String(a.applicant_name).localeCompare(String(b.applicant_name)));
+ const applicants=byCard.get(jobCard)||[...(byCard.entries())].find(([card])=>String(card).trim().toUpperCase()===String(jobCard).trim().toUpperCase())?.[1]||[];
+ return applicants.map(applicant=>({...applicant,match_percentage:applicantNameScore(name,applicant.applicant_name)})).sort((a,b)=>b.match_percentage-a.match_percentage||String(a.applicant_name).localeCompare(String(b.applicant_name)));
 }
 function matchActiveMisApplicant(byCard:Map<string,Record<string,string|null>[]>,jobCard:string,name:string){
  const ranked=rankActiveMisApplicants(byCard,jobCard,name);

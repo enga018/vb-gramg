@@ -411,72 +411,55 @@ function renderMobileTransactionGroups(rows){
   if(!groups.has(jobCard))groups.set(jobCard,[]);
   groups.get(jobCard).push(row);
  });
- const selected=Array.from({length:5},()=> '');
  const selectors=document.createElement('div');selectors.className='parsed-jobcard-selectors';
+ const field=document.createElement('div');field.className='parsed-jobcard-select-field';
+ const label=document.createElement('label');label.textContent='Job Card';label.htmlFor='parsed-jobcard-select';
+ const select=document.createElement('select');select.id='parsed-jobcard-select';
+ select.setAttribute('aria-label','Select a job card');
+ const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Select a job card';select.appendChild(placeholder);
+ groups.forEach((transactions,jobCard)=>{
+  const option=document.createElement('option');option.value=jobCard;
+  option.textContent=jobCard+' · '+transactions.length+' transaction'+(transactions.length===1?'':'s');
+  select.appendChild(option);
+ });
  const details=document.createElement('div');details.className='parsed-selected-jobcards';
  function renderSelected(){
   details.replaceChildren();
-  selected.forEach((jobCard,slotIndex)=>{
-   if(!jobCard||!groups.has(jobCard))return;
-   const transactions=groups.get(jobCard);
-   const section=document.createElement('section');section.className='parsed-selected-jobcard';
-   const heading=document.createElement('div');heading.className='parsed-selected-jobcard-heading';
-   const title=document.createElement('strong');title.textContent=jobCard;
-   const count=document.createElement('span');count.textContent=transactions.length+' transaction'+(transactions.length===1?'':'s');
-   heading.append(title,count);section.appendChild(heading);
-   transactions.forEach((row,index)=>{
-    const card=document.createElement('article');card.className='parsed-transaction-card';
-    const transactionHeading=document.createElement('div');transactionHeading.className='parsed-transaction-heading';
-    const label=document.createElement('strong');label.textContent='Transaction '+(index+1);
-    const status=document.createElement('span');status.className='parsed-transaction-status';
-    status.textContent=String(row[12]||'—').replace(/<br\s*\/?>/gi,' ').trim()||'—';
-    transactionHeading.append(label,status);card.appendChild(transactionHeading);
-    const fields=[
-     ['Applicant Name',row[5]||row[7]||'—'],
-     ['Reference Number',row[3]||'—'],
-     ['Transaction Date',row[4]||'—'],
-     ['Credit Amount',row[11]||'—'],
-     ['Processed Date',row[13]||'—']
-    ];
-    const grid=document.createElement('div');grid.className='parsed-transaction-fields';
-    fields.forEach(([name,value])=>{
-     const field=document.createElement('div');field.className='parsed-transaction-field';
-     const caption=document.createElement('span');caption.textContent=name;
-     const content=document.createElement('strong');content.textContent=String(value).replace(/<br\s*\/?>/gi,' ').trim()||'—';
-     field.append(caption,content);grid.appendChild(field);
-    });
-    card.appendChild(grid);section.appendChild(card);
+  const jobCard=select.value;
+  if(!jobCard||!groups.has(jobCard))return;
+  const transactions=groups.get(jobCard);
+  const section=document.createElement('section');section.className='parsed-selected-jobcard';
+  const heading=document.createElement('div');heading.className='parsed-selected-jobcard-heading';
+  const title=document.createElement('strong');title.textContent=jobCard;
+  const count=document.createElement('span');count.textContent=transactions.length+' transaction'+(transactions.length===1?'':'s');
+  heading.append(title,count);section.appendChild(heading);
+  transactions.forEach((row,index)=>{
+   const card=document.createElement('article');card.className='parsed-transaction-card';
+   const transactionHeading=document.createElement('div');transactionHeading.className='parsed-transaction-heading';
+   const transactionLabel=document.createElement('strong');transactionLabel.textContent='Transaction '+(index+1);
+   const status=document.createElement('span');status.className='parsed-transaction-status';
+   status.textContent=String(row[12]||'—').replace(/<br\s*\/?>/gi,' ').trim()||'—';
+   transactionHeading.append(transactionLabel,status);card.appendChild(transactionHeading);
+   const fields=[
+    ['Applicant Name',row[5]||row[7]||'—'],
+    ['Reference Number',row[3]||'—'],
+    ['Transaction Date',row[4]||'—'],
+    ['Credit Amount',row[11]||'—'],
+    ['Processed Date',row[13]||'—']
+   ];
+   const grid=document.createElement('div');grid.className='parsed-transaction-fields';
+   fields.forEach(([name,value])=>{
+    const item=document.createElement('div');item.className='parsed-transaction-field';
+    const caption=document.createElement('span');caption.textContent=name;
+    const content=document.createElement('strong');content.textContent=String(value).replace(/<br\s*\/?>/gi,' ').trim()||'—';
+    item.append(caption,content);grid.appendChild(item);
    });
-   details.appendChild(section);
+   card.appendChild(grid);section.appendChild(card);
   });
+  details.appendChild(section);
  }
- for(let i=0;i<5;i++){
-  const field=document.createElement('div');field.className='parsed-jobcard-select-field';
-  const label=document.createElement('label');label.textContent='Job Card '+(i+1);label.htmlFor='parsed-jobcard-select-'+i;
-  const select=document.createElement('select');select.id='parsed-jobcard-select-'+i;
-  select.setAttribute('aria-label','Select job card '+(i+1));
-  const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Select a job card';select.appendChild(placeholder);
-  groups.forEach((transactions,jobCard)=>{
-   const option=document.createElement('option');option.value=jobCard;
-   option.textContent=jobCard+' · '+transactions.length+' transaction'+(transactions.length===1?'':'s');
-   select.appendChild(option);
-  });
-  select.addEventListener('change',()=>{
-   const value=select.value;
-   if(value&&selected.some((item,index)=>index!==i&&item===value)){
-    select.value=selected[i];
-    return;
-   }
-   selected[i]=value;
-   selectors.querySelectorAll('select').forEach((other,index)=>{
-    Array.from(other.options).forEach(option=>{
-     if(option.value)option.disabled=selected.some((item,selectedIndex)=>selectedIndex!==index&&item===option.value);
-    });
-   });
-   renderSelected();
-  });
-  field.append(label,select);selectors.appendChild(field);
- }
+ select.addEventListener('change',renderSelected);
+ field.append(label,select);selectors.appendChild(field);
  container.append(selectors,details);
 }
 function renderPastedTable(rows){

@@ -603,7 +603,7 @@ function getFtoCellValue(tx,label){
  const index=FTO_HEADERS.indexOf(label),source=Array.isArray(tx.source_row)?tx.source_row:[];
  let value=index>=0?source[index]:undefined;
  if(value===undefined||value===null||String(value)==="")value=fallback[label]?.(tx);
- return value===undefined||value===null||String(value)===""?"—":String(value).replace(/<br\\s*\\/?>/gi," ").trim();
+ return value===undefined||value===null||String(value)===""?"—":String(value).replace(/<br\s*\/?>/gi," ").trim();
 }
 function ftoStatus(tx){
  const value=getFtoCellValue(tx,"Status");

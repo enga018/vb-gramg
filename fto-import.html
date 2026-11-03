@@ -298,20 +298,20 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 <header class="topbar app-header"><div class="brand"><h1>FTO Import</h1><p>Import FTO transactions and assign a contribution period.</p></div></header>
 <section class="panel">
 <div>
-<div class="section-head"><div><h2>1. Paste FTO Table</h2><p>Paste the table copied from the official FTO page.</p></div></div>
+<div class="section-head"><div><h2>Paste FTO Table</h2><p>Paste the table copied from the official FTO page.</p></div></div>
  <label for="table-input" style="margin-top:14px">FTO table data</label>
 <textarea id="table-input" rows="7" placeholder="Copy the table from the FTO page, then paste it here…"></textarea>
 <div class="actions" style="margin-top:10px"><button id="load-table-button" type="button">Load table</button></div>
 </div>
 <div id="data-status" class="status" aria-live="polite">Paste the copied table above, then select Load table.</div>
 <div id="table-output" class="hidden" style="margin-top:18px">
-<div style="margin-bottom:12px"><div class="section-head"><div><h2>2. FTO Transactions</h2><p id="table-summary">Preview of the transactions found in the pasted table.</p></div></div></div>
+<div style="margin-bottom:12px"><div class="section-head"><div><h2>FTO Transactions</h2><p id="table-summary">Preview of the transactions found in the pasted table.</p></div></div></div>
 <div class="table-wrap"><table id="parsed-table"><thead></thead><tbody></tbody></table></div>
 <div id="parsed-mobile-groups" class="parsed-mobile-groups" aria-label="FTO transactions grouped by job card"></div>
 </div>
 
 <div id="import-controls" class="import-controls hidden">
- <div class="section-head"><div><h2>3. Import Settings</h2></div></div>
+ <div class="section-head"><div><h2>Import Settings</h2></div></div>
  <div class="settings-panel">
  <div class="import-grid">
   <div class="field"><label for="fto-number">FTO number</label><input id="fto-number" type="text" maxlength="100" placeholder="Detected from pasted table" readonly required></div>
@@ -320,10 +320,10 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
   <div class="field"><label for="amount-multiplier">Result ×</label><input id="amount-multiplier" type="number" min="0.01" step="any" value="100" required></div>
 
  </div>
- <div id="import-summary" class="status" aria-live="polite">Enter the FTO number and contribution period.</div>
+ <div id="import-summary" class="status" aria-live="polite"></div>
  </div>
  <section id="step5-review" class="reconciliation-panel" aria-live="polite" style="margin-top:18px">
-  <div class="section-head"><div><h2>5. Review FTO Import</h2><p>Review each job card before synchronization.</p></div></div>
+  <div class="section-head"><div><h2>Review FTO Import</h2><p>Review each job card before synchronization.</p></div></div>
   <div class="meta" style="grid-template-columns:repeat(3,minmax(0,1fr));margin:14px 0">
    <div class="stat"><small>Automatic Import</small><strong id="auto-count">0</strong></div>
    <div class="stat"><small>Manual Review</small><strong id="manual-count">0</strong></div>
@@ -339,7 +339,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  </section>
   <div id="sync-status" class="status hidden" aria-live="polite" role="status"></div>
   <section id="applicant-review" class="applicant-review hidden" aria-live="polite">
-   <div class="section-head"><div><h2>6. Applicant Matching Review</h2><p>FTO names are compared with applicants in the active MIS. Matches below 80%, or with less than a 10-point lead over the next candidate, require your confirmation. An applicant already attached to a charge is retained unless you explicitly select a different MIS applicant.</p></div></div>
+   <div class="section-head"><div><h2>Applicant Matching Review</h2><p>FTO names are compared with applicants in the active MIS. Matches below 80%, or with less than a 10-point lead over the next candidate, require your confirmation. An applicant already attached to a charge is retained unless you explicitly select a different MIS applicant.</p></div></div>
    <div id="applicant-review-summary" class="status">Checking applicant matches…</div>
    <div class="table-wrap"><table id="applicant-review-table" class="import-table"><thead><tr><th>Job card</th><th>Name on FTO</th><th>Currently attached</th><th>MIS applicant candidates</th><th>Selection</th></tr></thead><tbody id="applicant-review-rows"></tbody></table></div><div id="applicant-review-pagination" class="table-foot"></div>
   </section>

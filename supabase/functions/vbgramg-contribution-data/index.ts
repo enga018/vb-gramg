@@ -711,7 +711,7 @@ Deno.serve(async(req:Request)=>{
    const txByCard=new Map<string,Record<string,any>[]>();
    for(const tx of snapshotByIdentity.values()){const card=String(tx.job_card_number);if(!txByCard.has(card))txByCard.set(card,[]);txByCard.get(card)!.push(tx);}
    const {data:ledgerRows,error:ledgerError}=affectedCards.length
-    ?await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,entry_type,amount,charge_period,entry_date,note,import_id,created_by,is_deferred,is_voided,reference_numbers,period_id,applicant_name,applicant_number,applicant_unique_id,fto_applicant_name").in("job_card_number",affectedCards).eq("charge_period",chargePeriod)
+    ?await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,entry_type,amount,charge_period,entry_date,note,import_id,created_by,is_deferred,is_voided,reference_numbers,period_id,applicant_name,applicant_number,applicant_unique_id,fto_applicant_name").in("job_card_number",affectedCards).eq("charge_period",chargePeriod).in("entry_type",["charge","other_charge"])
     :{data:[],error:null};
    if(ledgerError)throw ledgerError;
    const manualReviewIssues:string[]=[];
@@ -720,7 +720,7 @@ Deno.serve(async(req:Request)=>{
     const txs=txByCard.get(card)||[];
     const active=txs.filter(tx=>["blank","processed"].includes(String(tx.status||"").trim().toLowerCase())&&Number(tx.calculated_charge||0)>0);
     if(!active.length)continue;
-    const cardRows=(ledgerRows||[]).filter(r=>String(r.job_card_number)===card&&r.entry_type==="charge"&&(!r.period_id||String(r.period_id)===periodId)&&!r.is_voided);
+    const cardRows=(ledgerRows||[]).filter(r=>String(r.job_card_number)===card&&["charge","other_charge"].includes(String(r.entry_type))&&(!r.period_id||String(r.period_id)===periodId)&&!r.is_voided);
     const manualRows=cardRows.filter(r=>!/^FTO\\b/i.test(String(r.note||""))&&!(Array.isArray(r.reference_numbers)?r.reference_numbers:[]).some((ref:string)=>incomingRefs.includes(String(ref))));
     if(manualRows.length>1){manualReviewIssues.push(card+" (multiple manual charges; resolve individually)");continue;}
     if(manualRows.length===1){

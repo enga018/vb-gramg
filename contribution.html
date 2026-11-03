@@ -703,7 +703,7 @@ function openCitizen(id){
   let periodLabel=String(periodRow?.period_name||'').trim()||(periodParts&&Number(periodParts[2])>=1&&Number(periodParts[2])<=12
    ?monthTags[Number(periodParts[2])-1]+' '+periodParts[1]
    :String(e.charge_period||'').trim()||'Monthly charge');
-  const compactPeriod=periodLabel.match(/^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\\d{2,4})(?:\\((\\d+)\\))?$/i);
+  const compactPeriod=periodLabel.match(/^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d{2,4})(?:\((\d+)\))?$/i);
   if(compactPeriod){const monthIndex=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'].indexOf(compactPeriod[1].toUpperCase());const year=compactPeriod[2].length===2?'20'+compactPeriod[2]:compactPeriod[2];periodLabel=monthTags[monthIndex]+' '+year+(compactPeriod[3]?' ('+compactPeriod[3]+')':'');}
   let chargeApplicantName='';
   if(type==='charge'&&!isExtra){

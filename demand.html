@@ -434,8 +434,8 @@ async function loadPeriods(){
   select.disabled=true;
   throw error;
  }}
-function status(message,type='info'){const el=$('status');el.textContent=message;el.className='status'+(type==='error'?' error':type==='success'?' success':'');}
-function generatedStatus(message,type='info'){const el=$('generateStatus');el.textContent=message;el.className='status'+(type==='error'?' error':type==='success'?' success':'');}
+function status(message,type='info'){if((type==='error'||type==='success')&&window.showToast){window.showToast(message,type);const el=$('status');el.textContent='';el.className='status hidden';return}const el=$('status');el.textContent=message;el.className='status';}
+function generatedStatus(message,type='info'){if((type==='error'||type==='success')&&window.showToast){window.showToast(message,type);const el=$('generateStatus');el.textContent='';el.className='status hidden';return}const el=$('generateStatus');el.textContent=message;el.className='status';}
 function invalidateGenerated(){
  generated=null;demandFinalised=false;
  ['demandExportActions','unwillingExportActions'].forEach(id=>$(id).classList.add('hidden'));
@@ -755,4 +755,4 @@ setTimeout(()=>{
  }
 },8000);
 </script>
-<script src="./navigation.js?v=20261031f"></script></body></html>
+<script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261031f"></script></body></html>

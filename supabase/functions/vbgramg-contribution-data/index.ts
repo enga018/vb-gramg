@@ -617,13 +617,6 @@ Deno.serve(async(req:Request)=>{
     if(ambiguousReviewed.length)return reply({error:"More than one existing manual charge was found for: "+ambiguousReviewed.join(", ")+". Resolve the ledger entries before reconciling this FTO."},409);
     const unreviewed=nonFto.filter(r=>!reviewed.has(String(r.job_card_number)));
     if(unreviewed.length)return reply({error:"Some local job cards already have non-FTO charges for this period. Review each flagged job card before continuing.",duplicates:unreviewed},409);
-    const {data:knownLedger,error:knownLedgerError}=await admin.from("vbgramg_charge_ledger").select("job_card_number").in("job_card_number",chargeCandidateCards);
-    if(knownLedgerError)throw knownLedgerError;
-    const {data:knownCitizens,error:knownCitizensError}=await admin.from("vbgramg_contribution_citizens").select("job_card_number").in("job_card_number",chargeCandidateCards);
-    if(knownCitizensError)throw knownCitizensError;
-    const known=new Set([...(knownLedger||[]).map(r=>String(r.job_card_number)),...(knownCitizens||[]).map(r=>String(r.job_card_number))]);
-    const unverified=chargeCandidateCards.filter(card=>!known.has(card)&&!reviewedNew.has(card));
-    if(unverified.length)return reply({error:"Some local job cards are not in the existing contribution records. Verify them before importing.",unknown_job_cards:unverified},409);
    }
    let batchId=String(batchOld?.id||"");
    if(!batchOld){
@@ -634,9 +627,42 @@ Deno.serve(async(req:Request)=>{
     const {error:periodLinkError}=await admin.from("vbgramg_fto_batches").update({period_id:periodId}).eq("id",batchId);
     if(periodLinkError)throw periodLinkError;
    }
-   const {data:oldBatchTransactions,error:oldBatchTransactionsError}=await admin.from("vbgramg_fto_transactions").select("id,reference_no,status,calculated_charge,job_card_number,processed_date").eq("batch_id",batchId);
+   const {data:oldBatchTransactions,error:oldBatchTransactionsError}=await admin.from("vbgramg_fto_transactions").select("id,reference_no,status,calculated_charge,job_card_number,processed_date,ledger_entry_id").eq("batch_id",batchId);
    if(oldBatchTransactionsError)throw oldBatchTransactionsError;
    const oldByRef=new Map((oldBatchTransactions||[]).map(r=>[String(r.reference_no),r]));
+   // Preflight allocated FTO charges before mutating transaction history.
+   // Allocations reference the charge-ledger row directly through transaction_id.
+   const incomingByRef=new Map(normalized.map(row=>[String(row.reference_no),row]));
+   const oldByCard=new Map<string,Record<string,any>[]>();
+   for(const old of oldBatchTransactions||[]){const card=String(old.job_card_number||"");if(!oldByCard.has(card))oldByCard.set(card,[]);oldByCard.get(card)!.push(old);}
+   const allAffectedCards=[...new Set([...oldByCard.keys(),...normalized.map(row=>String(row.job_card_number))])];
+   const prospectiveByCard=new Map<string,number>();
+   for(const card of allAffectedCards){
+    if(exemptCards.has(card))continue;
+    const prospectiveRows=new Map((oldByCard.get(card)||[]).map(row=>[String(row.reference_no),row]));
+    for(const [ref,row] of incomingByRef){if(String(row.job_card_number)===card)prospectiveRows.set(ref,row);}
+    const total=Number([...prospectiveRows.values()].filter(row=>["blank","processed"].includes(String(row.status))&&Number(row.calculated_charge||0)>0).reduce((sum,row)=>sum+Number(row.calculated_charge||0),0).toFixed(2));
+    prospectiveByCard.set(card,total);
+   }
+   const allocatedLedgerIds=[...new Set((oldBatchTransactions||[]).map(row=>String(row.ledger_entry_id||"")).filter(Boolean))];
+   if(allocatedLedgerIds.length){
+    const allocationTotals=new Map<string,number>();
+    for(let offset=0;offset<allocatedLedgerIds.length;offset+=200){
+     const ids=allocatedLedgerIds.slice(offset,offset+200);
+     const {data:allocations,error:allocationError}=await admin.from("vbgramg_payment_allocations").select("transaction_id,amount").in("transaction_id",ids).eq("period_id",periodId);
+     if(allocationError)throw allocationError;
+     for(const allocation of allocations||[]){const id=String(allocation.transaction_id||"");allocationTotals.set(id,(allocationTotals.get(id)||0)+Number(allocation.amount||0));}
+    }
+    const blocked:string[]=[];
+    for(const old of oldBatchTransactions||[]){
+     const card=String(old.job_card_number||""),ledgerId=String(old.ledger_entry_id||"");
+     if(!ledgerId||exemptCards.has(card))continue;
+     const allocated=Number((allocationTotals.get(ledgerId)||0).toFixed(2));
+     const prospective=Number((prospectiveByCard.get(card)||0).toFixed(2));
+     if(allocated>prospective)blocked.push(card+" (allocated ₹"+allocated.toFixed(2)+", revised charge ₹"+prospective.toFixed(2)+")");
+    }
+    if(blocked.length)return reply({error:"FTO changes would reduce a charge below payments already allocated. No FTO history or ledger records were changed. Review these job cards manually before retrying.",manual_review_required:true,allocation_conflicts:[...new Set(blocked)]},409);
+   }
    const nowIso=new Date().toISOString();
    const runInBatches=async<T,>(items:T[],size:number,worker:(item:T)=>Promise<void>)=>{for(let offset=0;offset<items.length;offset+=size){await Promise.all(items.slice(offset,offset+size).map(worker));}};
       await runInBatches(normalized,8,async(row)=>{

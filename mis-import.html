@@ -189,9 +189,14 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
     let pendingComparison = null;
 
     function setStatus(message, type) {
+      if ((type === 'error' || type === 'success') && window.showToast) {
+        window.showToast(message, type);
+        statusBox.textContent = '';
+        statusBox.classList.remove('error', 'success');
+        return;
+      }
       statusBox.textContent = message;
-      statusBox.classList.toggle('error', type === 'error');
-      statusBox.classList.toggle('success', type === 'success');
+      statusBox.classList.remove('error', 'success');
     }
 
     async function updateAuthUI(user) {
@@ -638,6 +643,6 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
     });
 
   </script>
-<script src="./navigation.js"></script>
+<script src="./toast.js?v=20261103"></script><script src="./navigation.js"></script>
 </body>
 </html>

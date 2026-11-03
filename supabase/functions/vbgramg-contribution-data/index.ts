@@ -519,6 +519,7 @@ Deno.serve(async(req:Request)=>{
    // choose whether each existing manual charge is linked to this FTO or kept separate.
    const rawManualActions=body.manual_charge_actions&&typeof body.manual_charge_actions==="object"?body.manual_charge_actions as Record<string,unknown>:{};
    const manualChargeActions=new Map<string,"link"|"keep_separate">();
+   const manualAmountConfirmations=new Set(Array.isArray(body.manual_charge_amount_confirmations)?body.manual_charge_amount_confirmations.map((v:unknown)=>String(v||"").trim().toUpperCase()):[]);
    for(const [rawCard,rawAction] of Object.entries(rawManualActions)){
     const card=String(rawCard||"").trim().toUpperCase(),action=String(rawAction||"").trim();
     if(!card||!["link","keep_separate"].includes(action))return reply({error:"A manual charge reconciliation choice is invalid. Refresh the preview and choose Link to FTO or Keep separate."},400);

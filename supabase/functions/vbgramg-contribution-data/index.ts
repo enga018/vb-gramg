@@ -425,13 +425,13 @@ Deno.serve(async(req:Request)=>{
    const normalize=(row:Record<string,any>)=>({reference_no:String(row.reference_no||"").trim(),job_card_number:String(row.job_card_number||"").trim().toUpperCase(),transaction_date:iso(row.transaction_date),processed_date:iso(row.processed_date),amount_to_be_credited:amount(row.amount_to_be_credited),credit_amount:amount(row.credit_amount),status:String(row.status||"").trim().toLowerCase()||"blank",rejection_reason:String(row.rejection_reason||"").trim()});
    const oldRows=saved.filter(row=>row.is_in_scope===true).map(normalize),newRows=incoming.map((row:Record<string,any>)=>normalize(row));
    const oldMap=new Map(oldRows.map(row=>[row.reference_no,row])),newMap=new Map(newRows.map(row=>[row.reference_no,row]));
-   const changed:string[]=[];
-   for(const [ref,row] of newMap){const old=oldMap.get(ref);if(!old||JSON.stringify(old)!==JSON.stringify(row))changed.push(ref);}
+   const changed:string[]=[],unchangedReferences:string[]=[];
+   for(const [ref,row] of newMap){const old=oldMap.get(ref);if(!old)changed.push(ref);else if(JSON.stringify(old)!==JSON.stringify(row))changed.push(ref);else unchangedReferences.push(ref);}
    for(const ref of oldMap.keys())if(!newMap.has(ref))changed.push(ref);
    const sharedReferenceCount=[...newMap.keys()].filter(ref=>oldMap.has(ref)).length;
    const identity_mismatch=oldRows.length>0&&newRows.length>0&&sharedReferenceCount===0;
    const unchanged=changed.length===0&&oldRows.length===newRows.length;
-   return reply({approved:true,found:true,batch,unchanged,identity_mismatch,comparison_available:true,changed_count:changed.length,changed_references:changed.slice(0,100),saved_rows:oldRows.length,incoming_rows:newRows.length});
+   return reply({approved:true,found:true,batch,unchanged,identity_mismatch,comparison_available:true,changed_count:changed.length,changed_references:changed.slice(0,100),unchanged_references:unchangedReferences,saved_rows:oldRows.length,incoming_rows:newRows.length});
   }
   if(action==="get-fto-batch"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can access FTO tracking."},403);

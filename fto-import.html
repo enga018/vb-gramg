@@ -331,8 +331,11 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
    <label for="manual-jobcard-select" style="margin-top:12px">Select job card</label><select id="manual-jobcard-select"><option value="">Select a job card</option></select>
    <div id="manual-jobcard-details" style="margin-top:12px"></div>
   </div>
-  <div style="margin-top:18px"><h2>Automatic Import</h2><div id="automatic-import-list" class="table-wrap import-table-wrap"><table id="import-preview-table" class="import-table"><thead><tr><th>#</th><th>Job card</th><th>FTO name</th><th>FTO rows</th><th>Reference numbers</th><th>Current status</th><th>Calculated charge</th><th>Duplicate check</th><th>Checks</th></tr></thead><tbody></tbody></table></div><div id="import-pagination" class="table-foot"></div></div>
-  <div style="margin-top:18px"><h2>Cannot Import</h2><div class="table-wrap import-table-wrap"><table id="cannot-import-table" class="import-table"><thead><tr><th>#</th><th>Job card</th><th>FTO rows</th><th>Reason</th></tr></thead><tbody></tbody></table></div><div id="cannot-pagination" class="table-foot"></div></div>
+  <div id="manual-review-panel" class="hidden" style="padding:14px;border:1px solid #e8b45f;border-radius:12px;background:#fffdf8;margin:14px 0">
+   <div class="section-head"><div><h2>Manual Review Needed</h2><p>Select a job card to review its individual FTO transactions, calculated charges, and required confirmation.</p></div></div>
+   <label for="manual-jobcard-select" style="margin-top:12px">Job Card</label><select id="manual-jobcard-select"><option value="">Select a job card</option></select>
+   <div id="manual-jobcard-details" style="margin-top:12px"></div>
+  </div>
   <div class="table-foot"><span id="import-count" class="muted"></span><div class="actions"><button id="fto-import-button" type="button" disabled>Synchronize FTO</button></div></div>
  </section>
   <div id="sync-status" class="status hidden" aria-live="polite" role="status"></div>
@@ -628,10 +631,8 @@ function renderManualTransactionDetails(group){
 }
 function renderImportPreview(){
  $('import-summary').classList.remove('error');
- const automaticBody=$('import-preview-table').querySelector('tbody'),cannotBody=$('cannot-import-table').querySelector('tbody');
- automaticBody.replaceChildren();cannotBody.replaceChildren();
  const manualGroups=[],automaticGroups=[],cannotGroups=[];
- let total=0;
+ let automaticTotal=0;
  const sorted=[...importGroups].sort((a,b)=>a.job_card_number.localeCompare(b.job_card_number,undefined,{numeric:true,sensitivity:'base'}));
  sorted.forEach(group=>{
   const card=group.job_card_number,exempt=exemptedCards.has(card),outOfMis=notInActiveMisCards.has(card),duplicate=duplicateCards.has(card),unknown=unknownCards.has(card),refs=duplicateReferences.get(card)||[];
@@ -643,29 +644,22 @@ function renderImportPreview(){
   else if(!hasCharge)reason=group.status==='rejected'?'Rejected transactions only — no charge':'No eligible calculated charge';
   else if(duplicate||unknown)manualGroups.push(group);
   else automaticGroups.push(group);
+  if(!reason&&!(duplicate||unknown))automaticTotal+=group.amount;
   if(reason)cannotGroups.push({group,reason});
  });
- const makeRow=(tbody,group,index,includeChecks)=>{
-  const tr=document.createElement('tr'),vals=[String(index+1),group.job_card_number,group.person_name,String(group.row_count),group.reference_numbers.join(', ')||'Missing reference',group.status==='blank'?'Blank':group.status==='processed'?'Processed':group.status==='rejected'?'Rejected':group.status==='mixed'?'Mixed statuses':'Other',group.amount>0?'₹'+group.amount.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'];
-  vals.forEach((v,i)=>{const td=document.createElement('td');td.textContent=v;td.dataset.label=['#','Job card','FTO name','FTO rows','Reference numbers','Status','Calculated charge'][i];tr.appendChild(td)});
-  if(includeChecks){const td=document.createElement('td');td.dataset.label='Checks';const duplicate=duplicateCards.get(group.job_card_number);td.textContent=duplicate?'Existing manual charge · reconciliation required':unknownCards.has(group.job_card_number)?'New job card · verification required':'Ready';tr.appendChild(td);const review=document.createElement('td');review.dataset.label='Review';review.textContent=duplicate||unknownCards.has(group.job_card_number)?'See Manual Review':'—';tr.appendChild(review)}
-  tbody.appendChild(tr);
- };
- automaticGroups.forEach((g,i)=>{total+=g.amount;makeRow(automaticBody,g,i,true)});
- cannotGroups.forEach((item,i)=>{const tr=document.createElement('tr');[String(i+1),item.group.job_card_number,String(item.group.row_count),item.reason].forEach((v,j)=>{const td=document.createElement('td');td.textContent=v;td.dataset.label=['#','Job card','FTO rows','Reason'][j];tr.appendChild(td)});cannotBody.appendChild(tr)});
- manualGroups.forEach(g=>{});
- $('auto-count').textContent=String(automaticGroups.length);
+ $('auto-count').textContent=automaticGroups.length+' · ₹'+automaticTotal.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
  $('manual-count').textContent=String(manualGroups.length);
  $('cannot-count').textContent=String(cannotGroups.length);
- const manualPanel=$('manual-review-panel');manualPanel.classList.toggle('hidden',manualGroups.length===0);
- const selector=$('manual-jobcard-select'),previous=selector.value;selector.replaceChildren();const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Select a job card';selector.appendChild(placeholder);
- manualGroups.forEach(g=>{const o=document.createElement('option');o.value=g.job_card_number;o.textContent=g.job_card_number+' · '+g.person_name;selector.appendChild(o)});
+ const manualPanel=$('manual-review-panel');
+ manualPanel.classList.toggle('hidden',manualGroups.length===0);
+ const selector=$('manual-jobcard-select'),previous=selector.value;
+ selector.replaceChildren();
+ const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Select a job card';selector.appendChild(placeholder);
+ manualGroups.forEach(g=>{const o=document.createElement('option');o.value=g.job_card_number;o.textContent=g.job_card_number+' · '+g.person_name+' · '+g.row_count+' transaction'+(g.row_count===1?'':'s');selector.appendChild(o)});
  selector.value=manualGroups.some(g=>g.job_card_number===previous)?previous:(manualGroups[0]?.job_card_number||'');
  selector.onchange=()=>renderManualTransactionDetails(manualGroups.find(g=>g.job_card_number===selector.value));
  renderManualTransactionDetails(manualGroups.find(g=>g.job_card_number===selector.value));
- renderTablePagination('import-preview-table','import-pagination','imports');
- renderTablePagination('cannot-import-table','cannot-pagination','cannot');
- $('import-count').textContent=parsedDataRows.length+' FTO transactions · '+total.toLocaleString('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2})+' calculated automatic charges';
+ $('import-count').textContent=parsedDataRows.length+' FTO transactions · '+importGroups.length+' job cards';
  updateImportButton();
 }
 async function refreshDuplicates(){

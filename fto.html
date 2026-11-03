@@ -425,17 +425,6 @@ header .top-actions > button:hover {
 body>main{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 
-/* Embedded FTO import dialog */
-.fto-import-backdrop{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;padding:clamp(8px,2vw,24px);background:rgb(15 23 42 / 62%)}
-.fto-import-backdrop.hidden{display:none!important}
-.fto-import-dialog{width:min(1500px,100%);height:min(94vh,1100px);min-height:0;background:#f3f6fb;border:1px solid #d7deea;border-radius:18px;box-shadow:0 24px 80px rgb(0 0 0 / 28%);display:flex;flex-direction:column;overflow:hidden}
-.fto-import-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;background:#fff;border-bottom:1px solid #e3e8f0}
-.fto-import-dialog-head strong{font-size:.96rem;color:#172033}
-.fto-import-dialog-head button{min-height:38px;padding:8px 13px}
-.fto-import-frame{display:block;width:100%;height:100%;min-height:0;border:0;background:#f3f6fb;flex:1}
-body.fto-import-open{overflow:hidden}
-@media(max-width:700px){.fto-import-backdrop{padding:0}.fto-import-dialog{width:100%;height:100dvh;max-height:100dvh;border:0;border-radius:0}.fto-import-dialog-head{padding:9px 12px}.fto-import-frame{height:calc(100dvh - 56px)}}
-
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -445,7 +434,7 @@ body.fto-import-open{overflow:hidden}
 <header class="topbar app-header"><div class="brand"><h1>FTO</h1><p>Review imported FTOs, payment statuses and period mappings.</p></div></header>
 <section class="panel">
 <div id="fto-history" class="history-section">
- <div class="section-head"><div><h2>Imported FTO history</h2></div><button id="open-fto-import" type="button" class="secondary">Import FTO</button></div>
+ <div class="section-head"><div><h2>Imported FTO history</h2></div><a id="open-fto-import" href="./fto-import.html" class="link-button secondary">Import FTO</a></div>
  <div class="history-toolbar">
   <div class="field"><label for="fto-history-search">Search FTO / period</label><input id="fto-history-search" type="search" placeholder="Search FTO number or period"></div>
   <div class="field"><label for="fto-history-period">Contribution period</label><select id="fto-history-period"><option value="">All periods</option></select></div>
@@ -465,12 +454,7 @@ body.fto-import-open{overflow:hidden}
   </form>
  </section>
 </div>
-<div id="fto-import-modal" class="fto-import-backdrop hidden" role="presentation">
- <section class="fto-import-dialog" role="dialog" aria-modal="true" aria-labelledby="fto-import-modal-title">
-  <header class="fto-import-dialog-head"><strong id="fto-import-modal-title">Import FTO</strong><button id="close-fto-import" type="button" class="secondary">Close</button></header>
-  <iframe id="fto-import-frame" class="fto-import-frame" title="FTO import form" src="about:blank"></iframe>
- </section>
-</div>
+
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <div id="fto-view-modal-backdrop" class="fto-view-modal-backdrop hidden" role="presentation">
@@ -693,7 +677,7 @@ $("fto-history-period").addEventListener("change",renderFtoHistory);
 $("period-modal-form").addEventListener("submit",saveFtoPeriod);
 $("period-modal-cancel").addEventListener("click",closePeriodModal);
 $("period-modal-backdrop").addEventListener("click",event=>{if(event.target===$("period-modal-backdrop"))closePeriodModal();});
-document.addEventListener("keydown",event=>{if(event.key!=="Escape")return;if(!$("fto-import-modal").classList.contains("hidden"))closeFtoImportModal();else if(!$("fto-view-modal-backdrop").classList.contains("hidden"))closeFtoViewModal();else if(!$("period-modal-backdrop").classList.contains("hidden"))closePeriodModal();});
+document.addEventListener("keydown",event=>{if(event.key!=="Escape")return;if(!$("fto-view-modal-backdrop").classList.contains("hidden"))closeFtoViewModal();else if(!$("period-modal-backdrop").classList.contains("hidden"))closePeriodModal();});
 
 
 async function verifyAccess(user){

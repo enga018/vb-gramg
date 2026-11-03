@@ -95,7 +95,7 @@ tbody tr:last-child td{border-bottom:0}
 .import-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}
 .import-grid .field{min-width:0}
 .import-help{font-size:.86rem;color:var(--muted);line-height:1.5;margin:8px 0}
-.import-table-wrap{max-height:52vh;margin-top:12px}
+.import-table-wrap{max-height:none;overflow-x:auto;overflow-y:visible;margin-top:12px}
 .import-table{min-width:900px}
 .import-table th,.import-table td{min-width:100px}
 .import-table td:first-child,.import-table th:first-child{min-width:48px;width:48px}
@@ -113,7 +113,24 @@ tbody tr:last-child td{border-bottom:0}
 .reconciliation-panel .import-table .flag{background:#ffedc2;color:#854d0e}
 .reconciliation-panel .table-foot{margin-top:10px}
 .reconciliation-empty{padding:14px;border:1px dashed #e8c98f;border-radius:10px;background:#fffdf8;color:#805b2c;font-size:.88rem}
-@media(max-width:700px){.import-grid{grid-template-columns:minmax(0,1fr)}.import-table-wrap{max-height:52vh}.import-controls .actions{align-items:stretch}.import-controls .actions button{width:100%}.reconciliation-panel{padding:12px}}
+@media(max-width:700px){
+ .import-grid{grid-template-columns:minmax(0,1fr)}
+ .import-table-wrap{max-height:none;overflow:visible;border:0;background:transparent;box-shadow:none}
+ .import-table{min-width:0!important;width:100%;display:block}
+ .import-table thead{display:none}
+ .import-table tbody{display:grid;gap:12px}
+ .import-table tbody>tr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);border:1px solid #dfe5ee;border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 2px 8px rgb(23 32 51 / 4%)}
+ .import-table tbody>tr>td{display:block;min-width:0!important;max-width:none;padding:10px;border-bottom:1px solid #edf0f5;overflow-wrap:anywhere;font-size:.82rem}
+ .import-table tbody>tr>td:before{content:attr(data-label);display:block;margin-bottom:5px;color:#667085;font-size:.65rem;font-weight:800;letter-spacing:.035em;text-transform:uppercase}
+ .import-table tbody>tr>td:nth-child(1){grid-column:1/-1;background:#f8fafc;font-weight:750}
+ .import-table tbody>tr>td:last-child{grid-column:1/-1;border-bottom:0}
+ .import-table .review-cell{min-width:0}
+ .import-table select{min-width:0!important;width:100%}
+ .import-controls .actions{align-items:stretch}
+ .import-controls .actions button{width:100%}
+ .reconciliation-panel{padding:12px}
+ .applicant-review .table-wrap{max-height:none;overflow:visible;border:0;background:transparent;box-shadow:none}
+}
 
 .history-section{margin-top:24px;padding-top:22px;border-top:1px solid var(--line)}
 .history-toolbar{display:grid;grid-template-columns:minmax(220px,1.4fr) minmax(180px,1fr);gap:12px;margin:16px 0}
@@ -231,14 +248,14 @@ header .top-actions > button:hover {
 :root{--app-content-width:1440px}
 body>main{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
-.applicant-review{margin-top:18px;padding:18px;border:1px solid var(--line);border-radius:12px;background:#fbfcfe}.applicant-review .section-head p{font-size:.86rem}.applicant-review select{min-width:230px}.applicant-review .review-save{min-height:36px;padding:7px 11px}.applicant-review .review-choice{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.applicant-review .review-choice .muted{max-width:240px}@media(max-width:700px){.applicant-review{padding:12px}.applicant-review .review-choice{align-items:stretch}.applicant-review select,.applicant-review .review-save{width:100%}}
+.applicant-review{margin-top:18px;padding:18px;border:1px solid var(--line);border-radius:12px;background:#fbfcfe}.applicant-review .section-head p{font-size:.86rem}.applicant-review select{min-width:230px}.applicant-review .review-save{min-height:36px;padding:7px 11px}.applicant-review .table-wrap{max-height:none;overflow-x:auto;overflow-y:visible}.applicant-review .review-choice{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.applicant-review .review-choice .muted{max-width:240px}@media(max-width:700px){.applicant-review{padding:12px}.applicant-review .review-choice{align-items:stretch}.applicant-review select,.applicant-review .review-save{width:100%}}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
 <body>
 <main>
 <div id="app-panel" class="hidden">
-<header class="topbar app-header"><div class="brand"><h1>FTO Import</h1><p>Import FTO transactions and assign a contribution period.</p></div></header>
+<header class="topbar app-header"><div class="brand"><h1>FTO Import</h1><p>Import FTO transactions and assign a contribution period.</p></div><div class="app-header-actions"><a href="./fto.html" class="link-button secondary">Back to FTO</a></div></header>
 <section class="panel">
 <div>
 <label for="table-input">Paste table copied from the FTO page</label>
@@ -266,17 +283,17 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
   <div class="reconciliation-kicker">Existing ledger entries · review required</div>
   <div class="section-head"><div><h2>Reconcile existing charges</h2><p>These job cards already have a manual charge for this contribution period. Review the existing amount against the FTO-calculated amount and confirm the applicant mapping. Confirmation updates the existing ledger entry; it does not create another charge. Existing payment allocations stay attached.</p></div></div>
   <div id="reconciliation-count" class="muted" style="margin:12px 0">No existing charges detected.</div>
-  <div class="table-wrap import-table-wrap"><table id="reconciliation-preview-table" class="import-table"><thead><tr><th>#</th><th>Job card</th><th>FTO name</th><th>FTO rows</th><th>Reference numbers</th><th>Incoming status</th><th>New calculated charge</th><th>Existing charge → FTO</th><th>Reconciliation review</th></tr></thead><tbody></tbody></table></div>
+  <div class="table-wrap import-table-wrap"><table id="reconciliation-preview-table" class="import-table"><thead><tr><th>#</th><th>Job card</th><th>FTO name</th><th>FTO rows</th><th>Reference numbers</th><th>Incoming status</th><th>New calculated charge</th><th>Existing charge → FTO</th><th>Reconciliation review</th></tr></thead><tbody></tbody></table></div><div id="reconciliation-pagination" class="table-foot"></div>
  </section>
  <div class="section-head" style="margin-top:18px"><div><h2>New FTO imports</h2><p>Only job cards without an existing manual charge for this period appear here.</p></div></div>
- <div class="table-wrap import-table-wrap"><table id="import-preview-table" class="import-table"><thead><tr><th>#</th><th>Job card</th><th>FTO name</th><th>FTO rows</th><th>Reference numbers</th><th>Current status</th><th>Calculated charge</th><th>Duplicate check</th><th>Checks</th></tr></thead><tbody></tbody></table></div>
+ <div class="table-wrap import-table-wrap"><table id="import-preview-table" class="import-table"><thead><tr><th>#</th><th>Job card</th><th>FTO name</th><th>FTO rows</th><th>Reference numbers</th><th>Current status</th><th>Calculated charge</th><th>Duplicate check</th><th>Checks</th></tr></thead><tbody></tbody></table></div><div id="import-pagination" class="table-foot"></div>
  <p class="import-help">Statuses are synchronized automatically per reference number: blank becomes deferred, Processed activates the matching charge, and Rejected removes only a matching FTO charge when no active transaction remains. The system records status history and does not delete unrelated charges. Mixed statuses under one job card are reconciled from individual reference numbers.</p>
  <div class="table-foot"><span id="import-count" class="muted"></span><div class="actions"><button id="fto-import-button" type="button" disabled>Import and synchronize FTO</button></div></div>
   <div id="sync-status" class="status hidden" aria-live="polite" role="status"></div>
   <section id="applicant-review" class="applicant-review hidden" aria-live="polite">
    <div class="section-head"><div><h2>Applicant matching review</h2><p>FTO names are compared with applicants in the active MIS. Matches below 80%, or with less than a 10-point lead over the next candidate, require your confirmation. An applicant already attached to a charge is retained unless you explicitly select a different MIS applicant.</p></div></div>
    <div id="applicant-review-summary" class="status">Checking applicant matches…</div>
-   <div class="table-wrap"><table class="import-table"><thead><tr><th>Job card</th><th>Name on FTO</th><th>Currently attached</th><th>MIS applicant candidates</th><th>Selection</th></tr></thead><tbody id="applicant-review-rows"></tbody></table></div>
+   <div class="table-wrap"><table id="applicant-review-table" class="import-table"><thead><tr><th>Job card</th><th>Name on FTO</th><th>Currently attached</th><th>MIS applicant candidates</th><th>Selection</th></tr></thead><tbody id="applicant-review-rows"></tbody></table></div><div id="applicant-review-pagination" class="table-foot"></div>
   </section>
 
   </section>
@@ -291,7 +308,7 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let authSequence=0,sharedPeriods=[],parsedDataRows=[],importGroups=[],duplicateCards=new Map(),duplicateReferences=new Map(),reviewedCards=new Set(),unknownCards=new Set(),reviewedNewCards=new Set(),reconciliationApplicantSelections=new Map(),deferredCards=new Map(),duplicateCheckSequence=0,checkingDuplicates=false,duplicateCheckFailed=false;
+let authSequence=0,sharedPeriods=[],previewPages={reconciliation:1,imports:1,applicants:1},parsedDataRows=[],importGroups=[],duplicateCards=new Map(),duplicateReferences=new Map(),reviewedCards=new Set(),unknownCards=new Set(),reviewedNewCards=new Set(),reconciliationApplicantSelections=new Map(),deferredCards=new Map(),duplicateCheckSequence=0,checkingDuplicates=false,duplicateCheckFailed=false;
 function status(msg,type){$('data-status').textContent=msg;$('data-status').classList.toggle('error',type==='error');$('data-status').classList.toggle('success',type==='success')}
 function syncStatus(msg,type){const el=$('sync-status');el.textContent=msg;el.classList.remove('hidden');el.classList.toggle('error',type==='error');el.classList.toggle('success',type==='success')}
 async function edgeFunctionErrorMessage(error,fallback){if(error&&error.context){try{const response=error.context.clone?error.context.clone():error.context;let body=null;if(response&&typeof response.json==='function')body=await response.json();else if(response&&typeof response.text==='function'){const raw=await response.text();try{body=JSON.parse(raw)}catch{body={message:raw}}}if(body&&typeof body==='object'&&(body.error||body.message||body.msg))return String(body.error||body.message||body.msg);if(typeof body==='string'&&body.trim())return body.trim()}catch(_){}}return (error&&error.message)||fallback}
@@ -449,6 +466,24 @@ function importReviewPriority(group){
  if(unknownCards.has(card))return 2;
  return 3;
 }
+function renderTablePagination(tableId,pagerId,key){
+ const table=$(tableId),pager=$(pagerId);if(!table||!pager)return;
+ const rows=[...table.querySelectorAll('tbody tr')],pageSize=25,total=rows.length,pages=Math.max(1,Math.ceil(total/pageSize));
+ previewPages[key]=Math.min(Math.max(1,previewPages[key]||1),pages);
+ const page=previewPages[key],start=(page-1)*pageSize,end=Math.min(start+pageSize,total);
+ rows.forEach((row,index)=>row.classList.toggle('hidden',index<start||index>=end));
+ pager.replaceChildren();
+ const info=document.createElement('span');info.className='muted';info.textContent=total?'Showing '+(start+1)+'–'+end+' of '+total+' rows':'No rows to display';pager.appendChild(info);
+ if(pages>1){
+  const actions=document.createElement('div');actions.className='actions';
+  const previous=document.createElement('button');previous.type='button';previous.className='secondary';previous.textContent='Previous';previous.disabled=page===1;
+  previous.addEventListener('click',()=>{previewPages[key]=page-1;renderTablePagination(tableId,pagerId,key)});
+  const next=document.createElement('button');next.type='button';next.className='secondary';next.textContent='Next';next.disabled=page===pages;
+  next.addEventListener('click',()=>{previewPages[key]=page+1;renderTablePagination(tableId,pagerId,key)});
+  const pageLabel=document.createElement('span');pageLabel.className='muted';pageLabel.textContent='Page '+page+' of '+pages;
+  actions.append(previous,pageLabel,next);pager.appendChild(actions);
+ }
+}
 function renderImportPreview(){
  $('import-summary').classList.remove('error');
  const tbody=$('import-preview-table').querySelector('tbody'),reconciliationBody=$('reconciliation-preview-table').querySelector('tbody');tbody.replaceChildren();reconciliationBody.replaceChildren();
@@ -465,7 +500,8 @@ function renderImportPreview(){
   const targetBody=duplicate?reconciliationBody:tbody;
   if(duplicate)reconciliationCount++;
   const tr=document.createElement('tr');
-  const addCell=(value,cls)=>{const td=document.createElement('td');td.textContent=value;if(cls)td.className=cls;tr.appendChild(td);return td};
+  const labels=['#','Job card','FTO name','FTO rows','Reference numbers','Incoming status','Calculated charge','Existing charge / duplicate check','Review'];
+  let cellIndex=0;const addCell=(value,cls)=>{const td=document.createElement('td');td.textContent=value;td.dataset.label=labels[cellIndex++]||'Details';if(cls)td.className=cls;tr.appendChild(td);return td};
   addCell(String(index+1));addCell(group.job_card_number);
   addCell(group.person_name);addCell(String(group.row_count));addCell(group.reference_numbers.join(', ')||'Missing reference');
   addCell(group.status==='blank'?'Blank':group.status==='processed'?'Processed':group.status==='rejected'?'Rejected':group.status==='mixed'?'Mixed statuses':'Other / unknown');
@@ -523,6 +559,8 @@ function renderImportPreview(){
   }else reviewCell.textContent='—';
   targetBody.appendChild(tr);
  });
+ renderTablePagination('reconciliation-preview-table','reconciliation-pagination','reconciliation');
+ renderTablePagination('import-preview-table','import-pagination','imports');
  $('reconciliation-panel').classList.toggle('hidden',reconciliationCount===0);
  $('reconciliation-count').textContent=reconciliationCount?reconciliationCount+' existing manual charge(s) need explicit reconciliation review.':'No existing manual charges detected for this period.';
  const period=selectedPeriodName();
@@ -598,13 +636,15 @@ async function loadApplicantReview(ftoNumber){
   pending.forEach(item=>{
    const tr=document.createElement('tr');
    const cell=value=>{const td=document.createElement('td');td.textContent=value;tr.appendChild(td);return td};
-   cell(item.job_card_number);cell(item.fto_name);cell(item.attached_applicant||'Not attached');
-   const candidateCell=cell('');
+   const labels=['Job card','Name on FTO','Currently attached','MIS applicant candidates','Selection'];
+   const labelledCell=value=>{const td=cell(value);td.dataset.label=labels[tr.children.length-1]||'Details';return td};
+   labelledCell(item.job_card_number);labelledCell(item.fto_name);labelledCell(item.attached_applicant||'Not attached');
+   const candidateCell=labelledCell('');
    const select=document.createElement('select');select.setAttribute('aria-label','Select the correct MIS applicant for '+item.job_card_number);
    const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Choose MIS applicant';select.appendChild(placeholder);
    (item.candidates||[]).forEach((candidate,index)=>{const option=document.createElement('option');option.value=String(index);option.textContent=candidate.applicant_name+' · '+(candidate.applicant_number||'No applicant no.')+' · '+Number(candidate.match_percentage||0).toFixed(1)+'%';select.appendChild(option)});
    candidateCell.appendChild(select);
-   const choice=cell('').appendChild(document.createElement('div'));choice.className='review-choice';
+   const choice=labelledCell('').appendChild(document.createElement('div'));choice.className='review-choice';
    const reason=document.createElement('span');reason.className='muted';reason.textContent=item.reason||'Manual confirmation required';choice.appendChild(reason);
    const save=document.createElement('button');save.type='button';save.className='review-save';save.textContent='Confirm applicant';save.disabled=true;select.addEventListener('change',()=>save.disabled=select.value==='');
    save.addEventListener('click',async()=>{
@@ -618,6 +658,7 @@ async function loadApplicantReview(ftoNumber){
    choice.appendChild(save);tbody.appendChild(tr);
   });
   if(!pending.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=5;td.textContent='All applicant mappings are confirmed.';tr.appendChild(td);tbody.appendChild(tr);}
+  renderTablePagination('applicant-review-table','applicant-review-pagination','applicants');
  }catch(err){summary.textContent=err.message||'Applicant matching review failed.';summary.classList.add('error');}
 }
 
@@ -634,7 +675,6 @@ async function executeFtoSync(payload,button){
  syncStatus(syncMessage,'success');button.textContent='Synchronization completed';
  await lookupFtoBatch();
  await loadApplicantReview(data.fto_number||$('fto-number').value.trim());
- if(window.parent!==window)window.parent.postMessage({type:"vbgramg-fto-import-complete"},window.location.origin);
  return true;
 }
 $('fto-import-button').addEventListener('click',async()=>{

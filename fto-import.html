@@ -99,6 +99,8 @@ tbody tr:last-child td{border-bottom:0}
 .import-table{min-width:900px}
 .import-table th,.import-table td{min-width:100px}
 .import-table td:first-child,.import-table th:first-child{min-width:48px;width:48px}
+/* FTO Rows is a constant implementation detail; keep its data internally but hide the redundant review column. */
+#import-preview-table th:nth-child(4),#import-preview-table td:nth-child(4),#reconciliation-preview-table th:nth-child(4),#reconciliation-preview-table td:nth-child(4){display:none!important}
 .import-table .flag{display:inline-block;padding:4px 8px;border-radius:7px;background:#fff2d9;color:#8a4b08;font-size:.78rem;font-weight:750}
 .import-table .clear{display:inline-block;padding:4px 8px;border-radius:7px;background:#eaf8ef;color:#17663a;font-size:.78rem;font-weight:750}
 .import-table .exempt{display:inline-block;padding:4px 8px;border-radius:7px;background:#eaf2ff;color:#1d4f91;font-size:.78rem;font-weight:750}

@@ -830,7 +830,7 @@ Deno.serve(async(req:Request)=>{
       const keeper=ftoRows.find(r=>(r.reference_numbers||[]).some((ref:string)=>refs.includes(String(ref))))||ftoRows[0]||null;
       const manualRows=cardLedgerRows.filter(r=>!/^FTO\b/i.test(String(r.note||"")));
       const linkedManual=manualRows.find(r=>(Array.isArray(r.reference_numbers)?r.reference_numbers:[]).some((ref:string)=>refs.includes(String(ref))))||null;
-      const manualKeeper=linkedManual||(manualChargeActions.get(card)==="link"&&manualRows.length===1?manualRows[0]:null);
+      const manualKeeper=manualChargeActions.get(card)==="link"?(linkedManual||(manualRows.length===1?manualRows[0]:null)):null;
      const applicantChoice=reconciliationApplicants.get(card);
      if(manualKeeper&&amount>0&&!manualKeeper.applicant_name&&!manualKeeper.applicant_unique_id&&!manualKeeper.applicant_number&&!applicantChoice){throw new Error("Choose or confirm the MIS applicant for "+card+" before reconciling its manual charge.");}
      if(amount>0){

@@ -310,7 +310,7 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let authSequence=0,sharedPeriods=[],previewPages={reconciliation:1,imports:1,applicants:1},parsedDataRows=[],importGroups=[],duplicateCards=new Map(),duplicateReferences=new Map(),alreadyAllocatedCards=new Map(),exemptedCards=new Set(),reviewedCards=new Set(),unknownCards=new Set(),reviewedNewCards=new Set(),reconciliationApplicantSelections=new Map(),deferredCards=new Map(),duplicateCheckSequence=0,checkingDuplicates=false,duplicateCheckFailed=false,existingFtoUnchanged=false,existingFtoKnown=false;
+let authSequence=0,sharedPeriods=[],previewPages={reconciliation:1,imports:1,applicants:1},parsedDataRows=[],importGroups=[],duplicateCards=new Map(),duplicateReferences=new Map(),alreadyAllocatedCards=new Map(),exemptedCards=new Set(),reviewedCards=new Set(),unknownCards=new Set(),reviewedNewCards=new Set(),reconciliationApplicantSelections=new Map(),deferredCards=new Map(),duplicateCheckSequence=0,checkingDuplicates=false,duplicateCheckFailed=false,existingFtoUnchanged=false,existingFtoKnown=false,ftoIdentityMismatch=false;
 function status(msg,type){$('data-status').textContent=msg;$('data-status').classList.toggle('error',type==='error');$('data-status').classList.toggle('success',type==='success')}
 function syncStatus(msg,type){const el=$('sync-status');el.textContent=msg;el.classList.remove('hidden');el.classList.toggle('error',type==='error');el.classList.toggle('success',type==='success')}
 async function edgeFunctionErrorMessage(error,fallback){if(error&&error.context){try{const response=error.context.clone?error.context.clone():error.context;let body=null;if(response&&typeof response.json==='function')body=await response.json();else if(response&&typeof response.text==='function'){const raw=await response.text();try{body=JSON.parse(raw)}catch{body={message:raw}}}if(body&&typeof body==='object'&&(body.error||body.message||body.msg))return String(body.error||body.message||body.msg);if(typeof body==='string'&&body.trim())return body.trim()}catch(_){}}return (error&&error.message)||fallback}
@@ -390,7 +390,7 @@ $('load-table-button').addEventListener('click',async()=>{
  const rows=parsePastedTable(pasted);
  if(!rows.length){status('Paste the copied FTO table first, then select Load table.','error');return}
  const ftoMatch=pasted.match(/FTO\s*No\.?\s*[:：]?\s*([A-Z0-9_-]+)/i);
- $('fto-number').value=ftoMatch&&ftoMatch[1]?ftoMatch[1].trim():'';existingFtoUnchanged=false;existingFtoKnown=false;existingFtoKnown=false;
+ $('fto-number').value=ftoMatch&&ftoMatch[1]?ftoMatch[1].trim():'';existingFtoUnchanged=false;existingFtoKnown=false;ftoIdentityMismatch=false;existingFtoKnown=false;
  const result=renderPastedTable(rows);
  if(!result){status('No data rows detected. Paste the FTO table including its data.','error');return}
  if(!$('fto-number').value.trim()){status('FTO number was not detected. Paste the official FTO header including its FTO No. before preparing the import.','error');return;}
@@ -609,7 +609,7 @@ function updateImportButton(){
  const unverifiedNew=[...unknownCards].some(card=>!exemptedCards.has(card)&&!reviewedNewCards.has(card));
  const hasDuplicateReferences=[...duplicateReferences.values()].some(refs=>refs.length>0);
  $('fto-import-button').textContent=duplicateCards.size?'Confirm reconciliation & sync FTO':'Import and synchronize FTO';
- $('fto-import-button').disabled=!ftoNumber||!period||!parsedDataRows.length||!selected.length||invalid||checkingDuplicates||duplicateCheckFailed||unreviewed||unverifiedNew||hasDuplicateReferences;
+ $('fto-import-button').disabled=!ftoNumber||!period||!parsedDataRows.length||!selected.length||invalid||checkingDuplicates||duplicateCheckFailed||ftoIdentityMismatch||unreviewed||unverifiedNew||hasDuplicateReferences;
 }
 function bytesToHex(bytes){return [...new Uint8Array(bytes)].map(b=>b.toString(16).padStart(2,'0')).join('')}
 async function sha256(text){return bytesToHex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)))}
@@ -622,13 +622,16 @@ async function lookupFtoBatch(){
   if(data.found&&data.batch){
    const nameMatches=sharedPeriods.filter(p=>p.period_name.toLowerCase()===String(data.batch.contribution_period||'').toLowerCase());const monthMatches=sharedPeriods.filter(p=>p.contribution_month===data.batch.ledger_charge_period);const savedPeriod=sharedPeriods.find(p=>p.id===data.batch.period_id)||(nameMatches.length===1?nameMatches[0]:(monthMatches.length===1?monthMatches[0]:null));
    if(savedPeriod){await loadSharedPeriods(savedPeriod.id);$('charge-period').value=savedPeriod.id;}
-   if(data.unchanged){existingFtoKnown=true;existingFtoUnchanged=true;$('import-controls').classList.add('hidden');status('Already imported — no changes detected. Saved contribution period: '+data.batch.contribution_period+'. No synchronization is needed.','success');return;}
-   existingFtoKnown=true;existingFtoUnchanged=false;const changeCount=Number(data.changed_count||0);const changedRefs=data.changed_references||[];
+   existingFtoKnown=true;
+   if(data.identity_mismatch){ftoIdentityMismatch=true;existingFtoUnchanged=false;status('FTO number conflict: this number is already saved, but none of the pasted reference numbers match its saved transactions. Check the FTO header and paste the correct FTO. Synchronization is disabled.','error');updateImportButton();return;}
+   ftoIdentityMismatch=false;
+   if(data.unchanged){existingFtoUnchanged=true;$('import-controls').classList.add('hidden');status('Already imported — no changes detected. Saved contribution period: '+data.batch.contribution_period+'. No synchronization is needed.','success');return;}
+   existingFtoUnchanged=false;const changeCount=Number(data.changed_count||0);const changedRefs=data.changed_references||[];
    const changedSet=new Set(changedRefs);$('parsed-table').querySelectorAll('tbody tr').forEach(tr=>tr.classList.toggle('changed-transaction',changedSet.has(tr.dataset.reference||'')));
    status('Known FTO found. Saved period "'+data.batch.contribution_period+'" restored. '+changeCount+' transaction change(s) detected'+(changedRefs.length?' · changed references: '+changedRefs.slice(0,8).join(', ')+(changeCount>8?' …':''):'')+'. Review the highlighted changes before synchronizing.','success');
    reviewedCards=new Set();reviewedNewCards=new Set();refreshDuplicates();
   }else{
-   existingFtoKnown=false;existingFtoUnchanged=false;$('parsed-table').querySelectorAll('tbody tr').forEach(tr=>tr.classList.remove('changed-transaction'));status('New FTO number. Select its contribution period from the shared periods list.','');updateImportButton();
+   existingFtoKnown=false;existingFtoUnchanged=false;ftoIdentityMismatch=false;$('parsed-table').querySelectorAll('tbody tr').forEach(tr=>tr.classList.remove('changed-transaction'));status('New FTO number. Select its contribution period from the shared periods list.','');updateImportButton();
   }
  }catch(err){status('Could not look up saved FTO details: '+(err.message||'unknown error'),'error')}
 }

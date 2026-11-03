@@ -42,17 +42,26 @@ begin
   -- when its ID is named by the review decision and it belongs to this card/period.
   if exists (
     select 1
-    from jsonb_to_recordset(coalesce(p_plan->'ledger_rows','[]'::jsonb))
+    from unnest(v_manual_link_ids) as linked(id)
+    join public.vbgramg_charge_ledger existing on existing.id = linked.id
+    join jsonb_to_recordset(coalesce(p_plan->'ledger_rows','[]'::jsonb))
       as lr(id uuid, job_card_number text, period_id uuid, charge_period date, entry_type text, note text)
-    join public.vbgramg_charge_ledger existing on existing.id = lr.id
+      on lr.id = linked.id
     where existing.entry_type <> 'charge'
       or upper(left(coalesce(existing.note,''),3)) = 'FTO'
       or existing.job_card_number is distinct from lr.job_card_number
+      or lr.entry_type <> 'charge'
       or (existing.period_id is not null and existing.period_id is distinct from lr.period_id)
       or (existing.period_id is null and existing.charge_period is distinct from lr.charge_period)
-      or not (existing.id = any(v_manual_link_ids))
   ) then
-    raise exception 'A manual charge can only be linked to FTO after explicit review approval';
+    raise exception 'An explicitly linked manual charge must be a non-FTO charge for the same job card and contribution period';
+  end if;
+
+  if exists (
+    select 1 from unnest(v_manual_link_ids) as linked(id)
+    where not exists (select 1 from public.vbgramg_charge_ledger l where l.id = linked.id)
+  ) then
+    raise exception 'An approved manual charge link refers to a missing ledger record';
   end if;
 
   if exists (
@@ -230,6 +239,21 @@ begin
     row_count=excluded.row_count, total_amount=excluded.total_amount,
     status='complete', completed_at=excluded.completed_at, notes=excluded.notes
   returning id into v_import_id;
+
+  -- Preserve a before/after audit record whenever an existing manual charge
+  -- is deliberately linked to an FTO. The original ledger ID is retained.
+  insert into public.vbgramg_ledger_audit
+    (ledger_entry_id,job_card_number,action,actor_user_id,before_data,after_data)
+  select existing.id,existing.job_card_number,'manual_charge_linked_to_fto',
+         nullif(v_batch->>'created_by','')::uuid,to_jsonb(existing),to_jsonb(lr)
+  from unnest(v_manual_link_ids) as linked(id)
+  join public.vbgramg_charge_ledger existing on existing.id=linked.id
+  join jsonb_to_recordset(coalesce(p_plan->'ledger_rows','[]'::jsonb))
+    as lr(id uuid,job_card_number text,person_name text,entry_type text,amount numeric,
+          charge_period date,entry_date date,note text,import_id uuid,created_by uuid,
+          is_deferred boolean,reference_numbers text[],applicant_name text,
+          applicant_number text,applicant_unique_id text,period_id uuid,
+          fto_applicant_name text,is_voided boolean) on lr.id=linked.id;
 
   -- Ledger writes are explicit upserts. Payment rows and allocation rows are never
   -- touched by this FTO-only operation.

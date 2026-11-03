@@ -121,6 +121,18 @@ tbody tr:last-child td{border-bottom:0}
 .reconciliation-panel .table-foot{margin-top:10px}
 .reconciliation-empty{padding:14px;border:1px dashed #e8c98f;border-radius:10px;background:#fffdf8;color:#805b2c;font-size:.88rem}
 @media(max-width:700px){
+ /* Render each parsed FTO transaction as a readable card instead of a squeezed 19-column table. */
+ #table-output .table-wrap{max-height:none;overflow:visible;border:0;background:transparent;box-shadow:none}
+ #parsed-table{display:block;min-width:0!important;width:100%}
+ #parsed-table thead{display:none}
+ #parsed-table tbody{display:grid;gap:10px}
+ #parsed-table tbody tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border:1px solid #dfe5ee;border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 2px 8px rgb(23 32 51 / 4%)}
+ #parsed-table tbody td{display:none;min-width:0!important;padding:10px;border-bottom:1px solid #edf0f5;overflow-wrap:anywhere;font-size:.82rem}
+ #parsed-table tbody td:before{content:attr(data-label);display:block;margin-bottom:5px;color:#667085;font-size:.64rem;font-weight:800;letter-spacing:.035em;text-transform:uppercase}
+ #parsed-table tbody td:nth-child(3),#parsed-table tbody td:nth-child(6){display:block;grid-column:1/-1;background:#f8fafc;font-weight:700}
+ #parsed-table tbody td:nth-child(4),#parsed-table tbody td:nth-child(5),#parsed-table tbody td:nth-child(12),#parsed-table tbody td:nth-child(13),#parsed-table tbody td:nth-child(14){display:block}
+ #parsed-table tbody td:nth-child(13){border-bottom:0}
+ #parsed-table tbody tr.changed-transaction td{background:#fff4d9;border-bottom-color:#f2d28e}
  .import-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
  .import-table-wrap{max-height:none;overflow:visible;border:0;background:transparent;box-shadow:none}
  .import-table{min-width:0!important;width:100%;display:block}
@@ -381,7 +393,7 @@ function renderPastedTable(rows){
  if(!dataRows.length){$('table-output').classList.add('hidden');$('import-controls').classList.add('hidden');parsedDataRows=[];return null}
  dataRows.forEach(row=>{
   const tr=document.createElement('tr');tr.dataset.reference=String(row[3]||'').trim();
-  FTO_HEADERS.forEach((_,index)=>{const td=document.createElement('td');td.textContent=(row[index]||'').replace(/<br\s*\/?>/gi,'\n');td.style.whiteSpace='pre-line';tr.appendChild(td)});
+  FTO_HEADERS.forEach((header,index)=>{const td=document.createElement('td');td.dataset.label=header;td.textContent=(row[index]||'').replace(/<br\s*\/?>/gi,'\n');td.style.whiteSpace='pre-line';tr.appendChild(td)});
   tbody.appendChild(tr);
  });
  $('table-summary').textContent=dataRows.length+' data rows · '+FTO_HEADERS.length+' predefined columns';

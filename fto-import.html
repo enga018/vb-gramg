@@ -678,6 +678,7 @@ async function refreshDuplicates(){
   if(seq!==duplicateCheckSequence)return;
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not check for duplicate charges.');
   duplicateCards=new Map((data.duplicates||[]).map(row=>[String(row.job_card_number),row]));
+  applicantMatchSuggestions=new Map((data.applicant_matches||[]).map(row=>[String(row.job_card_number),row]));
   alreadyAllocatedCards=new Map((data.already_allocated||[]).map(row=>[String(row.job_card_number),row.allocations||[]]));
   exemptedCards=new Set((data.exempted_job_cards||[]).map(String));notInActiveMisCards=new Set((data.not_in_active_mis_job_cards||[]).map(String));
   reconciliationApplicantSelections=new Map();

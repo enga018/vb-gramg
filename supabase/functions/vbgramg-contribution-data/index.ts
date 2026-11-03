@@ -581,7 +581,7 @@ Deno.serve(async(req:Request)=>{
    if(chargeCandidateCards.length){
     const {data:existingLedger,error:existingLedgerError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,note,reference_numbers,period_id").in("job_card_number",chargeCandidateCards).eq("entry_type","charge").eq("charge_period",chargePeriod);
     if(existingLedgerError)throw existingLedgerError;
-    const nonFto=[...new Map((existingLedger||[]).filter(r=>(!r.period_id||String(r.period_id)===periodId)&&!/^FTO\b/i.test(String(r.note||""))).map(r=>[String(r.job_card_number),{id:r.id,job_card_number:r.job_card_number,person_name:r.person_name,amount:r.amount,is_deferred:r.is_deferred}])).values()];
+    const nonFto=[...new Map((existingLedger||[]).filter(r=>(!r.period_id||String(r.period_id)===periodId)&&!/^FTO\b/i.test(String(r.note||""))&&!(Array.isArray(r.reference_numbers)?r.reference_numbers:[]).some((ref:string)=>incomingRefs.includes(String(ref)))).map(r=>[String(r.job_card_number),{id:r.id,job_card_number:r.job_card_number,person_name:r.person_name,amount:r.amount,is_deferred:r.is_deferred}])).values()];
     const ambiguousReviewed=[...reviewed].filter(card=>(existingLedger||[]).filter(r=>String(r.job_card_number)===card&&(!r.period_id||String(r.period_id)===periodId)&&!/^FTO\b/i.test(String(r.note||""))).length>1);
     if(ambiguousReviewed.length)return reply({error:"More than one existing manual charge was found for: "+ambiguousReviewed.join(", ")+". Resolve the ledger entries before reconciling this FTO."},409);
     const unreviewed=nonFto.filter(r=>!reviewed.has(String(r.job_card_number)));

@@ -665,7 +665,7 @@ Deno.serve(async(req:Request)=>{
    let oldBatchTransactions:Record<string,any>[]=[];
    let oldBatchTransactionsError:any=null;
    if(batchId){
-    const oldBatchResult=await admin.from("vbgramg_fto_transactions").select("id,reference_no,status,calculated_charge,job_card_number,processed_date,ledger_entry_id").eq("batch_id",batchId);
+    const oldBatchResult=await admin.from("vbgramg_fto_transactions").select("id,reference_no,status,calculated_charge,job_card_number,person_name,transaction_date,processed_date,amount_to_be_credited,credit_amount,rejection_reason,ledger_entry_id").eq("batch_id",batchId);
     oldBatchTransactions=oldBatchResult.data||[];
     oldBatchTransactionsError=oldBatchResult.error;
    }
@@ -725,6 +725,7 @@ Deno.serve(async(req:Request)=>{
    const runInBatches=async<T,>(items:T[],size:number,worker:(item:T)=>Promise<void>)=>{for(let offset=0;offset<items.length;offset+=size){await Promise.all(items.slice(offset,offset+size).map(worker));}};
       await runInBatches(normalized,8,async(row)=>{
     const old=oldByRef.get(String(row.reference_no));
+    if(old&&String(old.job_card_number||"").toUpperCase()===String(row.job_card_number||"").toUpperCase()&&String(old.person_name||"")===String(row.person_name||"")&&String(old.transaction_date||"")===String(row.transaction_date||"")&&String(old.processed_date||"")===String(row.processed_date||"")&&Number(old.amount_to_be_credited||0)===Number(row.amount_to_be_credited||0)&&Number(old.credit_amount||0)===Number(row.credit_amount||0)&&Number(old.calculated_charge||0)===Number(row.calculated_charge||0)&&String(old.status||"")===String(row.status||"")&&String(old.rejection_reason||"")===String(row.rejection_reason||""))return;
     if(old&&(String(old.status)!==String(row.status)||Number(old.calculated_charge||0)!==Number(row.calculated_charge||0)||String(old.processed_date||"")!==String(row.processed_date||""))){
      const {error:historyError}=await admin.from("vbgramg_fto_status_history").insert({
       transaction_id:old.id,old_status:old.status,new_status:row.status,

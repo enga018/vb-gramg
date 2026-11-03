@@ -429,7 +429,7 @@ function renderMobileTransactionGroups(rows){
     const transactionHeading=document.createElement('div');transactionHeading.className='parsed-transaction-heading';
     const label=document.createElement('strong');label.textContent='Transaction '+(index+1);
     const status=document.createElement('span');status.className='parsed-transaction-status';
-    status.textContent=String(row[12]||'—').replace(/<br\\s*\\/?>/gi,' ').trim()||'—';
+    status.textContent=String(row[12]||'—').replace(/<br\s*\/?>/gi,' ').trim()||'—';
     transactionHeading.append(label,status);card.appendChild(transactionHeading);
     const fields=[
      ['Applicant Name',row[5]||row[7]||'—'],
@@ -442,7 +442,7 @@ function renderMobileTransactionGroups(rows){
     fields.forEach(([name,value])=>{
      const field=document.createElement('div');field.className='parsed-transaction-field';
      const caption=document.createElement('span');caption.textContent=name;
-     const content=document.createElement('strong');content.textContent=String(value).replace(/<br\\s*\\/?>/gi,' ').trim()||'—';
+     const content=document.createElement('strong');content.textContent=String(value).replace(/<br\s*\/?>/gi,' ').trim()||'—';
      field.append(caption,content);grid.appendChild(field);
     });
     card.appendChild(grid);section.appendChild(card);

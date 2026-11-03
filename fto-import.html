@@ -494,7 +494,7 @@ function renderImportPreview(){
   const reviewCell=addCell('', 'review-cell');
   if(duplicate){
    const label=document.createElement('label');label.style.display='flex';label.style.gap='8px';label.style.alignItems='center';label.style.margin='0';
-   const check=document.createElement('input');check.type='checkbox';check.disabled=Number(duplicate.charge_count||1)>1||(!duplicate.applicant_name&&!duplicate.applicant_unique_id&&!reconciliationApplicantSelections.has(group.job_card_number));check.checked=reviewedCards.has(group.job_card_number);check.setAttribute('aria-label','I reviewed duplicate '+group.job_card_number);
+   const check=document.createElement('input');check.type='checkbox';check.disabled=Number(duplicate.charge_count||1)>1||(!duplicate.applicant_name&&!duplicate.applicant_unique_id&&!duplicate.applicant_number&&!reconciliationApplicantSelections.has(group.job_card_number));check.checked=reviewedCards.has(group.job_card_number);check.setAttribute('aria-label','I reviewed duplicate '+group.job_card_number);
    check.addEventListener('change',()=>{if(check.checked)reviewedCards.add(group.job_card_number);else reviewedCards.delete(group.job_card_number);renderImportPreview()});
    label.appendChild(check);const t=document.createElement('span');t.textContent=Number(duplicate.charge_count||1)>1?'Multiple charges — resolve first':'Link FTO records to this charge';label.appendChild(t);reviewCell.appendChild(label);
   }else if(isUnknown){
@@ -538,7 +538,7 @@ function updateImportButton(){
  const divisor=Number($('amount-divisor').value),multiplier=Number($('amount-multiplier').value);
  const formulaInvalid=!Number.isFinite(divisor)||divisor<=0||!Number.isFinite(multiplier)||multiplier<=0;
  const invalid=formulaInvalid||parsedDataRows.some(row=>!String(row[3]||'').trim()||!jobCardFromRow(row)||!String(row[5]||row[7]||'').trim()||(['blank','processed'].includes(rawStatus(row))&&parseAmount(row[11])<=0));
- const unreviewed=[...duplicateCards.keys()].some(card=>!reviewedCards.has(card)||Number(duplicateCards.get(card)?.charge_count||1)>1||(!(duplicateCards.get(card)?.applicant_name||duplicateCards.get(card)?.applicant_unique_id)&&!reconciliationApplicantSelections.has(card)));
+ const unreviewed=[...duplicateCards.keys()].some(card=>!reviewedCards.has(card)||Number(duplicateCards.get(card)?.charge_count||1)>1||(!(duplicateCards.get(card)?.applicant_name||duplicateCards.get(card)?.applicant_unique_id||duplicateCards.get(card)?.applicant_number)&&!reconciliationApplicantSelections.has(card)));
  const unverifiedNew=[...unknownCards].some(card=>!reviewedNewCards.has(card));
  const hasDuplicateReferences=[...duplicateReferences.values()].some(refs=>refs.length>0);
  $('fto-import-button').textContent='Synchronize FTO statuses';

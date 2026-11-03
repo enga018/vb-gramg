@@ -450,6 +450,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 .history-action-menu.hidden{display:none!important}
 .history-action-menu button{display:block;width:100%;text-align:left;justify-content:flex-start;min-height:40px;padding:9px 10px;border:0;background:transparent;color:#344054;font-size:.84rem}
 .history-action-menu button:hover{background:#f1f5f9}
+@media(max-width:700px){.history-action-menu .history-view-action{display:none!important}.fto-card{cursor:pointer}.fto-card:focus-visible{outline:2px solid #4778d5;outline-offset:2px}}
 .last-checked{text-align:left;color:#667085;font-size:.72rem;line-height:1.35}
 .last-checked strong{display:block;color:#475467;font-size:.76rem;font-weight:650;margin-top:2px}
 .history-list-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:13px}
@@ -667,7 +668,7 @@ function renderFtoHistory(reset=true){
  const search=$("fto-history-search").value.trim().toLowerCase(),period=$("fto-history-period").value;
  const filtered=ftoHistoryRows.filter(batch=>(!period||batch.contribution_period===period)&&(!search||String(batch.fto_number||"").toLowerCase().includes(search)||String(batch.contribution_period||"").toLowerCase().includes(search)));
  filtered.slice(0,shownFtoHistory).forEach(batch=>{
-  const card=document.createElement("article");card.className="fto-card";
+  const card=document.createElement("article");card.className="fto-card";card.setAttribute("tabindex","0");card.setAttribute("aria-label","View FTO "+String(batch.fto_number||""));card.addEventListener("click",event=>{if(window.matchMedia("(max-width: 700px)").matches&&!event.target.closest(".action-wrap"))openFtoViewModal(batch)});card.addEventListener("keydown",event=>{if(window.matchMedia("(max-width: 700px)").matches&&(event.key==="Enter"||event.key===" ")){if(event.target===card){event.preventDefault();openFtoViewModal(batch)}}});
   const main=document.createElement("div");main.className="card-main";
   const number=document.createElement("div");number.className="fto-number";number.textContent=String(batch.fto_number||"—");
   const periodLine=document.createElement("div");periodLine.className="period-line";periodLine.textContent=String(batch.contribution_period||"No contribution period");
@@ -677,7 +678,7 @@ function renderFtoHistory(reset=true){
   const actionWrap=document.createElement("div");actionWrap.className="action-wrap";
   const actionButton=document.createElement("button");actionButton.type="button";actionButton.className="secondary action-trigger";actionButton.textContent="⋮";actionButton.setAttribute("aria-label","Actions for FTO "+String(batch.fto_number||""));actionButton.setAttribute("aria-haspopup","menu");actionButton.setAttribute("aria-expanded","false");
   const menu=document.createElement("div");menu.className="history-action-menu hidden";menu.setAttribute("role","menu");
-  const view=document.createElement("button");view.type="button";view.textContent="View";view.setAttribute("role","menuitem");view.addEventListener("click",()=>{menu.classList.add("hidden");actionButton.setAttribute("aria-expanded","false");openFtoViewModal(batch)});
+  const view=document.createElement("button");view.type="button";view.textContent="View";view.className="history-view-action";view.setAttribute("role","menuitem");view.addEventListener("click",()=>{menu.classList.add("hidden");actionButton.setAttribute("aria-expanded","false");openFtoViewModal(batch)});
   const change=document.createElement("button");change.type="button";change.textContent="Change period";change.setAttribute("role","menuitem");change.addEventListener("click",()=>{menu.classList.add("hidden");actionButton.setAttribute("aria-expanded","false");changeFtoPeriod(batch)});
   menu.append(view,change);
   actionButton.addEventListener("click",()=>{

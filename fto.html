@@ -654,21 +654,6 @@ async function loadFtoHistory(){
   else{historyStatus.textContent="";historyStatus.classList.add("hidden");historyStatus.classList.remove("error","success");}
  }catch(err){if(seq!==historyLoadSequence)return;historyMessage(err.message||"Could not load FTO history.","error");}
 }
-function openFtoImportModal(){
- const modal=$("fto-import-modal"),frame=$("fto-import-frame");
- if(frame.src==="about:blank"||!frame.src.endsWith("/fto-import.html"))frame.src="./fto-import.html";
- modal.classList.remove("hidden");document.body.classList.add("fto-import-open");$("close-fto-import").focus();
-}
-function closeFtoImportModal(){
- $("fto-import-modal").classList.add("hidden");document.body.classList.remove("fto-import-open");$("open-fto-import").focus();
-}
-$("open-fto-import").addEventListener("click",openFtoImportModal);
-$("close-fto-import").addEventListener("click",closeFtoImportModal);
-$("fto-import-modal").addEventListener("click",event=>{if(event.target===$("fto-import-modal"))closeFtoImportModal();});
-window.addEventListener("message",event=>{
- if(event.origin!==window.location.origin||!event.data||event.data.type!=="vbgramg-fto-import-complete")return;
- loadFtoHistory();
-});
 $("fto-view-modal-close").addEventListener("click",closeFtoViewModal);
 $("fto-view-modal-backdrop").addEventListener("click",event=>{if(event.target===$("fto-view-modal-backdrop"))closeFtoViewModal();});
 

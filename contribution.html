@@ -355,6 +355,23 @@ main{width:min(100%,1200px);padding-bottom:36px}
  .kpi-actions .btn{font-size:.7rem}
 }
 
+/* Mobile Citizen View refinements: compact history, clear edit controls and balanced action grid. */
+@media(max-width:700px){
+ #overlay .sheet-body .entry{padding-top:8px;padding-bottom:8px;margin-bottom:5px}
+ #overlay .sheet.edit-mode .sheet-body .entry{padding-bottom:10px}
+ #overlay .sheet.edit-mode .sheet-body .entry .entry-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;justify-content:stretch}
+ #overlay .sheet.edit-mode .sheet-body .entry .entry-actions .btn{width:100%;min-height:40px;padding:8px 7px;font-size:.78rem}
+ #overlay .sheet-footer .transaction-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+ #overlay .sheet-footer .transaction-actions .btn{width:100%;min-width:0;min-height:48px;padding:10px 7px;font-size:.82rem;line-height:1.2}
+ #overlay .sheet-footer .transaction-actions #returnBtn{grid-column:1/-1}
+ #overlay .sheet-body form{padding-bottom:8px}
+ #overlay .sheet-body form>.btn{display:block;width:100%;min-height:48px;margin:9px 0 0}
+ #overlay .sheet-body form>.btn+.btn{margin-left:0}
+ #overlay .sheet-body form .field{margin-bottom:14px}
+ #overlay .sheet-body form .field label{font-size:.84rem;margin-bottom:6px}
+ #overlay .sheet-body form .field input,#overlay .sheet-body form .field select{min-height:48px;font-size:16px}
+ #overlay .sheet-body form .notice{margin-bottom:12px}
+}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -686,6 +703,8 @@ function openCitizen(id){
   let periodLabel=String(periodRow?.period_name||'').trim()||(periodParts&&Number(periodParts[2])>=1&&Number(periodParts[2])<=12
    ?monthTags[Number(periodParts[2])-1]+' '+periodParts[1]
    :String(e.charge_period||'').trim()||'Monthly charge');
+  const compactPeriod=periodLabel.match(/^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\\d{2,4})(?:\\((\\d+)\\))?$/i);
+  if(compactPeriod){const monthIndex=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'].indexOf(compactPeriod[1].toUpperCase());const year=compactPeriod[2].length===2?'20'+compactPeriod[2]:compactPeriod[2];periodLabel=monthTags[monthIndex]+' '+year+(compactPeriod[3]?' ('+compactPeriod[3]+')':'');}
   let chargeApplicantName='';
   if(type==='charge'&&!isExtra){
    let matchedApplicant=null;

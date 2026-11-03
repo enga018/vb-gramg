@@ -14,6 +14,8 @@ declare
   v_import jsonb := p_plan->'charge_import';
   v_guard record;
   v_allocated numeric(14,2);
+  v_manual_charges numeric(14,2);
+  v_total_prospective numeric(14,2);
   v_count_transactions integer := 0;
   v_count_history integer := 0;
   v_count_ledger integer := 0;
@@ -32,13 +34,16 @@ begin
   perform pg_advisory_xact_lock(hashtextextended('fto:' || (v_batch->>'fto_number'), 0));
 
   for v_guard in
-    select job_card_number, period_id, prospective_amount
+    select job_card_number, period_id, prospective_fto_amount
     from jsonb_to_recordset(coalesce(p_plan->'charge_guards', '[]'::jsonb))
-      as g(job_card_number text, period_id uuid, prospective_amount numeric)
+      as g(job_card_number text, period_id uuid, prospective_fto_amount numeric)
     order by job_card_number, period_id
   loop
-    if v_guard.prospective_amount < 0 then
-      raise exception 'Invalid prospective FTO charge for %', v_guard.job_card_number;
+    if nullif(v_guard.job_card_number, '') is null
+       or v_guard.period_id is null
+       or v_guard.prospective_fto_amount is null
+       or v_guard.prospective_fto_amount < 0 then
+      raise exception 'Invalid prospective FTO charge guard';
     end if;
 
     perform pg_advisory_xact_lock(
@@ -61,15 +66,46 @@ begin
       and payment.entry_type = 'payment'
       and a.period_id = v_guard.period_id;
 
-    if v_allocated > v_guard.prospective_amount then
+    -- Preserve every non-FTO charge already recorded for this card and period.
+    -- The caller supplies only the prospective FTO component; historical/manual
+    -- charges remain independent ledger rows and are included in the safety ceiling.
+    select coalesce(sum(l.amount), 0)::numeric(14,2)
+      into v_manual_charges
+    from public.vbgramg_charge_ledger l
+    where l.job_card_number = v_guard.job_card_number
+      and l.period_id = v_guard.period_id
+      and l.entry_type in ('charge', 'other_charge')
+      and coalesce(l.is_deferred, false) = false
+      and coalesce(l.is_voided, false) = false
+      and coalesce(l.note, '') !~* '^FTO\\b';
+
+    v_total_prospective := v_manual_charges + v_guard.prospective_fto_amount;
+
+    if v_allocated > v_total_prospective then
       raise exception using
         message = format(
-          'FTO reconciliation blocked for %s: allocated %.2f exceeds revised charge %.2f',
-          v_guard.job_card_number, v_allocated, v_guard.prospective_amount
+          'FTO reconciliation blocked for %s: allocated %.2f exceeds revised eligible charges %.2f (manual %.2f + FTO %.2f)',
+          v_guard.job_card_number, v_allocated, v_total_prospective,
+          v_manual_charges, v_guard.prospective_fto_amount
         ),
         errcode = '23514';
     end if;
   end loop;
+
+  -- Never silently move an existing FTO to another contribution period or ledger month.
+  -- Such a move must use the dedicated Change Period workflow.
+  if exists (
+    select 1
+    from public.vbgramg_fto_batches b
+    where b.fto_number = v_batch->>'fto_number'
+      and (
+        b.period_id is distinct from (v_batch->>'period_id')::uuid
+        or b.contribution_period is distinct from (v_batch->>'contribution_period')
+        or b.ledger_charge_period is distinct from (v_batch->>'ledger_charge_period')::date
+      )
+  ) then
+    raise exception 'This FTO number is already assigned to a different contribution period. Use Change Period before importing it again.';
+  end if;
 
   -- Batch identity is stable across re-imports.
   insert into public.vbgramg_fto_batches
@@ -228,6 +264,13 @@ declare
   already_allocated numeric(12,2);
   period_card text;
 begin
+  if tg_op = 'UPDATE' and (
+    old.job_card_number is distinct from new.job_card_number
+    or old.period_id is distinct from new.period_id
+  ) then
+    raise exception 'Payment allocation job card and period are immutable; delete and recreate the allocation instead';
+  end if;
+
   perform pg_advisory_xact_lock(
     hashtextextended('contribution:' || new.job_card_number || ':' || new.period_id::text, 0)
   );

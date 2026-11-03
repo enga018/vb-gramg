@@ -515,6 +515,9 @@ function render(){
  $('deferred').textContent=fmt(citizens.reduce((s,c)=>s+c.deferred,0));
  const isMobile=window.matchMedia('(max-width: 700px)').matches;const totalPages=Math.max(1,Math.ceil(list.length/pageSize));currentPage=Math.min(currentPage,totalPages-1);
  const start=isMobile?0:currentPage*pageSize,shown=isMobile?list.slice(0,mobileShown):list.slice(start,start+pageSize);
+ $('prev-button').classList.toggle('hidden',isMobile);
+ $('next-button').classList.toggle('hidden',isMobile);
+ $('contribution-see-more').hidden=!isMobile||shown.length>=list.length;
  const thead=$('contribution-table').querySelector('thead'),tbody=$('contribution-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
  const head=document.createElement('tr');
  (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Remarks']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Remarks'){th.style.textAlign='right';th.className='balance-heading';}head.appendChild(th)});thead.appendChild(head);
@@ -572,7 +575,7 @@ function render(){
  }
  $('table-wrap').classList.toggle('hidden',list.length===0);$('empty').classList.toggle('hidden',list.length!==0);
  $('count').textContent=list.length.toLocaleString('en-IN')+' job card'+(list.length===1?'':'s')+' matching filters';
- $('page-label').textContent=list.length?'Showing '+(start+1)+'–'+Math.min(start+pageSize,list.length)+' of '+list.length:'No matching job cards';
+ $('page-label').textContent=list.length?(isMobile?'Showing 1–'+shown.length+' of '+list.length:'Showing '+(start+1)+'–'+Math.min(start+pageSize,list.length)+' of '+list.length):'No matching job cards';
  $('prev-button').disabled=currentPage<=0;$('next-button').disabled=currentPage>=totalPages-1;
  syncDesktopDetailOffset();
 }
@@ -592,11 +595,10 @@ function exportOutstandingDueList(){
  const due=citizens.filter(c=>!c.exempt&&Number(c.balance)>0)
   .sort((a,b)=>jobCardSuffixNumber(a.id)-jobCardSuffixNumber(b.id)||a.id.localeCompare(b.id,undefined,{numeric:true})||a.name.localeCompare(b.name));
  if(!due.length){status('There are no job cards with outstanding contribution.','info');return;}
- const total=due.reduce((sum,c)=>sum+Math.max(0,Number(c.balance)||0),0);
- const rows=due.map((c,index)=>'<tr><td>'+String(index+1)+'</td><td>'+esc(c.id)+'</td><td>'+esc(c.name||'—')+'</td><td class="amount">'+fmt(c.balance)+'</td></tr>').join('');
+ const rows=due.map(c=>'<tr><td>'+esc(c.id)+'</td><td>'+esc(c.name||'—')+'</td><td class="amount">'+fmt(c.balance)+'</td></tr>').join('');
  const popup=window.open('','_blank');
  if(!popup){status('Allow pop-ups for this site to export the due list.','err');return;}
- const report='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contribution Outstanding Due List</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#172033;margin:28px}h1{font-size:20px;margin:0 0 5px}.meta{color:#667085;font-size:12px;margin-bottom:18px}.summary{display:flex;gap:24px;margin:0 0 18px;font-size:13px}.summary b{font-size:15px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;border-bottom:1px solid #dfe5ee;text-align:left}th{background:#edf2f8;text-transform:uppercase;font-size:10px;letter-spacing:.04em}.amount{text-align:right;white-space:nowrap;font-weight:700}.total td{font-weight:800;border-top:2px solid #667085}@media print{body{margin:12mm}thead{display:table-header-group}tr{break-inside:avoid}}@media(max-width:600px){body{margin:14px;overflow-x:auto}.summary{gap:14px;flex-wrap:wrap}}</style></head><body><h1>Contribution Outstanding Due List</h1><div class="meta">VBGRAMG · Generated on '+esc(new Date().toLocaleDateString('en-IN'))+'</div><table><thead><tr><th>Sl. No.</th><th>Job Card Number</th><th>Head of Household</th><th style="text-align:right">Outstanding</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
+ const report='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contribution Outstanding Due List</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#172033;margin:28px}h1{font-size:20px;margin:0 0 5px}.meta{color:#667085;font-size:12px;margin-bottom:18px}.summary{display:flex;gap:24px;margin:0 0 18px;font-size:13px}.summary b{font-size:15px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;border-bottom:1px solid #dfe5ee;text-align:left}th{background:#edf2f8;text-transform:uppercase;font-size:10px;letter-spacing:.04em}.amount{text-align:right;white-space:nowrap;font-weight:700}.total td{font-weight:800;border-top:2px solid #667085}@media print{body{margin:12mm}thead{display:table-header-group}tr{break-inside:avoid}}@media(max-width:600px){body{margin:14px;overflow-x:auto}.summary{gap:14px;flex-wrap:wrap}}</style></head><body><h1>Contribution Outstanding Due List</h1><div class="meta">VBGRAMG · Generated on '+esc(new Date().toLocaleDateString('en-IN'))+'</div><table><thead><tr><th>Job Card Number</th><th>Head of Household</th><th style="text-align:right">Outstanding</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
  popup.document.open();popup.document.write(report);popup.document.close();popup.focus();popup.print();
 }
 function buildFifoBreakdown(c){

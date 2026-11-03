@@ -390,10 +390,11 @@ $('load-table-button').addEventListener('click',async()=>{
  const rows=parsePastedTable(pasted);
  if(!rows.length){status('Paste the copied FTO table first, then select Load table.','error');return}
  const ftoMatch=pasted.match(/FTO\s*No\.?\s*[:：]?\s*([A-Z0-9_-]+)/i);
- $('fto-number').value=ftoMatch&&ftoMatch[1]?ftoMatch[1].trim():'';existingFtoUnchanged=false;
+ $('fto-number').value=ftoMatch&&ftoMatch[1]?ftoMatch[1].trim():'';existingFtoUnchanged=false;existingFtoKnown=false;
  const result=renderPastedTable(rows);
  if(!result){status('No data rows detected. Paste the FTO table including its data.','error');return}
- if($('fto-number').value.trim())await lookupFtoBatch();
+ if(!$('fto-number').value.trim()){status('FTO number was not detected. Paste the official FTO header including its FTO No. before preparing the import.','error');return;}
+ await lookupFtoBatch();
  if(!existingFtoUnchanged&&!existingFtoKnown)status('Loaded '+result.rowCount+' FTO rows. Review the applicant names and status changes, then select Synchronize FTO.','success');
 });
 
@@ -575,7 +576,7 @@ function renderImportPreview(){
  updateImportButton();
 }
 async function refreshDuplicates(){
- const seq=++duplicateCheckSequence;duplicateCards=new Map();duplicateReferences=new Map();unknownCards=new Set();
+ const seq=++duplicateCheckSequence;duplicateCards=new Map();duplicateReferences=new Map();alreadyAllocatedCards=new Map();exemptedCards=new Set();unknownCards=new Set();
  const period=periodToDate(selectedPeriodDate());
  if(!period||!actionGroups().length){checkingDuplicates=false;duplicateCheckFailed=false;renderImportPreview();return}
  checkingDuplicates=true;duplicateCheckFailed=false;renderImportPreview();

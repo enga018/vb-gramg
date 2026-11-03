@@ -430,7 +430,7 @@ const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const day=s=>s?new Date(s+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'Date not recorded';
 const formatPeriod=s=>{const m=String(s||'').match(/^(\d{4})-(\d{2})/);if(!m)return s||'Monthly charge';const months=['January','February','March','April','May','June','July','August','September','October','November','December'];const n=Number(m[2]);return n>=1&&n<=12?months[n-1]+' '+m[1]:(s||'Monthly charge')};
-function status(message,type='info'){ const el=$('status');el.className='notice '+(type==='err'?'err':'info');el.textContent=message;el.classList.remove('hidden'); }
+function status(message,type='info'){ if(type==='err'||type==='error'||type==='success'){if(window.showToast)window.showToast(message,type==='err'?'error':type);const el=$('status');el.textContent='';el.classList.add('hidden');return;}const el=$('status');el.className='notice info';el.textContent=message;el.classList.remove('hidden'); }
 function calculateLedgerState(ledger){
  let charged=0,paid=0,returned=0,waived=0,deferred=0;const active=[];
  for(const e of ledger||[]){if(!e)continue;const n=Math.max(0,Number(e.amount)||0),t=e.entry_type;
@@ -470,7 +470,7 @@ async function saveExemption(){
    $('saveExemptionBtn').textContent='Saving '+(saved+failed.length)+'/'+jobCards.length+'…';
   }
   deriveCitizens();renderExemptions();render();
-  if(saved===jobCards.length){$('exemptJobCards').value='';$('exemptNote').value='';$('exemptionStatus').textContent=saved+' job card(s) are now exempt. FTO history is retained and contribution balances are excluded.';status(saved+' exemption(s) saved.');}
+  if(saved===jobCards.length){$('exemptJobCards').value='';$('exemptNote').value='';$('exemptionStatus').textContent=saved+' job card(s) are now exempt. FTO history is retained and contribution balances are excluded.';status(saved+' exemption(s) saved.','success');}
   else{$('exemptionStatus').textContent=saved+' saved; '+failed.length+' failed. '+failed.join(' | ');status('Some exemptions could not be saved. Review the exemption form.','err');}
   if(currentCitizen&&jobCards.includes(currentCitizen.id))$('overlay').classList.add('hidden');
  }catch(err){$('exemptionStatus').textContent=err.message||'Could not save exemptions.';}
@@ -485,7 +485,7 @@ async function removeExemption(jobCard){
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not remove exemption.');
   exemptions=data.exemptions||[];deriveCitizens();renderExemptions();render();
   $('exemptionStatus').textContent='Exemption removed for '+jobCard+'. Its existing contribution ledger now counts again.';
-  status('Exemption removed. Contribution totals recalculated.');
+  status('Exemption removed. Contribution totals recalculated.','success');
  }catch(err){$('exemptionStatus').textContent=err.message||'Could not remove exemption.';}
  finally{busy=false;}
 }
@@ -941,7 +941,7 @@ function showBulkPaymentForm(){
     const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:"bulk-bank-payment",entry_date:date,entries:parsed.rows}});
     if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save bank payment batch.');
     entries.push(...(data.entries||[]));deriveCitizens();render();$('overlay').classList.add('hidden');
-    status('Saved '+data.count+' Bank payments totalling '+fmt(data.total_amount)+'. Ledger updated.');
+    status('Saved '+data.count+' Bank payments totalling '+fmt(data.total_amount)+'. Ledger updated.','success');
    }catch(err){$('bulkSaveError').innerHTML='<div class="notice err">'+esc(err.message||'Could not save bank payment batch.')+'</div>';if($('saveBulkPayments')){$('saveBulkPayments').disabled=false;$('saveBulkPayments').textContent='Save '+parsed.rows.length+' bank payments';}}
    finally{busy=false;}
   });
@@ -970,7 +970,7 @@ function showEditForm(id){
   try{
    const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:payload});
    if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not edit transaction.');
-   updateEntryInMemory(data.entry);openCitizen(c.id);status('Transaction updated. Original and revised values were logged.');
+   updateEntryInMemory(data.entry);openCitizen(c.id);status('Transaction updated. Original and revised values were logged.','success');
   }catch(err){$('editError').innerHTML='<div class="notice err">'+esc(err.message||'Could not edit transaction.')+'</div>';}
   finally{busy=false;if($('saveEdit')){$('saveEdit').disabled=false;$('saveEdit').textContent='Save changes';}}
  });
@@ -989,7 +989,7 @@ function showAdjustmentForm(action){
   try{
    const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action,job_card_number:c.id,amount,entry_date:date,note}});
    if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save adjustment.');
-   updateEntryInMemory(data.entry);openCitizen(c.id);status((isWaiver?'Charge Waiver':'Refund')+' recorded and ledger recalculated.');
+   updateEntryInMemory(data.entry);openCitizen(c.id);status((isWaiver?'Charge Waiver':'Refund')+' recorded and ledger recalculated.','success');
   }catch(err){$('adjustmentError').innerHTML='<div class="notice err">'+esc(err.message||'Could not save adjustment.')+'</div>';}
   finally{busy=false;if($('saveAdjustment')){$('saveAdjustment').disabled=false;$('saveAdjustment').textContent=title;}}
  });
@@ -1001,7 +1001,7 @@ async function payInFull(){
  try{
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:"pay-in-full",job_card_number:c.id,entry_date:new Date().toISOString().slice(0,10)}});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not record full payment.');
-  updateEntryInMemory(data.entry);openCitizen(c.id);status('Full payment recorded. Ledger recalculated.');
+  updateEntryInMemory(data.entry);openCitizen(c.id);status('Full payment recorded. Ledger recalculated.','success');
  }catch(err){status(err.message||'Could not record full payment.','err');}
  finally{busy=false;}
 }
@@ -1116,6 +1116,6 @@ load().catch(err=>setStartupError(err&&err.message?err.message:'Could not start 
  if(node){node.className='notice err';node.textContent='Could not start the Contribution page. Return to the main menu, sign in again, then reopen Contribution.';}
 });
 </script>
-<script src="./navigation.js?v=20261031f"></script>
+<script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261031f"></script>
 </body>
 </html>

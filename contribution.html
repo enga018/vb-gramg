@@ -519,7 +519,7 @@ function render(){
  const start=isMobile?0:currentPage*pageSize,shown=isMobile?list.slice(0,mobileShown):list.slice(start,start+pageSize);
  $('prev-button').classList.toggle('hidden',isMobile);
  $('next-button').classList.toggle('hidden',isMobile);
- $('contribution-see-more').hidden=!isMobile||shown.length>=list.length;
+ const showMore=isMobile&&shown.length<list.length;$('contribution-see-more').hidden=!showMore;$('contribution-see-more').style.display=showMore?'inline-flex':'none';
  const thead=$('contribution-table').querySelector('thead'),tbody=$('contribution-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
  const head=document.createElement('tr');
  (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Remarks']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Remarks'){th.style.textAlign='right';th.className='balance-heading';}head.appendChild(th)});thead.appendChild(head);

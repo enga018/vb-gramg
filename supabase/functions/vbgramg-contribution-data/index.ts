@@ -681,18 +681,21 @@ Deno.serve(async(req:Request)=>{
      const {data:linkedTransactions,error:linkedTransactionsError}=await admin.from("vbgramg_fto_transactions").select("id,batch_id,reference_no,job_card_number,status,calculated_charge,ledger_entry_id").in("ledger_entry_id",linkedLedgerIds);
      if(linkedTransactionsError)throw linkedTransactionsError;
      const exemptCardsForGuard=new Set((exemptionRows||[]).map((row:Record<string,any>)=>String(row.job_card_number||"")));
+     // Reference numbers are unique within an FTO batch, not necessarily across batches.
+     // Use batch + reference as the identity so another batch row is never collapsed.
      const linkedByLedger=new Map<string,Map<string,Record<string,any>>>();
      for(const tx of linkedTransactions||[]){
-      const ledgerId=String(tx.ledger_entry_id||""),ref=String(tx.reference_no||"");
+      const ledgerId=String(tx.ledger_entry_id||""),ref=String(tx.reference_no||""),txBatchId=String(tx.batch_id||"");
       if(!ledgerId||!ref)continue;
       if(!linkedByLedger.has(ledgerId))linkedByLedger.set(ledgerId,new Map());
-      const incoming=String(tx.batch_id||"")===batchId?incomingByReference.get(ref):undefined;
-      linkedByLedger.get(ledgerId)!.set(ref,incoming||tx);
+      const identity=txBatchId+"::"+ref;
+      const incoming=txBatchId===batchId?incomingByReference.get(ref):undefined;
+      linkedByLedger.get(ledgerId)!.set(identity,incoming||tx);
      }
-     const allocationTotals=new Map<string,number>();
+          const allocationTotals=new Map<string,number>();
      for(let offset=0;offset<linkedLedgerIds.length;offset+=200){
       const ids=linkedLedgerIds.slice(offset,offset+200);
-      const {data:allocations,error:allocationError}=await admin.from("vbgramg_payment_allocations").select("transaction_id,amount").in("transaction_id",ids).eq("period_id",periodId);
+      const {data:allocations,error:allocationError}=await admin.from("vbgramg_payment_allocations").select("transaction_id,amount").in("transaction_id",ids);
       if(allocationError)throw allocationError;
       for(const allocation of allocations||[]){
        const id=String(allocation.transaction_id||"");

@@ -678,7 +678,7 @@ Deno.serve(async(req:Request)=>{
     const incomingByReference=new Map(normalized.map((row:Record<string,any>)=>[String(row.reference_no),row]));
     const linkedLedgerIds=[...new Set((oldBatchTransactions||[]).map(row=>String(row.ledger_entry_id||"")).filter(Boolean))];
     if(linkedLedgerIds.length){
-     const {data:linkedTransactions,error:linkedTransactionsError}=await admin.from("vbgramg_fto_transactions").select("id,reference_no,status,calculated_charge,ledger_entry_id").in("ledger_entry_id",linkedLedgerIds);
+     const {data:linkedTransactions,error:linkedTransactionsError}=await admin.from("vbgramg_fto_transactions").select("id,batch_id,reference_no,job_card_number,status,calculated_charge,ledger_entry_id").in("ledger_entry_id",linkedLedgerIds);
      if(linkedTransactionsError)throw linkedTransactionsError;
      const exemptCardsForGuard=new Set((exemptionRows||[]).map((row:Record<string,any>)=>String(row.job_card_number||"")));
      const linkedByLedger=new Map<string,Map<string,Record<string,any>>>();
@@ -686,7 +686,7 @@ Deno.serve(async(req:Request)=>{
       const ledgerId=String(tx.ledger_entry_id||""),ref=String(tx.reference_no||"");
       if(!ledgerId||!ref)continue;
       if(!linkedByLedger.has(ledgerId))linkedByLedger.set(ledgerId,new Map());
-      const incoming=incomingByReference.get(ref);
+      const incoming=String(tx.batch_id||"")===batchId?incomingByReference.get(ref):undefined;
       linkedByLedger.get(ledgerId)!.set(ref,incoming||tx);
      }
      const allocationTotals=new Map<string,number>();

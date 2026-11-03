@@ -211,7 +211,7 @@ Deno.serve(async(req:Request)=>{
     const cards=requestedCards.filter(card=>activeJobCards.has(card.toUpperCase()));
     const referenceRows=Array.isArray(body.reference_rows)?body.reference_rows.map((v:Record<string,unknown>)=>({job_card_number:String(v.job_card_number||"").trim(),person_name:String(v.person_name||"").trim(),reference_numbers:Array.isArray(v.reference_numbers)?[...new Set(v.reference_numbers.map((r:unknown)=>String(r||"").trim()).filter(Boolean))]:[]})).filter(row=>activeJobCards.has(row.job_card_number.toUpperCase())): [];
     if(cards.length>1000)return reply({error:"Check at most 1,000 job cards at a time."},400);
-    if(!cards.length)return reply({approved:true,duplicates:[],duplicate_references:[]});
+    if(!cards.length)return reply({approved:true,duplicates:[],duplicate_references:[],unknown_job_cards:[],exempted_job_cards:[],not_in_active_mis_job_cards:notInActiveMis});
     const {data:existing,error:existingError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,note,reference_numbers,period_id,applicant_name,applicant_number,applicant_unique_id,fto_applicant_name").in("job_card_number",cards).eq("entry_type","charge").eq("charge_period",periodDate);
     if(existingError)throw existingError;
     const {data:knownLedger,error:knownLedgerError}=await admin.from("vbgramg_charge_ledger").select("job_card_number").in("job_card_number",cards);
@@ -234,7 +234,10 @@ Deno.serve(async(req:Request)=>{
      const applicantMismatch=Boolean(r.applicant_name&&ftoName&&normalizeApplicantIdentity(r.applicant_name)!==normalizeApplicantIdentity(ftoName));
      return {id:r.id,job_card_number:r.job_card_number,person_name:r.person_name,amount:r.amount,is_deferred:r.is_deferred,charge_count:(existing||[]).filter(x=>String(x.job_card_number)===String(r.job_card_number)&&(!x.period_id||String(x.period_id)===periodId)&&!/^FTO\b/i.test(String(x.note||""))).length,applicant_name:r.applicant_name||null,applicant_number:r.applicant_number||null,applicant_unique_id:r.applicant_unique_id||null,fto_applicant_name:r.fto_applicant_name||null,fto_name:ftoName,applicant_mismatch:applicantMismatch,match_confident:matchConfident,suggested_applicant:!hasAttachedApplicant&&matchConfident?best:null,candidates};
     });
-    return reply({approved:true,charge_period:periodDate,duplicates,unknown_job_cards:cards.filter(card=>!known.has(card)),duplicate_references:[...duplicateMap].map(([job_card_number,refs])=>({job_card_number,reference_numbers:[...refs]}))});
+    const {data:exemptionRows,error:exemptionError}=await admin.from("vbgramg_contribution_exemptions").select("job_card_number");
+     if(exemptionError)throw exemptionError;
+     const exemptSet=new Set((exemptionRows||[]).map(r=>String(r.job_card_number).toUpperCase()));
+     return reply({approved:true,charge_period:periodDate,duplicates,unknown_job_cards:cards.filter(card=>!known.has(card)),duplicate_references:[...duplicateMap].map(([job_card_number,refs])=>({job_card_number,reference_numbers:[...refs]})),exempted_job_cards:requestedCards.filter(card=>exemptSet.has(card.toUpperCase())),not_in_active_mis_job_cards:notInActiveMis});
    }
    const rows=body.rows,sourceSha=String(body.source_sha256||"").toLowerCase(),sourceFilename=String(body.source_filename||"").trim().slice(0,255),ftoNumber=String(body.fto_number||"").trim().toUpperCase().slice(0,100);
    const reviewed=Array.isArray(body.reviewed_duplicates)?new Set(body.reviewed_duplicates.map((v:unknown)=>String(v||"").trim())):new Set<string>();

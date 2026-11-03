@@ -339,11 +339,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
   <div class="table-foot"><span id="import-count" class="muted"></span><div class="actions"><button id="fto-import-button" type="button" disabled>Synchronize FTO</button></div></div>
  </section>
   <div id="sync-status" class="status hidden" aria-live="polite" role="status"></div>
-  <section id="applicant-review" class="applicant-review hidden" aria-live="polite">
-   <div class="section-head"><div><h2>Applicant Matching Review</h2><p>FTO names are compared with applicants in the active MIS. Matches below 80%, or with less than a 10-point lead over the next candidate, require your confirmation. An applicant already attached to a charge is retained unless you explicitly select a different MIS applicant.</p></div></div>
-   <div id="applicant-review-summary" class="status">Checking applicant matches…</div>
-   <div class="table-wrap"><table id="applicant-review-table" class="import-table"><thead><tr><th>Job card</th><th>Name on FTO</th><th>Currently attached</th><th>MIS applicant candidates</th><th>Selection</th></tr></thead><tbody id="applicant-review-rows"></tbody></table></div><div id="applicant-review-pagination" class="table-foot"></div>
-  </section>
+
 
   </section>
 </div>
@@ -614,7 +610,7 @@ function renderManualTransactionDetails(group){
   const select=document.createElement('select');select.style.marginTop='8px';select.setAttribute('aria-label','MIS applicant for '+group.job_card_number);
   const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Choose MIS applicant';select.appendChild(placeholder);
   match.candidates.forEach((c,i)=>{const o=document.createElement('option');o.value=String(i);o.textContent=c.applicant_name+' · '+(c.applicant_number||'No number')+' · '+Number(c.match_percentage||0).toFixed(1)+'%';select.appendChild(o)});
-  const chosen=reconciliationApplicantSelections.get(group.job_card_number)||match.suggested_applicant;if(chosen){const idx=match.candidates.findIndex(c=>c.applicant_unique_id&&c.applicant_unique_id===chosen.applicant_unique_id);if(idx>=0)select.value=String(idx)}
+  const chosen=reconciliationApplicantSelections.get(group.job_card_number)||match.suggested_applicant;if(chosen){const idx=match.candidates.findIndex(c=>(c.applicant_unique_id&&chosen.applicant_unique_id&&c.applicant_unique_id===chosen.applicant_unique_id)||(!c.applicant_unique_id&&!chosen.applicant_unique_id&&String(c.applicant_name||'').trim()===String(chosen.applicant_name||'').trim()&&String(c.applicant_number||'').trim()===String(chosen.applicant_number||'').trim()));if(idx>=0)select.value=String(idx)}
   select.addEventListener('change',()=>{if(select.value==='')reconciliationApplicantSelections.delete(group.job_card_number);else reconciliationApplicantSelections.set(group.job_card_number,match.candidates[Number(select.value)]);renderManualTransactionDetails(group);updateImportButton()});review.appendChild(select);
  }
  if(duplicate){
@@ -624,7 +620,7 @@ function renderManualTransactionDetails(group){
    const select=document.createElement('select');select.style.marginTop='8px';select.setAttribute('aria-label','MIS applicant for '+group.job_card_number);
    const keep=document.createElement('option');keep.value='';keep.textContent=duplicate.applicant_name?'Keep attached applicant':'Choose MIS applicant';select.appendChild(keep);
    candidates.forEach((c,i)=>{const o=document.createElement('option');o.value=String(i);o.textContent=c.applicant_name+' · '+(c.applicant_number||'No number')+' · '+Number(c.match_percentage||0).toFixed(1)+'%';select.appendChild(o)});
-   const selected=reconciliationApplicantSelections.get(group.job_card_number);if(selected){const i=candidates.findIndex(c=>c.applicant_unique_id&&c.applicant_unique_id===selected.applicant_unique_id);if(i>=0)select.value=String(i)}
+   const selected=reconciliationApplicantSelections.get(group.job_card_number);if(selected){const i=candidates.findIndex(c=>(c.applicant_unique_id&&selected.applicant_unique_id&&c.applicant_unique_id===selected.applicant_unique_id)||(!c.applicant_unique_id&&!selected.applicant_unique_id&&String(c.applicant_name||'').trim()===String(selected.applicant_name||'').trim()&&String(c.applicant_number||'').trim()===String(selected.applicant_number||'').trim()));if(i>=0)select.value=String(i)}
    select.addEventListener('change',()=>{if(select.value==='')reconciliationApplicantSelections.delete(group.job_card_number);else reconciliationApplicantSelections.set(group.job_card_number,candidates[Number(select.value)]);reviewedCards.delete(group.job_card_number);renderManualTransactionDetails(group)});
    review.appendChild(select);
   }
@@ -737,43 +733,7 @@ $('fto-number').addEventListener('change',lookupFtoBatch);
 $('charge-period').addEventListener('change',()=>{reviewedCards=new Set();reviewedNewCards=new Set();refreshDuplicates()});
 $('amount-divisor').addEventListener('input',()=>buildImportGroups());
 $('amount-multiplier').addEventListener('input',()=>buildImportGroups());
-async function loadApplicantReview(ftoNumber){
- const section=$('applicant-review'),tbody=$('applicant-review-rows'),summary=$('applicant-review-summary');
- section.classList.remove('hidden');tbody.replaceChildren();summary.textContent='Checking FTO names against active MIS applicants…';summary.classList.remove('error','success');
- try{
-  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'get-fto-applicant-review',fto_number:ftoNumber}});
-  if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not check applicant matches.');
-  const pending=data.pending||[];
-  summary.textContent=Number(data.automatic_matches||0)+' applicant match(es) assigned automatically. '+pending.length+' require manual review.';
-  summary.classList.toggle('success',pending.length===0);
-  pending.forEach(item=>{
-   const tr=document.createElement('tr');
-   const cell=value=>{const td=document.createElement('td');td.textContent=value;tr.appendChild(td);return td};
-   const labels=['Job card','Name on FTO','Currently attached','MIS applicant candidates','Selection'];
-   const labelledCell=value=>{const td=cell(value);td.dataset.label=labels[tr.children.length-1]||'Details';return td};
-   labelledCell(item.job_card_number);labelledCell(item.fto_name);labelledCell(item.attached_applicant||'Not attached');
-   const candidateCell=labelledCell('');
-   const select=document.createElement('select');select.setAttribute('aria-label','Select the correct MIS applicant for '+item.job_card_number);
-   const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Choose MIS applicant';select.appendChild(placeholder);
-   (item.candidates||[]).forEach((candidate,index)=>{const option=document.createElement('option');option.value=String(index);option.textContent=candidate.applicant_name+' · '+(candidate.applicant_number||'No applicant no.')+' · '+Number(candidate.match_percentage||0).toFixed(1)+'%';select.appendChild(option)});
-   candidateCell.appendChild(select);
-   const choice=labelledCell('').appendChild(document.createElement('div'));choice.className='review-choice';
-   const reason=document.createElement('span');reason.className='muted';reason.textContent=item.reason||'Manual confirmation required';choice.appendChild(reason);
-   const save=document.createElement('button');save.type='button';save.className='review-save';save.textContent='Confirm applicant';save.disabled=true;select.addEventListener('change',()=>save.disabled=select.value==='');
-   save.addEventListener('click',async()=>{
-    if(select.value==='')return;const candidate=item.candidates[Number(select.value)];save.disabled=true;save.textContent='Saving…';
-    try{
-     const {data:result,error:saveError}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'save-fto-applicant-match',ledger_entry_id:item.ledger_entry_id,job_card_number:item.job_card_number,applicant_name:candidate.applicant_name,applicant_number:candidate.applicant_number,applicant_unique_id:candidate.applicant_unique_id,fto_name:item.fto_name}});
-     if(saveError||!result||result.error)throw new Error((result&&result.error)||(saveError&&saveError.message)||'Could not save applicant selection.');
-     tr.remove();const remaining=tbody.querySelectorAll('tr').length;summary.textContent='Applicant mapping saved. '+remaining+' item(s) still need review.';if(!remaining)summary.classList.add('success');
-    }catch(err){reason.textContent=err.message||'Could not save selection.';save.disabled=false;save.textContent='Retry';}
-   });
-   choice.appendChild(save);tbody.appendChild(tr);
-  });
-  if(!pending.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=5;td.textContent='All applicant mappings are confirmed.';tr.appendChild(td);tbody.appendChild(tr);}
-  renderTablePagination('applicant-review-table','applicant-review-pagination','applicants');
- }catch(err){summary.textContent=err.message||'Applicant matching review failed.';summary.classList.add('error');}
-}
+
 
 async function executeFtoSync(payload,button){
  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:payload});

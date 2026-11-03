@@ -308,19 +308,19 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 </div>
 
 <div id="import-controls" class="import-controls hidden">
- <div class="section-head"><div><h2>3. Import Settings</h2><p>Confirm the FTO details and contribution period.</p></div></div>
+ <div class="section-head"><div><h2>3. Import Settings</h2></div></div>
+ <div class="settings-panel">
  <div class="import-grid">
   <div class="field"><label for="fto-number">FTO number</label><input id="fto-number" type="text" maxlength="100" placeholder="Detected from pasted table" readonly required></div>
-  <div class="field"><label for="charge-period">Contribution period</label><select id="charge-period" required><option value="">Loading open periods…</option></select></div>
-  <div class="field"><label for="amount-divisor">Divide credit amount by</label><input id="amount-divisor" type="number" min="0.01" step="any" value="300" required></div>
-  <div class="field"><label for="amount-multiplier">Multiply result by</label><input id="amount-multiplier" type="number" min="0.01" step="any" value="100" required></div>
+  <div class="field"><label for="charge-period">Period</label><select id="charge-period" required><option value="">Loading open periods…</option></select></div>
+  <div class="field"><label for="amount-divisor">Credit ÷</label><input id="amount-divisor" type="number" min="0.01" step="any" value="300" required></div>
+  <div class="field"><label for="amount-multiplier">Result ×</label><input id="amount-multiplier" type="number" min="0.01" step="any" value="100" required></div>
 
  </div>
- <div class="settings-subhead">Charge calculation</div><p class="import-help">The FTO credit amount is converted into the contribution charge using the calculation below. This calculated amount is the charge recorded in Contribution.</p><p class="import-help">When a job card already has a manual charge for this period, review the old amount and FTO-calculated amount before confirming reconciliation. Existing payment allocations remain attached.</p>
  <div id="import-summary" class="status" aria-live="polite">Enter the FTO number and contribution period.</div>
+ </div>
  <section id="reconciliation-panel" class="reconciliation-panel hidden" aria-live="polite">
-  <div class="reconciliation-kicker">4. Existing ledger entries · review required</div>
-  <div class="section-head"><div><h2>Reconcile existing charges</h2><p>These job cards already have a manual charge for this contribution period. Review the existing amount against the FTO-calculated amount and confirm the applicant mapping. Confirmation updates the existing ledger entry; it does not create another charge. Existing payment allocations stay attached.</p></div></div>
+  <div class="section-head"><div><h2>4. Reconciliation</h2><p>Review existing charges before importing.</p></div></div>
   <div id="reconciliation-count" class="muted" style="margin:12px 0">No existing charges detected.</div>
   <div class="table-wrap import-table-wrap"><table id="reconciliation-preview-table" class="import-table"><thead><tr><th>#</th><th>Job card</th><th>FTO name</th><th>FTO rows</th><th>Reference numbers</th><th>Incoming status</th><th>New calculated charge</th><th>Existing charge → FTO</th><th>Reconciliation review</th></tr></thead><tbody></tbody></table></div><div id="reconciliation-pagination" class="table-foot"></div>
  </section>

@@ -89,7 +89,7 @@ dialog#create-dialog::backdrop{background:rgb(15 23 42 / 48%)}
 <div class="table-wrap"><table><thead><tr><th>Period</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody id="period-body"><tr><td colspan="4" class="empty">Loading periods…</td></tr></tbody></table></div><div id="period-more-wrap" style="display:flex;justify-content:center;margin-top:14px"><button id="period-see-more" class="secondary" type="button">See more</button></div></section>
 </main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
 const client=window.supabase.createClient("https://trtzhafgvqosjwrgckty.supabase.co","sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb");const $=id=>document.getElementById(id);let periods=[],sessionUser=null,periodsShown=10;
-function setStatus(msg,type=""){const el=$("status");el.textContent=msg;el.className="status"+(type?" "+type:"")}
+function setStatus(msg,type=""){if((type==="success"||type==="error")&&window.showToast){window.showToast(msg,type);const el=$("status");el.textContent="";el.className="status hidden";return}const el=$("status");el.textContent=msg;el.className="status"+(type?" "+type:"")}
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 async function verify(){const {data,error}=await client.auth.getSession();if(error||!data.session){location.replace("./");return false}const {data:access,error:accessError}=await client.functions.invoke("vbgramg-app-access",{body:{}});if(accessError||!access||access.approved!==true){await client.auth.signOut();location.replace("./");return false}sessionUser=data.session.user;return true}
 async function call(action,extra={}){const {data,error}=await client.functions.invoke("vbgramg-periods",{body:{action,...extra}});if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||"Period operation failed.");return data}
@@ -104,4 +104,4 @@ async function togglePeriod(p){const action=p.status==="open"?"close":"reopen";i
 
 $("create-period").addEventListener("click",createPeriod);$("toggle-create").addEventListener("click",()=>{const dialog=$("create-dialog");if(typeof dialog.showModal==="function")dialog.showModal();else dialog.setAttribute("open","");$("new-month").focus()});$("cancel-create").addEventListener("click",()=>{$("new-month").value="";$("create-dialog").close()});$("create-dialog").addEventListener("close",()=>{$("new-month").value=""});
 (async()=>{if(await verify())await load()})();
-</script><script src="./navigation.js?v=20261031f"></script></body></html>
+</script><script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261031f"></script></body></html>

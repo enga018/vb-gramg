@@ -662,17 +662,14 @@ Deno.serve(async(req:Request)=>{
     if(unverified.length)return reply({error:"Some local job cards are not in the existing contribution records. Verify them before importing.",unknown_job_cards:unverified},409);
    }
    let batchId=String(batchOld?.id||"");
-   if(!batchOld){
-    const {data:created,error:createError}=await admin.from("vbgramg_fto_batches").insert({fto_number:ftoNumber,period_id:periodId,contribution_period:contributionPeriod,ledger_charge_period:chargePeriod,village_scope:villageScope,created_by:authData.user.id}).select("id").single();
-    if(createError)throw createError;
-    batchId=String(created.id);
-   } else if(String(batchOld.period_id||"")!==periodId){
-    const {error:periodLinkError}=await admin.from("vbgramg_fto_batches").update({period_id:periodId}).eq("id",batchId);
-    if(periodLinkError)throw periodLinkError;
+   let oldBatchTransactions:Record<string,any>[]=[];
+   let oldBatchTransactionsError:any=null;
+   if(batchId){
+    const oldBatchResult=await admin.from("vbgramg_fto_transactions").select("id,reference_no,status,calculated_charge,job_card_number,processed_date,ledger_entry_id").eq("batch_id",batchId);
+    oldBatchTransactions=oldBatchResult.data||[];
+    oldBatchTransactionsError=oldBatchResult.error;
    }
-   const {data:oldBatchTransactions,error:oldBatchTransactionsError}=await admin.from("vbgramg_fto_transactions").select("id,reference_no,status,calculated_charge,job_card_number,processed_date,ledger_entry_id").eq("batch_id",batchId);
-    if(oldBatchTransactionsError)throw oldBatchTransactionsError;
-    // Protect each existing ledger charge against a revised FTO amount below its allocations.
+       // Protect each existing ledger charge against a revised FTO amount below its allocations.
     // Rebuild the prospective amount from every FTO transaction linked to that ledger row,
     // replacing references present in this incoming batch with their incoming values.
     const incomingByReference=new Map(normalized.map((row:Record<string,any>)=>[String(row.reference_no),row]));
@@ -714,6 +711,15 @@ Deno.serve(async(req:Request)=>{
      if(conflicts.length)return reply({error:"FTO changes would reduce an individual linked charge below its allocated payments. No FTO history or ledger records were changed. Review these job cards manually before retrying.",manual_review_required:true,allocation_conflicts:[...new Set(conflicts)]},409);
     }
    if(oldBatchTransactionsError)throw oldBatchTransactionsError;
+   // Only create or relink the FTO batch after the allocation preflight succeeds.
+   if(!batchOld){
+    const {data:created,error:createError}=await admin.from("vbgramg_fto_batches").insert({fto_number:ftoNumber,period_id:periodId,contribution_period:contributionPeriod,ledger_charge_period:chargePeriod,village_scope:villageScope,created_by:authData.user.id}).select("id").single();
+    if(createError)throw createError;
+    batchId=String(created.id);
+   } else if(String(batchOld.period_id||"")!==periodId){
+    const {error:periodLinkError}=await admin.from("vbgramg_fto_batches").update({period_id:periodId}).eq("id",batchId);
+    if(periodLinkError)throw periodLinkError;
+   }
    const oldByRef=new Map((oldBatchTransactions||[]).map(r=>[String(r.reference_no),r]));
    const nowIso=new Date().toISOString();
    const runInBatches=async<T,>(items:T[],size:number,worker:(item:T)=>Promise<void>)=>{for(let offset=0;offset<items.length;offset+=size){await Promise.all(items.slice(offset,offset+size).map(worker));}};

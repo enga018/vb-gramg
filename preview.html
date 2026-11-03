@@ -4,240 +4,200 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#f3f6fb">
-<title>FTO — Mobile UI Preview | VBGRAMG</title>
+<title>FTO Import — UI Preview | VBGRAMG</title>
 <style>
-:root{color-scheme:light;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f3f6fb;--ink:#172033;--muted:#667085;--line:#e3e8f0;--surface:#fff;--soft:#f7f9fc;--accent:#2457c5;--green:#17663a;--green-bg:#eaf8ef;--red:#9b2c20;--red-bg:#fff0ed;--amber:#8a4b08;--amber-bg:#fff4d9}
+:root{color-scheme:light;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f3f6fb;--ink:#172033;--muted:#667085;--line:#e3e8f0;--surface:#fff;--soft:#f7f9fc;--green:#17663a;--green-bg:#eaf8ef;--red:#9b2c20;--red-bg:#fff0ed;--amber:#8a4b08;--amber-bg:#fff4d9;--blue:#2457c5}
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;padding:20px;background:#f3f6fb;line-height:1.45;-webkit-font-smoothing:antialiased}
-main{width:min(100%,1080px);margin:0 auto}
+main{width:min(100%,1440px);margin:0 auto}
 .topbar,.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:0 4px 18px rgb(23 32 51 / 4%)}
-.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 22px;margin:0 auto 18px;flex-wrap:wrap}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 22px;margin:0 auto 16px;flex-wrap:wrap}
 h1{font-size:1.35rem;line-height:1.25;letter-spacing:-.025em;margin:0}
 .topbar p{margin:4px 0 0;color:var(--muted);font-size:.88rem}
-button,select,input{font:inherit}
-button{font-size:.9rem;font-weight:650;border:1px solid #cbd5e1;border-radius:10px;min-height:40px;padding:9px 13px;background:#e2e8f0;color:#0f172a;cursor:pointer}
-button:hover{background:#d7e0ec}
-button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}
+.header-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-left:auto}
+button,select,input,textarea{font:inherit}
+button,.link-button{font-size:.9rem;font-weight:650;border:1px solid #cbd5e1;border-radius:10px;min-height:40px;padding:9px 13px;background:#e2e8f0;color:#0f172a;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+button:hover,.link-button:hover{background:#d7e0ec}
 button.primary{background:#172033;border-color:#172033;color:#fff}
 button.primary:hover{background:#29364d}
-button.quiet{background:#f0f3f8;color:#344054;border-color:#e0e6ef}
-button.icon-button{width:40px;min-width:40px;height:40px;padding:0;font-size:1.25rem;line-height:1}
-.panel{padding:clamp(18px,2.5vw,28px);margin-bottom:16px}
+button.quiet,.link-button.quiet{background:#f0f3f8;color:#344054;border-color:#e0e6ef}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}
+.panel{padding:clamp(18px,2.5vw,26px);margin-bottom:16px}
+.panel-head,.section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h2{font-size:1.08rem;margin:0;letter-spacing:-.015em}
+h3{font-size:.96rem;margin:0}
+.subtext{color:var(--muted);font-size:.86rem;margin:4px 0 0;line-height:1.45}
 .demo-note{margin:0 0 14px;padding:10px 12px;border:1px solid #d9e5f5;border-radius:10px;background:#f3f7fd;color:#46566f;font-size:.8rem}
-.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
-h2{font-size:1.05rem;margin:0;letter-spacing:-.01em}
-.count{font-size:.78rem;color:var(--muted);font-weight:600;margin-top:3px}
-.toolbar{display:flex;align-items:end;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+label{display:block;font-size:.82rem;font-weight:700;margin:0 0 6px;color:#475467}
+input,select,textarea{width:100%;min-width:0;min-height:44px;padding:10px 12px;border:1px solid #cfd7e4;border-radius:10px;background:#fff;color:var(--ink);font-size:16px}
+textarea{resize:vertical;min-height:130px;line-height:1.5}
 .field{min-width:0}
-label{display:block;font-size:.78rem;font-weight:700;margin:0 0 6px;color:#475467}
-input,select{width:100%;min-width:0;min-height:44px;padding:10px 12px;border:1px solid #cfd7e4;border-radius:10px;background:#fff;color:var(--ink);font-size:16px}
-.history-list{display:grid;gap:0;border:1px solid #dfe5ee;border-radius:12px;overflow:hidden;background:#fff}
-.fto-card{display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:12px;align-items:center;padding:12px 15px;border:0;border-bottom:1px solid #e8edf4;border-radius:0;background:#fff}.fto-card:last-child{border-bottom:0}.fto-card:hover{background:#f6f9ff}
-.card-main{min-width:0;display:grid;grid-template-columns:minmax(180px,1fr) minmax(90px,.45fr) minmax(220px,1.2fr);align-items:center;gap:14px}
-.fto-number{font-size:.98rem;font-weight:780;letter-spacing:-.015em;overflow-wrap:anywhere}
-.period-line{margin:0;color:#475467;font-size:.85rem;font-weight:650}
-.statuses{display:flex;flex-wrap:wrap;gap:6px;margin:0}
-.status{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:7px;font-size:.72rem;font-weight:750;white-space:nowrap}
-.status:before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
-.status.processed{background:var(--green-bg);color:var(--green)}
-.status.rejected{background:var(--red-bg);color:var(--red)}
-.status.blank{background:var(--amber-bg);color:var(--amber)}
-.status.other{background:#eef1f5;color:#475467}
-.card-side{display:flex;flex-direction:row-reverse;align-items:center;justify-content:space-between;gap:9px}
-.action-wrap{position:relative}
-.last-checked{text-align:left;color:var(--muted);font-size:.72rem;line-height:1.35}
-.last-checked strong{display:block;color:#475467;font-size:.76rem;font-weight:650;margin-top:2px}
-.menu{position:absolute;right:0;top:calc(100% + 6px);z-index:5;width:164px;padding:5px;background:#fff;border:1px solid var(--line);border-radius:11px;box-shadow:0 12px 30px rgb(15 23 42 / 15%)}
-.menu[hidden]{display:none}
-.menu button{display:block;width:100%;text-align:left;min-height:40px;padding:9px 10px;border:0;background:transparent;font-size:.84rem}
-.menu button:hover{background:#f1f5f9}
-.empty{padding:32px 16px;text-align:center;color:var(--muted);border:1px dashed #cfd7e4;border-radius:12px;background:#fafbfd;font-size:.88rem}
-.list-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:13px;color:var(--muted);font-size:.78rem}
-dialog{width:min(96vw,1120px);max-width:1120px;max-height:92vh;border:1px solid var(--line);border-radius:16px;padding:0;box-shadow:0 18px 55px rgb(15 23 42 / 22%);color:var(--ink)}
-dialog::backdrop{background:rgb(15 23 42 / 48%)}
-.dialog-content{padding:22px}
-.view-content{max-height:92vh;overflow:auto}.view-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:14px 0}
-.summary-tile{padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--soft)}
-.summary-tile span{display:block;color:var(--muted);font-size:.72rem}.summary-tile strong{display:block;margin-top:3px}
-.transaction-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:12px 0}
-.transaction-table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px}
-.transaction-table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:.8rem}
-.transaction-table th,.transaction-table td{padding:10px 11px;text-align:left;border-bottom:1px solid #edf0f5}
-.transaction-table th{background:#f7f9fc;color:#475467;font-size:.72rem}
-.transaction-table td.amount{text-align:right;font-variant-numeric:tabular-nums}
-.tx-status{font-weight:700}.tx-status.processed{color:var(--green)}.tx-status.deferred{color:var(--amber)}.tx-status.rejected{color:var(--red)}
-.transaction-mobile{display:none}.privacy-note{color:var(--muted);font-size:.74rem}
-.dialog-content h2{font-size:1.05rem}
-.dialog-content p{margin:7px 0 18px;color:var(--muted);font-size:.84rem}
-.dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
-.sample-view{margin-top:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
-.sample-view div{display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border-bottom:1px solid #edf0f5;font-size:.82rem}
-.sample-view div:last-child{border:0}
-.sample-view span:first-child{color:var(--muted)}
+.status{margin-top:12px;padding:10px 12px;border:1px solid #e5eaf2;border-radius:10px;background:#f7f9fc;color:#475467;font-size:.84rem}
+.status.success{background:#effaf3;border-color:#ccebd7;color:#17663a}
+.status.warning{background:#fff8e9;border-color:#f1d59f;color:#805b2c}
+.paste-actions{display:flex;justify-content:flex-end;margin-top:10px}
+.section-gap{margin-top:18px}
+.table-wrap{overflow:auto;border:1px solid #dfe5ee;border-radius:11px;background:#fff}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:.86rem}
+th,td{padding:11px 13px;text-align:left;border-bottom:1px solid #edf0f5;vertical-align:middle;overflow-wrap:anywhere}
+th{background:#f5f7fb;color:#5b6577;font-size:.7rem;letter-spacing:.045em;text-transform:uppercase;font-weight:750;white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+td.amount{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.badge{display:inline-flex;align-items:center;padding:4px 8px;border-radius:7px;font-size:.73rem;font-weight:750;white-space:nowrap}
+.badge.green{background:var(--green-bg);color:var(--green)}
+.badge.amber{background:var(--amber-bg);color:var(--amber)}
+.badge.red{background:var(--red-bg);color:var(--red)}
+.badge.blue{background:#eaf2ff;color:#1d4f91}
+.settings-grid{display:grid;grid-template-columns:minmax(180px,1.2fr) minmax(190px,1.3fr) minmax(140px,.8fr) minmax(140px,.8fr);gap:12px;margin-top:16px}
+.settings-subhead{margin-top:18px;padding-top:14px;border-top:1px solid var(--line);font-size:.82rem;font-weight:750;color:#475467}
+.help-line{font-size:.8rem;color:var(--muted);margin:10px 0 0;line-height:1.5}
+.review-panel{margin-top:18px;padding:17px;border:1px solid #efd6a9;border-left:4px solid #d97706;border-radius:12px;background:#fffaf0}
+.review-panel h2{color:#854d0e}
+.review-panel .table-wrap{border-color:#efd6a9}
+.review-panel th{background:#fff1d6;color:#805b2c}
+.review-intro{font-size:.83rem;color:#805b2c;margin:5px 0 12px}
+.standard-section{margin-top:20px}
+.section-count{font-size:.78rem;color:var(--muted);font-weight:650}
+.applicant-panel{margin-top:18px;padding:17px;border:1px solid var(--line);border-radius:12px;background:#fbfcfe}
+.applicant-panel .subtext{max-width:850px}
+.choice{min-width:220px}
+.bottom-actions{display:flex;justify-content:flex-end;align-items:center;gap:12px;flex-wrap:wrap;margin-top:20px;padding-top:17px;border-top:1px solid var(--line)}
+.bottom-actions .note{margin-right:auto;color:var(--muted);font-size:.8rem}
+.mobile-cards{display:none}
+@media(max-width:850px){.settings-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){
  body{padding:10px}
  .topbar{padding:14px 16px;align-items:center;border-radius:13px;margin-bottom:12px}
- .topbar .header-actions{display:none}
+ .topbar h1{font-size:1.25rem}
+ .topbar p{font-size:.82rem}
+ .header-actions{width:100%;justify-content:flex-end}
+ .header-actions>*{min-height:39px;padding:8px 11px;font-size:.84rem}
  .panel{padding:14px;border-radius:13px}
- .panel-head{align-items:center;margin-bottom:14px}
- .toolbar{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin-bottom:13px}
- .fto-card{padding:12px 11px;gap:8px;grid-template-columns:minmax(0,1fr) 112px}
- .card-main{display:block}.fto-number{font-size:.88rem;font-weight:700;line-height:1.4}
- .period-line{font-size:.78rem;margin-top:3px}
- .statuses{gap:5px;margin-top:7px}
- .status{font-size:.65rem;padding:3px 7px}
- .card-side{height:100%;flex-direction:column-reverse;justify-content:space-between;align-items:flex-end;gap:6px}
- .last-checked{text-align:right;font-size:.66rem}
- .last-checked strong{font-size:.7rem;max-width:112px}
- .action-wrap{align-self:flex-end}
- .list-foot{align-items:flex-start}
- dialog{width:calc(100vw - 16px);max-width:none;max-height:94vh}
- .dialog-content{padding:16px}.view-content{max-height:94vh}
- .view-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
- .transaction-table-wrap{display:none}.transaction-mobile{display:grid;gap:8px;max-height:44vh;overflow:auto}
- .transaction-mobile-card{border:1px solid var(--line);border-radius:10px;padding:10px}
- .transaction-mobile-card .tx-top{display:flex;justify-content:space-between;gap:8px;font-size:.78rem;font-weight:750}
- .transaction-mobile-card .tx-name{margin:4px 0;color:#344054;font-size:.82rem}
- .transaction-mobile-card .tx-meta{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;color:var(--muted);font-size:.72rem}
- .transaction-mobile-card strong{display:block;color:var(--ink);font-size:.76rem}
- .transaction-toolbar{align-items:flex-start;flex-direction:column}
- .privacy-note{font-size:.7rem}
- .dialog-actions{display:grid;grid-template-columns:1fr 1fr}
- .dialog-actions button{width:100%}
+ .panel-head{align-items:flex-start}
+ .paste-actions button{width:100%}
+ textarea{min-height:145px}
+ .settings-grid{grid-template-columns:minmax(0,1fr);gap:12px}
+ .review-panel,.applicant-panel{padding:12px}
+ .table-wrap.desktop-table{display:none}
+ .mobile-cards{display:grid;gap:9px}
+ .mobile-card{padding:11px;border:1px solid #dfe5ee;border-radius:11px;background:#fff}
+ .mobile-card-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+ .mobile-card strong{font-size:.85rem;overflow-wrap:anywhere}
+ .mobile-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;margin-top:10px}
+ .mobile-meta span{display:block;color:var(--muted);font-size:.68rem;margin-bottom:2px}
+ .mobile-meta strong{font-size:.8rem}
+ .mobile-card select{margin-top:8px}
+ .bottom-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:9px}
+ .bottom-actions .note{margin:0}
+ .bottom-actions button{width:100%}
 }
-@media(max-width:370px){
- body{padding:8px}
- .topbar{padding:13px}
- .panel{padding:12px}
- .fto-card{padding:10px 9px;grid-template-columns:minmax(0,1fr) 98px}
- .fto-number{font-size:.82rem}
- .status{font-size:.61rem;padding:3px 6px}
-}
-
 </style>
 </head>
 <body>
 <main>
 <header class="topbar">
- <div><h1>FTO</h1><p>Review imported FTOs, payment statuses and period mappings.</p></div>
- <div class="header-actions"><button class="quiet" type="button">Import FTO</button></div>
+ <div><h1>FTO Import</h1><p>Import FTO transactions and assign a contribution period.</p></div>
+ <div class="header-actions"><a class="link-button quiet" href="./fto.html">Back to FTO</a></div>
 </header>
-<p class="demo-note">Design preview only · Sample records and actions do not connect to the live database.</p>
+<p class="demo-note">UI preview only · Illustrative records and controls. This page does not connect to the live import process.</p>
+
 <section class="panel">
- <div class="panel-head">
-  <div><h2>Imported FTO history</h2><div class="count" id="record-count">6 imported FTOs</div></div>
-  <button class="primary" type="button">Import FTO</button>
+ <div class="panel-head"><div><h2>1. Paste FTO Table</h2><p class="subtext">Paste the table copied from the official FTO page.</p></div></div>
+ <div class="section-gap">
+  <label for="paste-data">FTO table data</label>
+  <textarea id="paste-data" placeholder="Paste copied FTO table data here…">FTO No: FTO/2026-27/001842
+Job Card No.    Applicant Name    Credit Amount    Status    Processed Date
+MZ-07-001-005-001/197    Lalbiakdika    2400    Processed    03 Nov 2026
+MZ-07-001-005-001/198    Lalnunpuii    1800    Processed    03 Nov 2026
+MZ-07-001-005-001/203    Rohmingliani    2100    Processed    03 Nov 2026
+MZ-07-001-005-001/211    Lalhmingmawii    1600
+MZ-07-001-005-001/219    Zoramthangi    1900    Rejected</textarea>
+  <div class="paste-actions"><button class="primary" id="load-button" type="button">Load Table</button></div>
+  <div class="status success" id="load-status" role="status">Sample FTO table loaded · 5 transactions detected</div>
  </div>
- <div class="toolbar">
-  <div class="field"><label for="search">Search FTO / period</label><input id="search" type="search" placeholder="Search FTO number or period"></div>
-  <div class="field"><label for="period-filter">Contribution period</label><select id="period-filter"><option value="">All periods</option><option>AUG26</option><option>SEP26</option><option>OCT26</option><option>NOV26</option></select></div>
+ <div class="section-gap">
+  <div class="section-head"><div><h2>2. FTO Transactions</h2><p class="subtext">Preview of the transactions found in the pasted table.</p></div><span class="section-count">5 transactions</span></div>
+  <div class="table-wrap desktop-table" style="margin-top:12px"><table><thead><tr><th>Job Card No.</th><th>Applicant Name</th><th>Credit Amount</th><th>Status</th><th>Processed Date</th></tr></thead><tbody>
+   <tr><td>MZ-07-001-005-001/197</td><td>Lalbiakdika</td><td class="amount">₹2,400</td><td><span class="badge green">Processed</span></td><td>03 Nov 2026</td></tr>
+   <tr><td>MZ-07-001-005-001/198</td><td>Lalnunpuii</td><td class="amount">₹1,800</td><td><span class="badge green">Processed</span></td><td>03 Nov 2026</td></tr>
+   <tr><td>MZ-07-001-005-001/203</td><td>Rohmingliani</td><td class="amount">₹2,100</td><td><span class="badge green">Processed</span></td><td>03 Nov 2026</td></tr>
+   <tr><td>MZ-07-001-005-001/211</td><td>Lalhmingmawii</td><td class="amount">₹1,600</td><td><span class="badge amber">Deferred</span></td><td>—</td></tr>
+   <tr><td>MZ-07-001-005-001/219</td><td>Zoramthangi</td><td class="amount">₹1,900</td><td><span class="badge red">Rejected</span></td><td>—</td></tr>
+  </tbody></table></div>
+  <div class="mobile-cards">
+   <article class="mobile-card"><div class="mobile-card-top"><strong>MZ-07-001-005-001/197</strong><span class="badge green">Processed</span></div><div class="mobile-meta"><div><span>Applicant</span><strong>Lalbiakdika</strong></div><div><span>Credit amount</span><strong>₹2,400</strong></div><div><span>Processed date</span><strong>03 Nov 2026</strong></div></div></article>
+   <article class="mobile-card"><div class="mobile-card-top"><strong>MZ-07-001-005-001/198</strong><span class="badge green">Processed</span></div><div class="mobile-meta"><div><span>Applicant</span><strong>Lalnunpuii</strong></div><div><span>Credit amount</span><strong>₹1,800</strong></div><div><span>Processed date</span><strong>03 Nov 2026</strong></div></div></article>
+   <article class="mobile-card"><div class="mobile-card-top"><strong>MZ-07-001-005-001/203</strong><span class="badge green">Processed</span></div><div class="mobile-meta"><div><span>Applicant</span><strong>Rohmingliani</strong></div><div><span>Credit amount</span><strong>₹2,100</strong></div><div><span>Processed date</span><strong>03 Nov 2026</strong></div></div></article>
+   <article class="mobile-card"><div class="mobile-card-top"><strong>MZ-07-001-005-001/211</strong><span class="badge amber">Deferred</span></div><div class="mobile-meta"><div><span>Applicant</span><strong>Lalhmingmawii</strong></div><div><span>Credit amount</span><strong>₹1,600</strong></div><div><span>Processed date</span><strong>—</strong></div></div></article>
+   <article class="mobile-card"><div class="mobile-card-top"><strong>MZ-07-001-005-001/219</strong><span class="badge red">Rejected</span></div><div class="mobile-meta"><div><span>Applicant</span><strong>Zoramthangi</strong></div><div><span>Credit amount</span><strong>₹1,900</strong></div><div><span>Processed date</span><strong>—</strong></div></div></article>
+  </div>
  </div>
- <div class="history-list" id="history-list">
-  <article class="fto-card" data-fto="FTO/2026-27/001842" data-period="NOV26" data-processed="312" data-blank="0" data-rejected="2" data-other="0" data-updated="03 Nov 2026">
-   <div class="card-main"><div class="fto-number">FTO/2026-27/001842</div><div class="period-line">NOV26</div><div class="statuses"><span class="status processed">Processed 312</span><span class="status rejected">Rejected 2</span></div></div>
-   <div class="card-side"><div class="action-wrap"><button class="icon-button quiet action-trigger" aria-label="Actions for FTO 001842" aria-expanded="false">⋮</button><div class="menu" hidden><button data-action="view">View</button><button data-action="period">Change period</button></div></div><div class="last-checked">Last checked<strong>03 Nov 2026 · 10:42</strong></div></div>
-  </article>
-  <article class="fto-card" data-fto="FTO/2026-27/001816" data-period="OCT26" data-processed="286" data-blank="4" data-rejected="1" data-other="0" data-updated="02 Nov 2026">
-   <div class="card-main"><div class="fto-number">FTO/2026-27/001816</div><div class="period-line">OCT26</div><div class="statuses"><span class="status processed">Processed 286</span><span class="status blank">Deferred 4</span><span class="status rejected">Rejected 1</span></div></div>
-   <div class="card-side"><div class="action-wrap"><button class="icon-button quiet action-trigger" aria-label="Actions for FTO 001816" aria-expanded="false">⋮</button><div class="menu" hidden><button data-action="view">View</button><button data-action="period">Change period</button></div></div><div class="last-checked">Last checked<strong>02 Nov 2026 · 16:18</strong></div></div>
-  </article>
-  <article class="fto-card" data-fto="FTO/2026-27/001793" data-period="OCT26" data-processed="194" data-blank="0" data-rejected="0" data-other="0" data-updated="31 Oct 2026">
-   <div class="card-main"><div class="fto-number">FTO/2026-27/001793</div><div class="period-line">OCT26</div><div class="statuses"><span class="status processed">Processed 194</span></div></div>
-   <div class="card-side"><div class="action-wrap"><button class="icon-button quiet action-trigger" aria-label="Actions for FTO 001793" aria-expanded="false">⋮</button><div class="menu" hidden><button data-action="view">View</button><button data-action="period">Change period</button></div></div><div class="last-checked">Last checked<strong>31 Oct 2026 · 09:06</strong></div></div>
-  </article>
-  <article class="fto-card" data-fto="FTO/2026-27/001762" data-period="SEP26" data-processed="241" data-blank="3" data-rejected="0" data-other="0" data-updated="28 Oct 2026">
-   <div class="card-main"><div class="fto-number">FTO/2026-27/001762</div><div class="period-line">SEP26</div><div class="statuses"><span class="status processed">Processed 241</span><span class="status blank">Deferred 3</span></div></div>
-   <div class="card-side"><div class="action-wrap"><button class="icon-button quiet action-trigger" aria-label="Actions for FTO 001762" aria-expanded="false">⋮</button><div class="menu" hidden><button data-action="view">View</button><button data-action="period">Change period</button></div></div><div class="last-checked">Last checked<strong>28 Oct 2026 · 14:31</strong></div></div>
-  </article>
-  <article class="fto-card" data-fto="FTO/2026-27/001735" data-period="AUG26" data-processed="178" data-blank="0" data-rejected="5" data-other="0" data-updated="25 Oct 2026">
-   <div class="card-main"><div class="fto-number">FTO/2026-27/001735</div><div class="period-line">AUG26</div><div class="statuses"><span class="status processed">Processed 178</span><span class="status rejected">Rejected 5</span></div></div>
-   <div class="card-side"><div class="action-wrap"><button class="icon-button quiet action-trigger" aria-label="Actions for FTO 001735" aria-expanded="false">⋮</button><div class="menu" hidden><button data-action="view">View</button><button data-action="period">Change period</button></div></div><div class="last-checked">Last checked<strong>25 Oct 2026 · 11:05</strong></div></div>
-  </article>
-  <article class="fto-card" data-fto="FTO/2026-27/001701" data-period="AUG26" data-processed="0" data-blank="12" data-rejected="0" data-other="0" data-updated="21 Oct 2026">
-   <div class="card-main"><div class="fto-number">FTO/2026-27/001701</div><div class="period-line">AUG26</div><div class="statuses"><span class="status blank">Deferred 12</span></div></div>
-   <div class="card-side"><div class="action-wrap"><button class="icon-button quiet action-trigger" aria-label="Actions for FTO 001701" aria-expanded="false">⋮</button><div class="menu" hidden><button data-action="view">View</button><button data-action="period">Change period</button></div></div><div class="last-checked">Last checked<strong>21 Oct 2026 · 08:50</strong></div></div>
-  </article>
+</section>
+
+<section class="panel">
+ <div class="panel-head"><div><h2>3. Import Settings</h2><p class="subtext">Confirm the FTO details and contribution period.</p></div></div>
+ <div class="settings-grid">
+  <div class="field"><label for="fto-number">FTO number</label><input id="fto-number" value="FTO/2026-27/001842" readonly></div>
+  <div class="field"><label for="period">Contribution period</label><select id="period"><option>NOV26</option><option>OCT26</option><option>SEP26</option><option>AUG26</option></select></div>
+  <div class="field"><label for="divisor">Divide by</label><input id="divisor" type="number" value="300"></div>
+  <div class="field"><label for="multiplier">Multiply by</label><input id="multiplier" type="number" value="100"></div>
  </div>
- <div class="empty" id="empty" hidden>No FTOs match this search or period.</div>
- <div class="list-foot"><span id="showing">Showing 10 of 11 matching FTOs</span><span>Newest checked first</span></div>\n <div style="display:flex;justify-content:center;margin-top:14px"><button class="quiet" id="see-more" type="button">See more</button></div>
+ <div class="settings-subhead">Charge calculation</div>
+ <p class="help-line">Calculation settings are grouped together for clarity. The controls retain the same visual style as the other VBGRAMG pages.</p>
+</section>
+
+<section class="panel">
+ <section class="review-panel">
+  <div class="section-head"><div><h2>4. Reconcile Existing Charges</h2><p class="review-intro">These job cards already have a charge for this period. Review the comparison and applicant mapping before confirming.</p></div><span class="badge amber">2 need review</span></div>
+  <div class="table-wrap desktop-table"><table><thead><tr><th>Job Card</th><th>FTO Name</th><th>Incoming Status</th><th>FTO Amount</th><th>Existing Charge → FTO</th><th>Review</th></tr></thead><tbody>
+   <tr><td>MZ-07-001-005-001/197</td><td>Lalbiakdika</td><td><span class="badge green">Processed</span></td><td class="amount">₹800</td><td>₹700 → ₹800</td><td><span class="badge amber">Confirm mapping</span></td></tr>
+   <tr><td>MZ-07-001-005-001/211</td><td>Lalhmingmawii</td><td><span class="badge amber">Deferred</span></td><td class="amount">₹533</td><td>₹700 → ₹533</td><td><span class="badge amber">Review amount</span></td></tr>
+  </tbody></table></div>
+  <div class="mobile-cards">
+   <article class="mobile-card"><div class="mobile-card-top"><strong>MZ-07-001-005-001/197</strong><span class="badge amber">Confirm mapping</span></div><div class="mobile-meta"><div><span>FTO name</span><strong>Lalbiakdika</strong></div><div><span>Status</span><strong>Processed</strong></div><div><span>FTO amount</span><strong>₹800</strong></div><div><span>Existing → FTO</span><strong>₹700 → ₹800</strong></div></div></article>
+   <article class="mobile-card"><div class="mobile-card-top"><strong>MZ-07-001-005-001/211</strong><span class="badge amber">Review amount</span></div><div class="mobile-meta"><div><span>FTO name</span><strong>Lalhmingmawii</strong></div><div><span>Status</span><strong>Deferred</strong></div><div><span>FTO amount</span><strong>₹533</strong></div><div><span>Existing → FTO</span><strong>₹700 → ₹533</strong></div></div></article>
+  </div>
+ </section>
+
+ <section class="standard-section">
+  <div class="section-head"><div><h2>5. New FTO Imports</h2><p class="subtext">Job cards without an existing charge for this period.</p></div><span class="section-count">3 records</span></div>
+  <div class="table-wrap desktop-table" style="margin-top:12px"><table><thead><tr><th>Job Card</th><th>FTO Name</th><th>Reference Numbers</th><th>Current Status</th><th>Calculated Charge</th><th>Check</th></tr></thead><tbody>
+   <tr><td>MZ-07-001-005-001/198</td><td>Lalnunpuii</td><td>…842B</td><td><span class="badge green">Processed</span></td><td class="amount">₹600</td><td><span class="badge green">Clear</span></td></tr>
+   <tr><td>MZ-07-001-005-001/203</td><td>Rohmingliani</td><td>…842C</td><td><span class="badge green">Processed</span></td><td class="amount">₹700</td><td><span class="badge green">Clear</span></td></tr>
+   <tr><td>MZ-07-001-005-001/219</td><td>Zoramthangi</td><td>…842E</td><td><span class="badge red">Rejected</span></td><td class="amount">₹633</td><td><span class="badge blue">Status check</span></td></tr>
+  </tbody></table></div>
+  <div class="mobile-cards">
+   <article class="mobile-card"><div class="mobile-card-top"><strong>MZ-07-001-005-001/198</strong><span class="badge green">Clear</span></div><div class="mobile-meta"><div><span>FTO name</span><strong>Lalnunpuii</strong></div><div><span>Status</span><strong>Processed</strong></div><div><span>Calculated charge</span><strong>₹600</strong></div><div><span>Reference</span><strong>…842B</strong></div></div></article>
+   <article class="mobile-card"><div class="mobile-card-top"><strong>MZ-07-001-005-001/203</strong><span class="badge green">Clear</span></div><div class="mobile-meta"><div><span>FTO name</span><strong>Rohmingliani</strong></div><div><span>Status</span><strong>Processed</strong></div><div><span>Calculated charge</span><strong>₹700</strong></div><div><span>Reference</span><strong>…842C</strong></div></div></article>
+   <article class="mobile-card"><div class="mobile-card-top"><strong>MZ-07-001-005-001/219</strong><span class="badge blue">Status check</span></div><div class="mobile-meta"><div><span>FTO name</span><strong>Zoramthangi</strong></div><div><span>Status</span><strong>Rejected</strong></div><div><span>Calculated charge</span><strong>₹633</strong></div><div><span>Reference</span><strong>…842E</strong></div></div></article>
+  </div>
+ </section>
+
+ <section class="applicant-panel">
+  <div class="section-head"><div><h2>6. Applicant Matching Review</h2><p class="subtext">Review applicant matches where confirmation is needed. Current selections are shown alongside the FTO name.</p></div><span class="badge amber">1 requires confirmation</span></div>
+  <div class="table-wrap desktop-table" style="margin-top:12px"><table><thead><tr><th>Job Card</th><th>Name on FTO</th><th>Currently Attached</th><th>MIS Applicant Selection</th></tr></thead><tbody>
+   <tr><td>MZ-07-001-005-001/197</td><td>Lalbiakdika</td><td>Lalbiakdika</td><td><select aria-label="MIS applicant selection"><option>Lalbiakdika · Applicant 01</option><option>Choose another applicant</option></select></td></tr>
+  </tbody></table></div>
+  <div class="mobile-cards">
+   <article class="mobile-card"><div class="mobile-card-top"><strong>MZ-07-001-005-001/197</strong><span class="badge amber">Confirm</span></div><div class="mobile-meta"><div><span>Name on FTO</span><strong>Lalbiakdika</strong></div><div><span>Currently attached</span><strong>Lalbiakdika</strong></div></div><label for="mobile-applicant" style="margin-top:10px">MIS applicant</label><select id="mobile-applicant"><option>Lalbiakdika · Applicant 01</option><option>Choose another applicant</option></select></article>
+  </div>
+ </section>
+
+ <div class="bottom-actions"><span class="note">Preview only · No records will be imported from this page.</span><button class="primary" type="button" id="preview-import">Import and Synchronize FTO</button></div>
+ <div class="status hidden" id="preview-message" role="status"></div>
 </section>
 </main>
-<dialog id="view-dialog"><div class="dialog-content view-content">
- <div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><div><h2 id="view-title">FTO details</h2><p id="view-subtitle">All transactions in this FTO</p></div><button class="icon-button quiet" type="button" onclick="document.getElementById('view-dialog').close()">×</button></div>
- <div class="view-summary" id="view-summary"></div>
- <div class="transaction-toolbar"><strong id="transaction-count">Transaction details</strong><button class="quiet" type="button" id="toggle-sensitive">Show UTR &amp; rejection reason</button></div>
- <div class="transaction-table-wrap"><table class="transaction-table"><thead id="transaction-head"></thead><tbody id="transaction-body"></tbody></table></div>
- <div class="transaction-mobile" id="transaction-mobile"></div>
- <p class="privacy-note">UTR and rejection reason are hidden by default. Sample transaction records are illustrative.</p>
- <div class="dialog-actions"><button class="quiet" onclick="document.getElementById('view-dialog').close()">Close</button></div>
- </div></dialog>
-<dialog id="period-dialog"><form class="dialog-content" id="period-form"><h2>Change contribution period</h2><p>Preview only. Changing a period here updates only this sample card.</p><label for="period-choice">Contribution period</label><select id="period-choice"><option>NOV26</option><option>OCT26</option><option>SEP26</option><option>AUG26</option></select><div class="dialog-actions"><button class="quiet" type="button" onclick="document.getElementById('period-dialog').close()">Cancel</button><button class="primary" type="submit">Save</button></div></form></dialog>
 <script>
-const list=document.getElementById('history-list'),search=document.getElementById('search'),filter=document.getElementById('period-filter');
-const batchSize=10;let shown= batchSize, activeCard=null;
-// Add realistic preview-only records so the progressive loading control can be reviewed.
-[...list.children].slice(0,5).forEach((source,i)=>{
- const card=source.cloneNode(true),n=1690-i*7;
- card.dataset.fto='FTO/2026-27/00'+n;card.dataset.period=['SEP26','AUG26','JUL26'][i%3];
- card.dataset.processed=String(156-i*11);card.dataset.blank=String(i%3);card.dataset.rejected=String(i%2);
- card.dataset.updated=['18 Oct 2026','16 Oct 2026','14 Oct 2026'][i%3];
- card.querySelector('.fto-number').textContent=card.dataset.fto;
- card.querySelector('.period-line').textContent=card.dataset.period;
- card.querySelector('.statuses').innerHTML='<span class="status processed">Processed '+card.dataset.processed+'</span>'+(Number(card.dataset.blank)?'<span class="status blank">Deferred '+card.dataset.blank+'</span>':'');
- card.querySelector('.last-checked strong').textContent=card.dataset.updated;
- list.appendChild(card);
+document.getElementById('load-button').addEventListener('click',()=>{
+ const status=document.getElementById('load-status');
+ status.textContent='Preview refreshed · 5 sample transactions shown';
+ status.className='status success';
 });
-const moreButton=document.getElementById('see-more');
-function refresh(reset=true){
- if(reset)shown=batchSize;
- const q=search.value.trim().toLowerCase(),p=filter.value;
- const matches=[...list.children].filter(card=>(!q||card.dataset.fto.toLowerCase().includes(q)||card.dataset.period.toLowerCase().includes(q))&&(!p||card.dataset.period===p));
- matches.forEach((card,i)=>card.hidden=i>=shown);
- document.getElementById('record-count').textContent=matches.length+' of '+list.children.length+' imported FTOs';
- document.getElementById('showing').textContent='Showing '+Math.min(shown,matches.length)+' of '+matches.length+' matching FTOs';
- document.getElementById('empty').hidden=matches.length!==0;
- moreButton.hidden=matches.length<=shown;
-}
-search.addEventListener('input',()=>refresh());filter.addEventListener('change',()=>refresh());
-moreButton.addEventListener('click',()=>{shown+=batchSize;refresh(false);});
-list.addEventListener('click',e=>{
- const trigger=e.target.closest('.action-trigger');
- if(trigger){const menu=trigger.nextElementSibling,open=menu.hidden;document.querySelectorAll('.menu').forEach(m=>m.hidden=true);document.querySelectorAll('.action-trigger').forEach(b=>b.setAttribute('aria-expanded','false'));menu.hidden=!open;trigger.setAttribute('aria-expanded',String(open));return;}
- const action=e.target.closest('[data-action]');if(!action)return;
- activeCard=action.closest('.fto-card');action.closest('.menu').hidden=true;activeCard.querySelector('.action-trigger').setAttribute('aria-expanded','false');
- if(action.dataset.action==='view'){
-  renderFtoDetails(activeCard);
-  document.getElementById('view-dialog').showModal();
- }else{  document.getElementById('period-choice').value=activeCard.dataset.period;
-  document.getElementById('period-dialog').showModal();
- }
+document.getElementById('preview-import').addEventListener('click',()=>{
+ const message=document.getElementById('preview-message');
+ message.textContent='This is a visual preview. The live import action is intentionally disabled.';
+ message.className='status warning';
 });
-
-const sampleTransactions=[
- {job:'MZ-07-001-005-001/197',name:'Lalbiakdika',amount:2400,status:'Processed',date:'03 Nov 2026',utr:'UTR20261103001842A',reason:''},
- {job:'MZ-07-001-005-001/198',name:'Lalnunpuii',amount:1800,status:'Processed',date:'03 Nov 2026',utr:'UTR20261103001842B',reason:''},
- {job:'MZ-07-001-005-001/203',name:'Rohmingliani',amount:2100,status:'Processed',date:'03 Nov 2026',utr:'UTR20261103001842C',reason:''},
- {job:'MZ-07-001-005-001/211',name:'Lalhmingmawii',amount:1600,status:'Deferred',date:'—',utr:'',reason:''},
- {job:'MZ-07-001-005-001/219',name:'Zoramthangi',amount:1900,status:'Rejected',date:'—',utr:'',reason:'Invalid account details'},
- {job:'MZ-07-001-005-001/225',name:'Lalremruati',amount:2200,status:'Processed',date:'03 Nov 2026',utr:'UTR20261103001842D',reason:''}
-];
-let sensitiveVisible=false;
-function renderFtoDetails(card){
- const p=Number(card.dataset.processed||0),d=Number(card.dataset.blank||0),r=Number(card.dataset.rejected||0);
- document.getElementById('view-title').textContent=card.dataset.fto;
- document.getElementById('view-subtitle').textContent='Contribution period: '+card.dataset.period+' · Last checked: '+card.dataset.updated;
- document.getElementById('view-summary').innerHTML=[['Total transactions',p+d+r],['Processed',p],['Deferred',d],['Rejected',r],['Period',card.dataset.period]].map(x=>'<div class="summary-tile"><span>'+x[0]+'</span><strong>'+x[1]+'</strong></div>').join('');
- const rows=sampleTransactions;
- document.getElementById('transaction-count').textContent='Transaction details · '+rows.length+' sample rows shown';
- document.getElementById('transaction-head').innerHTML='<tr><th>Job Card No.</th><th>Applicant Name</th><th>Credit Amount</th><th>Status</th><th>Processed Date</th>'+(sensitiveVisible?'<th>UTR</th><th>Rejection Reason</th>':'')+'</tr>';
- document.getElementById('transaction-body').innerHTML=rows.map(t=>'<tr><td>'+t.job+'</td><td>'+t.name+'</td><td class="amount">₹'+t.amount.toLocaleString('en-IN')+'</td><td><span class="tx-status '+t.status.toLowerCase()+'">'+t.status+'</span></td><td>'+t.date+'</td>'+(sensitiveVisible?'<td>'+(t.utr||'—')+'</td><td>'+(t.reason||'—')+'</td>':'')+'</tr>').join('');
- document.getElementById('transaction-mobile').innerHTML=rows.map(t=>'<article class="transaction-mobile-card"><div class="tx-top"><span>'+t.job+'</span><span class="tx-status '+t.status.toLowerCase()+'">'+t.status+'</span></div><div class="tx-name">'+t.name+'</div><div class="tx-meta"><div>Credit amount<strong>₹'+t.amount.toLocaleString('en-IN')+'</strong></div><div>Processed date<strong>'+t.date+'</strong></div>'+(sensitiveVisible?'<div>UTR<strong>'+(t.utr||'—')+'</strong></div><div>Rejection reason<strong>'+(t.reason||'—')+'</strong></div>':'')+'</div></article>').join('');
- document.getElementById('toggle-sensitive').textContent=sensitiveVisible?'Hide UTR & rejection reason':'Show UTR & rejection reason';
-}
-document.getElementById('toggle-sensitive').addEventListener('click',()=>{sensitiveVisible=!sensitiveVisible;if(activeCard)renderFtoDetails(activeCard);});
-
-document.addEventListener('click',e=>{if(!e.target.closest('.action-wrap')){document.querySelectorAll('.menu').forEach(m=>m.hidden=true);document.querySelectorAll('.action-trigger').forEach(b=>b.setAttribute('aria-expanded','false'));}});
-document.getElementById('period-form').addEventListener('submit',e=>{e.preventDefault();if(!activeCard)return;activeCard.dataset.period=document.getElementById('period-choice').value;activeCard.querySelector('.period-line').textContent=activeCard.dataset.period;document.getElementById('period-dialog').close();refresh();});
 </script>
 </body>
 </html>

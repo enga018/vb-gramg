@@ -19,6 +19,8 @@ declare
   v_count_ledger integer := 0;
   v_count_voided integer := 0;
   v_row record;
+  v_batch_id uuid;
+  v_import_id uuid;
 begin
   if jsonb_typeof(p_plan) <> 'object'
      or jsonb_typeof(v_batch) <> 'object'
@@ -80,10 +82,11 @@ begin
      (v_batch->>'period_id')::uuid, nullif(v_batch->>'created_by','')::uuid,
      coalesce(nullif(v_batch->>'last_checked_at','')::timestamptz, now()),
      v_batch->>'last_source_sha256')
-  on conflict (id) do update set
+  on conflict (fto_number) do update set
     period_id = excluded.period_id,
     last_checked_at = excluded.last_checked_at,
-    last_source_sha256 = excluded.last_source_sha256;
+    last_source_sha256 = excluded.last_source_sha256
+  returning id into v_batch_id;
 
   -- Create/update transaction snapshots before writing their status-history rows.
   for v_row in
@@ -100,7 +103,7 @@ begin
        amount_to_be_credited,credit_amount,calculated_charge,status,rejection_reason,
        last_seen_at,ledger_entry_id,source_row,created_at,updated_at,is_in_scope,processed_date,is_current)
     values
-      (v_row.id, v_row.batch_id, v_row.reference_no, v_row.job_card_number, v_row.village_name,
+      (v_row.id, v_batch_id, v_row.reference_no, v_row.job_card_number, v_row.village_name,
        v_row.person_name, v_row.transaction_date, v_row.amount_to_be_credited, v_row.credit_amount,
        v_row.calculated_charge, v_row.status, v_row.rejection_reason,
        coalesce(v_row.last_seen_at,now()), v_row.ledger_entry_id, coalesce(v_row.source_row,'{}'::jsonb),
@@ -149,7 +152,8 @@ begin
      coalesce(nullif(v_import->>'completed_at','')::timestamptz,now()))
   on conflict (source_sha256) do update set
     row_count=excluded.row_count, total_amount=excluded.total_amount,
-    status='complete', completed_at=excluded.completed_at, notes=excluded.notes;
+    status='complete', completed_at=excluded.completed_at, notes=excluded.notes
+  returning id into v_import_id;
 
   -- Ledger writes are explicit upserts. Payment rows and allocation rows are never
   -- touched by this FTO-only operation.
@@ -168,7 +172,7 @@ begin
        applicant_unique_id,period_id,fto_applicant_name,is_voided)
     values
       (v_row.id,v_row.job_card_number,v_row.person_name,v_row.entry_type,v_row.amount,
-       v_row.charge_period,v_row.entry_date,v_row.note,v_row.import_id,v_row.created_by,
+       v_row.charge_period,v_row.entry_date,v_row.note,coalesce(v_import_id,v_row.import_id),v_row.created_by,
        coalesce(v_row.is_deferred,false),v_row.reference_numbers,v_row.applicant_name,
        v_row.applicant_number,v_row.applicant_unique_id,v_row.period_id,
        v_row.fto_applicant_name,coalesce(v_row.is_voided,false))
@@ -201,6 +205,8 @@ begin
 
   return jsonb_build_object(
     'committed', true,
+    'batch_id', v_batch_id,
+    'import_id', v_import_id,
     'transactions', v_count_transactions,
     'status_history', v_count_history,
     'ledger_rows', v_count_ledger,

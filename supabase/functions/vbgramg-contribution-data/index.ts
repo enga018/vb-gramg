@@ -588,7 +588,7 @@ Deno.serve(async(req:Request)=>{
    const {data:exemptionRows,error:exemptionError}=await admin.from("vbgramg_contribution_exemptions").select("job_card_number");
    if(exemptionError)throw exemptionError;
    const exemptCards=new Set((exemptionRows||[]).map(r=>String(r.job_card_number)));
-   let skippedDuplicateReferences:string[]=[];
+   const snapshotReferenceSet=new Set(normalized.map(r=>String(r.reference_no)));\n   let skippedDuplicateReferences:string[]=[];
    let chargeCandidateRows=normalized.filter(r=>r.is_in_scope&&!exemptCards.has(String(r.job_card_number))&&["blank","processed"].includes(String(r.status))&&Number(r.calculated_charge||0)>0);
    let incomingRefs=chargeCandidateRows.map(r=>String(r.reference_no));
    // Check all incoming references, including rejected rows. A reference already
@@ -659,7 +659,7 @@ Deno.serve(async(req:Request)=>{
    let oldBatchTransactions:Record<string,any>[]=[];
    let oldBatchTransactionsError:any=null;
    if(batchId){
-    const oldBatchResult=await admin.from("vbgramg_fto_transactions").select("id,reference_no,status,calculated_charge,job_card_number,person_name,transaction_date,processed_date,amount_to_be_credited,credit_amount,rejection_reason,ledger_entry_id").eq("batch_id",batchId);
+    const oldBatchResult=await admin.from("vbgramg_fto_transactions").select("id,reference_no,status,calculated_charge,job_card_number,person_name,transaction_date,processed_date,amount_to_be_credited,credit_amount,rejection_reason,ledger_entry_id,is_current").eq("batch_id",batchId);
     oldBatchTransactions=oldBatchResult.data||[];
     oldBatchTransactionsError=oldBatchResult.error;
    }
@@ -734,7 +734,7 @@ Deno.serve(async(req:Request)=>{
      });
      if(historyError)throw historyError;
     }
-    const transactionPayload={...row,batch_id:batchId,last_seen_at:nowIso,updated_at:nowIso};
+    const transactionPayload={...row,batch_id:batchId,is_current:true,last_seen_at:nowIso,updated_at:nowIso};
     if(old){
      const {error:updateError}=await admin.from("vbgramg_fto_transactions").update(transactionPayload).eq("id",old.id);
      if(updateError)throw updateError;
@@ -753,7 +753,7 @@ Deno.serve(async(req:Request)=>{
      if(historyError)throw historyError;
     }
    });
-   const {error:batchUpdateError}=await admin.from("vbgramg_fto_batches").update({last_checked_at:nowIso,last_source_sha256:sourceSha}).eq("id",batchId);
+   const omittedTransactions=(oldBatchTransactions||[]).filter(tx=>!snapshotReferenceSet.has(String(tx.reference_no||"")));\n   if(omittedTransactions.length){\n    const omittedIds=omittedTransactions.map(tx=>String(tx.id));\n    const {error:omittedError}=await admin.from("vbgramg_fto_transactions").update({is_current:false,updated_at:nowIso}).in("id",omittedIds);\n    if(omittedError)throw omittedError;\n   }\n   const {error:batchUpdateError}=await admin.from("vbgramg_fto_batches").update({last_checked_at:nowIso,last_source_sha256:sourceSha}).eq("id",batchId);
    if(batchUpdateError)throw batchUpdateError;
    const {data:priorImport,error:priorImportError}=await admin.from("vbgramg_charge_imports").select("id,status").eq("source_sha256",sourceSha).maybeSingle();
    if(priorImportError)throw priorImportError;
@@ -767,20 +767,20 @@ Deno.serve(async(req:Request)=>{
     if(createError)throw createError;importId=String(created.id);
    }
    let insertedCount=0,updatedCount=0,deletedCount=0,reconciledCount=0;
-   const affectedCards=incomingCards;
+   const affectedCards=[...new Set([...incomingCards,...(oldBatchTransactions||[]).map(tx=>String(tx.job_card_number||"").trim()).filter(Boolean)])];
    if(affectedCards.length){
-    const {data:trackedRows,error:trackedError}=await admin.from("vbgramg_fto_transactions").select("id,batch_id,reference_no,job_card_number,calculated_charge,status,processed_date,is_in_scope,last_seen_at,ledger_entry_id").in("job_card_number",affectedCards);
+    const {data:trackedRows,error:trackedError}=await admin.from("vbgramg_fto_transactions").select("id,batch_id,reference_no,job_card_number,calculated_charge,status,processed_date,is_in_scope,is_current,last_seen_at,ledger_entry_id").in("job_card_number",affectedCards);
     if(trackedError)throw trackedError;
     const trackBatchIds=[...new Set((trackedRows||[]).map(r=>String(r.batch_id)))];
     let trackBatches:Record<string,any>[]=[];
     if(trackBatchIds.length){const {data,error}=await admin.from("vbgramg_fto_batches").select("id,ledger_charge_period,period_id").in("id",trackBatchIds);if(error)throw error;trackBatches=data||[];}
      const trackPeriod=new Map(trackBatches.map(r=>[String(r.id),{month:String(r.ledger_charge_period||""),periodId:String(r.period_id||"")}]));
-     const relevant=(trackedRows||[]).filter(r=>{const p=trackPeriod.get(String(r.batch_id));return p?.month===chargePeriod&&p.periodId===periodId&&r.is_in_scope===true;});
+     const relevant=(trackedRows||[]).filter(r=>{const p=trackPeriod.get(String(r.batch_id));return p?.month===chargePeriod&&p.periodId===periodId&&r.is_in_scope===true&&r.is_current===true;});
     const latestByReference=new Map<string,Record<string,any>>();
     for(const tx of relevant){const key=String(tx.reference_no),old=latestByReference.get(key);if(!old||String(tx.last_seen_at)>String(old.last_seen_at))latestByReference.set(key,tx);}
     const txByCard=new Map<string,Record<string,any>[]>();
     for(const tx of latestByReference.values()){const card=String(tx.job_card_number);if(!txByCard.has(card))txByCard.set(card,[]);txByCard.get(card)!.push(tx);}
-    const {data:ledgerRows,error:ledgerRowsError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,note,reference_numbers,import_id,period_id,applicant_name,applicant_number,applicant_unique_id,fto_applicant_name").in("job_card_number",affectedCards).eq("entry_type","charge").eq("charge_period",chargePeriod);
+    const {data:ledgerRows,error:ledgerRowsError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,is_voided,note,reference_numbers,import_id,period_id,applicant_name,applicant_number,applicant_unique_id,fto_applicant_name").in("job_card_number",affectedCards).eq("entry_type","charge").eq("charge_period",chargePeriod);
     if(ledgerRowsError)throw ledgerRowsError;
     const manualReviewIssues:string[]=[];
     for(const card of affectedCards){
@@ -824,12 +824,12 @@ Deno.serve(async(req:Request)=>{
        // Replace linked references with the current set; do not retain stale refs from older snapshots.
        const snapshotRefs=refs;
        const applicantFields=applicantChoice?{applicant_name:applicantChoice.applicant_name,applicant_number:applicantChoice.applicant_number,applicant_unique_id:applicantChoice.applicant_unique_id}:{};
-       const {error:linkLedgerError}=await admin.from("vbgramg_charge_ledger").update({period_id:periodId,charge_period:chargePeriod,person_name:name||manualKeeper.person_name,amount,is_deferred:isDeferred,entry_date:entryDate,note:"FTO import",reference_numbers:snapshotRefs,import_id:importId,fto_applicant_name:activeApplicantName||manualKeeper.fto_applicant_name||null,...applicantFields}).eq("id",manualKeeper.id);
+       const {error:linkLedgerError}=await admin.from("vbgramg_charge_ledger").update({period_id:periodId,charge_period:chargePeriod,person_name:name||manualKeeper.person_name,amount,is_deferred:isDeferred,is_voided:false,entry_date:entryDate,note:"FTO import",reference_numbers:snapshotRefs,import_id:importId,fto_applicant_name:activeApplicantName||manualKeeper.fto_applicant_name||null,...applicantFields}).eq("id",manualKeeper.id);
        if(linkLedgerError)throw linkLedgerError;
        ledgerId=String(manualKeeper.id);updatedCount++;reconciledCount++;
       }else if(keeper){
        const applicantFields=applicantChoice?{applicant_name:applicantChoice.applicant_name,applicant_number:applicantChoice.applicant_number,applicant_unique_id:applicantChoice.applicant_unique_id,fto_applicant_name:activeApplicantName||null}:{};
-       const {error:updateLedgerError}=await admin.from("vbgramg_charge_ledger").update({period_id:periodId,person_name:name||keeper.person_name,amount,is_deferred:isDeferred,entry_date:entryDate,reference_numbers:refs,note:"FTO import",...applicantFields}).eq("id",keeper.id);
+       const {error:updateLedgerError}=await admin.from("vbgramg_charge_ledger").update({period_id:periodId,person_name:name||keeper.person_name,amount,is_deferred:isDeferred,is_voided:false,entry_date:entryDate,reference_numbers:refs,note:"FTO import",...applicantFields}).eq("id",keeper.id);
        if(updateLedgerError)throw updateLedgerError;ledgerId=String(keeper.id);updatedCount++;
       }else{
        const {data:newLedger,error:insertLedgerError}=await admin.from("vbgramg_charge_ledger").insert({
@@ -843,16 +843,14 @@ Deno.serve(async(req:Request)=>{
       const ids=txs.map(tx=>String(tx.id));
       if(ids.length){const {error:linkError}=await admin.from("vbgramg_fto_transactions").update({ledger_entry_id:ledgerId}).in("id",ids);if(linkError)throw linkError;}
      }else{
-      const trackedRefs=new Set(txs.map(tx=>String(tx.reference_no)));
-      const deletable=ftoRows.filter(r=>{
-       const oldRefs=Array.isArray(r.reference_numbers)?r.reference_numbers.map(String):[];
-       return oldRefs.length>0&&oldRefs.every((ref:string)=>trackedRefs.has(ref))&&txs.length>0&&txs.every(tx=>String(tx.status)==="rejected")&&oldRefs.some((ref:string)=>txs.some(tx=>String(tx.reference_no)===ref&&String(tx.status)==="rejected"));
-      });
-      if(deletable.length){
-       const {error:deleteError}=await admin.from("vbgramg_charge_ledger").delete().in("id",deletable.map(r=>r.id));
-       if(deleteError)throw deleteError;deletedCount+=deletable.length;
-       const ids=txs.map(tx=>String(tx.id));
-       if(ids.length){const {error:unlinkError}=await admin.from("vbgramg_fto_transactions").update({ledger_entry_id:null}).in("id",ids);if(unlinkError)throw unlinkError;}
+      // Keep rejected or snapshot-removed FTO charges as auditable history.
+      // Their payment allocations remain attached; preflight above prevents voiding
+      // a charge when its allocated amount would exceed the revised active charge.
+      const toVoid=ftoRows.filter(r=>!r.is_voided);
+      if(toVoid.length){
+       const {error:voidError}=await admin.from("vbgramg_charge_ledger").update({is_voided:true}).in("id",toVoid.map(r=>r.id));
+       if(voidError)throw voidError;
+       updatedCount+=toVoid.length;
       }
      }
     });

@@ -104,7 +104,16 @@ tbody tr:last-child td{border-bottom:0}
 .import-table input[type=checkbox]{width:19px;height:19px;min-height:19px;accent-color:#2457c5;vertical-align:middle}
 .import-table .review-cell{min-width:180px}
 #fto-import-button{min-width:190px}
-@media(max-width:700px){.import-grid{grid-template-columns:minmax(0,1fr)}.import-table-wrap{max-height:52vh}.import-controls .actions{align-items:stretch}.import-controls .actions button{width:100%}}
+.reconciliation-panel{margin:18px 0 16px;padding:18px;border:1px solid #e8b45f;border-left:5px solid #d97706;border-radius:13px;background:#fffaf0}
+.reconciliation-panel .section-head h2{color:#854d0e}
+.reconciliation-panel .section-head p{color:#805b2c}
+.reconciliation-kicker{display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;padding:4px 9px;border-radius:7px;background:#ffedc2;color:#854d0e;font-size:.75rem;font-weight:800;letter-spacing:.035em;text-transform:uppercase}
+.reconciliation-panel .table-wrap{border-color:#efd6a9;box-shadow:none}
+.reconciliation-panel th{background:#fff1d6;color:#805b2c}
+.reconciliation-panel .import-table .flag{background:#ffedc2;color:#854d0e}
+.reconciliation-panel .table-foot{margin-top:10px}
+.reconciliation-empty{padding:14px;border:1px dashed #e8c98f;border-radius:10px;background:#fffdf8;color:#805b2c;font-size:.88rem}
+@media(max-width:700px){.import-grid{grid-template-columns:minmax(0,1fr)}.import-table-wrap{max-height:52vh}.import-controls .actions{align-items:stretch}.import-controls .actions button{width:100%}.reconciliation-panel{padding:12px}}
 
 .history-section{margin-top:24px;padding-top:22px;border-top:1px solid var(--line)}
 .history-toolbar{display:grid;grid-template-columns:minmax(220px,1.4fr) minmax(180px,1fr);gap:12px;margin:16px 0}
@@ -253,9 +262,16 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  </div>
  <p class="import-help">The editable divisor and multiplier above calculate each FTO charge, using the same formula as normal FTO importing. When a job card already has a manual charge for this period, review the old amount, calculated FTO amount, and applicant mapping. Confirming reconciliation updates that existing ledger entry with the FTO amount, processing date, deferred/processed status, references, and FTO source; it does not create a second charge. Existing payment allocations remain attached. Multiple existing charges require manual resolution.</p>
  <div id="import-summary" class="status" aria-live="polite">Enter the FTO number and contribution period.</div>
+ <section id="reconciliation-panel" class="reconciliation-panel hidden" aria-live="polite">
+  <div class="reconciliation-kicker">Existing ledger entries · review required</div>
+  <div class="section-head"><div><h2>Reconcile existing charges</h2><p>These job cards already have a manual charge for this contribution period. Review the existing amount against the FTO-calculated amount and confirm the applicant mapping. Confirmation updates the existing ledger entry; it does not create another charge. Existing payment allocations stay attached.</p></div></div>
+  <div id="reconciliation-count" class="muted" style="margin:12px 0">No existing charges detected.</div>
+  <div class="table-wrap import-table-wrap"><table id="reconciliation-preview-table" class="import-table"><thead><tr><th>#</th><th>Job card</th><th>FTO name</th><th>FTO rows</th><th>Reference numbers</th><th>Incoming status</th><th>New calculated charge</th><th>Existing charge → FTO</th><th>Reconciliation review</th></tr></thead><tbody></tbody></table></div>
+ </section>
+ <div class="section-head" style="margin-top:18px"><div><h2>New FTO imports</h2><p>Only job cards without an existing manual charge for this period appear here.</p></div></div>
  <div class="table-wrap import-table-wrap"><table id="import-preview-table" class="import-table"><thead><tr><th>#</th><th>Job card</th><th>FTO name</th><th>FTO rows</th><th>Reference numbers</th><th>Current status</th><th>Calculated charge</th><th>Duplicate check</th><th>Checks</th></tr></thead><tbody></tbody></table></div>
  <p class="import-help">Statuses are synchronized automatically per reference number: blank becomes deferred, Processed activates the matching charge, and Rejected removes only a matching FTO charge when no active transaction remains. The system records status history and does not delete unrelated charges. Mixed statuses under one job card are reconciled from individual reference numbers.</p>
- <div class="table-foot"><span id="import-count" class="muted"></span><div class="actions"><button id="fto-import-button" type="button" disabled>Synchronize FTO</button></div></div>
+ <div class="table-foot"><span id="import-count" class="muted"></span><div class="actions"><button id="fto-import-button" type="button" disabled>Import and synchronize FTO</button></div></div>
   <div id="sync-status" class="status hidden" aria-live="polite" role="status"></div>
   <section id="applicant-review" class="applicant-review hidden" aria-live="polite">
    <div class="section-head"><div><h2>Applicant matching review</h2><p>FTO names are compared with applicants in the active MIS. Matches below 80%, or with less than a 10-point lead over the next candidate, require your confirmation. An applicant already attached to a charge is retained unless you explicitly select a different MIS applicant.</p></div></div>
@@ -435,8 +451,8 @@ function importReviewPriority(group){
 }
 function renderImportPreview(){
  $('import-summary').classList.remove('error');
- const tbody=$('import-preview-table').querySelector('tbody');tbody.replaceChildren();
- let total=0,invalid=0,excluded=0,localCards=0;
+ const tbody=$('import-preview-table').querySelector('tbody'),reconciliationBody=$('reconciliation-preview-table').querySelector('tbody');tbody.replaceChildren();reconciliationBody.replaceChildren();
+ let total=0,invalid=0,excluded=0,localCards=0,reconciliationCount=0;
  const sortedGroups=[...importGroups].sort((a,b)=>{
   const priority=importReviewPriority(a)-importReviewPriority(b);
   if(priority)return priority;
@@ -445,13 +461,15 @@ function renderImportPreview(){
  sortedGroups.forEach((group,index)=>{
   if(group.inScope){total+=group.amount;localCards++}else excluded++;
   invalid+=group.invalid_amount_rows;
+  const duplicate=duplicateCards.get(group.job_card_number),repeatedRefs=duplicateReferences.get(group.job_card_number)||[],isUnknown=unknownCards.has(group.job_card_number);
+  const targetBody=duplicate?reconciliationBody:tbody;
+  if(duplicate)reconciliationCount++;
   const tr=document.createElement('tr');
   const addCell=(value,cls)=>{const td=document.createElement('td');td.textContent=value;if(cls)td.className=cls;tr.appendChild(td);return td};
   addCell(String(index+1));addCell(group.job_card_number);
   addCell(group.person_name);addCell(String(group.row_count));addCell(group.reference_numbers.join(', ')||'Missing reference');
   addCell(group.status==='blank'?'Blank':group.status==='processed'?'Processed':group.status==='rejected'?'Rejected':group.status==='mixed'?'Mixed statuses':'Other / unknown');
   addCell(group.inScope&&group.amount>0?'₹'+group.amount.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}):'—');
-  const duplicate=duplicateCards.get(group.job_card_number),repeatedRefs=duplicateReferences.get(group.job_card_number)||[],isUnknown=unknownCards.has(group.job_card_number);
   const duplicateCell=addCell('');
   if(duplicate){
    const flag=document.createElement('span');flag.className='flag';flag.textContent='Existing manual charge';duplicateCell.appendChild(flag);
@@ -503,10 +521,12 @@ function renderImportPreview(){
    check.addEventListener('change',()=>{if(check.checked)reviewedNewCards.add(group.job_card_number);else reviewedNewCards.delete(group.job_card_number);renderImportPreview()});
    label.appendChild(check);const t=document.createElement('span');t.textContent='Verified new card';label.appendChild(t);reviewCell.appendChild(label);
   }else reviewCell.textContent='—';
-  tbody.appendChild(tr);
+  targetBody.appendChild(tr);
  });
+ $('reconciliation-panel').classList.toggle('hidden',reconciliationCount===0);
+ $('reconciliation-count').textContent=reconciliationCount?reconciliationCount+' existing manual charge(s) need explicit reconciliation review.':'No existing manual charges detected for this period.';
  const period=selectedPeriodName();
- $('import-count').textContent=localCards+' FTO job-card groups · '+parsedDataRows.length+' FTO rows · active MIS membership checked during synchronization';
+ $('import-count').textContent=(localCards-reconciliationCount)+' new FTO job-card group(s) · '+reconciliationCount+' reconciliation(s) shown separately · '+parsedDataRows.length+' FTO rows';
  $('import-summary').textContent=(period?'Period label: '+period:'Select a contribution month')+' · Preview calculated charges: ₹'+total.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+(invalid?' · '+invalid+' row(s) have a missing/invalid credit amount':'');
  updateImportButton();
 }
@@ -541,7 +561,7 @@ function updateImportButton(){
  const unreviewed=[...duplicateCards.keys()].some(card=>!reviewedCards.has(card)||Number(duplicateCards.get(card)?.charge_count||1)>1||(!(duplicateCards.get(card)?.applicant_name||duplicateCards.get(card)?.applicant_unique_id||duplicateCards.get(card)?.applicant_number)&&!reconciliationApplicantSelections.has(card)));
  const unverifiedNew=[...unknownCards].some(card=>!reviewedNewCards.has(card));
  const hasDuplicateReferences=[...duplicateReferences.values()].some(refs=>refs.length>0);
- $('fto-import-button').textContent='Synchronize FTO statuses';
+ $('fto-import-button').textContent=duplicateCards.size?'Confirm reconciliation & sync FTO':'Import and synchronize FTO';
  $('fto-import-button').disabled=!ftoNumber||!period||!parsedDataRows.length||!selected.length||invalid||checkingDuplicates||duplicateCheckFailed||unreviewed||unverifiedNew||hasDuplicateReferences;
 }
 function bytesToHex(bytes){return [...new Uint8Array(bytes)].map(b=>b.toString(16).padStart(2,'0')).join('')}
@@ -620,8 +640,12 @@ async function executeFtoSync(payload,button){
 $('fto-import-button').addEventListener('click',async()=>{
  if($('fto-import-button').disabled)return;
  const button=$('fto-import-button'),ftoNumber=$('fto-number').value.trim(),periodLabel=selectedPeriodName(),period=periodToDate(selectedPeriodDate()),periodId=$('charge-period').value;
- if(!window.confirm('Synchronize FTO '+ftoNumber+' for contribution period "'+periodLabel+'"? Only job cards present in the active MIS will affect charges. Status changes will be recorded, and unrelated charges will not be deleted.'))return;
- button.disabled=true;button.textContent='Synchronizing FTO…';$('sync-status').textContent='';$('sync-status').classList.add('hidden');$('sync-status').classList.remove('error','success');
+ const hasReconciliations=duplicateCards.size>0;
+ const confirmMessage=hasReconciliations
+  ?'Confirm reconciliation for '+duplicateCards.size+' existing charge(s) and synchronize FTO '+ftoNumber+' for "'+periodLabel+'"? Existing ledger entries will be updated with FTO-calculated amounts and status/date information. Their payment allocations will remain attached. New FTO charges will be imported separately. Continue?'
+  :'Import and synchronize FTO '+ftoNumber+' for contribution period "'+periodLabel+'"? Only job cards present in the active MIS will affect charges. Status changes will be recorded, and unrelated charges will not be deleted.';
+ if(!window.confirm(confirmMessage))return;
+ button.disabled=true;button.textContent=hasReconciliations?'Reconciling and synchronizing…':'Importing and synchronizing…';$('sync-status').textContent='';$('sync-status').classList.add('hidden');$('sync-status').classList.remove('error','success');
  try{
   const divisor=Number($('amount-divisor').value),multiplier=Number($('amount-multiplier').value);
   const payloadRows=parsedDataRows.map(row=>{

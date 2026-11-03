@@ -480,7 +480,7 @@ async function saveExemption(){
 }
 async function removeExemption(jobCard){
  if(appRole!=="admin"||busy)return;
- if(!window.confirm('Remove the contribution exemption for '+jobCard+'? FTO history will remain. Contribution records were removed while exempt; FTO-generated charges will be recalculated when the exemption is removed, but removed payments, waivers, returns, and manual charges will not be restored.'))return;
+ if(!window.confirm('Remove the contribution exemption for '+jobCard+'? Its retained contribution ledger and payment allocations will become active again, and FTO-generated charges will be recalculated from the saved FTO history.'))return;
  busy=true;
  try{
   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'save-exemption',job_card_number:jobCard,exempt:false}});

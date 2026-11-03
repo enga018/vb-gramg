@@ -515,6 +515,15 @@ Deno.serve(async(req:Request)=>{
    if(!/^[a-f0-9]{64}$/.test(sourceSha))return reply({error:"FTO synchronization identity is missing. Reload the preview and try again."},400);
    const reviewed=Array.isArray(body.reviewed_duplicates)?new Set(body.reviewed_duplicates.map((v:unknown)=>String(v||"").trim())):new Set<string>();
    const reviewedNew=Array.isArray(body.reviewed_new_job_cards)?new Set(body.reviewed_new_job_cards.map((v:unknown)=>String(v||"").trim())):new Set<string>();
+   // Manual ledger charges are never adopted implicitly. The preview must explicitly
+   // choose whether each existing manual charge is linked to this FTO or kept separate.
+   const rawManualActions=body.manual_charge_actions&&typeof body.manual_charge_actions==="object"?body.manual_charge_actions as Record<string,unknown>:{};
+   const manualChargeActions=new Map<string,"link"|"keep_separate">();
+   for(const [rawCard,rawAction] of Object.entries(rawManualActions)){
+    const card=String(rawCard||"").trim().toUpperCase(),action=String(rawAction||"").trim();
+    if(!card||!["link","keep_separate"].includes(action))return reply({error:"A manual charge reconciliation choice is invalid. Refresh the preview and choose Link to FTO or Keep separate."},400);
+    manualChargeActions.set(card,action as "link"|"keep_separate");
+   }
 
    const rowsSeen=rows.length;
    const activeMisApplicants=await loadActiveMisApplicants(admin);
@@ -798,11 +807,14 @@ Deno.serve(async(req:Request)=>{
      if(calculatedAmount<=0)continue;
      const cardRows=(ledgerRows||[]).filter(r=>String(r.job_card_number)===card&&(!r.period_id||String(r.period_id)===periodId));
      const manualRows=cardRows.filter(r=>!/^FTO\b/i.test(String(r.note||"")));
-     if(manualRows.length>1){manualReviewIssues.push(card+" (multiple manual charges)");continue;}
+     if(manualRows.length>1){manualReviewIssues.push(card+" (multiple manual charges; resolve individually before FTO sync)");continue;}
      if(manualRows.length===1){
-      if(!reviewed.has(card)){manualReviewIssues.push(card+" (manual charge not reviewed)");continue;}
-      const row=manualRows[0],hasApplicant=Boolean(row.applicant_name||row.applicant_unique_id||row.applicant_number);
-      if(!hasApplicant&&!reconciliationApplicants.has(card))manualReviewIssues.push(card+" (MIS applicant not selected)");
+      const action=manualChargeActions.get(card);
+      if(!action){manualReviewIssues.push(card+" (choose Link to FTO or Keep separate)");continue;}
+      if(action==="link"){
+       const row=manualRows[0],hasApplicant=Boolean(row.applicant_name||row.applicant_unique_id||row.applicant_number);
+       if(!hasApplicant&&!reconciliationApplicants.has(card))manualReviewIssues.push(card+" (MIS applicant not selected for linking)");
+      }
      }
     }
     if(manualReviewIssues.length)return reply({error:"Reconciliation review is incomplete: "+manualReviewIssues.join(", ")+". Review each existing charge and confirm its MIS applicant before synchronizing."},409);
@@ -818,7 +830,7 @@ Deno.serve(async(req:Request)=>{
       const keeper=ftoRows.find(r=>(r.reference_numbers||[]).some((ref:string)=>refs.includes(String(ref))))||ftoRows[0]||null;
       const manualRows=cardLedgerRows.filter(r=>!/^FTO\b/i.test(String(r.note||"")));
       const linkedManual=manualRows.find(r=>(Array.isArray(r.reference_numbers)?r.reference_numbers:[]).some((ref:string)=>refs.includes(String(ref))))||null;
-      const manualKeeper=linkedManual||(reviewed.has(card)&&manualRows.length===1?manualRows[0]:null);
+      const manualKeeper=linkedManual||(manualChargeActions.get(card)==="link"&&manualRows.length===1?manualRows[0]:null);
      const applicantChoice=reconciliationApplicants.get(card);
      if(manualKeeper&&amount>0&&!manualKeeper.applicant_name&&!manualKeeper.applicant_unique_id&&!manualKeeper.applicant_number&&!applicantChoice){throw new Error("Choose or confirm the MIS applicant for "+card+" before reconciling its manual charge.");}
      if(amount>0){

@@ -685,7 +685,7 @@ function renderFtoHistory(reset=true){
    if(open){menu.classList.remove("hidden");const rect=actionButton.getBoundingClientRect(),menuRect=menu.getBoundingClientRect();menu.style.left=Math.max(8,Math.min(rect.right-menuRect.width,window.innerWidth-menuRect.width-8))+"px";menu.style.top=Math.max(8,Math.min(rect.bottom+6,window.innerHeight-menuRect.height-8))+"px";}
    actionButton.setAttribute("aria-expanded",String(open));
   });
-  actionWrap.append(actionButton,menu);side.append(checked,actionWrap);card.append(main,side);list.appendChild(card);
+  actionWrap.append(actionButton,menu);side.append(actionWrap,checked);card.append(main,side);list.appendChild(card);
  });
  $("fto-history-count").textContent="Showing "+Math.min(shownFtoHistory,filtered.length)+" of "+filtered.length+" matching FTOs · "+ftoHistoryRows.length+" imported";
  $("fto-history-empty").classList.toggle("hidden",filtered.length!==0);

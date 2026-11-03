@@ -390,7 +390,7 @@ $('load-table-button').addEventListener('click',async()=>{
  const rows=parsePastedTable(pasted);
  if(!rows.length){status('Paste the copied FTO table first, then select Load table.','error');return}
  const ftoMatch=pasted.match(/FTO\s*No\.?\s*[:：]?\s*([A-Z0-9_-]+)/i);
- $('fto-number').value=ftoMatch&&ftoMatch[1]?ftoMatch[1].trim():'';existingFtoUnchanged=false;existingFtoKnown=false;
+ $('fto-number').value=ftoMatch&&ftoMatch[1]?ftoMatch[1].trim():'';existingFtoUnchanged=false;existingFtoKnown=false;existingFtoKnown=false;
  const result=renderPastedTable(rows);
  if(!result){status('No data rows detected. Paste the FTO table including its data.','error');return}
  if(!$('fto-number').value.trim()){status('FTO number was not detected. Paste the official FTO header including its FTO No. before preparing the import.','error');return;}

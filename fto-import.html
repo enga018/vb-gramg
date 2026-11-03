@@ -642,7 +642,8 @@ function renderImportPreview(){
   const card=group.job_card_number,exempt=exemptedCards.has(card),outOfMis=notInActiveMisCards.has(card),duplicate=duplicateCards.has(card),unknown=unknownCards.has(card),refs=duplicateReferences.get(card)||[],match=applicantMatchSuggestions.get(card);
   const hasCharge=group.amount>0&&['blank','processed','mixed'].includes(group.status);
   let reason='';
-  if(outOfMis)reason='Outside active MIS';
+  if(exempt)reason='Exempted';
+  else if(outOfMis)reason='Outside active MIS';
   else if(refs.length)reason='Duplicate reference number';
   else if(alreadyImportedReferences.size&&group.reference_numbers.length&&group.reference_numbers.every(ref=>alreadyImportedReferences.has(ref)))alreadyGroups.push(group);
   else if(duplicate||(hasCharge&&match?.requires_manual))manualGroups.push(group);

@@ -353,7 +353,7 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let authSequence=0,notInActiveMisCards=new Set(),sharedPeriods=[],previewPages={reconciliation:1,imports:1,applicants:1},parsedDataRows=[],importGroups=[],duplicateCards=new Map(),duplicateReferences=new Map(),alreadyAllocatedCards=new Map(),exemptedCards=new Set(),reviewedCards=new Set(),unknownCards=new Set(),reviewedNewCards=new Set(),reconciliationApplicantSelections=new Map(),manualChargeActions=new Map(),applicantMatchSuggestions=new Map(),alreadyImportedReferences=new Set(),deferredCards=new Map(),duplicateCheckSequence=0,checkingDuplicates=false,duplicateCheckFailed=false,existingFtoUnchanged=false,existingFtoKnown=false,ftoIdentityMismatch=false;
+let authSequence=0,notInActiveMisCards=new Set(),sharedPeriods=[],previewPages={reconciliation:1,imports:1,applicants:1},parsedDataRows=[],importGroups=[],duplicateCards=new Map(),duplicateReferences=new Map(),alreadyAllocatedCards=new Map(),exemptedCards=new Set(),reviewedCards=new Set(),unknownCards=new Set(),reviewedNewCards=new Set(),reconciliationApplicantSelections=new Map(),manualChargeActions=new Map(),manualAmountConfirmations=new Set(),applicantMatchSuggestions=new Map(),alreadyImportedReferences=new Set(),deferredCards=new Map(),duplicateCheckSequence=0,checkingDuplicates=false,duplicateCheckFailed=false,existingFtoUnchanged=false,existingFtoKnown=false,ftoIdentityMismatch=false;
 function status(msg,type){if((type==='error'||type==='success')&&window.showToast){window.showToast(msg,type);$('data-status').textContent='';$('data-status').classList.remove('error','success');return}$('data-status').textContent=msg;$('data-status').classList.remove('error','success')}
 function syncStatus(msg,type){if(window.showToast){window.showToast(msg,type||'info');const el=$('sync-status');el.textContent='';el.classList.add('hidden');el.classList.remove('error','success');return}const el=$('sync-status');el.textContent=msg;el.classList.remove('hidden');el.classList.toggle('error',type==='error');el.classList.toggle('success',type==='success')}
 async function edgeFunctionErrorMessage(error,fallback){if(error&&error.context){try{const response=error.context.clone?error.context.clone():error.context;let body=null;if(response&&typeof response.json==='function')body=await response.json();else if(response&&typeof response.text==='function'){const raw=await response.text();try{body=JSON.parse(raw)}catch{body={message:raw}}}if(body&&typeof body==='object'&&(body.error||body.message||body.msg))return String(body.error||body.message||body.msg);if(typeof body==='string'&&body.trim())return body.trim()}catch(_){}}return (error&&error.message)||fallback}
@@ -562,7 +562,7 @@ function buildImportGroups(){
   if((rowState==='blank'||rowState==='processed')&&amount<=0)group.invalid_amount_rows++;
  }
  importGroups=[...map.values()].map(g=>({...g,status:g.statuses.size===1?[...g.statuses][0]:'mixed',village:[...g.villages].join(' / '),inScope:true,reference_numbers:g.references})).sort((a,b)=>a.job_card_number.localeCompare(b.job_card_number));
- duplicateCards=new Map();duplicateReferences=new Map();alreadyAllocatedCards=new Map();exemptedCards=new Set();reviewedCards=new Set();unknownCards=new Set();reviewedNewCards=new Set();reconciliationApplicantSelections=new Map();manualChargeActions=new Map();applicantMatchSuggestions=new Map();alreadyImportedReferences=new Set();existingFtoUnchanged=false;
+ duplicateCards=new Map();duplicateReferences=new Map();alreadyAllocatedCards=new Map();exemptedCards=new Set();reviewedCards=new Set();unknownCards=new Set();reviewedNewCards=new Set();reconciliationApplicantSelections=new Map();manualChargeActions=new Map();manualAmountConfirmations=new Set();applicantMatchSuggestions=new Map();alreadyImportedReferences=new Set();existingFtoUnchanged=false;
  renderImportPreview();refreshDuplicates();
 }
 function importReviewPriority(group){
@@ -633,6 +633,14 @@ function renderManualTransactionDetails(group){
   actionSelect.addEventListener('change',()=>{if(actionSelect.value)manualChargeActions.set(group.job_card_number,actionSelect.value);else manualChargeActions.delete(group.job_card_number);updateImportButton()});
   review.append(actionLabel,actionSelect);
   const hint=document.createElement('div');hint.className='muted';hint.style.marginTop='6px';hint.textContent='Linking preserves the existing ledger record and its identity. Keeping it separate creates an independent FTO charge.';review.appendChild(hint);
+  const amountDiff=Math.abs(Number(duplicate.amount||0)-Number(group.amount||0))>0.009;
+  if(amountDiff){
+   const confirm=document.createElement('input');confirm.type='checkbox';confirm.checked=manualAmountConfirmations.has(group.job_card_number);
+   confirm.addEventListener('change',()=>{if(confirm.checked)manualAmountConfirmations.add(group.job_card_number);else manualAmountConfirmations.delete(group.job_card_number);updateImportButton()});
+   const confirmLabel=document.createElement('label');confirmLabel.style.display='flex';confirmLabel.style.gap='8px';confirmLabel.style.alignItems='center';confirmLabel.style.marginTop='10px';
+   confirmLabel.append(confirm,document.createTextNode('I confirm replacing ₹'+Number(duplicate.amount||0).toLocaleString('en-IN')+' with the FTO charge of ₹'+Number(group.amount||0).toLocaleString('en-IN')));
+   review.appendChild(confirmLabel);
+  }else manualAmountConfirmations.delete(group.job_card_number);
  }else if(isUnknown){
   const check=document.createElement('input');check.type='checkbox';check.checked=reviewedNewCards.has(group.job_card_number);check.addEventListener('change',()=>{if(check.checked)reviewedNewCards.add(group.job_card_number);else reviewedNewCards.delete(group.job_card_number);updateImportButton()});
   const label=document.createElement('label');label.style.display='flex';label.style.gap='8px';label.style.alignItems='center';label.style.marginTop='10px';label.append(check,document.createTextNode('I verified this new job card'));review.appendChild(label);
@@ -704,7 +712,7 @@ function updateImportButton(){
  const divisor=Number($('amount-divisor').value),multiplier=Number($('amount-multiplier').value);
  const formulaInvalid=!Number.isFinite(divisor)||divisor<=0||!Number.isFinite(multiplier)||multiplier<=0;
  const invalid=formulaInvalid||parsedDataRows.some(row=>!String(row[3]||'').trim()||!jobCardFromRow(row)||!String(row[5]||row[7]||'').trim()||(['blank','processed'].includes(rawStatus(row))&&parseAmount(row[11])<=0));
- const unreviewed=[...duplicateCards.keys()].some(card=>!notInActiveMisCards.has(card)&&!exemptedCards.has(card)&&(!manualChargeActions.has(card)||Number(duplicateCards.get(card)?.charge_count||1)>1||(manualChargeActions.get(card)==='link'&&!(duplicateCards.get(card)?.applicant_name||duplicateCards.get(card)?.applicant_unique_id||duplicateCards.get(card)?.applicant_number)&&!reconciliationApplicantSelections.has(card))));
+ const unreviewed=[...duplicateCards.keys()].some(card=>!notInActiveMisCards.has(card)&&!exemptedCards.has(card)&&(!manualChargeActions.has(card)||Number(duplicateCards.get(card)?.charge_count||1)>1||(manualChargeActions.get(card)==='link'&&Math.abs(Number(duplicateCards.get(card)?.amount||0)-Number(importGroups.find(g=>g.job_card_number===card)?.amount||0))>0.009&&!manualAmountConfirmations.has(card))||(manualChargeActions.get(card)==='link'&&!(duplicateCards.get(card)?.applicant_name||duplicateCards.get(card)?.applicant_unique_id||duplicateCards.get(card)?.applicant_number)&&!reconciliationApplicantSelections.has(card))));
  const unverifiedNew=false;
  const unresolvedApplicants=[...applicantMatchSuggestions.entries()].some(([card,match])=>!exemptedCards.has(card)&&match.requires_manual&&!reconciliationApplicantSelections.has(card));
  const hasDuplicateReferences=[...duplicateReferences.entries()].some(([card,refs])=>refs.length>0&&!notInActiveMisCards.has(card)&&!exemptedCards.has(card));
@@ -737,7 +745,7 @@ async function lookupFtoBatch(){
  }catch(err){status('Could not look up saved FTO details: '+(err.message||'unknown error'),'error')}
 }
 $('fto-number').addEventListener('change',lookupFtoBatch);
-$('charge-period').addEventListener('change',()=>{reviewedCards=new Set();reviewedNewCards=new Set();manualChargeActions=new Map();refreshDuplicates()});
+$('charge-period').addEventListener('change',()=>{reviewedCards=new Set();reviewedNewCards=new Set();manualChargeActions=new Map();manualAmountConfirmations=new Set();refreshDuplicates()});
 $('amount-divisor').addEventListener('input',()=>buildImportGroups());
 $('amount-multiplier').addEventListener('input',()=>buildImportGroups());
 
@@ -776,7 +784,7 @@ $('fto-import-button').addEventListener('click',async()=>{
    return {reference_no:String(row[3]||'').replace(/\s+/g,' ').trim(),job_card_number:jobCardFromRow(row),village_name:villageFromRow(row),person_name:String(row[5]||row[7]||'').replace(/\s+/g,' ').trim(),transaction_date:dateMatch?dateMatch[3]+'-'+dateMatch[2]+'-'+dateMatch[1]:'',processed_date:processedDateMatch?processedDateMatch[3]+'-'+processedDateMatch[2]+'-'+processedDateMatch[1]:'',amount_to_be_credited:amountToCredit,credit_amount:creditAmount,status:statusValue,calculated_charge:Number(calculatedCharge.toFixed(2)),rejection_reason:String(row[16]||'').trim(),source_row:row};
   });
   const sourceSha=await sha256(JSON.stringify({raw:$('table-input').value,ftoNumber,periodLabel,period,divisor,multiplier,rows:payloadRows}));
-  const payload={action:'sync-fto-batch',fto_number:ftoNumber,period_id:periodId,contribution_period:periodLabel,charge_period:period,rows:payloadRows,source_sha256:sourceSha,reviewed_duplicates:[...reviewedCards],reviewed_new_job_cards:[...reviewedNewCards],manual_charge_actions:Object.fromEntries([...manualChargeActions.entries()]),reconciliation_applicants:Object.fromEntries([...reconciliationApplicantSelections.entries()])};
+  const payload={action:'sync-fto-batch',fto_number:ftoNumber,period_id:periodId,contribution_period:periodLabel,charge_period:period,rows:payloadRows,source_sha256:sourceSha,reviewed_duplicates:[...reviewedCards],reviewed_new_job_cards:[...reviewedNewCards],manual_charge_actions:Object.fromEntries([...manualChargeActions.entries()]),manual_charge_amount_confirmations:[...manualAmountConfirmations],reconciliation_applicants:Object.fromEntries([...reconciliationApplicantSelections.entries()])};
   await executeFtoSync(payload,button);
  }catch(err){const message=err.message||'FTO synchronization failed. Review the preview and try again.';syncStatus(message,'error');button.textContent='Synchronize FTO statuses';checkingDuplicates=false;updateImportButton()}
  finally{if(button.textContent!=='Synchronization completed')button.disabled=false}

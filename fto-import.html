@@ -627,7 +627,9 @@ function renderReviewCard(type){
  const card=group.job_card_number,head=reviewElement('div','fto-jobcard-head'),identity=reviewElement('div');
  identity.appendChild(reviewElement('strong','',card));identity.appendChild(reviewElement('div','fto-jobcard-sub','FTO applicant: '+(group.person_name||'Name unavailable')));
  head.appendChild(identity);head.appendChild(reviewElement('span','fto-status-tag '+type,type==='automatic'?'Ready to import':type==='manual'?'Manual review':'Cannot import'));target.appendChild(head);
- if(type==='cannot'){target.appendChild(reviewElement('div','fto-review-note',group.reviewReason));const knownRefs=alreadyAllocatedCards.get(card)||[];if(knownRefs.length){const existing=reviewElement('div','fto-review-note','Existing FTO reference match:');knownRefs.forEach(item=>existing.appendChild(reviewElement('div','',String(item.reference_number||'')+' · '+String(item.period_name||item.charge_period||'Contribution period unavailable')+' · '+String(item.job_card_number||''))));target.appendChild(existing);}}
+ if(type==='cannot')target.appendChild(reviewElement('div','fto-review-note',group.reviewReason));
+ const knownRefs=alreadyAllocatedCards.get(card)||[];
+ if(knownRefs.length){const existing=reviewElement('div','fto-review-note','Existing FTO reference period:');knownRefs.forEach(item=>existing.appendChild(reviewElement('div','',String(item.reference_number||'')+' · '+String(item.period_name||item.charge_period||'Contribution period unavailable')+' · '+String(item.job_card_number||''))));target.appendChild(existing);}
  const rows=parsedDataRows.filter(row=>jobCardFromRow(row)===card),stats=reviewElement('div','fto-jobcard-stats');
  [['Transactions',rows.length],['Current status',group.status],['Calculated charge','₹'+Number(group.amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})]].forEach(([label,value])=>{const box=reviewElement('div'),small=reviewElement('small','',label),strong=reviewElement('strong','',value);box.append(small,strong);stats.appendChild(box)});
  target.appendChild(stats);target.appendChild(reviewElement('div','muted','FTO transactions'));

@@ -229,8 +229,8 @@ Deno.serve(async(req:Request)=>{
      const candidates=rankActiveMisApplicants(activeMisApplicants,String(r.job_card_number),ftoName).slice(0,10);
      const best=candidates[0],second=candidates[1],gap=second?best.match_percentage-second.match_percentage:100;
      const matchConfident=Boolean(best&&best.match_percentage>=80&&(!second||second.match_percentage<80||gap>=10));
-     const hasAttachedApplicant=Boolean(r.applicant_unique_id||r.applicant_name);
-     const applicantMismatch=Boolean(hasAttachedApplicant&&ftoName&&normalizeApplicantIdentity(r.applicant_name)!==normalizeApplicantIdentity(ftoName));
+     const hasAttachedApplicant=Boolean(r.applicant_unique_id||r.applicant_name||r.applicant_number);
+     const applicantMismatch=Boolean(r.applicant_name&&ftoName&&normalizeApplicantIdentity(r.applicant_name)!==normalizeApplicantIdentity(ftoName));
      return {id:r.id,job_card_number:r.job_card_number,person_name:r.person_name,amount:r.amount,is_deferred:r.is_deferred,charge_count:(existing||[]).filter(x=>String(x.job_card_number)===String(r.job_card_number)&&(!x.period_id||String(x.period_id)===periodId)&&!/^FTO\b/i.test(String(x.note||""))).length,applicant_name:r.applicant_name||null,applicant_number:r.applicant_number||null,applicant_unique_id:r.applicant_unique_id||null,fto_applicant_name:r.fto_applicant_name||null,fto_name:ftoName,applicant_mismatch:applicantMismatch,match_confident:matchConfident,suggested_applicant:!hasAttachedApplicant&&matchConfident?best:null,candidates};
     });
     return reply({approved:true,charge_period:periodDate,duplicates,unknown_job_cards:cards.filter(card=>!known.has(card)),duplicate_references:[...duplicateMap].map(([job_card_number,refs])=>({job_card_number,reference_numbers:[...refs]}))});
@@ -702,7 +702,7 @@ Deno.serve(async(req:Request)=>{
      const calculatedAmount=Number(activeTxs.reduce((sum,tx)=>sum+Number(tx.calculated_charge||0),0).toFixed(2));
      if(calculatedAmount<=0)continue;
      const cardRows=(ledgerRows||[]).filter(r=>String(r.job_card_number)===card&&(!r.period_id||String(r.period_id)===periodId));
-     const manualRows=cardRows.filter(r=>!/^FTO\\b/i.test(String(r.note||"")));
+     const manualRows=cardRows.filter(r=>!/^FTO\b/i.test(String(r.note||"")));
      if(manualRows.length>1){manualReviewIssues.push(card+" (multiple manual charges)");continue;}
      if(manualRows.length===1){
       if(!reviewed.has(card)){manualReviewIssues.push(card+" (manual charge not reviewed)");continue;}

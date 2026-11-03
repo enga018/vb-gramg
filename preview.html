@@ -32,7 +32,7 @@ label{display:block;font-size:.82rem;font-weight:700;margin:0 0 6px;color:#47546
 input,select,textarea{width:100%;min-width:0;min-height:44px;padding:10px 12px;border:1px solid #cfd7e4;border-radius:10px;background:#fff;color:var(--ink);font-size:16px}
 textarea{resize:vertical;min-height:130px;line-height:1.5}
 .field{min-width:0}
-.status{margin-top:12px;padding:10px 12px;border:1px solid #e5eaf2;border-radius:10px;background:#f7f9fc;color:#475467;font-size:.84rem}
+.status{margin-top:12px;padding:10px 12px;border:1px solid #e5eaf2;border-radius:10px;background:#f7f9fc;color:#475467;font-size:.84rem}\n.toast{position:fixed;z-index:20;left:50%;bottom:24px;transform:translate(-50%,16px);width:max-content;max-width:calc(100vw - 28px);padding:11px 16px;border:1px solid #ccebd7;border-radius:12px;background:#effaf3;color:#17663a;font-size:.88rem;font-weight:650;box-shadow:0 8px 28px rgb(23 32 51 / 18%);opacity:0;visibility:hidden;transition:opacity .18s ease,transform .18s ease,visibility .18s}\n.toast.show{opacity:1;visibility:visible;transform:translate(-50%,0)}
 .status.success{background:#effaf3;border-color:#ccebd7;color:#17663a}
 .status.warning{background:#fff8e9;border-color:#f1d59f;color:#805b2c}
 .paste-actions{display:flex;justify-content:flex-end;margin-top:10px}
@@ -184,19 +184,23 @@ MZ-07-001-005-001/219    Zoramthangi    1900    Rejected</textarea>
  </section>
 
  <div class="bottom-actions"><span class="note">Preview only · No records will be imported from this page.</span><button class="primary" type="button" id="preview-import">Import and Synchronize FTO</button></div>
- <div class="status hidden" id="preview-message" role="status"></div>
+ <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </section>
 </main>
 <script>
+let toastTimer;
+function showToast(message){
+ const toast=document.getElementById('toast');
+ toast.textContent=message;
+ toast.classList.add('show');
+ clearTimeout(toastTimer);
+ toastTimer=setTimeout(()=>toast.classList.remove('show'),3000);
+}
 document.getElementById('load-button').addEventListener('click',()=>{
- const status=document.getElementById('load-status');
- status.textContent='Preview refreshed · 5 sample transactions shown';
- status.className='status success';
+ showToast('Table loaded · 5 transactions detected');
 });
 document.getElementById('preview-import').addEventListener('click',()=>{
- const message=document.getElementById('preview-message');
- message.textContent='This is a visual preview. The live import action is intentionally disabled.';
- message.className='status warning';
+ showToast('Preview only · Live import is disabled');
 });
 </script>
 </body>

@@ -47,7 +47,7 @@ begin
     join jsonb_to_recordset(coalesce(p_plan->'ledger_rows','[]'::jsonb))
       as lr(id uuid, job_card_number text, period_id uuid, charge_period date, entry_type text, note text)
       on lr.id = linked.id
-    where existing.entry_type <> 'charge'
+    where existing.entry_type not in ('charge', 'other_charge')
       or upper(left(coalesce(existing.note,''),3)) = 'FTO'
       or existing.job_card_number is distinct from lr.job_card_number
       or lr.entry_type <> 'charge'

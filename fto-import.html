@@ -698,10 +698,10 @@ function updateImportButton(){
  const divisor=Number($('amount-divisor').value),multiplier=Number($('amount-multiplier').value);
  const formulaInvalid=!Number.isFinite(divisor)||divisor<=0||!Number.isFinite(multiplier)||multiplier<=0;
  const invalid=formulaInvalid||parsedDataRows.some(row=>!String(row[3]||'').trim()||!jobCardFromRow(row)||!String(row[5]||row[7]||'').trim()||(['blank','processed'].includes(rawStatus(row))&&parseAmount(row[11])<=0));
- const unreviewed=[...duplicateCards.keys()].some(card=>!notInActiveMisCards.has(card)&&!exemptedCards.has(card)&&!reviewedCards.has(card)||Number(duplicateCards.get(card)?.charge_count||1)>1||(!(duplicateCards.get(card)?.applicant_name||duplicateCards.get(card)?.applicant_unique_id||duplicateCards.get(card)?.applicant_number)&&!reconciliationApplicantSelections.has(card)));
+ const unreviewed=[...duplicateCards.keys()].some(card=>!notInActiveMisCards.has(card)&&!exemptedCards.has(card)&&(!reviewedCards.has(card)||Number(duplicateCards.get(card)?.charge_count||1)>1||(!(duplicateCards.get(card)?.applicant_name||duplicateCards.get(card)?.applicant_unique_id||duplicateCards.get(card)?.applicant_number)&&!reconciliationApplicantSelections.has(card))));
  const unverifiedNew=[...unknownCards].some(card=>!notInActiveMisCards.has(card)&&!exemptedCards.has(card)&&!reviewedNewCards.has(card));
  const hasDuplicateReferences=[...duplicateReferences.entries()].some(([card,refs])=>refs.length>0&&!notInActiveMisCards.has(card)&&!exemptedCards.has(card));
- $('fto-import-button').textContent=duplicateCards.size?'Confirm reconciliation & sync FTO':'Import and synchronize FTO';
+ $('fto-import-button').textContent=duplicateCards.size?'Confirm review & synchronize FTO':'Synchronize FTO';
  $('fto-import-button').disabled=!ftoNumber||!period||!parsedDataRows.length||!selected.length||invalid||checkingDuplicates||duplicateCheckFailed||ftoIdentityMismatch||unreviewed||unverifiedNew||hasDuplicateReferences;
 }
 function bytesToHex(bytes){return [...new Uint8Array(bytes)].map(b=>b.toString(16).padStart(2,'0')).join('')}

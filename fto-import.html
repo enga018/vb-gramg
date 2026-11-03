@@ -289,6 +289,8 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 
 /* Keep Step 2 transaction preview hidden; parsing and validation still run in JavaScript. */
 #table-output{display:none!important}
+
+ .fto-category-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0}.fto-category-tab{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;min-height:100px;padding:12px;background:#fff;border:1px solid var(--line,#dfe5ee);border-radius:12px;color:inherit}.fto-category-tab span{font-size:.8rem;font-weight:750}.fto-category-tab strong{font-size:1.35rem}.fto-category-tab small{font-size:.7rem;color:var(--muted,#667085)}.fto-category-tab.active{border:2px solid #2457c5;background:#f5f8ff;padding:11px}.fto-category-panel{border:1px solid var(--line,#dfe5ee);border-radius:12px;padding:14px;background:#fbfcfe;margin:12px 0}.fto-jobcard-view{border:1px solid #dfe5ee;border-radius:10px;background:#fff;padding:14px;min-height:110px}.fto-jobcard-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding-bottom:10px;border-bottom:1px solid #edf0f5}.fto-jobcard-head strong{overflow-wrap:anywhere}.fto-jobcard-sub{font-size:.8rem;color:var(--muted,#667085);margin-top:4px}.fto-jobcard-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}.fto-jobcard-stats>div{padding:9px;background:#f5f7fb;border-radius:8px}.fto-jobcard-stats small{display:block;color:#667085;font-size:.68rem}.fto-jobcard-stats strong{font-size:.85rem}.fto-tx-list{display:grid;gap:8px;margin-top:8px}.fto-tx-item{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:9px;border:1px solid #edf0f5;border-radius:8px}.fto-tx-item small{display:block;color:#667085;font-size:.66rem}.fto-tx-item strong{font-size:.78rem;overflow-wrap:anywhere}.fto-review-note{padding:10px;background:#fff8eb;border:1px solid #f0d7aa;border-radius:8px;margin:10px 0;font-size:.82rem}.fto-confirm{display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-size:.82rem}.fto-confirm input{width:18px;min-height:18px;margin:1px 0 0}.fto-pager{display:flex;justify-content:center;align-items:center;gap:12px;margin-top:12px}.fto-pager span{min-width:65px;text-align:center;font-size:.8rem;font-weight:700}.fto-pager button:disabled{opacity:.4}@media(max-width:700px){.fto-category-tabs{gap:6px}.fto-category-tab{min-height:94px;padding:8px 6px}.fto-category-tab.active{padding:7px 5px}.fto-category-tab span{font-size:.69rem;line-height:1.2}.fto-category-tab strong{font-size:1.2rem}.fto-category-tab small{font-size:.61rem;line-height:1.2}.fto-category-panel{padding:10px}.fto-jobcard-view{padding:10px}.fto-jobcard-stats{gap:5px}.fto-jobcard-stats>div{padding:7px 5px}.fto-jobcard-stats strong{font-size:.75rem}.fto-tx-item{grid-template-columns:1fr 1fr}.fto-pager{gap:7px}.fto-pager button{flex:1;min-width:0}}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -329,12 +331,26 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
    <div class="stat"><small>Manual Review</small><strong id="manual-count">0</strong></div>
    <div class="stat"><small>Cannot Import</small><strong id="cannot-count">0</strong></div>
   </div>
-  <div id="manual-review-panel" class="hidden" style="padding:14px;border:1px solid #e8b45f;border-radius:12px;background:#fffdf8;margin:14px 0">
-   <div class="section-head"><div><h2>Manual Review Needed</h2><p>Select a job card to review its individual FTO transactions, calculated charges, and required confirmation.</p></div></div>
-   <label for="manual-jobcard-select" style="margin-top:12px">Job Card</label><select id="manual-jobcard-select"><option value="">Select a job card</option></select>
-   <div id="manual-jobcard-details" style="margin-top:12px"></div>
-  </div>
-
+  <div class="fto-category-tabs" role="group" aria-label="FTO import review categories">
+    <button type="button" class="fto-category-tab active" data-category="automatic"><span>Automatic Import</span><strong id="auto-total-count">0</strong><small>Ready without manual review</small></button>
+    <button type="button" class="fto-category-tab" data-category="manual"><span>Manual Review</span><strong id="manual-total-count">0</strong><small>Confirmation required</small></button>
+    <button type="button" class="fto-category-tab" data-category="cannot"><span>Cannot Import</span><strong id="cannot-total-count">0</strong><small>Excluded from charges</small></button>
+   </div>
+   <div class="fto-category-panel" id="automatic-panel">
+    <div class="section-head"><div><h2>Automatic Import</h2><p>Eligible job cards. Browse the transactions before synchronization.</p></div></div>
+    <div id="automatic-card" class="fto-jobcard-view"></div>
+    <div class="fto-pager"><button type="button" class="secondary" id="automatic-prev">Previous</button><span id="automatic-position"></span><button type="button" class="secondary" id="automatic-next">Next</button></div>
+   </div>
+   <div class="fto-category-panel hidden" id="manual-panel">
+    <div class="section-head"><div><h2>Manual Review Needed</h2><p>Review each job card's transactions and confirm the existing charge or new MIS mapping.</p></div></div>
+    <div id="manual-card" class="fto-jobcard-view"></div>
+    <div class="fto-pager"><button type="button" class="secondary" id="manual-prev">Previous</button><span id="manual-position"></span><button type="button" class="secondary" id="manual-next">Next</button></div>
+   </div>
+   <div class="fto-category-panel hidden" id="cannot-panel">
+    <div class="section-head"><div><h2>Cannot Import</h2><p>Excluded job cards and the reason they will not create or update a charge.</p></div></div>
+    <div id="cannot-card" class="fto-jobcard-view"></div>
+    <div class="fto-pager"><button type="button" class="secondary" id="cannot-prev">Previous</button><span id="cannot-position"></span><button type="button" class="secondary" id="cannot-next">Next</button></div>
+   </div>
   <div class="table-foot"><span id="import-count" class="muted"></span><div class="actions"><button id="fto-import-button" type="button" disabled>Synchronize FTO</button></div></div>
  </section>
   <div id="sync-status" class="status hidden" aria-live="polite" role="status"></div>

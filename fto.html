@@ -239,6 +239,7 @@ tbody tr:last-child td{border-bottom:0}
 .fto-view-modal-content .fto-transaction-table th:nth-child(17),.fto-view-modal-content .fto-transaction-table td:nth-child(17){min-width:260px;width:260px}
 .fto-view-modal-content .fto-transaction-table th:nth-child(18),.fto-view-modal-content .fto-transaction-table td:nth-child(18),.fto-view-modal-content .fto-transaction-table th:nth-child(19),.fto-view-modal-content .fto-transaction-table td:nth-child(19){min-width:190px;width:190px}
 @media(max-width:700px){
+ .fto-modal-actions{gap:5px}.fto-modal-actions button{min-height:36px;padding:7px 9px;font-size:.76rem}
  .fto-view-modal-backdrop{padding:0;align-items:stretch}
  .fto-view-modal{width:100%;max-height:100dvh;height:100%;border-radius:0;border:0}
  .fto-view-modal-header{padding:14px;gap:8px}
@@ -450,18 +451,20 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 .history-action-menu.hidden{display:none!important}
 .history-action-menu button{display:block;width:100%;text-align:left;justify-content:flex-start;min-height:40px;padding:9px 10px;border:0;background:transparent;color:#344054;font-size:.84rem}
 .history-action-menu button:hover{background:#f1f5f9}
-@media(max-width:700px){.history-action-menu .history-view-action{display:none!important}.fto-card{cursor:pointer}.fto-card:focus-visible{outline:2px solid #4778d5;outline-offset:2px}}
+ .fto-card{cursor:pointer}.fto-card:focus-visible{outline:2px solid #4778d5;outline-offset:2px}
 .last-checked{text-align:left;color:#667085;font-size:.72rem;line-height:1.35}
 .last-checked strong{display:block;color:#475467;font-size:.76rem;font-weight:650;margin-top:2px}
 .history-list-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:13px}
 .history-empty{padding:32px 16px;text-align:center;color:#667085;border:1px dashed #cfd7e4;border-radius:12px;background:#fafbfd;font-size:.88rem}
 .fto-view-modal{width:min(1120px,100%);max-height:94vh}
 .fto-view-modal-content{padding:16px 20px 20px;overflow:auto;overscroll-behavior:contain}
-.fto-view-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:14px 0}
-.fto-view-summary .summary-tile{min-width:0;padding:10px 12px;border:1px solid #e3e8f0;border-radius:10px;background:#f7f9fc}
-.fto-view-summary .summary-tile span{display:block;color:#667085;font-size:.72rem}
-.fto-view-summary .summary-tile strong{display:block;margin-top:3px;overflow-wrap:anywhere}
-.fto-view-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:12px 0}
+.fto-modal-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.fto-modal-actions button{min-height:38px;padding:8px 12px;font-size:.82rem}
+.fto-view-summary{display:flex;align-items:center;flex-wrap:wrap;gap:5px 13px;margin:0 0 10px;padding:8px 10px;border:1px solid #e3e8f0;border-radius:9px;background:#f7f9fc;color:#475467;font-size:.78rem}
+.fto-view-summary .summary-tile{display:inline-flex;align-items:baseline;gap:4px;min-width:0;padding:0;border:0;background:transparent}
+.fto-view-summary .summary-tile span{color:#667085;font-size:.76rem}
+.fto-view-summary .summary-tile strong{display:inline;margin:0;overflow-wrap:anywhere;font-size:.8rem;color:#172033}
+.fto-view-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:8px 0}
 .fto-view-table-wrap{overflow:auto;border:1px solid #e3e8f0;border-radius:10px}
 .fto-view-table{width:100%;min-width:760px;border-collapse:collapse;white-space:nowrap;font-size:.82rem}
 .fto-view-table th,.fto-view-table td{padding:10px 11px;text-align:left;border-bottom:1px solid #edf0f5;vertical-align:top}
@@ -538,7 +541,11 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  <section class="fto-view-modal" role="dialog" aria-modal="true" aria-labelledby="fto-view-modal-title">
   <header class="fto-view-modal-header">
    <div><h2 id="fto-view-modal-title">FTO transactions</h2><p id="fto-view-modal-subtitle" class="muted"></p></div>
-   <button id="fto-view-modal-close" type="button" class="secondary" aria-label="Close transaction details">Close</button>
+   <div class="fto-modal-actions">
+    <button id="fto-revise-button" type="button" class="secondary" disabled title="FTO revision workflow will be added later">Revise</button>
+    <button id="fto-change-period-button" type="button" class="secondary">Change Period</button>
+    <button id="fto-view-modal-close" type="button" class="secondary" aria-label="Close transaction details">Close</button>
+   </div>
   </header>
   <div id="fto-view-modal-content" class="fto-view-modal-content"></div>
  </section>
@@ -616,7 +623,7 @@ function renderHistoryTransactions(batch){
  const counts=batch.status_counts||{};
  const wrapper=document.createElement("div");
  const summary=document.createElement("div");summary.className="fto-view-summary";
- const tiles=[["Total transactions",transactions.length],["Processed",Number(counts.processed||0)],["Deferred",Number(counts.blank||0)],["Rejected",Number(counts.rejected||0)],["Period",batch.contribution_period||"—"]];
+ const tiles=[["Transactions",transactions.length],["Processed",Number(counts.processed||0)],["Deferred",Number(counts.blank||0)],["Rejected",Number(counts.rejected||0)],["Period",batch.contribution_period||"—"]];
  for(const [label,value] of tiles){const tile=document.createElement("div");tile.className="summary-tile";const caption=document.createElement("span");caption.textContent=label;const strong=document.createElement("strong");strong.textContent=String(value);tile.append(caption,strong);summary.appendChild(tile);}
  wrapper.appendChild(summary);
  const toolbar=document.createElement("div");toolbar.className="fto-view-toolbar";
@@ -653,14 +660,16 @@ function renderHistoryTransactions(batch){
  toggle.addEventListener("click",()=>{showSensitiveFtoDetails=!showSensitiveFtoDetails;const content=$("fto-view-modal-content");content.replaceChildren(renderHistoryTransactions(batch));});
  return wrapper;
 }
+let currentViewingFtoBatch=null;
 function openFtoViewModal(batch){
+ currentViewingFtoBatch=batch;
  showSensitiveFtoDetails=false;
  $("fto-view-modal-title").textContent="FTO "+String(batch.fto_number||"transactions");
  $("fto-view-modal-subtitle").textContent=String(batch.contribution_period||"No contribution period")+" · "+(batch.transactions||[]).length+" transactions";
  $("fto-view-modal-content").replaceChildren(renderHistoryTransactions(batch));
  $("fto-view-modal-backdrop").classList.remove("hidden");$("fto-view-modal-close").focus();
 }
-function closeFtoViewModal(){$("fto-view-modal-backdrop").classList.add("hidden");$("fto-view-modal-content").replaceChildren();}
+function closeFtoViewModal(){$("fto-view-modal-backdrop").classList.add("hidden");$("fto-view-modal-content").replaceChildren();currentViewingFtoBatch=null;}
 let shownFtoHistory=10;
 function renderFtoHistory(reset=true){
  if(reset)shownFtoHistory=10;
@@ -668,32 +677,23 @@ function renderFtoHistory(reset=true){
  const search=$("fto-history-search").value.trim().toLowerCase(),period=$("fto-history-period").value;
  const filtered=ftoHistoryRows.filter(batch=>(!period||batch.contribution_period===period)&&(!search||String(batch.fto_number||"").toLowerCase().includes(search)||String(batch.contribution_period||"").toLowerCase().includes(search)));
  filtered.slice(0,shownFtoHistory).forEach(batch=>{
-  const card=document.createElement("article");card.className="fto-card";card.setAttribute("tabindex","0");card.setAttribute("aria-label","View FTO "+String(batch.fto_number||""));card.addEventListener("click",event=>{if(window.matchMedia("(max-width: 700px)").matches&&!event.target.closest(".action-wrap"))openFtoViewModal(batch)});card.addEventListener("keydown",event=>{if(window.matchMedia("(max-width: 700px)").matches&&(event.key==="Enter"||event.key===" ")){if(event.target===card){event.preventDefault();openFtoViewModal(batch)}}});
+  const card=document.createElement("article");card.className="fto-card";card.setAttribute("tabindex","0");card.setAttribute("role","button");card.setAttribute("aria-label","Open FTO "+String(batch.fto_number||""));
+  card.addEventListener("click",()=>openFtoViewModal(batch));
+  card.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();openFtoViewModal(batch)}});
   const main=document.createElement("div");main.className="card-main";
   const number=document.createElement("div");number.className="fto-number";number.textContent=String(batch.fto_number||"—");
   const periodLine=document.createElement("div");periodLine.className="period-line";periodLine.textContent=String(batch.contribution_period||"No contribution period");
   const statuses=statusSummary(batch.status_counts);main.append(number,periodLine,statuses);
   const side=document.createElement("div");side.className="card-side";
   const checked=document.createElement("div");checked.className="last-checked";checked.textContent="Last checked";const checkedValue=document.createElement("strong");checkedValue.textContent=fmtHistoryDate(batch.last_checked_at||batch.first_imported_at);checked.appendChild(checkedValue);
-  const actionWrap=document.createElement("div");actionWrap.className="action-wrap";
-  const actionButton=document.createElement("button");actionButton.type="button";actionButton.className="secondary action-trigger";actionButton.textContent="⋮";actionButton.setAttribute("aria-label","Actions for FTO "+String(batch.fto_number||""));actionButton.setAttribute("aria-haspopup","menu");actionButton.setAttribute("aria-expanded","false");
-  const menu=document.createElement("div");menu.className="history-action-menu hidden";menu.setAttribute("role","menu");
-  const view=document.createElement("button");view.type="button";view.textContent="View";view.className="history-view-action";view.setAttribute("role","menuitem");view.addEventListener("click",()=>{menu.classList.add("hidden");actionButton.setAttribute("aria-expanded","false");openFtoViewModal(batch)});
-  const change=document.createElement("button");change.type="button";change.textContent="Change period";change.setAttribute("role","menuitem");change.addEventListener("click",()=>{menu.classList.add("hidden");actionButton.setAttribute("aria-expanded","false");changeFtoPeriod(batch)});
-  menu.append(view,change);
-  actionButton.addEventListener("click",()=>{
-   const open=menu.classList.contains("hidden");document.querySelectorAll(".history-action-menu").forEach(el=>el.classList.add("hidden"));document.querySelectorAll(".action-trigger").forEach(el=>el.setAttribute("aria-expanded","false"));
-   if(open){menu.classList.remove("hidden");const rect=actionButton.getBoundingClientRect(),menuRect=menu.getBoundingClientRect();menu.style.left=Math.max(8,Math.min(rect.right-menuRect.width,window.innerWidth-menuRect.width-8))+"px";menu.style.top=Math.max(8,Math.min(rect.bottom+6,window.innerHeight-menuRect.height-8))+"px";}
-   actionButton.setAttribute("aria-expanded",String(open));
-  });
-  actionWrap.append(actionButton,menu);side.append(actionWrap,checked);card.append(main,side);list.appendChild(card);
+  side.appendChild(checked);card.append(main,side);list.appendChild(card);
  });
  $("fto-history-count").textContent="Showing "+Math.min(shownFtoHistory,filtered.length)+" of "+filtered.length+" matching FTOs · "+ftoHistoryRows.length+" imported";
  $("fto-history-empty").classList.toggle("hidden",filtered.length!==0);
  $("fto-history-more").classList.toggle("hidden",filtered.length<=shownFtoHistory);
 }
 $("fto-history-more").addEventListener("click",()=>{shownFtoHistory+=10;renderFtoHistory(false)});
-document.addEventListener("click",event=>{if(!event.target.closest(".action-wrap")){document.querySelectorAll(".history-action-menu").forEach(el=>el.classList.add("hidden"));document.querySelectorAll(".action-trigger").forEach(el=>el.setAttribute("aria-expanded","false"));}});
+
 let pendingPeriodBatch=null;
 async function loadSharedPeriods(selectedId=""){
  const {data,error}=await supabaseClient.functions.invoke("vbgramg-periods",{body:{action:"list"}});
@@ -767,6 +767,7 @@ async function loadFtoHistory(){
   else{historyStatus.textContent="";historyStatus.classList.add("hidden");historyStatus.classList.remove("error","success");}
  }catch(err){if(seq!==historyLoadSequence)return;historyMessage(err.message||"Could not load FTO history.","error");}
 }
+$("fto-change-period-button").addEventListener("click",()=>{if(currentViewingFtoBatch){const batch=currentViewingFtoBatch;closeFtoViewModal();changeFtoPeriod(batch);}});
 $("fto-view-modal-close").addEventListener("click",closeFtoViewModal);
 $("fto-view-modal-backdrop").addEventListener("click",event=>{if(event.target===$("fto-view-modal-backdrop"))closeFtoViewModal();});
 

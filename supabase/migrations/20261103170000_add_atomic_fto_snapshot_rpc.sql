@@ -99,7 +99,12 @@ begin
     perform l.id
     from public.vbgramg_charge_ledger l
     where l.job_card_number = v_guard.job_card_number
-      and l.entry_type = 'payment'
+      and l.entry_type in ('payment', 'charge', 'other_charge')
+      and (
+        l.entry_type = 'payment'
+        or l.period_id = v_guard.period_id
+        or (l.period_id is null and l.charge_period = (v_batch->>'ledger_charge_period')::date)
+      )
     order by l.id
     for update;
 

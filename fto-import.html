@@ -390,7 +390,7 @@ $('load-table-button').addEventListener('click',async()=>{
  const rows=parsePastedTable(pasted);
  if(!rows.length){status('Paste the copied FTO table first, then select Load table.','error');return}
  const ftoMatch=pasted.match(/FTO\s*No\.?\s*[:：]?\s*([A-Z0-9_-]+)/i);
- $('fto-number').value=ftoMatch&&ftoMatch[1]?ftoMatch[1].trim():'';existingFtoUnchanged=false;existingFtoKnown=false;ftoIdentityMismatch=false;existingFtoKnown=false;
+ $('fto-number').value=ftoMatch&&ftoMatch[1]?ftoMatch[1].trim():'';existingFtoUnchanged=false;existingFtoKnown=false;ftoIdentityMismatch=false;
  const result=renderPastedTable(rows);
  if(!result){status('No data rows detected. Paste the FTO table including its data.','error');return}
  if(!$('fto-number').value.trim()){status('FTO number was not detected. Paste the official FTO header including its FTO No. before preparing the import.','error');return;}
@@ -497,9 +497,10 @@ function renderImportPreview(){
   return a.job_card_number.localeCompare(b.job_card_number,undefined,{numeric:true,sensitivity:'base'});
  });
  sortedGroups.forEach((group,index)=>{
-  if(group.inScope){total+=group.amount;localCards++}else excluded++;
+  const isExempted=exemptedCards.has(group.job_card_number);
+  if(group.inScope){if(!isExempted)total+=group.amount;localCards++}else excluded++;
   invalid+=group.invalid_amount_rows;
-  const duplicate=duplicateCards.get(group.job_card_number),repeatedRefs=duplicateReferences.get(group.job_card_number)||[],allocated=alreadyAllocatedCards.get(group.job_card_number)||[],isExempted=exemptedCards.has(group.job_card_number),isUnknown=unknownCards.has(group.job_card_number);
+  const duplicate=duplicateCards.get(group.job_card_number),repeatedRefs=duplicateReferences.get(group.job_card_number)||[],allocated=alreadyAllocatedCards.get(group.job_card_number)||[],isUnknown=unknownCards.has(group.job_card_number);
   const targetBody=duplicate?reconciliationBody:tbody;
   if(duplicate)reconciliationCount++;
   const tr=document.createElement('tr');
@@ -508,7 +509,7 @@ function renderImportPreview(){
   addCell(String(index+1));addCell(group.job_card_number);
   addCell(group.person_name);addCell(String(group.row_count));addCell(group.reference_numbers.join(', ')||'Missing reference');
   addCell(group.status==='blank'?'Blank':group.status==='processed'?'Processed':group.status==='rejected'?'Rejected':group.status==='mixed'?'Mixed statuses':'Other / unknown');
-  addCell(group.inScope&&group.amount>0?'₹'+group.amount.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}):'—');
+  addCell(!isExempted&&group.inScope&&group.amount>0?'₹'+group.amount.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}):'—');
   const duplicateCell=addCell('');
   if(duplicate){
    const flag=document.createElement('span');flag.className='flag';flag.textContent='Existing manual charge';duplicateCell.appendChild(flag);

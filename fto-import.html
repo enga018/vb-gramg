@@ -535,7 +535,9 @@ async function refreshDuplicates(){
 }
 function updateImportButton(){
  const ftoNumber=$('fto-number').value.trim(),period=periodToDate(selectedPeriodDate()),selected=actionGroups();
- const invalid=parsedDataRows.some(row=>!String(row[3]||'').trim()||!jobCardFromRow(row)||!String(row[5]||row[7]||'').trim()||(['blank','processed'].includes(rawStatus(row))&&parseAmount(row[11])<=0));
+ const divisor=Number($('amount-divisor').value),multiplier=Number($('amount-multiplier').value);
+ const formulaInvalid=!Number.isFinite(divisor)||divisor<=0||!Number.isFinite(multiplier)||multiplier<=0;
+ const invalid=formulaInvalid||parsedDataRows.some(row=>!String(row[3]||'').trim()||!jobCardFromRow(row)||!String(row[5]||row[7]||'').trim()||(['blank','processed'].includes(rawStatus(row))&&parseAmount(row[11])<=0));
  const unreviewed=[...duplicateCards.keys()].some(card=>!reviewedCards.has(card)||Number(duplicateCards.get(card)?.charge_count||1)>1||(!(duplicateCards.get(card)?.applicant_name||duplicateCards.get(card)?.applicant_unique_id)&&!reconciliationApplicantSelections.has(card)));
  const unverifiedNew=[...unknownCards].some(card=>!reviewedNewCards.has(card));
  const hasDuplicateReferences=[...duplicateReferences.values()].some(refs=>refs.length>0);

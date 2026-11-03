@@ -250,7 +250,8 @@ Deno.serve(async(req:Request)=>{
      const applicantMismatch=Boolean(r.applicant_name&&ftoName&&normalizeApplicantIdentity(r.applicant_name)!==normalizeApplicantIdentity(ftoName));
      return {id:r.id,job_card_number:r.job_card_number,person_name:r.person_name,amount:r.amount,is_deferred:r.is_deferred,charge_count:(existing||[]).filter(x=>String(x.job_card_number)===String(r.job_card_number)&&(!x.period_id||String(x.period_id)===periodId)&&!/^FTO\b/i.test(String(x.note||""))).length,applicant_name:r.applicant_name||null,applicant_number:r.applicant_number||null,applicant_unique_id:r.applicant_unique_id||null,fto_applicant_name:r.fto_applicant_name||null,fto_name:ftoName,applicant_mismatch:applicantMismatch,match_confident:matchConfident,suggested_applicant:!hasAttachedApplicant&&matchConfident?best:null,candidates};
     });
-    return reply({approved:true,charge_period:periodDate,duplicates,unknown_job_cards:cards.filter(card=>!known.has(card.toUpperCase())&&!exemptedSet.has(card.toUpperCase())),exempted_job_cards:cards.filter(card=>exemptedSet.has(card.toUpperCase())),not_in_active_mis_job_cards:notInActiveMis,already_allocated:[...allocatedMap].map(([job_card_number,refs])=>({job_card_number,allocations:[...refs.values()]})),duplicate_references:[...duplicateMap].map(([job_card_number,refs])=>({job_card_number,reference_numbers:[...refs]}))});
+    const applicantMatches=referenceRows.map(input=>{const candidates=rankActiveMisApplicants(activeMisApplicants,input.job_card_number,input.person_name).slice(0,10);const best=candidates[0],second=candidates[1];const onlyOne=(activeMisApplicants.get(input.job_card_number)||[]).length===1;const gap=second?best.match_percentage-second.match_percentage:100;const confident=Boolean(best&&(onlyOne||(best.match_percentage>80&&gap>=10)));return {job_card_number:input.job_card_number,fto_name:input.person_name,candidates,suggested_applicant:confident?best:null,requires_manual:!confident};});
+    return reply({approved:true,charge_period:periodDate,duplicates,applicant_matches:applicantMatches,unknown_job_cards:cards.filter(card=>!known.has(card.toUpperCase())&&!exemptedSet.has(card.toUpperCase())),exempted_job_cards:cards.filter(card=>exemptedSet.has(card.toUpperCase())),not_in_active_mis_job_cards:notInActiveMis,already_allocated:[...allocatedMap].map(([job_card_number,refs])=>({job_card_number,allocations:[...refs.values()]})),duplicate_references:[...duplicateMap].map(([job_card_number,refs])=>({job_card_number,reference_numbers:[...refs]}))});
    }
    const rows=body.rows,sourceSha=String(body.source_sha256||"").toLowerCase(),sourceFilename=String(body.source_filename||"").trim().slice(0,255),ftoNumber=String(body.fto_number||"").trim().toUpperCase().slice(0,100);
    const reviewed=Array.isArray(body.reviewed_duplicates)?new Set(body.reviewed_duplicates.map((v:unknown)=>String(v||"").trim())):new Set<string>();
@@ -658,8 +659,7 @@ Deno.serve(async(req:Request)=>{
     const {data:knownCitizens,error:knownCitizensError}=await admin.from("vbgramg_contribution_citizens").select("job_card_number").in("job_card_number",chargeCandidateCards);
     if(knownCitizensError)throw knownCitizensError;
     const known=new Set([...(knownLedger||[]).map(r=>String(r.job_card_number)),...(knownCitizens||[]).map(r=>String(r.job_card_number))]);
-    const unverified=chargeCandidateCards.filter(card=>!known.has(card)&&!reviewedNew.has(card));
-    if(unverified.length)return reply({error:"Some local job cards are not in the existing contribution records. Verify them before importing.",unknown_job_cards:unverified},409);
+    // New-to-ledger job cards are valid when they exist in the active MIS.
    }
    let batchId=String(batchOld?.id||"");
    let oldBatchTransactions:Record<string,any>[]=[];
@@ -828,13 +828,15 @@ Deno.serve(async(req:Request)=>{
        if(linkLedgerError)throw linkLedgerError;
        ledgerId=String(manualKeeper.id);updatedCount++;reconciledCount++;
       }else if(keeper){
-       const {error:updateLedgerError}=await admin.from("vbgramg_charge_ledger").update({period_id:periodId,person_name:name||keeper.person_name,amount,is_deferred:isDeferred,entry_date:entryDate,reference_numbers:refs,note:"FTO import"}).eq("id",keeper.id);
+       const applicantFields=applicantChoice?{applicant_name:applicantChoice.applicant_name,applicant_number:applicantChoice.applicant_number,applicant_unique_id:applicantChoice.applicant_unique_id,fto_applicant_name:activeApplicantName||null}:{};
+       const {error:updateLedgerError}=await admin.from("vbgramg_charge_ledger").update({period_id:periodId,person_name:name||keeper.person_name,amount,is_deferred:isDeferred,entry_date:entryDate,reference_numbers:refs,note:"FTO import",...applicantFields}).eq("id",keeper.id);
        if(updateLedgerError)throw updateLedgerError;ledgerId=String(keeper.id);updatedCount++;
       }else{
        const {data:newLedger,error:insertLedgerError}=await admin.from("vbgramg_charge_ledger").insert({
         job_card_number:card,person_name:name||"Name needs review",entry_type:"charge",amount,
         charge_period:chargePeriod,period_id:periodId,entry_date:entryDate,note:"FTO import",
-        reference_numbers:refs,is_deferred:isDeferred,created_by:authData.user.id,import_id:importId
+        reference_numbers:refs,is_deferred:isDeferred,created_by:authData.user.id,import_id:importId,
+        ...(applicantChoice?{applicant_name:applicantChoice.applicant_name,applicant_number:applicantChoice.applicant_number,applicant_unique_id:applicantChoice.applicant_unique_id,fto_applicant_name:activeApplicantName||null}:{})
        }).select("id").single();
        if(insertLedgerError)throw insertLedgerError;ledgerId=String(newLedger.id);insertedCount++;
       }

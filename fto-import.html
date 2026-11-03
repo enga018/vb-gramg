@@ -251,7 +251,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
   <div class="field"><label for="amount-multiplier">Input 2 (multiply by)</label><input id="amount-multiplier" type="number" min="0.01" step="any" value="100" required></div>
 
  </div>
- <p class="import-help">If a job card already has a charge for the selected period, it will be flagged. Check the existing charge before marking that duplicate as reviewed. Reviewed duplicates can be imported only when you explicitly tick the review checkbox.</p>
+ <p class="import-help">When a job card already has a charge for this period, compare its amount with the incoming FTO total. Tick “Link FTO records to this charge” only after review. The existing ledger charge is retained: its amount, date, note, and deferred status are not overwritten, and no second charge is created for that job card. Multiple existing charges require manual resolution before synchronization.</p>
  <div id="import-summary" class="status" aria-live="polite">Enter the FTO number and contribution period.</div>
  <div class="table-wrap import-table-wrap"><table id="import-preview-table" class="import-table"><thead><tr><th>#</th><th>Job card</th><th>Applicant name (from FTO)</th><th>FTO rows</th><th>Reference numbers</th><th>Current status</th><th>Calculated charge</th><th>Duplicate check</th><th>Checks</th></tr></thead><tbody></tbody></table></div>
  <p class="import-help">Statuses are synchronized automatically per reference number: blank becomes deferred, Processed activates the matching charge, and Rejected removes only a matching FTO charge when no active transaction remains. The system records status history and does not delete unrelated charges. Mixed statuses under one job card are reconciled from individual reference numbers.</p>
@@ -455,7 +455,7 @@ function renderImportPreview(){
   const duplicateCell=addCell('');
   if(duplicate){
    const flag=document.createElement('span');flag.className='flag';flag.textContent='Existing charge';duplicateCell.appendChild(flag);
-   const detail=document.createElement('div');detail.className='muted';detail.textContent='₹'+Number(duplicate.amount||0).toLocaleString('en-IN',{maximumFractionDigits:2})+(duplicate.is_deferred?' · deferred':' · active');duplicateCell.appendChild(detail);
+   const detail=document.createElement('div');detail.className='muted';detail.textContent='Existing ₹'+Number(duplicate.amount||0).toLocaleString('en-IN',{maximumFractionDigits:2})+(duplicate.is_deferred?' · deferred':' · active')+' · FTO ₹'+Number(group.amount||0).toLocaleString('en-IN',{maximumFractionDigits:2})+' · existing amount will be preserved';duplicateCell.appendChild(detail);
   }else if(isUnknown){
    const flag=document.createElement('span');flag.className='flag';flag.textContent='New job card';duplicateCell.appendChild(flag);
    const detail=document.createElement('div');detail.className='muted';detail.textContent='Not in contribution records';duplicateCell.appendChild(detail);
@@ -466,9 +466,9 @@ function renderImportPreview(){
   const reviewCell=addCell('', 'review-cell');
   if(duplicate){
    const label=document.createElement('label');label.style.display='flex';label.style.gap='8px';label.style.alignItems='center';label.style.margin='0';
-   const check=document.createElement('input');check.type='checkbox';check.checked=reviewedCards.has(group.job_card_number);check.setAttribute('aria-label','I reviewed duplicate '+group.job_card_number);
+   const check=document.createElement('input');check.type='checkbox';check.disabled=Number(duplicate.charge_count||1)>1;check.checked=reviewedCards.has(group.job_card_number);check.setAttribute('aria-label','I reviewed duplicate '+group.job_card_number);
    check.addEventListener('change',()=>{if(check.checked)reviewedCards.add(group.job_card_number);else reviewedCards.delete(group.job_card_number);renderImportPreview()});
-   label.appendChild(check);const t=document.createElement('span');t.textContent='Reviewed; continue';label.appendChild(t);reviewCell.appendChild(label);
+   label.appendChild(check);const t=document.createElement('span');t.textContent=Number(duplicate.charge_count||1)>1?'Multiple charges — resolve first':'Link FTO records to this charge';label.appendChild(t);reviewCell.appendChild(label);
   }else if(isUnknown){
    const label=document.createElement('label');label.style.display='flex';label.style.gap='8px';label.style.alignItems='center';label.style.margin='0';
    const check=document.createElement('input');check.type='checkbox';check.checked=reviewedNewCards.has(group.job_card_number);check.setAttribute('aria-label','Verify new job card '+group.job_card_number);
@@ -506,7 +506,7 @@ async function refreshDuplicates(){
 function updateImportButton(){
  const ftoNumber=$('fto-number').value.trim(),period=periodToDate(selectedPeriodDate()),selected=actionGroups();
  const invalid=parsedDataRows.some(row=>!String(row[3]||'').trim()||!jobCardFromRow(row)||!String(row[5]||row[7]||'').trim()||(['blank','processed'].includes(rawStatus(row))&&parseAmount(row[11])<=0));
- const unreviewed=[...duplicateCards.keys()].some(card=>!reviewedCards.has(card));
+ const unreviewed=[...duplicateCards.keys()].some(card=>!reviewedCards.has(card)||Number(duplicateCards.get(card)?.charge_count||1)>1);
  const unverifiedNew=[...unknownCards].some(card=>!reviewedNewCards.has(card));
  const hasDuplicateReferences=[...duplicateReferences.values()].some(refs=>refs.length>0);
  $('fto-import-button').textContent='Synchronize FTO statuses';
@@ -578,7 +578,7 @@ async function executeFtoSync(payload,button){
   throw new Error((data&&data.error)||await edgeFunctionErrorMessage(error,'FTO synchronization failed.'));
  }
  
- const syncMessage='FTO '+data.fto_number+' synchronized. Saved period: '+data.contribution_period+'. Rows checked: '+data.rows_seen+'. Local transactions: '+data.local_transactions+'. Outside-active-MIS transactions excluded: '+data.excluded_other_village+'. Charges created: '+data.inserted+', updated: '+data.updated+', matching rejected charges removed: '+data.deleted+'. Calculated local total: ₹'+Number(data.total_amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'.';
+ const syncMessage='FTO '+data.fto_number+' synchronized. Saved period: '+data.contribution_period+'. Rows checked: '+data.rows_seen+'. Local transactions: '+data.local_transactions+'. Outside-active-MIS transactions excluded: '+data.excluded_other_village+'. Charges created: '+data.inserted+', updated: '+data.updated+', reconciled with existing charges: '+Number(data.reconciled||0)+', matching rejected charges removed: '+data.deleted+'. Calculated local total: ₹'+Number(data.total_amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'.';
  syncStatus(syncMessage,'success');button.textContent='Synchronization completed';
  await lookupFtoBatch();
  await loadApplicantReview(data.fto_number||$('fto-number').value.trim());

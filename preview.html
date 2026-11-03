@@ -138,22 +138,39 @@ dialog::backdrop{background:rgb(15 23 42 / 48%)}
   </article>
  </div>
  <div class="empty" id="empty" hidden>No FTOs match this search or period.</div>
- <div class="list-foot"><span id="showing">Showing 6 of 6 FTOs</span><span>Newest checked first</span></div>
+ <div class="list-foot"><span id="showing">Showing 10 of 11 matching FTOs</span><span>Newest checked first</span></div>\n <div style="display:flex;justify-content:center;margin-top:14px"><button class="quiet" id="see-more" type="button">See more</button></div>
 </section>
 </main>
 <dialog id="view-dialog"><div class="dialog-content"><h2 id="view-title">FTO details</h2><p>This is a preview-only action. The existing transaction viewer in the live app will remain unchanged.</p><div class="sample-view" id="view-details"></div><div class="dialog-actions"><button class="quiet" onclick="document.getElementById('view-dialog').close()">Close</button></div></div></dialog>
 <dialog id="period-dialog"><form class="dialog-content" id="period-form"><h2>Change contribution period</h2><p>Preview only. Changing a period here updates only this sample card.</p><label for="period-choice">Contribution period</label><select id="period-choice"><option>NOV26</option><option>OCT26</option><option>SEP26</option><option>AUG26</option></select><div class="dialog-actions"><button class="quiet" type="button" onclick="document.getElementById('period-dialog').close()">Cancel</button><button class="primary" type="submit">Save</button></div></form></dialog>
 <script>
 const list=document.getElementById('history-list'),search=document.getElementById('search'),filter=document.getElementById('period-filter');
-let activeCard=null;
-function refresh(){
- const q=search.value.trim().toLowerCase(),p=filter.value;let visible=0;
- [...list.children].forEach(card=>{const match=(!q||card.dataset.fto.toLowerCase().includes(q)||card.dataset.period.toLowerCase().includes(q))&&(!p||card.dataset.period===p);card.hidden=!match;if(match)visible++;});
- document.getElementById('record-count').textContent=visible+' of '+list.children.length+' imported FTOs';
- document.getElementById('showing').textContent='Showing '+visible+' of '+list.children.length+' FTOs';
- document.getElementById('empty').hidden=visible!==0;
+const batchSize=10;let shown= batchSize, activeCard=null;
+// Add realistic preview-only records so the progressive loading control can be reviewed.
+[...list.children].slice(0,5).forEach((source,i)=>{
+ const card=source.cloneNode(true),n=1690-i*7;
+ card.dataset.fto='FTO/2026-27/00'+n;card.dataset.period=['SEP26','AUG26','JUL26'][i%3];
+ card.dataset.processed=String(156-i*11);card.dataset.blank=String(i%3);card.dataset.rejected=String(i%2);
+ card.dataset.updated=['18 Oct 2026','16 Oct 2026','14 Oct 2026'][i%3];
+ card.querySelector('.fto-number').textContent=card.dataset.fto;
+ card.querySelector('.period-line').textContent=card.dataset.period;
+ card.querySelector('.statuses').innerHTML='<span class="status processed">Processed '+card.dataset.processed+'</span>'+(Number(card.dataset.blank)?'<span class="status blank">Deferred '+card.dataset.blank+'</span>':'');
+ card.querySelector('.last-checked strong').textContent=card.dataset.updated;
+ list.appendChild(card);
+});
+const moreButton=document.getElementById('see-more');
+function refresh(reset=true){
+ if(reset)shown=batchSize;
+ const q=search.value.trim().toLowerCase(),p=filter.value;
+ const matches=[...list.children].filter(card=>(!q||card.dataset.fto.toLowerCase().includes(q)||card.dataset.period.toLowerCase().includes(q))&&(!p||card.dataset.period===p));
+ matches.forEach((card,i)=>card.hidden=i>=shown);
+ document.getElementById('record-count').textContent=matches.length+' of '+list.children.length+' imported FTOs';
+ document.getElementById('showing').textContent='Showing '+Math.min(shown,matches.length)+' of '+matches.length+' matching FTOs';
+ document.getElementById('empty').hidden=matches.length!==0;
+ moreButton.hidden=matches.length<=shown;
 }
-search.addEventListener('input',refresh);filter.addEventListener('change',refresh);
+search.addEventListener('input',()=>refresh());filter.addEventListener('change',()=>refresh());
+moreButton.addEventListener('click',()=>{shown+=batchSize;refresh(false);});
 list.addEventListener('click',e=>{
  const trigger=e.target.closest('.action-trigger');
  if(trigger){const menu=trigger.nextElementSibling,open=menu.hidden;document.querySelectorAll('.menu').forEach(m=>m.hidden=true);document.querySelectorAll('.action-trigger').forEach(b=>b.setAttribute('aria-expanded','false'));menu.hidden=!open;trigger.setAttribute('aria-expanded',String(open));return;}

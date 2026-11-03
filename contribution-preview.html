@@ -62,4 +62,5 @@ document.getElementById('close').addEventListener('click',()=>{document.getEleme
 document.getElementById('toggleEdit').addEventListener('click',()=>{const sheet=document.querySelector('.sheet'),enabled=!sheet.classList.contains('edit-mode');sheet.classList.toggle('edit-mode',enabled);document.getElementById('toggleEdit').textContent=enabled?'Done':'Edit';document.getElementById('toggleEdit').setAttribute('aria-pressed',String(enabled))});
 document.getElementById('overlay').addEventListener('click',e=>{if(e.target.id==='overlay')e.currentTarget.classList.remove('open')});
 update();
-</script></body></html>
+</script><script src="./toast.js?v=20261103"></script>
+</body></html>

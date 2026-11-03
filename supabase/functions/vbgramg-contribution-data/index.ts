@@ -223,7 +223,7 @@ Deno.serve(async(req:Request)=>{
     if(allReferences.length){const {data,error}=await admin.from("vbgramg_charge_ledger").select("job_card_number,charge_period,period_id,note,reference_numbers").overlaps("reference_numbers",allReferences);if(error)throw error;referenceMatches.push(...(data||[]));}
     const duplicateMap=new Map<string,Set<string>>();
     for(const input of referenceRows){for(const reference of input.reference_numbers){for(const old of referenceMatches){if(!(old.reference_numbers||[]).includes(reference))continue;const sameExistingCharge=String(old.job_card_number)===input.job_card_number&&String(old.charge_period||"")===periodDate&&(!old.period_id||String(old.period_id)===periodId);if(!sameExistingCharge){if(!duplicateMap.has(input.job_card_number))duplicateMap.set(input.job_card_number,new Set());duplicateMap.get(input.job_card_number)!.add(reference);}}}}
-    const duplicateRows=[...new Map((existing||[]).filter(r=>(!r.period_id||String(r.period_id)===periodId)&&!(/^FTO\b/i.test(String(r.note||"")))&&!referenceRows.some(input=>input.job_card_number===String(r.job_card_number)&&(r.reference_numbers||[]).some((ref:string)=>input.reference_numbers.includes(String(ref))))).map(r=>[r.job_card_number,r])).values()];
+    const duplicateRows=[...new Map((existing||[]).filter(r=>(!r.period_id||String(r.period_id)===periodId)&&!(/^FTO\b/i.test(String(r.note||"")))).map(r=>[r.job_card_number,r])).values()];
     const duplicates=duplicateRows.map(r=>{
      const input=referenceRows.find(item=>item.job_card_number===String(r.job_card_number)),ftoName=String(input?.person_name||"");
      const candidates=rankActiveMisApplicants(activeMisApplicants,String(r.job_card_number),ftoName).slice(0,10);
@@ -694,6 +694,24 @@ Deno.serve(async(req:Request)=>{
     for(const tx of latestByReference.values()){const card=String(tx.job_card_number);if(!txByCard.has(card))txByCard.set(card,[]);txByCard.get(card)!.push(tx);}
     const {data:ledgerRows,error:ledgerRowsError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,note,reference_numbers,import_id,period_id,applicant_name,applicant_number,applicant_unique_id,fto_applicant_name").in("job_card_number",affectedCards).eq("entry_type","charge").eq("charge_period",chargePeriod);
     if(ledgerRowsError)throw ledgerRowsError;
+    const manualReviewIssues:string[]=[];
+    for(const card of affectedCards){
+     if(exemptCards.has(card))continue;
+     const cardTxs=txByCard.get(card)||[];
+     const activeTxs=cardTxs.filter(tx=>["blank","processed"].includes(String(tx.status))&&Number(tx.calculated_charge||0)>0);
+     const calculatedAmount=Number(activeTxs.reduce((sum,tx)=>sum+Number(tx.calculated_charge||0),0).toFixed(2));
+     if(calculatedAmount<=0)continue;
+     const cardRows=(ledgerRows||[]).filter(r=>String(r.job_card_number)===card&&(!r.period_id||String(r.period_id)===periodId));
+     const manualRows=cardRows.filter(r=>!/^FTO\\b/i.test(String(r.note||"")));
+     if(manualRows.length>1){manualReviewIssues.push(card+" (multiple manual charges)");continue;}
+     if(manualRows.length===1){
+      if(!reviewed.has(card)){manualReviewIssues.push(card+" (manual charge not reviewed)");continue;}
+      const row=manualRows[0],hasApplicant=Boolean(row.applicant_name||row.applicant_unique_id||row.applicant_number);
+      if(!hasApplicant&&!reconciliationApplicants.has(card))manualReviewIssues.push(card+" (MIS applicant not selected)");
+     }
+    }
+    if(manualReviewIssues.length)return reply({error:"Reconciliation review is incomplete: "+manualReviewIssues.join(", ")+". Review each existing charge and confirm its MIS applicant before synchronizing."},409);
+
         await runInBatches(affectedCards,8,async(card)=>{
      if(exemptCards.has(card))return;
      const txs=txByCard.get(card)||[];

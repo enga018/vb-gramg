@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#f3f6fb">
-<title>Periods — Mobile UI Preview | VBGRAMG</title>
+<title>FTO — Mobile UI Preview | VBGRAMG</title>
 <style>
-:root{color-scheme:light;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f3f6fb;--ink:#172033;--muted:#667085;--line:#e3e8f0;--surface:#fff;--soft:#f7f9fc;--accent:#2457c5;--green:#17663a;--green-bg:#eaf8ef;--closed:#667085;--closed-bg:#f0f2f5}
+:root{color-scheme:light;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f3f6fb;--ink:#172033;--muted:#667085;--line:#e3e8f0;--surface:#fff;--soft:#f7f9fc;--accent:#2457c5;--green:#17663a;--green-bg:#eaf8ef;--red:#9b2c20;--red-bg:#fff0ed;--amber:#8a4b08;--amber-bg:#fff4d9}
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;padding:16px;background:#f3f6fb;line-height:1.45}
 main{width:min(100%,1080px);margin:0 auto}
@@ -14,130 +14,171 @@ main{width:min(100%,1080px);margin:0 auto}
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px 22px;margin-bottom:14px}
 h1{font-size:1.35rem;line-height:1.25;letter-spacing:-.025em;margin:0}
 .topbar p{margin:4px 0 0;color:var(--muted);font-size:.88rem}
-.header-actions{display:flex;gap:8px;align-items:center}
-button{font:inherit;font-size:.88rem;font-weight:650;border:1px solid #cbd5e1;border-radius:10px;min-height:40px;padding:9px 13px;background:#e2e8f0;color:#0f172a;cursor:pointer}
+button,select,input{font:inherit}
+button{font-size:.88rem;font-weight:650;border:1px solid #cbd5e1;border-radius:10px;min-height:40px;padding:9px 13px;background:#e2e8f0;color:#172033;cursor:pointer}
 button:hover{background:#d7e0ec}
-button:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}
-button.primary{background:#172033;border-color:#172033;color:white}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}
+button.primary{background:#172033;border-color:#172033;color:#fff}
 button.primary:hover{background:#29364d}
 button.quiet{background:#f0f3f8;color:#344054;border-color:#e0e6ef}
-button.delete{background:#fff;color:#a12b20;border-color:#f2c9c4}
-button:disabled{opacity:.5;cursor:not-allowed}
+button.icon-button{width:40px;min-width:40px;height:40px;padding:0;font-size:1.25rem;line-height:1}
 .panel{padding:22px;margin-bottom:14px}
+.demo-note{margin:0 0 14px;padding:10px 12px;border:1px solid #d9e5f5;border-radius:10px;background:#f3f7fd;color:#46566f;font-size:.8rem}
 .panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
 h2{font-size:1.05rem;margin:0;letter-spacing:-.01em}
 .count{font-size:.78rem;color:var(--muted);font-weight:600;margin-top:3px}
-.period-list{display:grid;gap:9px}
-.period-card{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:16px;padding:15px 16px;border:1px solid var(--line);border-radius:13px;background:#fff}
-.period-name{font-size:1rem;font-weight:750;letter-spacing:-.015em}
-.period-meta{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:6px;color:var(--muted);font-size:.78rem}
-.dot{width:3px;height:3px;border-radius:50%;background:#98a2b3}
-.status{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:99px;font-size:.75rem;font-weight:750}
+.toolbar{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(210px,1fr);gap:12px;margin-bottom:16px}
+.field{min-width:0}
+label{display:block;font-size:.78rem;font-weight:700;margin:0 0 6px;color:#475467}
+input,select{width:100%;min-width:0;min-height:46px;padding:10px 12px;border:1px solid #cfd7e4;border-radius:10px;background:#fff;color:var(--ink);font-size:16px}
+.history-list{display:grid;gap:9px}
+.fto-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:14px 15px;border:1px solid var(--line);border-radius:13px;background:#fff}
+.card-main{min-width:0}
+.fto-number{font-size:.98rem;font-weight:780;letter-spacing:-.015em;overflow-wrap:anywhere}
+.period-line{margin-top:4px;color:#475467;font-size:.85rem;font-weight:600}
+.statuses{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.status{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:7px;font-size:.72rem;font-weight:750;white-space:nowrap}
 .status:before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
-.status.open{color:var(--green);background:var(--green-bg)}
-.status.closed{color:var(--closed);background:var(--closed-bg)}
-.actions{display:flex;gap:7px;align-items:center}
-.actions button{min-width:88px;min-height:38px;padding:7px 10px;font-size:.8rem}
-.empty-note{padding:14px;border-radius:10px;background:var(--soft);color:var(--muted);font-size:.82rem}
-.demo-note{margin:0 0 14px;padding:10px 12px;border:1px solid #d9e5f5;border-radius:10px;background:#f3f7fd;color:#46566f;font-size:.8rem}
-.create-dialog{width:min(92vw,440px);border:1px solid var(--line);border-radius:16px;padding:0;box-shadow:0 18px 55px rgb(15 23 42 / 22%);color:var(--ink)}
-.create-dialog::backdrop{background:rgb(15 23 42 / 48%)}
+.status.processed{background:var(--green-bg);color:var(--green)}
+.status.rejected{background:var(--red-bg);color:var(--red)}
+.status.blank{background:var(--amber-bg);color:var(--amber)}
+.status.other{background:#eef1f5;color:#475467}
+.card-side{display:flex;flex-direction:column;align-items:flex-end;gap:9px}
+.action-wrap{position:relative}
+.last-checked{text-align:right;color:var(--muted);font-size:.72rem;line-height:1.35}
+.last-checked strong{display:block;color:#475467;font-size:.76rem;font-weight:650;margin-top:2px}
+.menu{position:absolute;right:0;top:calc(100% + 6px);z-index:5;width:164px;padding:5px;background:#fff;border:1px solid var(--line);border-radius:11px;box-shadow:0 12px 30px rgb(15 23 42 / 15%)}
+.menu[hidden]{display:none}
+.menu button{display:block;width:100%;text-align:left;min-height:40px;padding:9px 10px;border:0;background:transparent;font-size:.84rem}
+.menu button:hover{background:#f1f5f9}
+.empty{padding:32px 16px;text-align:center;color:var(--muted);border:1px dashed #cfd7e4;border-radius:12px;background:#fafbfd;font-size:.88rem}
+.list-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:13px;color:var(--muted);font-size:.78rem}
+dialog{width:min(92vw,440px);border:1px solid var(--line);border-radius:16px;padding:0;box-shadow:0 18px 55px rgb(15 23 42 / 22%);color:var(--ink)}
+dialog::backdrop{background:rgb(15 23 42 / 48%)}
 .dialog-content{padding:22px}
-.dialog-content p{color:var(--muted);font-size:.85rem;margin:7px 0 18px}
-label{display:block;font-size:.82rem;font-weight:700;margin-bottom:6px}
-input{font:inherit;font-size:16px;min-height:46px;padding:10px 12px;border:1px solid #cfd7e4;border-radius:10px;width:100%;background:#fff;color:var(--ink)}
+.dialog-content h2{font-size:1.05rem}
+.dialog-content p{margin:7px 0 18px;color:var(--muted);font-size:.84rem}
 .dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+.sample-view{margin-top:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.sample-view div{display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border-bottom:1px solid #edf0f5;font-size:.82rem}
+.sample-view div:last-child{border:0}
+.sample-view span:first-child{color:var(--muted)}
 @media(max-width:700px){
  body{padding:10px}
- .topbar{padding:15px 16px;align-items:flex-start}
- .header-actions{display:none}
+ .topbar{padding:15px 16px;align-items:center}
+ .topbar .header-actions{display:none}
  .panel{padding:15px}
- .panel-head{align-items:center;margin-bottom:13px}
- .period-card{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px;padding:13px 12px}
- .period-name{font-size:.96rem}
- .period-meta{gap:6px;font-size:.72rem}
- .actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
- .actions button{width:100%;min-width:0;min-height:40px;padding:7px 4px;font-size:.76rem;white-space:normal}
- .actions button.delete{background:#f5f6f8;color:#667085;border-color:#e3e8f0}
+ .panel-head{align-items:center;margin-bottom:14px}
+ .toolbar{grid-template-columns:minmax(0,1fr);gap:10px;margin-bottom:13px}
+ .fto-card{padding:13px 12px;gap:8px;grid-template-columns:minmax(0,1fr) 42px}
+ .fto-number{font-size:.94rem}
+ .period-line{font-size:.82rem}
+ .statuses{gap:5px;margin-top:9px}
+ .status{font-size:.69rem;padding:4px 7px}
+ .card-side{height:100%;justify-content:space-between;align-items:flex-end}
+ .last-checked{font-size:.66rem}
+ .last-checked strong{font-size:.7rem;max-width:82px}
+ .action-wrap{align-self:start}
+ .list-foot{align-items:flex-start}
  .dialog-content{padding:18px}
  .dialog-actions{display:grid;grid-template-columns:1fr 1fr}
  .dialog-actions button{width:100%}
 }
-@media(max-width:360px){
+@media(max-width:370px){
  body{padding:8px}
  .topbar{padding:13px}
  .panel{padding:12px}
- .period-card{padding:11px 10px;column-gap:7px}
- .period-meta{font-size:.68rem}
- .actions{gap:5px}
- .actions button{font-size:.72rem;padding:6px 3px}
+ .fto-card{padding:11px 10px;grid-template-columns:minmax(0,1fr) 38px}
+ .fto-number{font-size:.88rem}
+ .status{font-size:.65rem;padding:4px 6px}
 }
 @media(min-width:701px){
- .period-list{gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden}
- .period-card{border:0;border-bottom:1px solid #edf0f5;border-radius:0;padding:14px 16px}
- .period-card:last-child{border-bottom:0}
- .actions button{min-width:92px}
+ .history-list{gap:0;border:1px solid var(--line);border-radius:12px;overflow:visible}
+ .fto-card{border:0;border-bottom:1px solid #edf0f5;border-radius:0;padding:14px 16px;grid-template-columns:minmax(0,1fr) 190px}
+ .fto-card:last-child{border-bottom:0}
+ .card-main{display:grid;grid-template-columns:minmax(180px,1fr) minmax(140px,.8fr) minmax(240px,1.3fr);align-items:center;gap:14px}
+ .period-line{margin:0}
+ .statuses{margin:0}
+ .card-side{flex-direction:row-reverse;align-items:center;justify-content:space-between}
+ .last-checked{text-align:left}
 }
 </style>
 </head>
 <body>
 <main>
 <header class="topbar">
- <div><h1>Periods</h1><p>Manage contribution periods used by Work Demand and FTO.</p></div>
- <div class="header-actions"><button class="quiet" type="button" onclick="document.getElementById('create-dialog').showModal()">+ Create period</button></div>
+ <div><h1>FTO</h1><p>Review imported FTOs, payment statuses and period mappings.</p></div>
+ <div class="header-actions"><button class="quiet" type="button">Import FTO</button></div>
 </header>
-<p class="demo-note">Design preview only · Sample records and buttons do not connect to the live database.</p>
+<p class="demo-note">Design preview only · Sample records and actions do not connect to the live database.</p>
 <section class="panel">
  <div class="panel-head">
-  <div><h2>All periods</h2><div class="count" id="period-count">4 periods</div></div>
-  <button class="quiet" type="button" onclick="document.getElementById('create-dialog').showModal()">+ Create period</button>
+  <div><h2>Imported FTO history</h2><div class="count" id="record-count">6 imported FTOs</div></div>
+  <button class="primary" type="button">Import FTO</button>
  </div>
- <div class="period-list" id="period-list">
-  <article class="period-card" data-name="NOV26" data-status="open" data-created="3 Nov 2026">
-   <div><div class="period-name">NOV26</div><div class="period-meta"><span class="status open">Open</span><span class="dot"></span><span>3 Nov 2026</span></div></div>
-   <div class="actions"><button class="quiet toggle">Close</button><button class="delete delete-btn">Delete</button></div>
+ <div class="toolbar">
+  <div class="field"><label for="search">Search FTO / period</label><input id="search" type="search" placeholder="Search FTO number or period"></div>
+  <div class="field"><label for="period-filter">Contribution period</label><select id="period-filter"><option value="">All periods</option><option>AUG26</option><option>SEP26</option><option>OCT26</option><option>NOV26</option></select></div>
+ </div>
+ <div class="history-list" id="history-list">
+  <article class="fto-card" data-fto="FTO/2026-27/001842" data-period="NOV26" data-processed="312" data-blank="0" data-rejected="2" data-other="0" data-updated="03 Nov 2026">
+   <div class="card-main"><div class="fto-number">FTO/2026-27/001842</div><div class="period-line">NOV26</div><div class="statuses"><span class="status processed">Processed 312</span><span class="status rejected">Rejected 2</span></div></div>
+   <div class="card-side"><div class="action-wrap"><button class="icon-button quiet action-trigger" aria-label="Actions for FTO 001842" aria-expanded="false">⋮</button><div class="menu" hidden><button data-action="view">View</button><button data-action="period">Change period</button></div></div><div class="last-checked">Last checked<strong>03 Nov 2026 · 10:42</strong></div></div>
   </article>
-  <article class="period-card" data-name="OCT26" data-status="closed" data-created="15 Oct 2026">
-   <div><div class="period-name">OCT26</div><div class="period-meta"><span class="status closed">Closed</span><span class="dot"></span><span>15 Oct 2026</span></div></div>
-   <div class="actions"><button class="quiet toggle">Reopen</button></div>
+  <article class="fto-card" data-fto="FTO/2026-27/001816" data-period="OCT26" data-processed="286" data-blank="4" data-rejected="1" data-other="0" data-updated="02 Nov 2026">
+   <div class="card-main"><div class="fto-number">FTO/2026-27/001816</div><div class="period-line">OCT26</div><div class="statuses"><span class="status processed">Processed 286</span><span class="status blank">Deferred 4</span><span class="status rejected">Rejected 1</span></div></div>
+   <div class="card-side"><div class="action-wrap"><button class="icon-button quiet action-trigger" aria-label="Actions for FTO 001816" aria-expanded="false">⋮</button><div class="menu" hidden><button data-action="view">View</button><button data-action="period">Change period</button></div></div><div class="last-checked">Last checked<strong>02 Nov 2026 · 16:18</strong></div></div>
   </article>
-  <article class="period-card" data-name="SEP26" data-status="closed" data-created="15 Sep 2026">
-   <div><div class="period-name">SEP26</div><div class="period-meta"><span class="status closed">Closed</span><span class="dot"></span><span>15 Sep 2026</span></div></div>
-   <div class="actions"><button class="quiet toggle">Reopen</button></div>
+  <article class="fto-card" data-fto="FTO/2026-27/001793" data-period="OCT26" data-processed="194" data-blank="0" data-rejected="0" data-other="0" data-updated="31 Oct 2026">
+   <div class="card-main"><div class="fto-number">FTO/2026-27/001793</div><div class="period-line">OCT26</div><div class="statuses"><span class="status processed">Processed 194</span></div></div>
+   <div class="card-side"><div class="action-wrap"><button class="icon-button quiet action-trigger" aria-label="Actions for FTO 001793" aria-expanded="false">⋮</button><div class="menu" hidden><button data-action="view">View</button><button data-action="period">Change period</button></div></div><div class="last-checked">Last checked<strong>31 Oct 2026 · 09:06</strong></div></div>
   </article>
-  <article class="period-card" data-name="AUG26" data-status="closed" data-created="15 Aug 2026">
-   <div><div class="period-name">AUG26</div><div class="period-meta"><span class="status closed">Closed</span><span class="dot"></span><span>15 Aug 2026</span></div></div>
-   <div class="actions"><button class="quiet toggle">Reopen</button><button class="delete delete-btn">Delete</button></div>
+  <article class="fto-card" data-fto="FTO/2026-27/001762" data-period="SEP26" data-processed="241" data-blank="3" data-rejected="0" data-other="0" data-updated="28 Oct 2026">
+   <div class="card-main"><div class="fto-number">FTO/2026-27/001762</div><div class="period-line">SEP26</div><div class="statuses"><span class="status processed">Processed 241</span><span class="status blank">Deferred 3</span></div></div>
+   <div class="card-side"><div class="action-wrap"><button class="icon-button quiet action-trigger" aria-label="Actions for FTO 001762" aria-expanded="false">⋮</button><div class="menu" hidden><button data-action="view">View</button><button data-action="period">Change period</button></div></div><div class="last-checked">Last checked<strong>28 Oct 2026 · 14:31</strong></div></div>
+  </article>
+  <article class="fto-card" data-fto="FTO/2026-27/001735" data-period="AUG26" data-processed="178" data-blank="0" data-rejected="5" data-other="0" data-updated="25 Oct 2026">
+   <div class="card-main"><div class="fto-number">FTO/2026-27/001735</div><div class="period-line">AUG26</div><div class="statuses"><span class="status processed">Processed 178</span><span class="status rejected">Rejected 5</span></div></div>
+   <div class="card-side"><div class="action-wrap"><button class="icon-button quiet action-trigger" aria-label="Actions for FTO 001735" aria-expanded="false">⋮</button><div class="menu" hidden><button data-action="view">View</button><button data-action="period">Change period</button></div></div><div class="last-checked">Last checked<strong>25 Oct 2026 · 11:05</strong></div></div>
+  </article>
+  <article class="fto-card" data-fto="FTO/2026-27/001701" data-period="AUG26" data-processed="0" data-blank="12" data-rejected="0" data-other="0" data-updated="21 Oct 2026">
+   <div class="card-main"><div class="fto-number">FTO/2026-27/001701</div><div class="period-line">AUG26</div><div class="statuses"><span class="status blank">Deferred 12</span></div></div>
+   <div class="card-side"><div class="action-wrap"><button class="icon-button quiet action-trigger" aria-label="Actions for FTO 001701" aria-expanded="false">⋮</button><div class="menu" hidden><button data-action="view">View</button><button data-action="period">Change period</button></div></div><div class="last-checked">Last checked<strong>21 Oct 2026 · 08:50</strong></div></div>
   </article>
  </div>
+ <div class="empty" id="empty" hidden>No FTOs match this search or period.</div>
+ <div class="list-foot"><span id="showing">Showing 6 of 6 FTOs</span><span>Newest checked first</span></div>
 </section>
 </main>
-<dialog class="create-dialog" id="create-dialog">
- <form method="dialog" class="dialog-content" id="create-form">
-  <h2>Create period</h2><p>Choose the contribution month. Period name and date are generated automatically.</p>
-  <label for="charge-month">Charge month</label><input id="charge-month" type="month" required>
-  <div class="dialog-actions"><button class="primary" value="save" id="save-period">Save period</button><button class="quiet" value="cancel">Cancel</button></div>
- </form>
-</dialog>
+<dialog id="view-dialog"><div class="dialog-content"><h2 id="view-title">FTO details</h2><p>This is a preview-only action. The existing transaction viewer in the live app will remain unchanged.</p><div class="sample-view" id="view-details"></div><div class="dialog-actions"><button class="quiet" onclick="document.getElementById('view-dialog').close()">Close</button></div></div></dialog>
+<dialog id="period-dialog"><form class="dialog-content" id="period-form"><h2>Change contribution period</h2><p>Preview only. Changing a period here updates only this sample card.</p><label for="period-choice">Contribution period</label><select id="period-choice"><option>NOV26</option><option>OCT26</option><option>SEP26</option><option>AUG26</option></select><div class="dialog-actions"><button class="quiet" type="button" onclick="document.getElementById('period-dialog').close()">Cancel</button><button class="primary" type="submit">Save</button></div></form></dialog>
 <script>
-const list=document.getElementById('period-list');
-function refresh(){document.getElementById('period-count').textContent=list.querySelectorAll('.period-card').length+' periods';}
+const list=document.getElementById('history-list'),search=document.getElementById('search'),filter=document.getElementById('period-filter');
+let activeCard=null;
+function refresh(){
+ const q=search.value.trim().toLowerCase(),p=filter.value;let visible=0;
+ [...list.children].forEach(card=>{const match=(!q||card.dataset.fto.toLowerCase().includes(q)||card.dataset.period.toLowerCase().includes(q))&&(!p||card.dataset.period===p);card.hidden=!match;if(match)visible++;});
+ document.getElementById('record-count').textContent=visible+' of '+list.children.length+' imported FTOs';
+ document.getElementById('showing').textContent='Showing '+visible+' of '+list.children.length+' FTOs';
+ document.getElementById('empty').hidden=visible!==0;
+}
+search.addEventListener('input',refresh);filter.addEventListener('change',refresh);
 list.addEventListener('click',e=>{
- const card=e.target.closest('.period-card');if(!card)return;
- if(e.target.classList.contains('toggle')){
-  const open=card.dataset.status==='open';card.dataset.status=open?'closed':'open';
-  const pill=card.querySelector('.status');pill.className='status '+(open?'closed':'open');pill.textContent=open?'Closed':'Open';
-  e.target.textContent=open?'Reopen':'Close';
- }else if(e.target.classList.contains('delete-btn')){
-  if(confirm('Remove this sample record from the preview?')){card.remove();refresh();}
+ const trigger=e.target.closest('.action-trigger');
+ if(trigger){const menu=trigger.nextElementSibling,open=menu.hidden;document.querySelectorAll('.menu').forEach(m=>m.hidden=true);document.querySelectorAll('.action-trigger').forEach(b=>b.setAttribute('aria-expanded','false'));menu.hidden=!open;trigger.setAttribute('aria-expanded',String(open));return;}
+ const action=e.target.closest('[data-action]');if(!action)return;
+ activeCard=action.closest('.fto-card');action.closest('.menu').hidden=true;activeCard.querySelector('.action-trigger').setAttribute('aria-expanded','false');
+ if(action.dataset.action==='view'){
+  document.getElementById('view-title').textContent=activeCard.dataset.fto;
+  document.getElementById('view-details').innerHTML='<div><span>Contribution period</span><strong>'+activeCard.dataset.period+'</strong></div><div><span>Processed</span><strong>'+activeCard.dataset.processed+'</strong></div><div><span>Deferred</span><strong>'+activeCard.dataset.blank+'</strong></div><div><span>Rejected</span><strong>'+activeCard.dataset.rejected+'</strong></div><div><span>Last checked</span><strong>'+activeCard.dataset.updated+'</strong></div>';
+  document.getElementById('view-dialog').showModal();
+ }else{
+  document.getElementById('period-choice').value=activeCard.dataset.period;
+  document.getElementById('period-dialog').showModal();
  }
 });
-document.getElementById('create-form').addEventListener('submit',e=>{
- if(e.submitter?.value!=='save')return;
- const month=document.getElementById('charge-month').value;if(!month){e.preventDefault();return;}
- const [y,m]=month.split('-').map(Number);const name=new Date(y,m-1,1).toLocaleString('en-US',{month:'short'}).toUpperCase()+String(y).slice(-2);
- const card=document.createElement('article');card.className='period-card';card.dataset.name=name;card.dataset.status='open';card.innerHTML='<div><div class="period-name"></div><div class="period-meta"><span class="status open">Open</span><span class="dot"></span><span>Preview just now</span></div></div><div class="actions"><button class="quiet toggle" type="button">Close</button><button class="delete delete-btn" type="button">Delete</button></div>';card.querySelector('.period-name').textContent=name;list.prepend(card);refresh();document.getElementById('charge-month').value='';
-});
+document.addEventListener('click',e=>{if(!e.target.closest('.action-wrap')){document.querySelectorAll('.menu').forEach(m=>m.hidden=true);document.querySelectorAll('.action-trigger').forEach(b=>b.setAttribute('aria-expanded','false'));}});
+document.getElementById('period-form').addEventListener('submit',e=>{e.preventDefault();if(!activeCard)return;activeCard.dataset.period=document.getElementById('period-choice').value;activeCard.querySelector('.period-line').textContent=activeCard.dataset.period;document.getElementById('period-dialog').close();refresh();});
 </script>
 </body>
 </html>

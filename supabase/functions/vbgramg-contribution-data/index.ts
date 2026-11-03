@@ -721,7 +721,7 @@ Deno.serve(async(req:Request)=>{
       await runInBatches(normalized,8,async(row)=>{
     const old=oldByRef.get(String(row.reference_no));
     if(old&&String(old.job_card_number||"").toUpperCase()===String(row.job_card_number||"").toUpperCase()&&String(old.person_name||"")===String(row.person_name||"")&&String(old.transaction_date||"")===String(row.transaction_date||"")&&String(old.processed_date||"")===String(row.processed_date||"")&&Number(old.amount_to_be_credited||0)===Number(row.amount_to_be_credited||0)&&Number(old.credit_amount||0)===Number(row.credit_amount||0)&&Number(old.calculated_charge||0)===Number(row.calculated_charge||0)&&String(old.status||"")===String(row.status||"")&&String(old.rejection_reason||"")===String(row.rejection_reason||"")){
-     const {error:seenError}=await admin.from("vbgramg_fto_transactions").update({last_seen_at:nowIso,updated_at:nowIso}).eq("id",old.id);
+     const {error:seenError}=await admin.from("vbgramg_fto_transactions").update({is_current:true,last_seen_at:nowIso,updated_at:nowIso}).eq("id",old.id);
      if(seenError)throw seenError;
      return;
     }

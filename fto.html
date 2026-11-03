@@ -425,6 +425,81 @@ header .top-actions > button:hover {
 body>main{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 
+
+/* FTO history layout aligned with the approved preview. */
+.history-section{margin:0;padding:0;border:0}
+.history-toolbar{display:grid;grid-template-columns:minmax(220px,1.4fr) minmax(180px,1fr);gap:12px;margin:16px 0}
+.history-list{display:grid;gap:0;border:1px solid #dfe5ee;border-radius:12px;overflow:visible;background:#fff}
+.fto-card{display:grid;grid-template-columns:minmax(0,1fr) 210px;gap:12px;align-items:center;padding:12px 15px;border:0;border-bottom:1px solid #e8edf4;background:#fff;min-width:0}
+.fto-card:last-child{border-bottom:0}
+.fto-card:hover{background:#f6f9ff}
+.card-main{min-width:0;display:grid;grid-template-columns:minmax(180px,1fr) minmax(90px,.45fr) minmax(220px,1.2fr);align-items:center;gap:14px}
+.fto-number{font-size:.98rem;font-weight:780;letter-spacing:-.015em;overflow-wrap:anywhere}
+.period-line{margin:0;color:#475467;font-size:.85rem;font-weight:650}
+.statuses{display:flex;flex-wrap:wrap;gap:6px;margin:0}
+.history-status{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:7px;font-size:.72rem;font-weight:750;white-space:nowrap;background:#eef1f5;color:#475467}
+.history-status:before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.history-status.processed{background:#eaf8ef;color:#17663a}
+.history-status.rejected{background:#fff0ed;color:#9b2c20}
+.history-status.blank{background:#fff4d9;color:#8a4b08}
+.history-status.other{background:#eef1f5;color:#475467}
+.card-side{display:flex;flex-direction:row-reverse;align-items:center;justify-content:space-between;gap:9px;min-width:0}
+.action-wrap{position:relative}
+.action-trigger{width:40px;min-width:40px;height:40px;padding:0;font-size:1.25rem;line-height:1}
+.history-action-menu{position:fixed;left:0;top:0;z-index:1200;min-width:164px;padding:5px;background:#fff;border:1px solid #dfe5ee;border-radius:11px;box-shadow:0 12px 30px rgb(15 23 42 / 15%)}
+.history-action-menu.hidden{display:none!important}
+.history-action-menu button{display:block;width:100%;text-align:left;justify-content:flex-start;min-height:40px;padding:9px 10px;border:0;background:transparent;color:#344054;font-size:.84rem}
+.history-action-menu button:hover{background:#f1f5f9}
+.last-checked{text-align:left;color:#667085;font-size:.72rem;line-height:1.35}
+.last-checked strong{display:block;color:#475467;font-size:.76rem;font-weight:650;margin-top:2px}
+.history-list-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:13px}
+.history-empty{padding:32px 16px;text-align:center;color:#667085;border:1px dashed #cfd7e4;border-radius:12px;background:#fafbfd;font-size:.88rem}
+.fto-view-modal{width:min(1120px,100%);max-height:94vh}
+.fto-view-modal-content{padding:16px 20px 20px;overflow:auto;overscroll-behavior:contain}
+.fto-view-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:14px 0}
+.fto-view-summary .summary-tile{min-width:0;padding:10px 12px;border:1px solid #e3e8f0;border-radius:10px;background:#f7f9fc}
+.fto-view-summary .summary-tile span{display:block;color:#667085;font-size:.72rem}
+.fto-view-summary .summary-tile strong{display:block;margin-top:3px;overflow-wrap:anywhere}
+.fto-view-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:12px 0}
+.fto-view-table-wrap{overflow:auto;border:1px solid #e3e8f0;border-radius:10px}
+.fto-view-table{width:100%;min-width:760px;border-collapse:collapse;white-space:nowrap;font-size:.82rem}
+.fto-view-table th,.fto-view-table td{padding:10px 11px;text-align:left;border-bottom:1px solid #edf0f5;vertical-align:top}
+.fto-view-table th{position:sticky;top:0;background:#f7f9fc;color:#475467;font-size:.72rem;z-index:1}
+.fto-view-table td.amount{text-align:right;font-variant-numeric:tabular-nums}
+.fto-view-table tr:last-child td{border-bottom:0}
+.fto-tx-status{font-weight:700}
+.fto-tx-status.processed{color:#17663a}.fto-tx-status.deferred{color:#8a4b08}.fto-tx-status.rejected{color:#9b2c20}
+.fto-transaction-mobile{display:none}
+.fto-view-note{margin:12px 0 0;color:#667085;font-size:.74rem}
+@media(max-width:900px){.card-main{grid-template-columns:minmax(150px,1fr) minmax(75px,.4fr) minmax(180px,1.1fr);gap:10px}}
+@media(max-width:700px){
+ .history-toolbar{grid-template-columns:minmax(0,1fr)}
+ .history-list{gap:10px;border:0;background:transparent;overflow:visible}
+ .fto-card{padding:12px 11px;gap:8px;grid-template-columns:minmax(0,1fr) 112px;border:1px solid #e1e7f0;border-radius:12px;box-shadow:0 2px 8px rgb(23 32 51 / 4%)}
+ .card-main{display:block}.fto-number{font-size:.88rem;font-weight:700;line-height:1.4}
+ .period-line{font-size:.78rem;margin-top:3px}
+ .statuses{gap:5px;margin-top:7px}.history-status{font-size:.65rem;padding:3px 7px;white-space:normal}
+ .card-side{height:100%;flex-direction:column-reverse;justify-content:space-between;align-items:flex-end;gap:6px}
+ .last-checked{text-align:right;font-size:.66rem}.last-checked strong{font-size:.7rem;max-width:112px}
+ .action-wrap{align-self:flex-end}
+ .history-list-foot{align-items:center;flex-wrap:wrap}
+ .fto-view-modal-backdrop{padding:0;align-items:stretch}
+ .fto-view-modal{width:100%;max-height:100dvh;height:100%;border-radius:0;border:0}
+ .fto-view-modal-header{padding:14px;gap:8px}.fto-view-modal-header h2{font-size:1rem}
+ .fto-view-modal-content{padding:12px}
+ .fto-view-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .fto-view-table-wrap{display:none}
+ .fto-transaction-mobile{display:grid;gap:8px;max-height:55vh;overflow:auto}
+ .fto-transaction-mobile-card{border:1px solid #e3e8f0;border-radius:10px;padding:10px;background:#fff}
+ .fto-transaction-mobile-card .tx-top{display:flex;justify-content:space-between;gap:8px;font-size:.78rem;font-weight:750;overflow-wrap:anywhere}
+ .fto-transaction-mobile-card .tx-name{margin:4px 0;color:#344054;font-size:.82rem}
+ .fto-transaction-mobile-card .tx-meta{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;color:#667085;font-size:.72rem}
+ .fto-transaction-mobile-card strong{display:block;color:#172033;font-size:.76rem;overflow-wrap:anywhere}
+ .fto-view-toolbar{align-items:flex-start;flex-direction:column}
+ .fto-view-toolbar button{width:100%}
+}
+@media(max-width:370px){.fto-card{padding:10px 9px;grid-template-columns:minmax(0,1fr) 98px}.fto-number{font-size:.82rem}}
+
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -440,8 +515,9 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
   <div class="field"><label for="fto-history-period">Contribution period</label><select id="fto-history-period"><option value="">All periods</option></select></div>
  </div>
  <div id="fto-history-status" class="status" aria-live="polite">Loading imported FTO history…</div>
- <div class="table-wrap history-table-wrap"><table id="fto-history-table"><thead><tr><th class="col-fto">FTO number</th><th class="col-period">Contribution period</th><th class="col-status">Status summary</th><th class="col-updated">Last imported / checked</th><th class="col-action">Action</th></tr></thead><tbody></tbody></table></div>
- <div class="table-foot"><span id="fto-history-count" class="muted"></span></div>
+ <div id="fto-history-list" class="history-list" aria-live="polite"></div>
+ <div id="fto-history-empty" class="history-empty hidden">No FTOs match this search or period.</div>
+ <div class="history-list-foot"><span id="fto-history-count" class="muted"></span><button id="fto-history-more" type="button" class="secondary hidden">See more</button></div>
 </section>
 </div>
 <div id="period-modal-backdrop" class="period-modal-backdrop hidden" role="presentation">
@@ -500,9 +576,12 @@ function fmtHistoryDate(value){
 }
 function statusSummary(counts={}){
  const parts=[];
- for(const key of ["processed","blank","rejected","other"]){const count=Number(counts[key]||0);if(count)parts.push({key,label:(key==="blank"?"Blank":key[0].toUpperCase()+key.slice(1))+" "+count});}
- if(!parts.length)return "No transactions";
- const wrap=document.createElement("div");wrap.className="history-statuses";
+ for(const key of ["processed","blank","rejected","other"]){
+  const count=Number(counts[key]||0);if(!count)continue;
+  const label=key==="blank"?"Deferred":key[0].toUpperCase()+key.slice(1);
+  parts.push({key,label:label+" "+count});
+ }
+ const wrap=document.createElement("div");wrap.className="statuses";
  for(const part of parts){const span=document.createElement("span");span.className="history-status "+part.key;span.textContent=part.label;wrap.appendChild(span);}
  return wrap;
 }
@@ -511,76 +590,109 @@ function addHistoryCell(row,value){
  if(value instanceof Node)td.appendChild(value);else td.textContent=String(value??"—");
  row.appendChild(td);return td;
 }
-function renderHistoryTransactions(batch){
- const wrapper=document.createElement("div");
- const heading=document.createElement("p");heading.className="detail-heading";heading.textContent="Imported transactions for New Serchhip North · "+(batch.transactions||[]).length+" rows";wrapper.appendChild(heading);
+function getFtoCellValue(tx,label){
  const fallback={
-  "Reference No.":tx=>tx.reference_no,
   "Job Card No. (Panchayat Name)":tx=>tx.job_card_number,
   "Applicant Name":tx=>tx.person_name,
   "Credit Amount (In Rs.)":tx=>tx.credit_amount,
   "Status":tx=>tx.status,
   "Processed Date":tx=>tx.processed_date,
-  "Rejection Reason":tx=>tx.rejection_reason,
-  "Transaction Date":tx=>tx.transaction_date
+  "UTR No.":tx=>tx.utr_no,
+  "Rejection Reason":tx=>tx.rejection_reason
  };
- const cellValue=(tx,label)=>{
-  const index=FTO_HEADERS.indexOf(label),source=Array.isArray(tx.source_row)?tx.source_row:[];
-  let value=index>=0?source[index]:undefined;
-  if(value===undefined||value===null||String(value)==="")value=fallback[label]?.(tx);
-  return value===undefined||value===null||String(value)===""?"—":String(value).replace(/<br\s*\/?>/gi," ");
- };
- const wrap=document.createElement("div");wrap.className="table-wrap";
- const table=document.createElement("table");table.className="fto-transaction-table";const thead=document.createElement("thead"),headRow=document.createElement("tr");
- FTO_HEADERS.forEach(label=>{const th=document.createElement("th");th.textContent=label==="Job Card No. (Panchayat Name)"?"Job Card No.":label;headRow.appendChild(th)});
- thead.appendChild(headRow);table.appendChild(thead);
+ const index=FTO_HEADERS.indexOf(label),source=Array.isArray(tx.source_row)?tx.source_row:[];
+ let value=index>=0?source[index]:undefined;
+ if(value===undefined||value===null||String(value)==="")value=fallback[label]?.(tx);
+ return value===undefined||value===null||String(value)===""?"—":String(value).replace(/<br\\s*\\/?>/gi," ").trim();
+}
+function ftoStatus(tx){
+ const value=getFtoCellValue(tx,"Status");
+ return value==="—"||!value.trim()?"Deferred":value;
+}
+let showSensitiveFtoDetails=false;
+function renderHistoryTransactions(batch){
+ const transactions=Array.isArray(batch.transactions)?batch.transactions:[];
+ const counts=batch.status_counts||{};
+ const wrapper=document.createElement("div");
+ const summary=document.createElement("div");summary.className="fto-view-summary";
+ const tiles=[["Total transactions",transactions.length],["Processed",Number(counts.processed||0)],["Deferred",Number(counts.blank||0)],["Rejected",Number(counts.rejected||0)],["Period",batch.contribution_period||"—"]];
+ for(const [label,value] of tiles){const tile=document.createElement("div");tile.className="summary-tile";const caption=document.createElement("span");caption.textContent=label;const strong=document.createElement("strong");strong.textContent=String(value);tile.append(caption,strong);summary.appendChild(tile);}
+ wrapper.appendChild(summary);
+ const toolbar=document.createElement("div");toolbar.className="fto-view-toolbar";
+ const title=document.createElement("strong");title.textContent="Transaction details · "+transactions.length+" rows";
+ const toggle=document.createElement("button");toggle.type="button";toggle.className="secondary";toggle.textContent=showSensitiveFtoDetails?"Hide UTR & rejection reason":"Show UTR & rejection reason";
+ toolbar.append(title,toggle);wrapper.appendChild(toolbar);
+ const labels=["Job Card No. (Panchayat Name)","Applicant Name","Credit Amount (In Rs.)","Status","Processed Date"];
+ if(showSensitiveFtoDetails)labels.push("UTR No.","Rejection Reason");
+ const tableWrap=document.createElement("div");tableWrap.className="fto-view-table-wrap";
+ const table=document.createElement("table");table.className="fto-view-table";const thead=document.createElement("thead"),headRow=document.createElement("tr");
+ const displayLabels=["Job Card No.","Applicant Name","Credit Amount","Status","Processed Date","UTR","Rejection Reason"];
+ labels.forEach((label,i)=>{const th=document.createElement("th");th.textContent=displayLabels[i];headRow.appendChild(th)});thead.appendChild(headRow);table.appendChild(thead);
  const tbody=document.createElement("tbody");
- for(const tx of (batch.transactions||[])){
+ for(const tx of transactions){
   const tr=document.createElement("tr");
-  for(const label of FTO_HEADERS){
-   const td=document.createElement("td");td.dataset.label=label==="Job Card No. (Panchayat Name)"?"Job Card No.":label;
-   td.textContent=cellValue(tx,label);tr.appendChild(td);
-  }
+  labels.forEach((label,i)=>{const td=document.createElement("td");let value=label==="Status"?ftoStatus(tx):getFtoCellValue(tx,label);td.textContent=value;if(i===2)td.className="amount";if(i===3){const status=document.createElement("span");status.className="fto-tx-status "+(value.toLowerCase().includes("reject")?"rejected":value.toLowerCase().includes("process")?"processed":"deferred");status.textContent=value;td.replaceChildren(status);}tr.appendChild(td)});
   tbody.appendChild(tr);
  }
- if(!(batch.transactions||[]).length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=FTO_HEADERS.length;td.textContent="No local transaction rows are saved for this FTO.";tr.appendChild(td);tbody.appendChild(tr);}
- table.appendChild(tbody);wrap.appendChild(table);wrapper.appendChild(wrap);return wrapper;
+ if(!transactions.length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=labels.length;td.textContent="No local transaction rows are saved for this FTO.";tr.appendChild(td);tbody.appendChild(tr);}
+ table.append(tbody);tableWrap.appendChild(table);wrapper.appendChild(tableWrap);
+ const mobile=document.createElement("div");mobile.className="fto-transaction-mobile";
+ for(const tx of transactions){
+  const card=document.createElement("article");card.className="fto-transaction-mobile-card";
+  const top=document.createElement("div");top.className="tx-top";const job=document.createElement("span");job.textContent=getFtoCellValue(tx,"Job Card No. (Panchayat Name)");const status=document.createElement("span");const statusValue=ftoStatus(tx);status.className="fto-tx-status "+(statusValue.toLowerCase().includes("reject")?"rejected":statusValue.toLowerCase().includes("process")?"processed":"deferred");status.textContent=statusValue;top.append(job,status);card.appendChild(top);
+  const name=document.createElement("div");name.className="tx-name";name.textContent=getFtoCellValue(tx,"Applicant Name");card.appendChild(name);
+  const meta=document.createElement("div");meta.className="tx-meta";
+  const fields=[["Credit amount",getFtoCellValue(tx,"Credit Amount (In Rs.)")],["Processed date",getFtoCellValue(tx,"Processed Date")]];
+  if(showSensitiveFtoDetails)fields.push(["UTR",getFtoCellValue(tx,"UTR No.")],["Rejection reason",getFtoCellValue(tx,"Rejection Reason")]);
+  for(const [label,value] of fields){const item=document.createElement("div");item.textContent=label;const strong=document.createElement("strong");strong.textContent=value;item.appendChild(strong);meta.appendChild(item);}card.appendChild(meta);mobile.appendChild(card);
+ }
+ if(!transactions.length){const empty=document.createElement("p");empty.className="muted";empty.textContent="No local transaction rows are saved for this FTO.";mobile.appendChild(empty);}
+ wrapper.appendChild(mobile);
+ const note=document.createElement("p");note.className="fto-view-note";note.textContent="UTR and rejection reason are hidden by default.";wrapper.appendChild(note);
+ toggle.addEventListener("click",()=>{showSensitiveFtoDetails=!showSensitiveFtoDetails;const content=$("fto-view-modal-content");content.replaceChildren(renderHistoryTransactions(batch));});
+ return wrapper;
 }
 function openFtoViewModal(batch){
+ showSensitiveFtoDetails=false;
  $("fto-view-modal-title").textContent="FTO "+String(batch.fto_number||"transactions");
  $("fto-view-modal-subtitle").textContent=String(batch.contribution_period||"No contribution period")+" · "+(batch.transactions||[]).length+" transactions";
- const content=$("fto-view-modal-content");
- content.replaceChildren(renderHistoryTransactions(batch));
- $("fto-view-modal-backdrop").classList.remove("hidden");
- $("fto-view-modal-close").focus();
+ $("fto-view-modal-content").replaceChildren(renderHistoryTransactions(batch));
+ $("fto-view-modal-backdrop").classList.remove("hidden");$("fto-view-modal-close").focus();
 }
-function closeFtoViewModal(){
- $("fto-view-modal-backdrop").classList.add("hidden");
- $("fto-view-modal-content").replaceChildren();
-}
-
- function renderFtoHistory(){
- const tbody=$("fto-history-table").querySelector("tbody");tbody.replaceChildren();
+function closeFtoViewModal(){$("fto-view-modal-backdrop").classList.add("hidden");$("fto-view-modal-content").replaceChildren();}
+let shownFtoHistory=10;
+function renderFtoHistory(reset=true){
+ if(reset)shownFtoHistory=10;
+ const list=$("fto-history-list");list.replaceChildren();
  const search=$("fto-history-search").value.trim().toLowerCase(),period=$("fto-history-period").value;
  const filtered=ftoHistoryRows.filter(batch=>(!period||batch.contribution_period===period)&&(!search||String(batch.fto_number||"").toLowerCase().includes(search)||String(batch.contribution_period||"").toLowerCase().includes(search)));
- for(const batch of filtered){
-  const tr=document.createElement("tr");tr.className="fto-history-row";
-  const ftoCell=addHistoryCell(tr,batch.fto_number);ftoCell.dataset.label="FTO number";
-  const periodCell=addHistoryCell(tr,batch.contribution_period);periodCell.dataset.label="Contribution period";
-  const statusCell=addHistoryCell(tr,statusSummary(batch.status_counts));statusCell.dataset.label="Status summary";
-  const updatedCell=addHistoryCell(tr,fmtHistoryDate(batch.last_checked_at||batch.first_imported_at));updatedCell.dataset.label="Last imported / checked";
-  const actionCell=document.createElement("td");actionCell.className="history-action-cell";actionCell.dataset.label="Action";
-  const actionButton=document.createElement("button");actionButton.type="button";actionButton.className="secondary";actionButton.textContent="Action";actionButton.setAttribute("aria-haspopup","menu");actionButton.setAttribute("aria-expanded","false");
+ filtered.slice(0,shownFtoHistory).forEach(batch=>{
+  const card=document.createElement("article");card.className="fto-card";
+  const main=document.createElement("div");main.className="card-main";
+  const number=document.createElement("div");number.className="fto-number";number.textContent=String(batch.fto_number||"—");
+  const periodLine=document.createElement("div");periodLine.className="period-line";periodLine.textContent=String(batch.contribution_period||"No contribution period");
+  const statuses=statusSummary(batch.status_counts);main.append(number,periodLine,statuses);
+  const side=document.createElement("div");side.className="card-side";
+  const checked=document.createElement("div");checked.className="last-checked";checked.textContent="Last checked";const checkedValue=document.createElement("strong");checkedValue.textContent=fmtHistoryDate(batch.last_checked_at||batch.first_imported_at);checked.appendChild(checkedValue);
+  const actionWrap=document.createElement("div");actionWrap.className="action-wrap";
+  const actionButton=document.createElement("button");actionButton.type="button";actionButton.className="secondary action-trigger";actionButton.textContent="⋮";actionButton.setAttribute("aria-label","Actions for FTO "+String(batch.fto_number||""));actionButton.setAttribute("aria-haspopup","menu");actionButton.setAttribute("aria-expanded","false");
   const menu=document.createElement("div");menu.className="history-action-menu hidden";menu.setAttribute("role","menu");
-  const viewButton=document.createElement("button");viewButton.type="button";viewButton.textContent="View";viewButton.setAttribute("role","menuitem");viewButton.addEventListener("click",()=>{menu.classList.add("hidden");actionButton.setAttribute("aria-expanded","false");openFtoViewModal(batch)});
-  const editPeriod=document.createElement("button");editPeriod.type="button";editPeriod.textContent="Change period";editPeriod.setAttribute("role","menuitem");editPeriod.addEventListener("click",()=>{menu.classList.add("hidden");changeFtoPeriod(batch)});
-  menu.append(viewButton,editPeriod);actionButton.addEventListener("click",()=>{const open=menu.classList.contains("hidden");document.querySelectorAll(".history-action-menu").forEach(el=>el.classList.add("hidden"));document.querySelectorAll(".history-action-cell > button").forEach(el=>el.setAttribute("aria-expanded","false"));if(open){menu.classList.remove("hidden");const rect=actionButton.getBoundingClientRect(),menuRect=menu.getBoundingClientRect();const left=Math.max(8,Math.min(rect.right-menuRect.width,window.innerWidth-menuRect.width-8));const top=Math.max(8,rect.top-menuRect.height-6);menu.style.left=left+"px";menu.style.top=top+"px";}else{menu.classList.add("hidden");}actionButton.setAttribute("aria-expanded",String(open))});
-  actionCell.append(actionButton,menu);tr.appendChild(actionCell);tbody.appendChild(tr);
-  if(expandedFtoId===batch.id){const detailTr=document.createElement("tr");detailTr.className="history-detail";const td=document.createElement("td");td.colSpan=5;td.appendChild(renderHistoryTransactions(batch));detailTr.appendChild(td);tbody.appendChild(detailTr);}
- }
- $("fto-history-count").textContent=filtered.length+" of "+ftoHistoryRows.length+" imported FTOs";
- if(!filtered.length){const tr=document.createElement("tr"),td=document.createElement("td");tr.className="empty-state-row";td.className="empty-state-cell";td.colSpan=5;td.textContent=ftoHistoryRows.length?"No FTOs match this search/filter.":"No FTOs have been imported yet.";tr.appendChild(td);tbody.appendChild(tr);}
+  const view=document.createElement("button");view.type="button";view.textContent="View";view.setAttribute("role","menuitem");view.addEventListener("click",()=>{menu.classList.add("hidden");actionButton.setAttribute("aria-expanded","false");openFtoViewModal(batch)});
+  const change=document.createElement("button");change.type="button";change.textContent="Change period";change.setAttribute("role","menuitem");change.addEventListener("click",()=>{menu.classList.add("hidden");actionButton.setAttribute("aria-expanded","false");changeFtoPeriod(batch)});
+  menu.append(view,change);
+  actionButton.addEventListener("click",()=>{
+   const open=menu.classList.contains("hidden");document.querySelectorAll(".history-action-menu").forEach(el=>el.classList.add("hidden"));document.querySelectorAll(".action-trigger").forEach(el=>el.setAttribute("aria-expanded","false"));
+   if(open){menu.classList.remove("hidden");const rect=actionButton.getBoundingClientRect(),menuRect=menu.getBoundingClientRect();menu.style.left=Math.max(8,Math.min(rect.right-menuRect.width,window.innerWidth-menuRect.width-8))+"px";menu.style.top=Math.max(8,Math.min(rect.bottom+6,window.innerHeight-menuRect.height-8))+"px";}
+   actionButton.setAttribute("aria-expanded",String(open));
+  });
+  actionWrap.append(actionButton,menu);side.append(checked,actionWrap);card.append(main,side);list.appendChild(card);
+ });
+ $("fto-history-count").textContent="Showing "+Math.min(shownFtoHistory,filtered.length)+" of "+filtered.length+" matching FTOs · "+ftoHistoryRows.length+" imported";
+ $("fto-history-empty").classList.toggle("hidden",filtered.length!==0);
+ $("fto-history-more").classList.toggle("hidden",filtered.length<=shownFtoHistory);
 }
+$("fto-history-more").addEventListener("click",()=>{shownFtoHistory+=10;renderFtoHistory(false)});
+document.addEventListener("click",event=>{if(!event.target.closest(".action-wrap")){document.querySelectorAll(".history-action-menu").forEach(el=>el.classList.add("hidden"));document.querySelectorAll(".action-trigger").forEach(el=>el.setAttribute("aria-expanded","false"));}});
 let pendingPeriodBatch=null;
 async function loadSharedPeriods(selectedId=""){
  const {data,error}=await supabaseClient.functions.invoke("vbgramg-periods",{body:{action:"list"}});
@@ -657,8 +769,8 @@ async function loadFtoHistory(){
 $("fto-view-modal-close").addEventListener("click",closeFtoViewModal);
 $("fto-view-modal-backdrop").addEventListener("click",event=>{if(event.target===$("fto-view-modal-backdrop"))closeFtoViewModal();});
 
-$("fto-history-search").addEventListener("input",renderFtoHistory);
-$("fto-history-period").addEventListener("change",renderFtoHistory);
+$("fto-history-search").addEventListener("input",()=>renderFtoHistory());
+$("fto-history-period").addEventListener("change",()=>renderFtoHistory());
 $("period-modal-form").addEventListener("submit",saveFtoPeriod);
 $("period-modal-cancel").addEventListener("click",closePeriodModal);
 $("period-modal-backdrop").addEventListener("click",event=>{if(event.target===$("period-modal-backdrop"))closePeriodModal();});

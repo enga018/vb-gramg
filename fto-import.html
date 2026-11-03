@@ -610,73 +610,72 @@ function renderTablePagination(tableId,pagerId,key){
   actions.append(previous,pageLabel,next);pager.appendChild(actions);
  }
 }
-function renderManualTransactionDetails(group){
- const container=$('manual-jobcard-details');container.replaceChildren();
- if(!group)return;
- const heading=document.createElement('div');heading.style.fontWeight='750';heading.style.marginBottom='10px';heading.textContent=group.job_card_number+' · '+group.person_name;container.appendChild(heading);
- const rows=parsedDataRows.filter(row=>jobCardFromRow(row)===group.job_card_number);
- rows.forEach((row,index)=>{
-  const card=document.createElement('article');card.className='parsed-transaction-card';card.style.marginBottom='8px';
-  const title=document.createElement('strong');title.textContent='Transaction '+(index+1)+' · '+(rawStatus(row)==='blank'?'Deferred':rawStatus(row));card.appendChild(title);
-  const grid=document.createElement('div');grid.className='parsed-transaction-fields';grid.style.marginTop='8px';
-  [['Applicant',row[5]||row[7]||'—'],['Reference',row[3]||'—'],['Date',row[4]||'—'],['Credit amount','₹'+parseAmount(row[11]).toLocaleString('en-IN',{maximumFractionDigits:2})],['Calculated charge','₹'+(((parseAmount(row[11])/(Number($('amount-divisor').value)||300))*(Number($('amount-multiplier').value)||100))||0).toLocaleString('en-IN',{maximumFractionDigits:2})],['Processed date',row[13]||'—']].forEach(([label,value])=>{const item=document.createElement('div');item.className='parsed-transaction-field';const l=document.createElement('span');l.textContent=label;const v=document.createElement('strong');v.textContent=String(value);item.append(l,v);grid.appendChild(item)});
-  card.appendChild(grid);container.appendChild(card);
+let reviewCategory='automatic',reviewIndexes={automatic:0,manual:0,cannot:0},reviewLists={automatic:[],manual:[],cannot:[]};
+function classifyImportGroups(){
+ const lists={automatic:[],manual:[],cannot:[]};
+ [...importGroups].sort((a,b)=>a.job_card_number.localeCompare(b.job_card_number,undefined,{numeric:true,sensitivity:'base'})).forEach(group=>{
+  const card=group.job_card_number,refs=duplicateReferences.get(card)||[],eligible=group.amount>0&&['blank','processed','mixed'].includes(group.status);
+  if(notInActiveMisCards.has(card)||exemptedCards.has(card)||refs.length||!eligible){
+   const reason=notInActiveMisCards.has(card)?'Outside active MIS — retained in FTO history only':exemptedCards.has(card)?'Exempted — no contribution charge or manual review required':refs.length?'Duplicate reference number — excluded to prevent duplicate charging':group.status==='rejected'?'Rejected transactions only — no eligible contribution charge':'No eligible calculated charge';
+   lists.cannot.push({...group,reviewReason:reason});
+  }else if(duplicateCards.has(card)||unknownCards.has(card)||group.needs_manual_review===true||group.manual_review===true||group.name_mismatch===true||group.applicant_match_required===true||group.applicant_match_confirmed===false)lists.manual.push(group);
+  else lists.automatic.push(group);
  });
- const review=document.createElement('div');review.style.marginTop='12px';
- const duplicate=duplicateCards.get(group.job_card_number),isUnknown=unknownCards.has(group.job_card_number);
- if(duplicate){
-  const note=document.createElement('div');note.className='muted';note.textContent='Existing manual charge: ₹'+Number(duplicate.amount||0).toLocaleString('en-IN')+'. Confirm reconciliation after checking the amount and applicant mapping.';review.appendChild(note);
-  const candidates=duplicate.candidates||[];
-  if(candidates.length){
-   const select=document.createElement('select');select.style.marginTop='8px';select.setAttribute('aria-label','MIS applicant for '+group.job_card_number);
-   const keep=document.createElement('option');keep.value='';keep.textContent=duplicate.applicant_name?'Keep attached applicant':'Choose MIS applicant';select.appendChild(keep);
-   candidates.forEach((c,i)=>{const o=document.createElement('option');o.value=String(i);o.textContent=c.applicant_name+' · '+(c.applicant_number||'No number')+' · '+Number(c.match_percentage||0).toFixed(1)+'%';select.appendChild(o)});
-   const selected=reconciliationApplicantSelections.get(group.job_card_number);if(selected){const i=candidates.findIndex(c=>c.applicant_unique_id&&c.applicant_unique_id===selected.applicant_unique_id);if(i>=0)select.value=String(i)}
-   select.addEventListener('change',()=>{if(select.value==='')reconciliationApplicantSelections.delete(group.job_card_number);else reconciliationApplicantSelections.set(group.job_card_number,candidates[Number(select.value)]);reviewedCards.delete(group.job_card_number);renderManualTransactionDetails(group)});
-   review.appendChild(select);
-  }
-  const check=document.createElement('input');check.type='checkbox';check.checked=reviewedCards.has(group.job_card_number);check.disabled=Number(duplicate.charge_count||1)>1||(!duplicate.applicant_name&&!duplicate.applicant_unique_id&&!duplicate.applicant_number&&!reconciliationApplicantSelections.has(group.job_card_number));
-  check.addEventListener('change',()=>{if(check.checked)reviewedCards.add(group.job_card_number);else reviewedCards.delete(group.job_card_number);updateImportButton()});
-  const label=document.createElement('label');label.style.display='flex';label.style.gap='8px';label.style.alignItems='center';label.style.marginTop='10px';label.append(check,document.createTextNode('I reviewed and confirm reconciliation'));review.appendChild(label);
- }else if(isUnknown){
-  const check=document.createElement('input');check.type='checkbox';check.checked=reviewedNewCards.has(group.job_card_number);check.addEventListener('change',()=>{if(check.checked)reviewedNewCards.add(group.job_card_number);else reviewedNewCards.delete(group.job_card_number);updateImportButton()});
-  const label=document.createElement('label');label.style.display='flex';label.style.gap='8px';label.style.alignItems='center';label.style.marginTop='10px';label.append(check,document.createTextNode('I verified this new job card'));review.appendChild(label);
+ reviewLists=lists;['automatic','manual','cannot'].forEach(type=>reviewIndexes[type]=Math.min(reviewIndexes[type],Math.max(0,lists[type].length-1)));
+}
+function reviewElement(tag,cls,text){const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=String(text);return el;}
+function renderReviewCard(type){
+ const list=reviewLists[type]||[],index=reviewIndexes[type]||0,group=list[index],target=$(type+'-card');target.replaceChildren();
+ $(type+'-position').textContent=list.length?(index+1)+' of '+list.length:'0 of 0';
+ $(type+'-prev').disabled=!list.length||index===0;$(type+'-next').disabled=!list.length||index>=list.length-1;
+ if(!group){target.appendChild(reviewElement('p','muted','No job cards in this category.'));return;}
+ const card=group.job_card_number,head=reviewElement('div','fto-jobcard-head'),identity=reviewElement('div');
+ identity.appendChild(reviewElement('strong','',card));identity.appendChild(reviewElement('div','fto-jobcard-sub','FTO applicant: '+(group.person_name||'Name unavailable')));
+ head.appendChild(identity);head.appendChild(reviewElement('span','badge '+(type==='automatic'?'success':type==='manual'?'warning':'muted'),type==='automatic'?'Ready to import':type==='manual'?'Manual review':'Cannot import'));target.appendChild(head);
+ if(type==='cannot')target.appendChild(reviewElement('div','fto-review-note',group.reviewReason));
+ const rows=parsedDataRows.filter(row=>jobCardFromRow(row)===card),stats=reviewElement('div','fto-jobcard-stats');
+ [['Transactions',rows.length],['Current status',group.status],['Calculated charge','₹'+Number(group.amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})]].forEach(([label,value])=>{const box=reviewElement('div'),small=reviewElement('small','',label),strong=reviewElement('strong','',value);box.append(small,strong);stats.appendChild(box)});
+ target.appendChild(stats);target.appendChild(reviewElement('div','muted','FTO transactions'));
+ const txList=reviewElement('div','fto-tx-list');
+ rows.forEach(row=>{
+  const tx=reviewElement('div','fto-tx-item'),credit=parseAmount(row[11]),divisor=Number($('amount-divisor').value)||300,multiplier=Number($('amount-multiplier').value)||100,charge=['blank','processed'].includes(rawStatus(row))?(credit/divisor)*multiplier:0;
+  [['Reference',row[3]||'—'],['Status',rawStatus(row)==='blank'?'Deferred':rawStatus(row)],['Transaction date',row[4]||'—'],['Processed date',row[13]||'—'],['Credit amount','₹'+credit.toLocaleString('en-IN',{maximumFractionDigits:2})],['Calculated charge','₹'+charge.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})]].forEach(([label,value])=>{const item=reviewElement('div'),small=reviewElement('small','',label),strong=reviewElement('strong','',value);item.append(small,strong);tx.appendChild(item)});
+  txList.appendChild(tx);
+ });target.appendChild(txList);
+ if(type==='manual'){
+  const review=reviewElement('div'),duplicate=duplicateCards.get(card),isUnknown=unknownCards.has(card);
+  if(duplicate){
+   const allocations=alreadyAllocatedCards.get(card)||[];let note='Existing manual charge: ₹'+Number(duplicate.amount||0).toLocaleString('en-IN')+'. Review before reconciliation.';
+   if(duplicate.charge_count>1)note+=' Multiple existing charges need separate resolution.';
+   if(allocations.length)note+=' Existing period/allocation: '+allocations.map(a=>[a.period_name||a.contribution_period||a.charge_period,a.amount?'₹'+Number(a.amount).toLocaleString('en-IN'):null].filter(Boolean).join(' ')).join(', ')+'.';
+   review.appendChild(reviewElement('div','fto-review-note',note));
+   const candidates=duplicate.candidates||[];
+   if(candidates.length){
+    const select=reviewElement('select');select.style.marginTop='8px';select.setAttribute('aria-label','MIS applicant for '+card);
+    const keep=reviewElement('option');keep.value='';keep.textContent=duplicate.applicant_name?'Keep attached applicant':'Choose MIS applicant';select.appendChild(keep);
+    candidates.forEach((candidate,i)=>{const option=reviewElement('option','',candidate.applicant_name+' · '+(candidate.applicant_number||'No number')+' · '+Number(candidate.match_percentage||0).toFixed(1)+'%');option.value=String(i);select.appendChild(option)});
+    const selected=reconciliationApplicantSelections.get(card);if(selected){const i=candidates.findIndex(c=>c.applicant_unique_id&&c.applicant_unique_id===selected.applicant_unique_id);if(i>=0)select.value=String(i)}
+    select.addEventListener('change',()=>{if(select.value==='')reconciliationApplicantSelections.delete(card);else reconciliationApplicantSelections.set(card,candidates[Number(select.value)]);reviewedCards.delete(card);renderReviewCard('manual');updateImportButton()});review.appendChild(select);
+   }
+   const check=reviewElement('input');check.type='checkbox';check.checked=reviewedCards.has(card);check.disabled=Number(duplicate.charge_count||1)>1||(!duplicate.applicant_name&&!duplicate.applicant_unique_id&&!duplicate.applicant_number&&!reconciliationApplicantSelections.has(card));
+   check.addEventListener('change',()=>{if(check.checked)reviewedCards.add(card);else reviewedCards.delete(card);updateImportButton()});
+   const label=reviewElement('label','fto-confirm');label.append(check,document.createTextNode('I reviewed the existing charge, references and applicant mapping, and confirm reconciliation.'));review.appendChild(label);
+  }else if(isUnknown){
+   const check=reviewElement('input');check.type='checkbox';check.checked=reviewedNewCards.has(card);check.addEventListener('change',()=>{if(check.checked)reviewedNewCards.add(card);else reviewedNewCards.delete(card);updateImportButton()});
+   const label=reviewElement('label','fto-confirm');label.append(check,document.createTextNode('I verified this new job card and its applicant details in the active MIS.'));review.appendChild(label);
+  }target.appendChild(review);
  }
- container.appendChild(review);
 }
+function activateReviewCategory(type){reviewCategory=type;document.querySelectorAll('.fto-category-tab').forEach(button=>button.classList.toggle('active',button.dataset.category===type));['automatic','manual','cannot'].forEach(key=>$(key+'-panel').classList.toggle('hidden',key!==type));}
 function renderImportPreview(){
- $('import-summary').classList.remove('error');
- const manualGroups=[],automaticGroups=[],cannotGroups=[];
- let automaticTotal=0;
- const sorted=[...importGroups].sort((a,b)=>a.job_card_number.localeCompare(b.job_card_number,undefined,{numeric:true,sensitivity:'base'}));
- sorted.forEach(group=>{
-  const card=group.job_card_number,exempt=exemptedCards.has(card),outOfMis=notInActiveMisCards.has(card),duplicate=duplicateCards.has(card),unknown=unknownCards.has(card),refs=duplicateReferences.get(card)||[];
-  const hasCharge=group.amount>0&&['blank','processed','mixed'].includes(group.status);
-  let reason='';
-  if(outOfMis)reason='Outside active MIS — history only';
-  else if(exempt)reason='Exempted — no contribution charge';
-  else if(refs.length)reason='Duplicate reference number';
-  else if(!hasCharge)reason=group.status==='rejected'?'Rejected transactions only — no charge':'No eligible calculated charge';
-  else if(duplicate||unknown)manualGroups.push(group);
-  else automaticGroups.push(group);
-  if(!reason&&!(duplicate||unknown))automaticTotal+=group.amount;
-  if(reason)cannotGroups.push({group,reason});
- });
- $('auto-count').textContent=automaticGroups.length+' · ₹'+automaticTotal.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
- $('manual-count').textContent=String(manualGroups.length);
- $('cannot-count').textContent=String(cannotGroups.length);
- const manualPanel=$('manual-review-panel');
- manualPanel.classList.toggle('hidden',manualGroups.length===0);
- const selector=$('manual-jobcard-select'),previous=selector.value;
- selector.replaceChildren();
- const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Select a job card';selector.appendChild(placeholder);
- manualGroups.forEach(g=>{const o=document.createElement('option');o.value=g.job_card_number;o.textContent=g.job_card_number+' · '+g.person_name+' · '+g.row_count+' transaction'+(g.row_count===1?'':'s');selector.appendChild(o)});
- selector.value=manualGroups.some(g=>g.job_card_number===previous)?previous:(manualGroups[0]?.job_card_number||'');
- selector.onchange=()=>renderManualTransactionDetails(manualGroups.find(g=>g.job_card_number===selector.value));
- renderManualTransactionDetails(manualGroups.find(g=>g.job_card_number===selector.value));
- $('import-count').textContent=parsedDataRows.length+' FTO transactions · '+importGroups.length+' job cards';
- updateImportButton();
+ $('import-summary').classList.remove('error');classifyImportGroups();
+ const automatic=reviewLists.automatic,manual=reviewLists.manual,cannot=reviewLists.cannot,total=automatic.reduce((sum,g)=>sum+Number(g.amount||0),0);
+ $('auto-total-count').textContent=automatic.length+' · ₹'+total.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+ $('manual-total-count').textContent=String(manual.length);$('cannot-total-count').textContent=String(cannot.length);
+ ['automatic','manual','cannot'].forEach(renderReviewCard);$('import-count').textContent=parsedDataRows.length+' FTO transactions · '+importGroups.length+' job cards';updateImportButton();
 }
+document.querySelectorAll('.fto-category-tab').forEach(button=>button.addEventListener('click',()=>activateReviewCategory(button.dataset.category)));
+['automatic','manual','cannot'].forEach(type=>{$(type+'-prev').addEventListener('click',()=>{reviewIndexes[type]=Math.max(0,reviewIndexes[type]-1);renderReviewCard(type)});$(type+'-next').addEventListener('click',()=>{reviewIndexes[type]=Math.min(reviewLists[type].length-1,reviewIndexes[type]+1);renderReviewCard(type)});});
 async function refreshDuplicates(){
  const seq=++duplicateCheckSequence;duplicateCards=new Map();duplicateReferences=new Map();alreadyAllocatedCards=new Map();exemptedCards=new Set();unknownCards=new Set();notInActiveMisCards=new Set();
  const period=periodToDate(selectedPeriodDate());

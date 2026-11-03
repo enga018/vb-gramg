@@ -23,11 +23,47 @@ declare
   v_row record;
   v_batch_id uuid;
   v_import_id uuid;
+  v_manual_link_ids uuid[] := coalesce(
+    array(select jsonb_array_elements_text(coalesce(p_plan->'manual_charge_link_ids','[]'::jsonb))::uuid),
+    '{}'::uuid[]
+  );
 begin
   if jsonb_typeof(p_plan) <> 'object'
      or jsonb_typeof(v_batch) <> 'object'
      or jsonb_typeof(v_import) <> 'object' then
     raise exception 'Invalid FTO reconciliation plan';
+  end if;
+
+  if jsonb_typeof(coalesce(p_plan->'manual_charge_link_ids','[]'::jsonb)) <> 'array' then
+    raise exception 'manual_charge_link_ids must be an array';
+  end if;
+
+  -- Explicit manual-to-FTO links are opt-in. A manual row may only be converted
+  -- when its ID is named by the review decision and it belongs to this card/period.
+  if exists (
+    select 1
+    from jsonb_to_recordset(coalesce(p_plan->'ledger_rows','[]'::jsonb))
+      as lr(id uuid, job_card_number text, period_id uuid, charge_period date, entry_type text, note text)
+    join public.vbgramg_charge_ledger existing on existing.id = lr.id
+    where existing.entry_type <> 'charge'
+      or upper(left(coalesce(existing.note,''),3)) = 'FTO'
+      or existing.job_card_number is distinct from lr.job_card_number
+      or (existing.period_id is not null and existing.period_id is distinct from lr.period_id)
+      or (existing.period_id is null and existing.charge_period is distinct from lr.charge_period)
+      or not (existing.id = any(v_manual_link_ids))
+  ) then
+    raise exception 'A manual charge can only be linked to FTO after explicit review approval';
+  end if;
+
+  if exists (
+    select 1 from unnest(v_manual_link_ids) as linked(id)
+    where not exists (
+      select 1 from jsonb_to_recordset(coalesce(p_plan->'ledger_rows','[]'::jsonb))
+        as lr(id uuid)
+      where lr.id = linked.id
+    )
+  ) then
+    raise exception 'Every approved manual charge link must have a corresponding ledger update';
   end if;
 
   -- Serialize imports for the same FTO and lock all affected card/period balances.
@@ -80,7 +116,8 @@ begin
       and l.entry_type in ('charge', 'other_charge')
       and coalesce(l.is_deferred, false) = false
       and coalesce(l.is_voided, false) = false
-      and upper(left(coalesce(l.note, ''), 3)) <> 'FTO';
+      and upper(left(coalesce(l.note, ''), 3)) <> 'FTO'
+      and not (l.id = any(v_manual_link_ids));
 
     v_total_prospective := v_manual_charges + v_guard.prospective_fto_amount;
 

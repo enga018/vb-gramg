@@ -610,6 +610,18 @@ function exportOutstandingDueList(){
  const popup=window.open('','_blank');
  if(!popup){status('Allow pop-ups for this site to export the due list.','err');return;}
  const report='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contribution Outstanding Due List</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#172033;margin:28px}h1{font-size:20px;margin:0 0 5px}.meta{color:#667085;font-size:12px;margin-bottom:18px}.summary{display:flex;gap:24px;margin:0 0 18px;font-size:13px}.summary b{font-size:15px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;border-bottom:1px solid #dfe5ee;text-align:left}th{background:#edf2f8;text-transform:uppercase;font-size:10px;letter-spacing:.04em}.amount{text-align:right;white-space:nowrap;font-weight:700}.total td{font-weight:800;border-top:2px solid #667085}@media print{body{margin:12mm}thead{display:table-header-group}tr{break-inside:avoid}}@media(max-width:600px){body{margin:14px;overflow-x:auto}.summary{gap:14px;flex-wrap:wrap}}
+/* Contribution row-state markers: keep visible after all responsive row backgrounds. */
+@media (min-width:701px){
+  #contribution-table tbody tr.contribution-row.due td:first-child{border-left:4px solid var(--due)!important}
+  #contribution-table tbody tr.contribution-row.settled td:first-child{border-left:4px solid #16a34a!important}
+  #contribution-table tbody tr.contribution-row.overpaid td:first-child{border-left:4px solid #d97706!important}
+}
+@media (max-width:700px){
+  #contribution-table tbody tr.contribution-row.due{border-left:4px solid var(--due)!important}
+  #contribution-table tbody tr.contribution-row.settled{border-left:4px solid #16a34a!important}
+  #contribution-table tbody tr.contribution-row.overpaid{border-left:4px solid #d97706!important}
+}
+
 </style></head><body><h1>Contribution Outstanding Due List</h1><div class="meta">VBGRAMG · Generated on '+esc(new Date().toLocaleDateString('en-IN'))+'</div><table><thead><tr><th>Job Card Number</th><th>Head of Household</th><th style="text-align:right">Outstanding</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
  popup.document.open();popup.document.write(report);popup.document.close();popup.focus();popup.print();
 }
@@ -989,7 +1001,17 @@ async function load(){
   // The protected list action independently validates the verified session and approved-user record.
   // Avoid a redundant access-function network round trip during startup.
   status('Loading active MIS and contribution ledger…');
-  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}});
+  // The list endpoint reads the active MIS, ledger, allocations and FTO attribution.
+  // Bound startup wait so a stalled request cannot leave the page loading indefinitely.
+  let listTimer;
+  let listResult;
+  try{
+   listResult=await Promise.race([
+    supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}}),
+    new Promise((_,reject)=>{listTimer=window.setTimeout(()=>reject(new Error('Contribution data request timed out after 45 seconds. Check your connection and retry. If this continues, report the time of the failure so the server request can be investigated.')),45000);})
+   ]);
+  }finally{if(listTimer)window.clearTimeout(listTimer);}
+  const {data,error}=listResult;
   if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
   appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");$("exportDueBtn").classList.remove("hidden");entries=data.entries||[];periods=data.periods||[];paymentAllocations=Array.from(new Map((data.payment_allocations||[]).filter(a=>a&&a.id).map(a=>[String(a.id),a])).values());paymentRefundReconciliations=data.payment_refund_reconciliations||[];extraCharges=data.extras||[];citizenRegistry=data.citizens||[];applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];deriveCitizens();renderExemptions();
   $('app').classList.remove('hidden');$('status').classList.add('hidden');

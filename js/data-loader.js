@@ -52,5 +52,13 @@
     }
   }
 
-  window.VBGRAMGData = Object.freeze({ request });
+  async function invoke(functionName, options) {
+    try {
+      return { data: await request(functionName, options), error: null };
+    } catch (error) {
+      return { data: null, error };
+    }
+  }
+
+  window.VBGRAMGData = Object.freeze({ request, invoke });
 })();

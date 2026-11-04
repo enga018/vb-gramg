@@ -747,10 +747,10 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{padding:18px 
 </head>
 <body>
 <main>
-<header class="topbar app-header"><div class="app-header-actions"><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk Payment</button><button class="btn hidden" id="exportDueBtn" type="button">Export</button></div></header>
 <div id="status" class="notice info hidden" role="status" aria-live="polite"></div>
 <div id="app" class="hidden">
 <div id="contribution-layout"><section class="panel contribution-main-panel">
+<div class="page-panel-actions"><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk Payment</button><button class="btn hidden" id="exportDueBtn" type="button">Export</button></div>
 <div class="contribution-controls"><div class="stat outstanding-kpi"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred</div><div class="v deferred-kpi" id="deferred">—</div></div><div class="search-wrap"><label for="search">Search name or full job card number</label><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><button id="clearSearch" class="search-clear" type="button" aria-label="Clear search" title="Clear search">×</button></div><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="overpaid">Overpaid</option><option value="deferred">Has deferred charges</option></select></div></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button><button id="contribution-see-more" class="btn ghost mobile-see-more" type="button" hidden>See more</button></div></div>
 </section></div>
 </div>
@@ -797,15 +797,15 @@ const day=s=>s?new Date(s+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric'
 const formatPeriod=s=>{const m=String(s||'').match(/^(\d{4})-(\d{2})/);if(!m)return s||'Monthly charge';const months=['January','February','March','April','May','June','July','August','September','October','November','December'];const n=Number(m[2]);return n>=1&&n<=12?months[n-1]+' '+m[1]:(s||'Monthly charge')};
 function status(message,type='info'){
  const el=$('status');
- if(type==='success'){
-  if(window.showToast)window.showToast(message,'success');
+ const appVisible=!$('app').classList.contains('hidden');
+ const toastType=type==='err'?'error':type;
+ const shouldToast=type==='success'||type==='err'||type==='error'||(type==='info'&&appVisible);
+ if(shouldToast&&window.showToast){
+  window.showToast(message,toastType);
   el.textContent='';el.classList.add('hidden');return;
  }
- if(type==='err'||type==='error'){
-  if(window.showToast)window.showToast(message,'error');
-  el.className='notice err';el.textContent=message;el.classList.remove('hidden');return;
- }
- el.className='notice info';el.textContent=message;el.classList.remove('hidden');
+ el.className=type==='err'||type==='error'?'notice err':'notice info';
+ el.textContent=message;el.classList.remove('hidden');
 }
 const calculateLedgerState=window.VBGRAMGContribution.calculateLedgerState;
 function renderExemptions(){

@@ -960,6 +960,21 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{padding:18px 
  .contribution-controls .search-clear{bottom:7px}
 }
 
+
+/* Contribution mobile polish: close the header-to-content gap, keep actions on one line,
+   and use the controls' placeholder/value instead of floating labels. */
+@media(max-width:700px){
+ body>main>.global-mobile-header.contribution-mobile-header{margin-bottom:0!important}
+ .contribution-top-row{gap:8px!important}
+ .page-panel-actions{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important;width:100%!important}
+ .page-panel-actions .btn{white-space:nowrap!important;word-break:normal!important;overflow-wrap:normal!important;font-size:clamp(.66rem,2.8vw,.78rem)!important;padding-left:3px!important;padding-right:3px!important}
+ .contribution-controls .search-wrap label,.contribution-controls .filter-control label{display:none!important}
+ .contribution-controls .search-wrap,.contribution-controls .filter-control{min-height:0!important}
+ .contribution-controls .search-wrap input,.contribution-controls .filter-control select{min-height:46px!important;padding:10px 38px 10px 12px!important;font-size:16px!important}
+ .contribution-controls .filter-control select{padding-right:12px!important}
+ .contribution-controls .search-clear{top:50%!important;bottom:auto!important;transform:translateY(-50%)!important}
+}
+
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -969,7 +984,7 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{padding:18px 
 <div id="app" class="hidden">
 <div id="contribution-layout"><section class="panel contribution-main-panel">
 <div class="contribution-top-row"><div class="contribution-kpis"><div class="stat outstanding-kpi"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred</div><div class="v deferred-kpi" id="deferred">—</div></div></div><div class="page-panel-actions"><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk Payment</button><button class="btn hidden" id="exportDueBtn" type="button">Export</button></div></div>
-<div class="contribution-controls"><div class="search-wrap"><label for="search">Search name or full job card number</label><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><button id="clearSearch" class="search-clear" type="button" aria-label="Clear search" title="Clear search">×</button></div><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="overpaid">Overpaid</option><option value="deferred">Has deferred charges</option></select></div></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button></div></div>
+<div class="contribution-controls"><div class="search-wrap"><label for="search">Search name or full job card number</label><input id="search" type="search" aria-label="Search name or full job card number" placeholder="Search name or full job card number" autocomplete="off"><button id="clearSearch" class="search-clear" type="button" aria-label="Clear search" title="Clear search">×</button></div><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter" aria-label="Filter by contribution status"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="overpaid">Overpaid</option><option value="deferred">Has deferred charges</option></select></div></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button></div></div>
 </section></div>
 </div>
 </main>

@@ -40,7 +40,9 @@ main{width:min(100%,1440px);margin:0 auto}
 h2{margin:0 0 6px;font-size:1.18rem;letter-spacing:-.02em;color:var(--ink)}
 p{color:var(--muted);line-height:1.5}
 label{display:block;font-size:.88rem;font-weight:650;margin:0 0 7px;color:#344054}
-input,select,textarea{font:inherit;min-height:44px;padding:10px 12px;border:1px solid #cfd7e4;border-radius:10px;width:100%;background:#fff;color:var(--ink)}\ntextarea{resize:vertical;line-height:1.5}\ntextarea:focus{outline:3px solid rgb(36 87 197 / 15%);border-color:#6f91dc}
+input,select,textarea{font:inherit;min-height:44px;padding:10px 12px;border:1px solid #cfd7e4;border-radius:10px;width:100%;background:#fff;color:var(--ink)}
+textarea{resize:vertical;line-height:1.5}
+textarea:focus{outline:3px solid rgb(36 87 197 / 15%);border-color:#6f91dc}
 input:focus,select:focus{outline:3px solid rgb(36 87 197 / 15%);border-color:#6f91dc}
 button,.link-button{
  font:inherit;font-size:.9rem;font-weight:650;border:1px solid transparent;border-radius:10px;
@@ -377,8 +379,6 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  </section>
   <div id="sync-status" class="status hidden" aria-live="polite" role="status"></div>
 
-  <div id="sync-status" class="status hidden" aria-live="polite" role="status"></div>
-
 
   </section>
 </div>
@@ -665,7 +665,28 @@ function renderManualTransactionDetails(group){
   }
   const actionLabel=document.createElement('label');actionLabel.textContent='How should this existing manual charge be handled?';actionLabel.style.display='block';actionLabel.style.marginTop='12px';
   const actionSelect=document.createElement('select');actionSelect.style.marginTop='6px';actionSelect.setAttribute('aria-label','Manual charge action for '+group.job_card_number);
-  const noAction=document.createElement('option');noAction.value='';noAction.textContent='Choose an action';actionSelect.appendChild(noAconst liveReviewState={category:'automatic',indexes:{automatic:0,manual:0,already:0,cannot:0},groups:{automatic:[],manual:[],already:[],cannot:[]}};
+  const noAction=document.createElement('option');noAction.value='';noAction.textContent='Choose an action';actionSelect.appendChild(noAction);
+  const linkAction=document.createElement('option');linkAction.value='link';linkAction.textContent='Link existing charge to this FTO';actionSelect.appendChild(linkAction);
+  const separateAction=document.createElement('option');separateAction.value='keep_separate';separateAction.textContent='Keep manual charge separate';actionSelect.appendChild(separateAction);
+  actionSelect.value=manualChargeActions.get(group.job_card_number)||'';
+  actionSelect.addEventListener('change',()=>{if(actionSelect.value)manualChargeActions.set(group.job_card_number,actionSelect.value);else manualChargeActions.delete(group.job_card_number);updateImportButton()});
+  review.append(actionLabel,actionSelect);
+  const hint=document.createElement('div');hint.className='muted';hint.style.marginTop='6px';hint.textContent='Linking preserves the existing ledger record and its identity. Keeping it separate creates an independent FTO charge.';review.appendChild(hint);
+  const amountDiff=Math.abs(Number(duplicate.amount||0)-Number(group.amount||0))>0.009;
+  if(amountDiff){
+   const confirm=document.createElement('input');confirm.type='checkbox';confirm.checked=manualAmountConfirmations.has(group.job_card_number);
+   confirm.addEventListener('change',()=>{if(confirm.checked)manualAmountConfirmations.add(group.job_card_number);else manualAmountConfirmations.delete(group.job_card_number);updateImportButton()});
+   const confirmLabel=document.createElement('label');confirmLabel.style.display='flex';confirmLabel.style.gap='8px';confirmLabel.style.alignItems='center';confirmLabel.style.marginTop='10px';
+   confirmLabel.append(confirm,document.createTextNode('I confirm replacing ₹'+Number(duplicate.amount||0).toLocaleString('en-IN')+' with the FTO charge of ₹'+Number(group.amount||0).toLocaleString('en-IN')));
+   review.appendChild(confirmLabel);
+  }else manualAmountConfirmations.delete(group.job_card_number);
+ }else if(isUnknown){
+  const check=document.createElement('input');check.type='checkbox';check.checked=reviewedNewCards.has(group.job_card_number);check.addEventListener('change',()=>{if(check.checked)reviewedNewCards.add(group.job_card_number);else reviewedNewCards.delete(group.job_card_number);updateImportButton()});
+  const label=document.createElement('label');label.style.display='flex';label.style.gap='8px';label.style.alignItems='center';label.style.marginTop='10px';label.append(check,document.createTextNode('I verified this new job card'));review.appendChild(label);
+ }
+ container.appendChild(review);
+}
+const liveReviewState={category:'automatic',indexes:{automatic:0,manual:0,already:0,cannot:0},groups:{automatic:[],manual:[],already:[],cannot:[]}};
 function liveMoney(value){return '₹'+Number(value||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function liveAddField(parent,label,value){const item=document.createElement('div');const l=document.createElement('span');l.textContent=label;const v=document.createElement('strong');v.textContent=String(value??'—');item.append(l,v);parent.appendChild(item)}
 function liveRenderCard(type){
@@ -740,36 +761,6 @@ function renderImportPreview(){
  $('import-count').textContent=parsedDataRows.length+' FTO transactions · '+importGroups.length+' job cards';
  for(const type of ['automatic','manual','already','cannot'])liveRenderCard(type);
  liveOpenCategory(liveReviewState.category);
- updateImportButton();
-}
-pare(b.job_card_number,undefined,{numeric:true,sensitivity:'base'}));
- sorted.forEach(group=>{
-  const card=group.job_card_number,exempt=exemptedCards.has(card),outOfMis=notInActiveMisCards.has(card),duplicate=duplicateCards.has(card),unknown=unknownCards.has(card),refs=duplicateReferences.get(card)||[],match=applicantMatchSuggestions.get(card);
-  const hasCharge=group.amount>0&&['blank','processed','mixed'].includes(group.status);
-  let reason='';
-  if(exempt)reason='Exempted';
-  else if(outOfMis)reason='Outside active MIS';
-  else if(refs.length)reason='Duplicate reference number';
-  else if(alreadyImportedReferences.size&&group.reference_numbers.length&&group.reference_numbers.every(ref=>alreadyImportedReferences.has(ref)))alreadyGroups.push(group);
-  else if(duplicate||(hasCharge&&match?.requires_manual))manualGroups.push(group);
-  else automaticGroups.push(group);
-  if(!reason&&!exempt&&group.status!=='rejected'&&!(duplicate||(hasCharge&&match?.requires_manual))&&!alreadyGroups.includes(group))automaticTotal+=group.amount;
-  if(reason)cannotGroups.push({group,reason});
- });
- $('auto-count').textContent=automaticGroups.length+' · ₹'+automaticTotal.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
- $('manual-count').textContent=String(manualGroups.length);
- $('cannot-count').textContent=String(cannotGroups.length);
- const alreadyCount=$('already-imported-count');if(alreadyCount)alreadyCount.textContent=String(alreadyGroups.length);
- const manualPanel=$('manual-review-panel');
- manualPanel.classList.toggle('hidden',manualGroups.length===0);
- const selector=$('manual-jobcard-select'),previous=selector.value;
- selector.replaceChildren();
- const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Select a job card';selector.appendChild(placeholder);
- manualGroups.forEach(g=>{const o=document.createElement('option');o.value=g.job_card_number;o.textContent=g.job_card_number+' · '+g.person_name+' · '+g.row_count+' transaction'+(g.row_count===1?'':'s');selector.appendChild(o)});
- selector.value=manualGroups.some(g=>g.job_card_number===previous)?previous:(manualGroups[0]?.job_card_number||'');
- selector.onchange=()=>renderManualTransactionDetails(manualGroups.find(g=>g.job_card_number===selector.value));
- renderManualTransactionDetails(manualGroups.find(g=>g.job_card_number===selector.value));
- $('import-count').textContent=parsedDataRows.length+' FTO transactions · '+importGroups.length+' job cards';
  updateImportButton();
 }
 async function refreshDuplicates(){

@@ -743,6 +743,10 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{padding:18px 
  #contribution-table tbody tr.contribution-row.overpaid td:first-child{border-left:4px solid #d97706!important}
 }
 
+/* Keep desktop pagination closer to the bottom edge without changing layout height. */
+@media(min-width:701px){
+ #contribution-layout .table-foot .actions{transform:translateY(10px)}
+}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>

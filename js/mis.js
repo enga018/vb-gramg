@@ -21,7 +21,7 @@
 
   function buildJobCards(rows, headers) {
     const jobIndex = headers.findIndex(h => /^(job card number|jobcard number)$/i.test(h.trim()));
-    const fallbackIndex = headers.findIndex(h => /^jc no\\.?$/i.test(h.trim()));
+    const fallbackIndex = headers.findIndex(h => /^jc no\.?$/i.test(h.trim()));
     const householdIndex = headers.findIndex(h => /head of household/i.test(h));
     const nameIndex = headers.findIndex(h => /name of applicant|applicant name/i.test(h));
     const applicantNoIndex = headers.findIndex(h => /applicant no/i.test(h));

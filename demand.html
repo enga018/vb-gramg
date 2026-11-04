@@ -16,7 +16,7 @@ button:hover,.link-button:hover{background:#2c3b55}button.secondary,.link-button
 .fields{display:grid;grid-template-columns:minmax(0,2fr) minmax(150px,1fr);gap:12px;align-items:end}.setup-review-action{margin:0;align-self:end}.setup-review-action button{white-space:nowrap;min-height:44px}.field label{display:block;font-size:.85rem;font-weight:700;margin:0 0 6px;color:#344054}.field input{font:inherit;min-height:44px;padding:10px 12px;border:1px solid #cfd7e4;border-radius:10px;width:100%;background:#fff;color:var(--ink)}.field input:focus{outline:3px solid rgb(36 87 197 / 15%);border-color:#6f91dc}
 .metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0 0}.metric{border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}.metric span{display:block;color:var(--muted);font-size:.78rem;font-weight:650}.metric strong{display:block;margin-top:4px;font-size:1.2rem;overflow-wrap:anywhere}
 .status{margin:12px 0 0;padding:11px 13px;border:1px solid #e5eaf2;border-radius:10px;background:#f7f9fc;color:#475467;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.88rem;line-height:1.45}.status.error{background:#fff4f2;border-color:#ffd8d2;color:#a12b20}.status.success{background:#effaf3;border-color:#ccebd7;color:#17663a}.hidden{display:none!important}
-dialog#confirmDialog{width:min(92vw,520px);max-width:520px;border:1px solid var(--line);border-radius:18px;padding:0;color:var(--ink);box-shadow:0 24px 80px rgb(16 24 40 / 28%)}dialog#confirmDialog::backdrop{background:rgb(16 24 40 / 48%)}.confirm-content{padding:22px}.confirm-content h2{margin:0 0 8px;font-size:1.2rem}.confirm-content p{color:var(--muted);font-size:.9rem;line-height:1.5;margin:0 0 16px}.confirm-summary{margin:0;border:1px solid var(--line);border-radius:12px;overflow:hidden}.confirm-summary div{display:flex;justify-content:space-between;gap:16px;padding:11px 13px;border-bottom:1px solid var(--line)}.confirm-summary div:last-child{border-bottom:0}.confirm-summary dt{color:var(--muted);font-size:.86rem}.confirm-summary dd{margin:0;text-align:right;font-weight:750;overflow-wrap:anywhere}.confirm-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:18px}.confirm-error{margin-top:12px;color:#a12b20;font-size:.88rem;white-space:pre-wrap}
+dialog#confirmDialog{width:min(92vw,520px);max-width:520px;border:1px solid var(--line);border-radius:18px;padding:0;color:var(--ink);box-shadow:0 24px 80px rgb(16 24 40 / 28%)}dialog#confirmDialog::backdrop{background:rgb(16 24 40 / 48%)}.confirm-content{padding:22px}.confirm-content h2{margin:0 0 8px;font-size:1.2rem}.confirm-content p{color:var(--muted);font-size:.9rem;line-height:1.5;margin:0 0 16px}.confirm-summary{margin:0;border:1px solid var(--line);border-radius:12px;overflow:hidden}.confirm-summary div{display:flex;justify-content:space-between;gap:16px;padding:11px 13px;border-bottom:1px solid var(--line)}.confirm-summary div:last-child{border-bottom:0}.confirm-summary dt{color:var(--muted);font-size:.86rem}.confirm-summary dd{margin:0;text-align:right;font-weight:750;overflow-wrap:anywhere}.confirm-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:18px}
 .demand-unwilling-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:stretch}
 .demand-unwilling-grid>.panel{min-width:0;margin-bottom:16px;display:flex;flex-direction:column}
 .demand-unwilling-grid>.panel>.table-wrap{flex:1 1 auto;min-height:0}
@@ -416,7 +416,6 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 </head>
 <body>
 <main>
-<header class="topbar app-header"><div class="brand"><h1>Work Demand</h1><p>Prepare applicant work demand and generate documents.</p></div></header>
 
 <section class="panel" aria-labelledby="period-heading">
 <h2 id="period-heading">Demand details</h2>
@@ -480,7 +479,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 <div><dt>Work Demand applicants</dt><dd id="confirmDemandCount">—</dd></div>
 <div><dt>Unwilling to Work Job Cards</dt><dd id="confirmUnwillingCount">—</dd></div>
 </dl>
-<div id="confirmError" class="confirm-error" role="alert"></div>
+
 <div class="confirm-actions"><button id="cancelConfirmBtn" class="secondary" type="button">Cancel</button><button id="confirmSaveBtn" type="button">Confirm &amp; Save</button></div>
 </div>
 </dialog>
@@ -488,27 +487,30 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 
 </main>
 
+<script src="./toast.js?v=20261103"></script>
 <script>
 /* Early fallback: runs even if the main application script fails to initialize. */
 window.__demandEarlyWatchdog=setTimeout(function(){
  var s=document.getElementById('status');
  var p=document.getElementById('periodSelect');
  if(s && /Checking your sign-in session|Loading open periods/i.test((s.textContent||'')+' '+(p&&p.options[0]?p.options[0].textContent:''))){
-  s.className='status error';
-  s.textContent='Work Demand is not finishing initialization. Refresh this page once; if it persists, the page script or database request is failing.';
+  if(window.showToast)window.showToast('Work Demand is not finishing initialization. Refresh this page once; if it persists, the page script or database request is failing.','error',8000);
+  s.textContent='';s.className='status hidden';
   if(p && p.options.length===1 && /Loading open periods/i.test(p.options[0].textContent)){
-   p.replaceChildren(new Option('Period list did not load — refresh to retry',''));
+   p.replaceChildren(new Option('Unavailable',''));
    p.disabled=true;
   }
  }
 },8000);
 window.addEventListener('error',function(e){
  var s=document.getElementById('status');
- if(s && e.message){s.className='status error';s.textContent='Page script error: '+e.message;}
+ if(e.message&&window.showToast)window.showToast('Page script error: '+e.message,'error',8000);
+ if(s){s.textContent='';s.className='status hidden';}
 });
 window.addEventListener('unhandledrejection',function(e){
  var s=document.getElementById('status');
- if(s){s.className='status error';s.textContent='Page request error: '+String(e.reason&&e.reason.message||e.reason||'Unknown error');}
+ if(window.showToast)window.showToast('Page request error: '+String(e.reason&&e.reason.message||e.reason||'Unknown error'),'error',8000);
+ if(s){s.textContent='';s.className='status hidden';}
 });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -596,8 +598,8 @@ async function loadPeriods(){
   select.disabled=true;
   throw error;
  }}
-function status(message,type='info'){if((type==='error'||type==='success')&&window.showToast){window.showToast(message,type);const el=$('status');el.textContent='';el.className='status hidden';return}const el=$('status');el.textContent=message;el.className='status';}
-function generatedStatus(message,type='info'){if((type==='error'||type==='success')&&window.showToast){window.showToast(message,type);const el=$('generateStatus');el.textContent='';el.className='status hidden';return}const el=$('generateStatus');el.textContent=message;el.className='status';}
+function status(message,type='info',duration){const el=$('status');if(type==='loading'){el.textContent=message;el.className='status';return}if(window.showToast){window.showToast(message,type||'info',duration);el.textContent='';el.className='status hidden';return}el.textContent=message;el.className='status';}
+function generatedStatus(message,type='info',duration){const el=$('generateStatus');if(type==='loading'){el.textContent=message;el.className='status';return}if(window.showToast){window.showToast(message,type||'info',duration);el.textContent='';el.className='status hidden';return}el.textContent=message;el.className='status';}
 function invalidateGenerated(){
  generated=null;demandFinalised=false;
  ['demandExportActions','unwillingExportActions'].forEach(id=>$(id).classList.add('hidden'));
@@ -654,7 +656,7 @@ async function load(){
  $('demandBody').innerHTML='<tr><td colspan="3" class="empty">Loading applicants…</td></tr>';
  generated=null;
  try{
-  status('Checking your sign-in session…');
+  status('Checking your sign-in session…','loading');
   const {data:sessionData,error:sessionError}=await withTimeout(supabaseClient.auth.getSession(),6000,'Sign-in session check');
   if(sessionError||!sessionData.session){window.location.replace('./');return;}
   const {data:access,error:accessError}=await withTimeout(
@@ -670,7 +672,7 @@ async function load(){
   const periodsPromise=loadPeriods();
   if(query.get("days") && /^\d+$/.test(query.get("days"))) $("days").value=query.get("days");
   applyWorkflowVisibility();
-  status('Loading active MIS data and Contribution balances…');
+  status('Loading active MIS data and Contribution balances…','loading');
   const [misData,selectionResult]=await Promise.all([
    fetchAllMisRows(seq),
    window.VBGRAMGData.invoke('vbgramg-mis-selection',{body:{action:'get'},deduplicate:true}),
@@ -713,12 +715,12 @@ async function load(){
   // Never leave the period selector displaying an indefinite loading state.
   const periodSelect=$('periodSelect');
   if(periodSelect.options.length===1 && /loading open periods/i.test(periodSelect.options[0].textContent)){
-   periodSelect.replaceChildren(new Option('Could not load periods — see status below',''));
+   periodSelect.replaceChildren(new Option('Unavailable',''));
    periodSelect.disabled=true;
   }
   status('Could not prepare Work Demand: '+(error&&error.message?error.message:String(error)),'error');
-  $('reviewBody').innerHTML='<tr><td colspan="4" class="empty">Could not load the review list.</td></tr>';
-  $('demandBody').innerHTML='<tr><td colspan="3" class="empty">Could not load Work Demand.</td></tr>';
+  $('reviewBody').replaceChildren();
+  $('demandBody').replaceChildren();
  }finally{loading=false;}
 }
 function renderPageControls(kind,total){
@@ -892,10 +894,10 @@ setTimeout(()=>{
  if(statusEl && /Checking your sign-in session/i.test(statusEl.textContent)){
   status('Sign-in session check is not responding. Return to the main menu, sign out, sign in again, then reopen Work Demand.','error');
   if(periodSelect && periodSelect.options.length===1 && /Loading open periods/i.test(periodSelect.options[0].textContent)){
-   periodSelect.replaceChildren(new Option('Sign-in check stalled — reopen Work Demand',''));
+   periodSelect.replaceChildren(new Option('Unavailable',''));
    periodSelect.disabled=true;
   }
  }
 },8000);
 </script>
-<script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261104-sidebar1"></script></body></html>
+<script src="./navigation.js?v=20261104-sidebar1"></script></body></html>

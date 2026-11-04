@@ -540,7 +540,6 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 <body>
 <main>
 <div id="app-panel" class="hidden">
-<header class="topbar app-header"><div class="brand"><h1>FTO</h1><p>Review imported FTOs, payment statuses and period mappings.</p></div></header>
 <section class="panel">
 <div id="fto-history" class="history-section">
  <div class="section-head"><div></div><a id="open-fto-import" href="./fto-import.html" class="link-button secondary">Import FTO</a></div>
@@ -612,7 +611,8 @@ function periodToDate(value){
 let ftoHistoryRows=[],expandedFtoId=null,historyLoadSequence=0;
 function historyMessage(message,type=""){
  const el=$("fto-history-status");
- if((type==="error"||type==="success")&&window.showToast){window.showToast(message,type);el.textContent="";el.classList.add("hidden");el.classList.remove("error","success");return;}
+ if(type==="loading"){el.textContent=message;el.classList.remove("error","success");el.classList.remove("hidden");return;}
+ if(window.showToast){window.showToast(message,type==="error"?"error":type==="success"?"success":"info");el.textContent="";el.classList.add("hidden");el.classList.remove("error","success");return;}
  el.textContent=message;el.classList.remove("error","success");el.classList.toggle("hidden",!message);
 }
 function fmtHistoryDate(value){
@@ -805,7 +805,7 @@ async function saveFtoPeriod(event){
 }
 async function loadFtoHistory(){
  const seq=++historyLoadSequence;
- historyMessage("Loading imported FTO history…");
+ historyMessage("Loading imported FTO history…","loading");
  try{
   const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"list-fto-history"},deduplicate:true});
   if(seq!==historyLoadSequence)return;
@@ -818,7 +818,7 @@ async function loadFtoHistory(){
   if(expandedFtoId&&!ftoHistoryRows.some(b=>b.id===expandedFtoId))expandedFtoId=null;
   renderFtoHistory();
   const historyStatus=$("fto-history-status");
-  if(ftoHistoryRows.length){historyMessage(ftoHistoryRows.length+" imported FTO(s) loaded.");}
+  if(ftoHistoryRows.length){historyMessage(ftoHistoryRows.length+" imported FTO(s) loaded.","success");}
   else{historyStatus.textContent="";historyStatus.classList.add("hidden");historyStatus.classList.remove("error","success");}
  }catch(err){if(seq!==historyLoadSequence)return;historyMessage(err.message||"Could not load FTO history.","error");}
 }

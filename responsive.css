@@ -51,6 +51,14 @@ th, td { overflow-wrap: anywhere; }
 }
 
 
+/* Actions sit inside the first content surface, not in a separate header card. */
+.page-panel-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+@media(max-width:700px){.page-panel-actions{gap:6px}.page-panel-actions>*{flex:0 1 auto}}
+/* Standard page-header action alignment. */
+.app-header{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+.app-header-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+@media(max-width:700px){.app-header-actions{gap:6px}.app-header-actions>*{flex:0 1 auto}}
+
 /* Sidebar-only navigation shell. Existing page components and layouts are untouched. */
 body.has-global-sidebar{padding-left:252px!important;box-sizing:border-box}
 .global-sidebar{position:fixed;inset:0 auto 0 0;width:252px;height:100vh;height:100dvh;display:flex;flex-direction:column;padding:22px 15px;background:#fff;border-right:1px solid #e3e8f0;z-index:1200;box-sizing:border-box}

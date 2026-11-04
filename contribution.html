@@ -747,10 +747,10 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{padding:18px 
 </head>
 <body>
 <main>
-<header class="topbar app-header"><div class="brand"><h1>Contribution</h1></div><div class="app-header-actions"><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk Payment</button><button class="btn hidden" id="exportDueBtn" type="button">Export</button></div></header>
 <div id="status" class="notice info hidden" role="status" aria-live="polite"></div>
 <div id="app" class="hidden">
 <div id="contribution-layout"><section class="panel contribution-main-panel">
+<div class="page-panel-actions"><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk Payment</button><button class="btn hidden" id="exportDueBtn" type="button">Export</button></div>
 <div class="contribution-controls"><div class="stat outstanding-kpi"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred</div><div class="v deferred-kpi" id="deferred">—</div></div><div class="search-wrap"><label for="search">Search name or full job card number</label><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><button id="clearSearch" class="search-clear" type="button" aria-label="Clear search" title="Clear search">×</button></div><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="overpaid">Overpaid</option><option value="deferred">Has deferred charges</option></select></div></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button><button id="contribution-see-more" class="btn ghost mobile-see-more" type="button" hidden>See more</button></div></div>
 </section></div>
 </div>
@@ -764,6 +764,7 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{padding:18px 
 <script src="./js/payments.js?v=20261104a"></script>
 <script src="./js/supabase-client.js?v=20261104b"></script>
 <script src="./js/data-loader.js?v=20261104b"></script>
+<script src="./toast.js?v=20261103"></script>
 <script>
 (async () => {
 'use strict';
@@ -773,8 +774,9 @@ if(startupNode)startupNode.textContent='JavaScript started — loading connectio
 function setStartupError(message){
  const node=$('status');
  if(!node)return;
- node.className='notice err';
- node.replaceChildren(document.createTextNode(message+' '));
+ if(window.showToast)window.showToast(message,'error',8000);
+ node.className='notice info';
+ node.replaceChildren();
  const retry=document.createElement('button');
  retry.type='button';
  retry.className='btn ghost small';
@@ -795,17 +797,15 @@ const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const day=s=>s?new Date(s+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'Date not recorded';
 const formatPeriod=s=>{const m=String(s||'').match(/^(\d{4})-(\d{2})/);if(!m)return s||'Monthly charge';const months=['January','February','March','April','May','June','July','August','September','October','November','December'];const n=Number(m[2]);return n>=1&&n<=12?months[n-1]+' '+m[1]:(s||'Monthly charge')};
-function status(message,type='info'){
+function status(message,type='info',duration){
  const el=$('status');
- if(type==='success'){
-  if(window.showToast)window.showToast(message,'success');
+ const toastType=type==='err'?'error':type;
+ if(window.showToast){
+  window.showToast(message,toastType,duration);
   el.textContent='';el.classList.add('hidden');return;
  }
- if(type==='err'||type==='error'){
-  if(window.showToast)window.showToast(message,'error');
-  el.className='notice err';el.textContent=message;el.classList.remove('hidden');return;
- }
- el.className='notice info';el.textContent=message;el.classList.remove('hidden');
+ el.className=type==='err'||type==='error'?'notice err':'notice info';
+ el.textContent=message;el.classList.remove('hidden');
 }
 const calculateLedgerState=window.VBGRAMGContribution.calculateLedgerState;
 function renderExemptions(){
@@ -816,9 +816,9 @@ function renderExemptions(){
 async function saveExemption(){
  if(appRole!=="admin"||busy)return;
  const jobCards=[...new Set($('exemptJobCards').value.split(/\r?\n/).map(v=>v.trim()).filter(Boolean))],note=$('exemptNote').value.trim();
- if(!jobCards.length){$('exemptionStatus').textContent='Enter at least one full job card number, one per line.';$('exemptJobCards').focus();return;}
- if(jobCards.some(v=>v.length>100)){$('exemptionStatus').textContent='A job card number is too long. Check the pasted list.';return;}
- if(jobCards.length>100){$('exemptionStatus').textContent='Add at most 100 job cards in one batch.';return;}
+ if(!jobCards.length){status('Enter at least one full job card number, one per line.','error');$('exemptJobCards').focus();return;}
+ if(jobCards.some(v=>v.length>100)){status('A job card number is too long. Check the pasted list.','error');return;}
+ if(jobCards.length>100){status('Add at most 100 job cards in one batch.','error');return;}
  busy=true;$('saveExemptionBtn').disabled=true;$('saveExemptionBtn').textContent='Saving 0/'+jobCards.length+'…';
  let saved=0,failed=[];
  try{
@@ -834,10 +834,10 @@ async function saveExemption(){
    $('saveExemptionBtn').textContent='Saving '+(saved+failed.length)+'/'+jobCards.length+'…';
   }
   deriveCitizens();renderExemptions();render();
-  if(saved===jobCards.length){$('exemptJobCards').value='';$('exemptNote').value='';$('exemptionStatus').textContent=saved+' job card(s) are now exempt. FTO history is retained and contribution balances are excluded.';status(saved+' exemption(s) saved.','success');}
-  else{$('exemptionStatus').textContent=saved+' saved; '+failed.length+' failed. '+failed.join(' | ');status('Some exemptions could not be saved. Review the exemption form.','err');}
+  if(saved===jobCards.length){$('exemptJobCards').value='';$('exemptNote').value='';status(saved+' exemption(s) saved.','success');}
+  else{status(saved+' exemption(s) saved; '+failed.length+' failed. '+failed.slice(0,5).join('; ')+(failed.length>5?' and '+(failed.length-5)+' more.':''),'error',9000);}
   if(currentCitizen&&jobCards.includes(currentCitizen.id))$('overlay').classList.add('hidden');
- }catch(err){$('exemptionStatus').textContent=err.message||'Could not save exemptions.';}
+ }catch(err){status(err.message||'Could not save exemptions.','err');}
  finally{busy=false;$('saveExemptionBtn').disabled=false;$('saveExemptionBtn').textContent='Add exemptions';}
 }
 async function removeExemption(jobCard){
@@ -848,9 +848,8 @@ async function removeExemption(jobCard){
   const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'save-exemption',job_card_number:jobCard,exempt:false},timeoutMs:false});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not remove exemption.');
   exemptions=data.exemptions||[];deriveCitizens();renderExemptions();render();
-  $('exemptionStatus').textContent='Exemption removed for '+jobCard+'. Its existing contribution ledger now counts again.';
   status('Exemption removed. Contribution totals recalculated.','success');
- }catch(err){$('exemptionStatus').textContent=err.message||'Could not remove exemption.';}
+ }catch(err){status(err.message||'Could not remove exemption.','err');}
  finally{busy=false;}
 }
 function deriveCitizens(){
@@ -1118,7 +1117,7 @@ function showPaymentAllocationForm(transactionId){
  const rows=current.length?current.map(a=>({period_id:a.period_id,amount:a.amount,note:a.note||""})):[{period_id:options[0]?.id||"",amount:"",note:""}];
  const rowHtml=(row,i)=>'<div class="allocation-edit-row" data-allocation-row="'+i+'" style="border:1px solid var(--line,#ddd);border-radius:10px;padding:10px;margin:8px 0"><div class="field"><label>Contribution period</label><select data-allocation-period>'+optionHtml+'</select></div><div class="field"><label>Amount (₹)</label><input data-allocation-amount type="number" min="0.01" step="0.01" max="10000000" value="'+esc(row.amount??"")+'" inputmode="decimal"></div><div class="field"><label>Review note (optional)</label><input data-allocation-note maxlength="300" value="'+esc(row.note||"")+'" placeholder="Evidence / reason"></div><button class="btn ghost small" type="button" data-remove-allocation>Remove period</button></div>';
  $('sheetFooter').classList.add('hidden');
- $('sheetBody').innerHTML='<div class="section-title">Review payment allocation</div><div class="notice info">Payment: <b>'+fmt(payment.amount)+'</b> · '+esc(day(String(payment.entry_date||"").slice(0,10)))+'<br>Allocate the payment across one or more eligible periods. The total allocated cannot exceed the payment amount. Saving replaces this payment’s existing allocation only.</div><form id="allocationForm"><div id="allocationRows">'+rows.map(rowHtml).join('')+'</div><button class="btn ghost" type="button" id="addAllocationRow">Add period</button><div id="allocationTotal" class="muted" style="margin:10px 0"></div><button class="btn" type="submit" id="saveAllocationBtn">Save allocation</button> <button class="btn ghost" type="button" id="cancelAllocationBtn">Cancel</button><div id="allocationError"></div></form>';
+ $('sheetBody').innerHTML='<div class="section-title">Review payment allocation</div><div class="notice info">Payment: <b>'+fmt(payment.amount)+'</b> · '+esc(day(String(payment.entry_date||"").slice(0,10)))+'<br>Allocate the payment across one or more eligible periods. The total allocated cannot exceed the payment amount. Saving replaces this payment’s existing allocation only.</div><form id="allocationForm"><div id="allocationRows">'+rows.map(rowHtml).join('')+'</div><button class="btn ghost" type="button" id="addAllocationRow">Add period</button><div id="allocationTotal" class="muted" style="margin:10px 0"></div><button class="btn" type="submit" id="saveAllocationBtn">Save allocation</button> <button class="btn ghost" type="button" id="cancelAllocationBtn">Cancel</button></form>';
  const setSelects=()=>document.querySelectorAll('[data-allocation-row]').forEach((row,i)=>{const select=row.querySelector('[data-allocation-period]');select.value=String(rows[i]?.period_id||"");});
  setSelects();
  const updateTotal=()=>{let total=0;document.querySelectorAll('[data-allocation-amount]').forEach(x=>total+=Math.max(0,Number(x.value)||0));$('allocationTotal').textContent='Total allocated: '+fmt(total)+' · Unallocated: '+fmt(Math.max(0,Number(payment.amount)-total));};
@@ -1133,15 +1132,15 @@ function showPaymentAllocationForm(transactionId){
   const allocations=[];let invalid=false;
   document.querySelectorAll('[data-allocation-row]').forEach(row=>{const period_id=row.querySelector('[data-allocation-period]').value,amount=Number(row.querySelector('[data-allocation-amount]').value),note=row.querySelector('[data-allocation-note]').value.trim();if(!period_id&&!amount)return;if(!period_id||!Number.isFinite(amount)||amount<=0){invalid=true;return;}allocations.push({period_id,amount,note,confidence:"confirmed"});});
   const total=allocations.reduce((s,a)=>s+a.amount,0);
-  if(invalid){$('allocationError').innerHTML='<div class="notice err">Each row must have a period and a positive amount, or be removed.</div>';return;}
-  if(total>Number(payment.amount)+0.00001){$('allocationError').innerHTML='<div class="notice err">Allocated amount cannot exceed the payment.</div>';return;}
+  if(invalid){status('Each row must have a period and a positive amount, or be removed.','error');return;}
+  if(total>Number(payment.amount)+0.00001){status('Allocated amount cannot exceed the payment.','error');return;}
   busy=true;$('saveAllocationBtn').disabled=true;$('saveAllocationBtn').textContent='Saving…';
   try{
    const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'set-payment-allocations',transaction_id:payment.id,allocations,allocation_source:'manual'},timeoutMs:false});
    if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save allocation.');
    paymentAllocations=paymentAllocations.filter(a=>String(a.transaction_id)!==String(payment.id)).concat(data.allocations||[]);
    openCitizen(c.id);status('Payment allocation saved.','info');
-  }catch(err){$('allocationError').innerHTML='<div class="notice err">'+esc(err.message||'Could not save allocation.')+'</div>';}
+  }catch(err){status(err.message||'Could not save allocation.','error');}
   finally{busy=false;if($('saveAllocationBtn')){$('saveAllocationBtn').disabled=false;$('saveAllocationBtn').textContent='Save allocation';}}
  });
 }
@@ -1156,7 +1155,7 @@ function showExtraChargeForm(){
  const currentMonth=new Date().toISOString().slice(0,7);
  const defaultPeriod=sortedPeriods.find(p=>existingForCard.some(x=>String(x.period_id||'')===String(p.id)))||sortedPeriods.find(p=>periodMonth(p)===currentMonth&&p.status!=='closed')||sortedPeriods[0];
  const defaultExtra=defaultPeriod?existingForCard.find(x=>String(x.period_id||'')===String(defaultPeriod.id)):null;
- $('sheetBody').innerHTML='<div class="notice info">Add an extra amount to a specific contribution round. Each job card can have a separate extra amount in each round; the formula-generated charge is not changed.</div>'+(existingForCard.some(x=>!x.period_id)?'<div class="notice info">An older extra amount is not linked to a round. It remains in history as a legacy entry; review it before adding a replacement for the same month.</div>':'')+'<form id="extraChargeForm"><div class="field"><label for="extraPeriod">Contribution round</label><select id="extraPeriod" required>'+(sortedPeriods.map(p=>'<option value="'+esc(p.id)+'" '+(defaultPeriod&&String(defaultPeriod.id)===String(p.id)?'selected':'')+'>'+esc(roundLabel(p))+'</option>').join(''))+'</select></div><div class="field"><label for="extraAmount">Extra amount (₹)</label><input id="extraAmount" type="number" min="0.01" max="10000000" step="0.01" required inputmode="decimal" value="'+(defaultExtra?esc(defaultExtra.amount):'')+'" placeholder="Enter additional amount"></div><div class="field"><label for="extraReason">Reason</label><textarea id="extraReason" rows="3" maxlength="500" required placeholder="Why is this extra amount needed?">'+(defaultExtra?esc(defaultExtra.reason):'')+'</textarea></div><button class="btn" id="saveExtraAmount" type="submit">Save extra amount</button> <button class="btn ghost" id="cancelExtraAmount" type="button">Cancel</button><div id="extraAmountError"></div></form>';
+ $('sheetBody').innerHTML='<div class="notice info">Add an extra amount to a specific contribution round. Each job card can have a separate extra amount in each round; the formula-generated charge is not changed.</div>'+(existingForCard.some(x=>!x.period_id)?'<div class="notice info">An older extra amount is not linked to a round. It remains in history as a legacy entry; review it before adding a replacement for the same month.</div>':'')+'<form id="extraChargeForm"><div class="field"><label for="extraPeriod">Contribution round</label><select id="extraPeriod" required>'+(sortedPeriods.map(p=>'<option value="'+esc(p.id)+'" '+(defaultPeriod&&String(defaultPeriod.id)===String(p.id)?'selected':'')+'>'+esc(roundLabel(p))+'</option>').join(''))+'</select></div><div class="field"><label for="extraAmount">Extra amount (₹)</label><input id="extraAmount" type="number" min="0.01" max="10000000" step="0.01" required inputmode="decimal" value="'+(defaultExtra?esc(defaultExtra.amount):'')+'" placeholder="Enter additional amount"></div><div class="field"><label for="extraReason">Reason</label><textarea id="extraReason" rows="3" maxlength="500" required placeholder="Why is this extra amount needed?">'+(defaultExtra?esc(defaultExtra.reason):'')+'</textarea></div><button class="btn" id="saveExtraAmount" type="submit">Save extra amount</button> <button class="btn ghost" id="cancelExtraAmount" type="button">Cancel</button></form>';
  const syncFormForPeriod=()=>{
   const periodId=$('extraPeriod').value;
   const old=existingForCard.find(x=>String(x.period_id||'')===periodId);
@@ -1168,8 +1167,8 @@ function showExtraChargeForm(){
  $('extraChargeForm').addEventListener('submit',async ev=>{
   ev.preventDefault();if(busy)return;
   const periodId=$('extraPeriod').value,selectedPeriod=periods.find(p=>String(p.id)===periodId),month=selectedPeriod?periodMonth(selectedPeriod):'',amount=Number($('extraAmount').value),reason=$('extraReason').value.trim();
-  if(!periodId||!month||!Number.isFinite(amount)||amount<=0){$('extraAmountError').innerHTML='<div class="notice err">Choose a contribution round and enter an extra amount greater than zero.</div>';return;}
-  if(!reason){$('extraAmountError').innerHTML='<div class="notice err">Enter a reason for the extra amount.</div>';return;}
+  if(!periodId||!month||!Number.isFinite(amount)||amount<=0){status('Choose a contribution round and enter an extra amount greater than zero.','error');return;}
+  if(!reason){status('Enter a reason for the extra amount.','error');return;}
   busy=true;$('saveExtraAmount').disabled=true;$('saveExtraAmount').textContent='Saving…';
   try{
    const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'save-contribution-extra',job_card_number:c.id,period_id:periodId,charge_period:month+'-01',amount,reason},timeoutMs:false});
@@ -1179,25 +1178,25 @@ function showExtraChargeForm(){
    extraCharges.push(data.extra);
    openCitizen(c.id);
    status((data.updated?'Extra amount updated.':'Extra amount saved.')+' Formula-generated charges remain unchanged.','info');
-  }catch(err){$('extraAmountError').innerHTML='<div class="notice err">'+esc(err.message||'Could not save extra amount.')+'</div>';}
+  }catch(err){status(err.message||'Could not save extra amount.','error');}
   finally{busy=false;if($('saveExtraAmount')){$('saveExtraAmount').disabled=false;$('saveExtraAmount').textContent='Save extra amount';}}
  });
 }
 function showPaymentForm(){
  $('sheetFooter').classList.add('hidden');
  const c=currentCitizen;if(!c)return;
- $('sheetBody').innerHTML='<div class="notice info">Record a payment against this full job card. The amount is added to the ledger; it does not delete or alter earlier charges.</div><form id="paymentForm"><div class="field"><label for="paymentAmount">Payment amount (₹)</label><input id="paymentAmount" type="number" min="0.01" max="10000000" step="0.01" required inputmode="decimal"></div><div class="grid2"><div class="field"><label for="paymentDate">Payment date</label><input id="paymentDate" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div><div class="field"><label>Method</label><input value="Cash" readonly aria-readonly="true"></div></div><button class="btn" type="submit" id="savePayment">Save payment</button> <button class="btn ghost" type="button" id="cancelPayment">Cancel</button><div id="paymentError"></div></form>';
+ $('sheetBody').innerHTML='<div class="notice info">Record a payment against this full job card. The amount is added to the ledger; it does not delete or alter earlier charges.</div><form id="paymentForm"><div class="field"><label for="paymentAmount">Payment amount (₹)</label><input id="paymentAmount" type="number" min="0.01" max="10000000" step="0.01" required inputmode="decimal"></div><div class="grid2"><div class="field"><label for="paymentDate">Payment date</label><input id="paymentDate" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div><div class="field"><label>Method</label><input value="Cash" readonly aria-readonly="true"></div></div><button class="btn" type="submit" id="savePayment">Save payment</button> <button class="btn ghost" type="button" id="cancelPayment">Cancel</button></form>';
  $('cancelPayment').addEventListener('click',()=>openCitizen(c.id));
  $('paymentForm').addEventListener('submit',async ev=>{
   ev.preventDefault();if(busy)return;
   const amount=Number($('paymentAmount').value),date=$('paymentDate').value,note="Cash";
-  if(!Number.isFinite(amount)||amount<=0){$('paymentError').innerHTML='<div class="notice err">Enter an amount greater than zero.</div>';return;}
+  if(!Number.isFinite(amount)||amount<=0){status('Enter an amount greater than zero.','error');return;}
   busy=true;$('savePayment').disabled=true;$('savePayment').textContent='Saving…';
   try{
    const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'add-payment',job_card_number:c.id,amount,entry_date:date,note},timeoutMs:false});
    if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save payment.');
    entries.push(data.entry);deriveCitizens();render();openCitizen(c.id);status('Payment saved. Ledger updated.','info');
-  }catch(err){$('paymentError').innerHTML='<div class="notice err">'+esc(err.message||'Could not save payment.')+'</div>';}
+  }catch(err){status(err.message||'Could not save payment.','err');}
   finally{busy=false;if($('savePayment')){$('savePayment').disabled=false;$('savePayment').textContent='Save payment';}}
  });
 }
@@ -1210,7 +1209,7 @@ function showExemptionsForm(){
  $('sheetSubtitle').textContent='Manage job cards excluded from Contribution.';
  $('sheetFooter').classList.add('hidden');
  $('toggleEditMode').classList.add('hidden');
- $('sheetBody').innerHTML='<div class="notice info">Exempt job cards remain visible in FTO history. Their Contribution ledger entries, extra charges, and contribution-citizen records are removed while exempt; FTO transactions and FTO status history are preserved. To add several, paste one full job card number per line. The note applies to every job card in this batch.</div><div class="field"><label for="exemptJobCards">Full job card number(s)</label><textarea id="exemptJobCards" rows="5" maxlength="12000" placeholder="Paste one full job card number per line" autocomplete="off"></textarea></div><div class="field"><label for="exemptNote">Reason / note (optional, shared by this batch)</label><input id="exemptNote" maxlength="300" placeholder="Reason for exemption"></div><button class="btn" id="saveExemptionBtn" type="button">Add exemptions</button><div id="exemptionStatus" class="muted" style="margin-top:8px"></div><div class="section-title">Current exemptions</div><div id="exemptionList"></div>';
+ $('sheetBody').innerHTML='<div class="notice info">Exempt job cards remain visible in FTO history. Their Contribution ledger entries, extra charges, and contribution-citizen records are removed while exempt; FTO transactions and FTO status history are preserved. To add several, paste one full job card number per line. The note applies to every job card in this batch.</div><div class="field"><label for="exemptJobCards">Full job card number(s)</label><textarea id="exemptJobCards" rows="5" maxlength="12000" placeholder="Paste one full job card number per line" autocomplete="off"></textarea></div><div class="field"><label for="exemptNote">Reason / note (optional, shared by this batch)</label><input id="exemptNote" maxlength="300" placeholder="Reason for exemption"></div><button class="btn" id="saveExemptionBtn" type="button">Add exemptions</button><div class="section-title">Current exemptions</div><div id="exemptionList"></div>';
  $('overlay').classList.remove('hidden');
  renderExemptions();
  $('saveExemptionBtn').addEventListener('click',saveExemption);
@@ -1231,10 +1230,10 @@ function showBulkPaymentForm(){
  $('cancelBulkPayments').addEventListener('click',()=>$('overlay').classList.add('hidden'));
  $('previewBulkPayments').addEventListener('click',()=>{
   const parsed=parseBulkPayments($('bulkPaymentRows').value),date=$('bulkPaymentDate').value,box=$('bulkPaymentPreview');
-  if(!date){box.innerHTML='<div class="notice err">Choose a payment date.</div>';return;}
-  if(parsed.errors.length){box.innerHTML='<div class="notice err">'+parsed.errors.map(esc).join('<br>')+'</div>';return;}
+  if(!date){status('Choose a payment date.','error');return;}
+  if(parsed.errors.length){status(parsed.errors.length+' issue(s) found. '+parsed.errors.slice(0,5).join('; ')+(parsed.errors.length>5?' and '+(parsed.errors.length-5)+' more.':''),'error',9000);return;}
   const total=parsed.rows.reduce((sum,row)=>sum+row.amount,0);
-  box.innerHTML='<div class="notice info">Review before saving: <b>'+parsed.rows.length+' payments</b>, total <b>'+fmt(total)+'</b>, method <b>Bank</b>, date <b>'+esc(date)+'</b>. The server will verify every job card before inserting the batch.</div><div style="max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:10px"><table><thead><tr><th>Job card</th><th style="text-align:right">Amount</th></tr></thead><tbody>'+parsed.rows.map(row=>'<tr><td>'+esc(row.job_card_number)+'</td><td style="text-align:right">'+fmt(row.amount)+'</td></tr>').join('')+'</tbody></table></div><p class="muted">Saving creates separate Bank payment entries; it does not change charges or delete existing transactions.</p><button class="btn" id="saveBulkPayments" type="button">Save '+parsed.rows.length+' bank payments</button> <button class="btn ghost" id="editBulkPayments" type="button">Edit batch</button><div id="bulkSaveError"></div>';
+  box.innerHTML='<div class="notice info">Review before saving: <b>'+parsed.rows.length+' payments</b>, total <b>'+fmt(total)+'</b>, method <b>Bank</b>, date <b>'+esc(date)+'</b>. The server will verify every job card before inserting the batch.</div><div style="max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:10px"><table><thead><tr><th>Job card</th><th style="text-align:right">Amount</th></tr></thead><tbody>'+parsed.rows.map(row=>'<tr><td>'+esc(row.job_card_number)+'</td><td style="text-align:right">'+fmt(row.amount)+'</td></tr>').join('')+'</tbody></table></div><p class="muted">Saving creates separate Bank payment entries; it does not change charges or delete existing transactions.</p><button class="btn" id="saveBulkPayments" type="button">Save '+parsed.rows.length+' bank payments</button> <button class="btn ghost" id="editBulkPayments" type="button">Edit batch</button>';
   $('editBulkPayments').addEventListener('click',()=>{$('bulkPaymentPreview').innerHTML='';});
   $('saveBulkPayments').addEventListener('click',async()=>{
    if(busy)return;
@@ -1245,7 +1244,7 @@ function showBulkPaymentForm(){
     if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save bank payment batch.');
     entries.push(...(data.entries||[]));deriveCitizens();render();$('overlay').classList.add('hidden');
     status('Saved '+data.count+' Bank payments totalling '+fmt(data.total_amount)+'. Ledger updated.','success');
-   }catch(err){$('bulkSaveError').innerHTML='<div class="notice err">'+esc(err.message||'Could not save bank payment batch.')+'</div>';if($('saveBulkPayments')){$('saveBulkPayments').disabled=false;$('saveBulkPayments').textContent='Save '+parsed.rows.length+' bank payments';}}
+   }catch(err){status(err.message||'Could not save bank payment batch.','error');if($('saveBulkPayments')){$('saveBulkPayments').disabled=false;$('saveBulkPayments').textContent='Save '+parsed.rows.length+' bank payments';}}
    finally{busy=false;}
   });
  });
@@ -1262,19 +1261,19 @@ function showEditForm(id){
  const e=c.ledger.find(row=>String(row.id)===String(id));if(!e)return;
  const isCharge=e.entry_type==="charge"&&String(e.note||"").trim().toLowerCase()!=="return";
  const typeLabel=(e.entry_type==="charge_waiver"||e.entry_type==="forgive")?"Charge Waiver":e.entry_type==="payment"?"Payment":(e.entry_type==="refund"||e.entry_type==="return")?"Refund":(e.entry_type==="other_charge"||e.entry_type==="sanitationFee")?"Other Charge":"Charge";
- $('sheetBody').innerHTML='<div class="notice info">Editing '+esc(typeLabel)+'. Original and revised values will be recorded in the audit log.</div><form id="editEntryForm"><div class="field"><label for="editAmount">Amount (₹)</label><input id="editAmount" type="number" min="0.01" max="10000000" step="0.01" required value="'+esc(e.amount)+'"></div><div class="grid2"><div class="field"><label for="editDate">Transaction date</label><input id="editDate" type="date" required value="'+esc(String(e.entry_date||new Date().toISOString().slice(0,10)).slice(0,10))+'"></div><div class="field"><label for="editNote">Note</label><input id="editNote" maxlength="200" value="'+esc(e.note||"")+'" placeholder="Optional note"></div></div>'+(isCharge?'<div class="field"><label for="editPeriod">Charge month</label><input id="editPeriod" type="month" required value="'+esc(String(e.charge_period||"").slice(0,7))+'"></div><div class="field"><label><input id="editDeferred" type="checkbox" '+(e.is_deferred?'checked':'')+' style="width:auto;min-height:0;margin-right:8px"> Deferred charge</label></div>':'')+'<button class="btn" id="saveEdit" type="submit">Save changes</button> <button class="btn ghost" id="cancelEdit" type="button">Cancel</button><div id="editError"></div></form>';
+ $('sheetBody').innerHTML='<div class="notice info">Editing '+esc(typeLabel)+'. Original and revised values will be recorded in the audit log.</div><form id="editEntryForm"><div class="field"><label for="editAmount">Amount (₹)</label><input id="editAmount" type="number" min="0.01" max="10000000" step="0.01" required value="'+esc(e.amount)+'"></div><div class="grid2"><div class="field"><label for="editDate">Transaction date</label><input id="editDate" type="date" required value="'+esc(String(e.entry_date||new Date().toISOString().slice(0,10)).slice(0,10))+'"></div><div class="field"><label for="editNote">Note</label><input id="editNote" maxlength="200" value="'+esc(e.note||"")+'" placeholder="Optional note"></div></div>'+(isCharge?'<div class="field"><label for="editPeriod">Charge month</label><input id="editPeriod" type="month" required value="'+esc(String(e.charge_period||"").slice(0,7))+'"></div><div class="field"><label><input id="editDeferred" type="checkbox" '+(e.is_deferred?'checked':'')+' style="width:auto;min-height:0;margin-right:8px"> Deferred charge</label></div>':'')+'<button class="btn" id="saveEdit" type="submit">Save changes</button> <button class="btn ghost" id="cancelEdit" type="button">Cancel</button></form>';
  $('cancelEdit').addEventListener('click',()=>openCitizen(c.id));
  $('editEntryForm').addEventListener('submit',async ev=>{
   ev.preventDefault();if(busy)return;
   const payload={action:"edit-ledger-entry",id:e.id,amount:Number($('editAmount').value),entry_date:$('editDate').value,note:$('editNote').value};
   if(isCharge){const month=$('editPeriod').value;payload.charge_period=month?month+'-01':'';payload.is_deferred=$('editDeferred').checked;}
-  if(!Number.isFinite(payload.amount)||payload.amount<=0){$('editError').innerHTML='<div class="notice err">Enter an amount greater than zero.</div>';return;}
+  if(!Number.isFinite(payload.amount)||payload.amount<=0){status('Enter an amount greater than zero.','error');return;}
   busy=true;$('saveEdit').disabled=true;$('saveEdit').textContent='Saving…';
   try{
    const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:payload,timeoutMs:false});
    if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not edit transaction.');
    updateEntryInMemory(data.entry);openCitizen(c.id);status('Transaction updated. Original and revised values were logged.','success');
-  }catch(err){$('editError').innerHTML='<div class="notice err">'+esc(err.message||'Could not edit transaction.')+'</div>';}
+  }catch(err){status(err.message||'Could not edit transaction.','error');}
   finally{busy=false;if($('saveEdit')){$('saveEdit').disabled=false;$('saveEdit').textContent='Save changes';}}
  });
 }
@@ -1282,18 +1281,18 @@ function showAdjustmentForm(action){
  $('sheetFooter').classList.add('hidden');
  const c=currentCitizen;if(!c)return;
  const isWaiver=action==="add-waiver",title=isWaiver?"Charge Waiver":"Refund";
- $('sheetBody').innerHTML='<div class="notice info">'+(isWaiver?'A waiver reduces the outstanding balance and is recorded as a separate ledger entry.':'A refund records money returned to the household and increases the outstanding balance.')+'</div><form id="adjustmentForm"><div class="field"><label for="adjustAmount">Amount (₹)</label><input id="adjustAmount" type="number" min="0.01" max="10000000" step="0.01" required inputmode="decimal"></div><div class="grid2"><div class="field"><label for="adjustDate">Date</label><input id="adjustDate" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div><div class="field"><label for="adjustNote">Note</label><input id="adjustNote" maxlength="200" value="'+(isWaiver?'Charge Waiver':'Refund')+'"></div></div><button class="btn" id="saveAdjustment" type="submit">'+title+'</button> <button class="btn ghost" id="cancelAdjustment" type="button">Cancel</button><div id="adjustmentError"></div></form>';
+ $('sheetBody').innerHTML='<div class="notice info">'+(isWaiver?'A waiver reduces the outstanding balance and is recorded as a separate ledger entry.':'A refund records money returned to the household and increases the outstanding balance.')+'</div><form id="adjustmentForm"><div class="field"><label for="adjustAmount">Amount (₹)</label><input id="adjustAmount" type="number" min="0.01" max="10000000" step="0.01" required inputmode="decimal"></div><div class="grid2"><div class="field"><label for="adjustDate">Date</label><input id="adjustDate" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div><div class="field"><label for="adjustNote">Note</label><input id="adjustNote" maxlength="200" value="'+(isWaiver?'Charge Waiver':'Refund')+'"></div></div><button class="btn" id="saveAdjustment" type="submit">'+title+'</button> <button class="btn ghost" id="cancelAdjustment" type="button">Cancel</button></form>';
  $('cancelAdjustment').addEventListener('click',()=>openCitizen(c.id));
  $('adjustmentForm').addEventListener('submit',async ev=>{
   ev.preventDefault();if(busy)return;
   const amount=Number($('adjustAmount').value),date=$('adjustDate').value,note=$('adjustNote').value;
-  if(!Number.isFinite(amount)||amount<=0){$('adjustmentError').innerHTML='<div class="notice err">Enter an amount greater than zero.</div>';return;}
+  if(!Number.isFinite(amount)||amount<=0){status('Enter an amount greater than zero.','error');return;}
   busy=true;$('saveAdjustment').disabled=true;$('saveAdjustment').textContent='Saving…';
   try{
    const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action,job_card_number:c.id,amount,entry_date:date,note},timeoutMs:false});
    if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save adjustment.');
    updateEntryInMemory(data.entry);openCitizen(c.id);status((isWaiver?'Charge Waiver':'Refund')+' recorded and ledger recalculated.','success');
-  }catch(err){$('adjustmentError').innerHTML='<div class="notice err">'+esc(err.message||'Could not save adjustment.')+'</div>';}
+  }catch(err){status(err.message||'Could not save adjustment.','err');}
   finally{busy=false;if($('saveAdjustment')){$('saveAdjustment').disabled=false;$('saveAdjustment').textContent=title;}}
  });
 }
@@ -1342,9 +1341,10 @@ async function load(){
   $('app').classList.add('hidden');
   const node=$('status');
   const message=err&&err.message?err.message:'Could not load contribution data.';
+  if(window.showToast)window.showToast(message,'error',8000);
   if(node){
-   node.className='notice err';
-   node.replaceChildren(document.createTextNode(message+' '));
+   node.className='notice info';
+   node.replaceChildren();
    const retry=document.createElement('button');
    retry.type='button';retry.className='btn ghost small';retry.textContent='Retry loading';
    retry.addEventListener('click',()=>{retry.disabled=true;retry.textContent='Retrying…';load().finally(()=>{retry.disabled=false;retry.textContent='Retry loading';});});
@@ -1425,9 +1425,15 @@ supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'|
 load().catch(err=>setStartupError(err&&err.message?err.message:'Could not start the Contribution page.'));
 })().catch(err=>{
  const node=document.getElementById('status');
- if(node){node.className='notice err';node.textContent='Could not start the Contribution page. Return to the main menu, sign in again, then reopen Contribution.';}
+ if(node){
+  const message='Could not start the Contribution page. Return to the main menu, sign in again, then reopen Contribution.';
+  if(window.showToast)window.showToast(message,'error',8000);
+  node.className='notice info';node.replaceChildren();
+  const retry=document.createElement('button');retry.type='button';retry.className='btn ghost small';retry.textContent='Reload page';retry.addEventListener('click',()=>window.location.reload());
+  node.appendChild(retry);node.classList.remove('hidden');
+ }
 });
 </script>
-<script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261104-sidebar1"></script>
+<script src="./navigation.js?v=20261104-sidebar1"></script>
 </body>
 </html>

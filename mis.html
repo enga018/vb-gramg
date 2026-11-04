@@ -271,10 +271,10 @@ body.mis-import-open{overflow:hidden}
 <body>
 <main>
 <div id="app-panel" class="hidden">
-<header class="topbar app-header"><div class="brand"><h1>MIS</h1><p>Search job cards and manage applicant selections.</p></div></header>
+<header class="topbar app-header"><div class="brand"><h1>MIS</h1></div><div class="app-header-actions"><button id="desktop-fetch-button" class="secondary hidden desktop-only-fetch" type="button" title="Fetch the official MIS register using visible Brave on this Windows PC">Fetch Official MIS</button><button id="import-link" class="secondary hidden" type="button">Import</button></div></header>
 
 <section class="panel">
-<div class="meta"><div class="stat"><small>Total Job Card</small><strong id="total-jobcards">—</strong></div><div class="stat"><small>Total Applicants from MIS</small><strong id="total-applicants">—</strong></div><div class="stat"><small>Last Updated</small><strong id="updated-at">—</strong></div><div class="mis-kpi-actions"><button id="desktop-fetch-button" class="secondary hidden desktop-only-fetch" type="button" title="Fetch the official MIS register using visible Brave on this Windows PC">Fetch Official MIS</button><button id="import-link" class="secondary hidden" type="button">Import</button></div></div>
+<div class="meta"><div class="stat"><small>Total Job Card</small><strong id="total-jobcards">—</strong></div><div class="stat"><small>Total Application</small><strong id="total-applicants">—</strong></div><div class="stat"><small>Demand</small><strong id="total-demand">—</strong></div><div class="stat"><small>Unwilling</small><strong id="total-unwilling">—</strong></div><div class="stat"><small>Last Updated</small><strong id="updated-at">—</strong></div></div>
 <div class="toolbar"><div class="search"><label for="search-input">Search job cards or applicants</label><input id="search-input" type="search" placeholder="Job card number, household, applicant name or number…"></div><div class="filter-control"><label for="selection-filter">Selection status</label><select id="selection-filter"><option value="all">All job cards</option><option value="selected">Selected</option><option value="none">None selected</option></select></div><span id="result-count" class="muted"></span></div>
 <div id="data-status" class="status" aria-live="polite">Loading MIS data…</div>
 
@@ -476,6 +476,8 @@ function updateKpis(){
  const selectedCount=validJobCards.filter(g=>selectedApplicants.has(g.key)).length;
  $('total-jobcards').textContent=validJobCards.length;
  $('total-applicants').textContent=totalApplications;
+ $('total-demand').textContent=selectedCount;
+ $('total-unwilling').textContent=validJobCards.length-selectedCount;
 }
 function buildJobCards(){
  const jobIndex=headers.findIndex(h=>/^(job card number|jobcard number)$/i.test(h.trim()));

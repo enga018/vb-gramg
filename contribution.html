@@ -1033,7 +1033,7 @@ function openCitizen(id){
  $('sheetTitle').textContent=c.id;
  $('sheetSubtitle').textContent=c.name||'Head of household not recorded';
  $('sheetFooter').classList.remove('hidden');
- const activeSheet=$('overlay').querySelector('.sheet');
+ const activeSheet=$('citizen-sheet');
  activeSheet.classList.remove('edit-mode');
  $('toggleEditMode').classList.remove('hidden');
  $('toggleEditMode').textContent='Edit';

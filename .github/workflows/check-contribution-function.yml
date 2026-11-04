@@ -1,0 +1,24 @@
+name: Check Contribution Edge Function
+
+on:
+  pull_request:
+    paths:
+      - "supabase/functions/vbgramg-contribution-data/**"
+      - "supabase/functions/shared/**"
+      - ".github/workflows/check-contribution-function.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  deno-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check Contribution Edge Function
+        run: deno check --config supabase/functions/vbgramg-contribution-data/deno.json supabase/functions/vbgramg-contribution-data/index.ts

@@ -833,6 +833,57 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{padding:18px 
   .kpi-actions .btn{width:100%;min-width:0}
 }
 
+
+/* Final mobile action-button standard: one consistent control size and treatment.
+   Preserve the existing primary (.btn) and secondary (.btn.ghost) hierarchy. */
+@media(max-width:700px){
+  .btn,
+  .btn.small,
+  header .account > button,
+  header .app-header-actions > a,
+  header .app-header-actions > button,
+  header .top-actions > a,
+  header .top-actions > button,
+  .page-actions-bar > a,
+  .page-actions-bar > button,
+  .page-panel-actions > a,
+  .page-panel-actions > button {
+    box-sizing:border-box!important;
+    min-height:40px!important;
+    height:40px!important;
+    padding:8px 12px!important;
+    border-radius:10px!important;
+    font-family:inherit!important;
+    font-size:.84rem!important;
+    font-weight:650!important;
+    line-height:1.2!important;
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:7px!important;
+    white-space:normal;
+  }
+  .kpi-actions .btn,
+  .table-foot .actions .btn,
+  .sheet-footer .transaction-actions .btn,
+  .sheet-head-actions .btn,
+  .sheet-body .entry .entry-actions .btn,
+  .sheet-body form>.btn,
+  .exemption-dialog button.btn {
+    width:100%!important;
+    min-width:0!important;
+    min-height:40px!important;
+    height:40px!important;
+    padding:8px 10px!important;
+    font-size:.82rem!important;
+  }
+  .kpi-actions{gap:7px!important}
+  .table-foot .actions{gap:7px!important}
+  .sheet-footer .transaction-actions{gap:7px!important}
+}
+/* Keep non-action controls (close, clear-search, expandable period rows)
+   at their purpose-built dimensions. */
+
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>

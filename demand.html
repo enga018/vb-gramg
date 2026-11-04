@@ -252,6 +252,166 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
   #demandTable th:nth-child(3){white-space:normal;line-height:1.15;overflow-wrap:anywhere}
   #demandTable td:nth-child(3){white-space:nowrap}
 }
+/* Mobile record cards: keep the desktop tables intact, but stop squeezing
+   Work Demand's operational lists into narrow columns on phones. */
+@media(max-width:700px){
+  #reviewPanel .table-wrap,
+  #demandPanel .table-wrap,
+  #unwillingPanel .table-wrap{
+    max-height:none;
+    overflow:visible;
+    border:0;
+    border-radius:0;
+    background:transparent;
+  }
+  #reviewTable,
+  #demandTable,
+  #unwillingTable{
+    display:block;
+    width:100%;
+    min-width:0;
+    border:0;
+    border-spacing:0;
+    table-layout:auto;
+  }
+  #reviewTable thead,
+  #demandTable thead,
+  #unwillingTable thead{display:none}
+  #reviewTable tbody,
+  #demandTable tbody,
+  #unwillingTable tbody{
+    display:grid;
+    gap:10px;
+  }
+  #reviewTable tbody>tr:not(:has(td.empty)),
+  #demandTable tbody>tr:not(:has(td.empty)),
+  #unwillingTable tbody>tr:not(:has(td.empty)){
+    display:grid;
+    min-width:0;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    align-items:start;
+    gap:8px 12px;
+    padding:13px;
+    border:1px solid #e3e8f0;
+    border-radius:12px;
+    background:#fff;
+    box-shadow:0 2px 8px rgb(23 32 51 / 4%);
+  }
+  #reviewTable tbody>tr>td,
+  #demandTable tbody>tr>td,
+  #unwillingTable tbody>tr>td{
+    display:block;
+    width:auto!important;
+    min-width:0;
+    max-width:none;
+    padding:0;
+    border:0;
+    overflow-wrap:anywhere;
+    word-break:normal;
+    font-size:.82rem;
+    line-height:1.4;
+  }
+  #reviewTable tbody>tr>td:before,
+  #demandTable tbody>tr>td:before,
+  #unwillingTable tbody>tr>td:before{
+    content:attr(data-label);
+    display:block;
+    margin-bottom:4px;
+    color:#778195;
+    font-size:.64rem;
+    line-height:1.25;
+    font-weight:800;
+    letter-spacing:.035em;
+    text-transform:uppercase;
+  }
+
+  /* Manual Review: identity and include control first; amount remains clear. */
+  #reviewTable tbody>tr>td[data-label="Job Card No."]{
+    grid-column:1;
+    grid-row:1;
+    color:#25324a;
+    font-size:.9rem;
+    font-weight:800;
+  }
+  #reviewTable tbody>tr>td[data-label="Head of Household"]{
+    grid-column:1/-1;
+    grid-row:2;
+  }
+  #reviewTable tbody>tr>td[data-label="Outstanding Amount"]{
+    grid-column:1;
+    grid-row:3;
+    align-self:end;
+    color:#b42318;
+    font-size:.94rem;
+    font-weight:800;
+    font-variant-numeric:tabular-nums;
+  }
+  #reviewTable tbody>tr>td[data-label="Action"]{
+    grid-column:2;
+    grid-row:1;
+    justify-self:end;
+    align-self:start;
+    min-width:44px;
+  }
+  #reviewTable tbody>tr>td[data-label="Action"]:before{display:none}
+  #reviewTable .include-check{
+    width:44px;
+    min-height:44px;
+    justify-content:center;
+    border:1px solid #dce3ef;
+    border-radius:10px;
+    background:#f8faff;
+  }
+  #reviewTable .include-check input{
+    width:22px;
+    height:22px;
+  }
+  #reviewTable .include-btn{display:none}
+
+  /* Final demand: keep job card prominent, applicant and number beneath it. */
+  #demandTable tbody>tr>td[data-label="Job Card No."]{
+    grid-column:1/-1;
+    color:#25324a;
+    font-size:.9rem;
+    font-weight:800;
+  }
+  #demandTable tbody>tr>td[data-label="Applicant"]{grid-column:1}
+  #demandTable tbody>tr>td[data-label="Applicant No."]{
+    grid-column:2;
+    text-align:right;
+  }
+
+  /* Unwilling list: compact two-level identity card. */
+  #unwillingTable tbody>tr>td[data-label="Job Card No."]{
+    grid-column:1/-1;
+    color:#25324a;
+    font-size:.9rem;
+    font-weight:800;
+  }
+  #unwillingTable tbody>tr>td[data-label="Head of Household"]{grid-column:1/-1}
+
+  #reviewTable tbody>tr:has(td.empty),
+  #demandTable tbody>tr:has(td.empty),
+  #unwillingTable tbody>tr:has(td.empty){
+    display:block;
+    padding:0;
+    border:1px solid #e3e8f0;
+    border-radius:12px;
+    background:#fff;
+  }
+  #reviewTable tbody>tr>td.empty,
+  #demandTable tbody>tr>td.empty,
+  #unwillingTable tbody>tr>td.empty{
+    display:block;
+    width:100%;
+    padding:22px 14px;
+    text-align:center;
+    font-size:.82rem;
+  }
+  #reviewTable tbody>tr>td.empty:before,
+  #demandTable tbody>tr>td.empty:before,
+  #unwillingTable tbody>tr>td.empty:before{display:none}
+}
 </style>
 </head>
 <body>
@@ -716,166 +876,7 @@ function exportPrint(kind){
  printWindow.onload=()=>setTimeout(()=>printWindow.print(),250);
  printWindow.document.open();
  printWindow.document.write('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(title)+'</title><style>body{font-family:Arial,"Noto Sans",sans-serif;color:#111;margin:22px;font-size:12pt}h1{text-align:center;font-size:17pt;margin:0 0 12px}p{text-align:center;margin:5px 0;font-weight:600}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{border:1px solid #222;padding:8px;text-align:left;overflow-wrap:anywhere}th{text-align:center;font-weight:700}td:first-child{text-align:center;width:70px}thead{display:table-header-group}tr{break-inside:avoid}@page{size:A4 portrait;margin:14mm}@media print{body{margin:0}}
-/* Mobile record cards: keep the desktop tables intact, but stop squeezing
-   Work Demand's operational lists into narrow columns on phones. */
-@media(max-width:700px){
-  #reviewPanel .table-wrap,
-  #demandPanel .table-wrap,
-  #unwillingPanel .table-wrap{
-    max-height:none;
-    overflow:visible;
-    border:0;
-    border-radius:0;
-    background:transparent;
-  }
-  #reviewTable,
-  #demandTable,
-  #unwillingTable{
-    display:block;
-    width:100%;
-    min-width:0;
-    border:0;
-    border-spacing:0;
-    table-layout:auto;
-  }
-  #reviewTable thead,
-  #demandTable thead,
-  #unwillingTable thead{display:none}
-  #reviewTable tbody,
-  #demandTable tbody,
-  #unwillingTable tbody{
-    display:grid;
-    gap:10px;
-  }
-  #reviewTable tbody>tr:not(:has(td.empty)),
-  #demandTable tbody>tr:not(:has(td.empty)),
-  #unwillingTable tbody>tr:not(:has(td.empty)){
-    display:grid;
-    min-width:0;
-    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-    align-items:start;
-    gap:8px 12px;
-    padding:13px;
-    border:1px solid #e3e8f0;
-    border-radius:12px;
-    background:#fff;
-    box-shadow:0 2px 8px rgb(23 32 51 / 4%);
-  }
-  #reviewTable tbody>tr>td,
-  #demandTable tbody>tr>td,
-  #unwillingTable tbody>tr>td{
-    display:block;
-    width:auto!important;
-    min-width:0;
-    max-width:none;
-    padding:0;
-    border:0;
-    overflow-wrap:anywhere;
-    word-break:normal;
-    font-size:.82rem;
-    line-height:1.4;
-  }
-  #reviewTable tbody>tr>td:before,
-  #demandTable tbody>tr>td:before,
-  #unwillingTable tbody>tr>td:before{
-    content:attr(data-label);
-    display:block;
-    margin-bottom:4px;
-    color:#778195;
-    font-size:.64rem;
-    line-height:1.25;
-    font-weight:800;
-    letter-spacing:.035em;
-    text-transform:uppercase;
-  }
 
-  /* Manual Review: identity and include control first; amount remains clear. */
-  #reviewTable tbody>tr>td[data-label="Job Card No."]{
-    grid-column:1;
-    grid-row:1;
-    color:#25324a;
-    font-size:.9rem;
-    font-weight:800;
-  }
-  #reviewTable tbody>tr>td[data-label="Head of Household"]{
-    grid-column:1/-1;
-    grid-row:2;
-  }
-  #reviewTable tbody>tr>td[data-label="Outstanding Amount"]{
-    grid-column:1;
-    grid-row:3;
-    align-self:end;
-    color:#b42318;
-    font-size:.94rem;
-    font-weight:800;
-    font-variant-numeric:tabular-nums;
-  }
-  #reviewTable tbody>tr>td[data-label="Action"]{
-    grid-column:2;
-    grid-row:1;
-    justify-self:end;
-    align-self:start;
-    min-width:44px;
-  }
-  #reviewTable tbody>tr>td[data-label="Action"]:before{display:none}
-  #reviewTable .include-check{
-    width:44px;
-    min-height:44px;
-    justify-content:center;
-    border:1px solid #dce3ef;
-    border-radius:10px;
-    background:#f8faff;
-  }
-  #reviewTable .include-check input{
-    width:22px;
-    height:22px;
-  }
-  #reviewTable .include-btn{display:none}
-
-  /* Final demand: keep job card prominent, applicant and number beneath it. */
-  #demandTable tbody>tr>td[data-label="Job Card No."]{
-    grid-column:1/-1;
-    color:#25324a;
-    font-size:.9rem;
-    font-weight:800;
-  }
-  #demandTable tbody>tr>td[data-label="Applicant"]{grid-column:1}
-  #demandTable tbody>tr>td[data-label="Applicant No."]{
-    grid-column:2;
-    text-align:right;
-  }
-
-  /* Unwilling list: compact two-level identity card. */
-  #unwillingTable tbody>tr>td[data-label="Job Card No."]{
-    grid-column:1/-1;
-    color:#25324a;
-    font-size:.9rem;
-    font-weight:800;
-  }
-  #unwillingTable tbody>tr>td[data-label="Head of Household"]{grid-column:1/-1}
-
-  #reviewTable tbody>tr:has(td.empty),
-  #demandTable tbody>tr:has(td.empty),
-  #unwillingTable tbody>tr:has(td.empty){
-    display:block;
-    padding:0;
-    border:1px solid #e3e8f0;
-    border-radius:12px;
-    background:#fff;
-  }
-  #reviewTable tbody>tr>td.empty,
-  #demandTable tbody>tr>td.empty,
-  #unwillingTable tbody>tr>td.empty{
-    display:block;
-    width:100%;
-    padding:22px 14px;
-    text-align:center;
-    font-size:.82rem;
-  }
-  #reviewTable tbody>tr>td.empty:before,
-  #demandTable tbody>tr>td.empty:before,
-  #unwillingTable tbody>tr>td.empty:before{display:none}
-}
 
 </style></head><body><h1>'+esc(title)+'</h1>'+subtitle+table+'</body></html>');
  printWindow.document.close();

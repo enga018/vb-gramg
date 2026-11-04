@@ -526,6 +526,30 @@ main{width:min(100%,1200px);padding-bottom:36px}
   .kpi-row .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 
+
+/* Mobile Contribution list: align the live data layout with contribution-preview.html. */
+@media(max-width:700px){
+  .kpi-row{display:flex;flex-direction:column;align-items:stretch;gap:8px;margin-bottom:12px}
+  .kpi-row .stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;width:100%}
+  .kpi-row .stat{padding:10px 11px}
+  .kpi-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;width:100%}
+  .kpi-actions .btn{width:100%;min-width:0;min-height:40px;padding:7px 4px;font-size:.76rem}
+  .toolbar{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+  .search-wrap,.filter-control{grid-column:1;width:100%;min-width:0}
+  .filter-control select{width:100%;min-width:0}
+  #contribution-table tbody tr.contribution-row{display:block;padding:12px 13px;margin:0 0 7px;border:1px solid var(--line);border-radius:11px;background:#fff}
+  #contribution-table tbody tr.contribution-row td.mobile-details{display:grid!important;grid-template-columns:minmax(0,1fr);gap:4px;padding:0;border:0}
+  #contribution-table .mobile-jobcard-line{font-size:.84rem;line-height:1.35;font-weight:750;overflow-wrap:anywhere}
+  #contribution-table .mobile-person-line{font-size:.78rem;line-height:1.35;color:#475467;overflow-wrap:anywhere}
+  #contribution-table .mobile-status-line{display:flex;justify-content:flex-start!important;align-items:center;align-content:center;flex-wrap:wrap;gap:5px;margin-top:4px}
+  #contribution-table .mobile-details .row-status{font-size:.65rem;line-height:1.2;padding:4px 7px}
+}
+@media(max-width:360px){
+  .kpi-actions .btn{font-size:.7rem;padding-left:2px;padding-right:2px}
+  #contribution-table tbody tr.contribution-row{padding:10px}
+  #contribution-table .mobile-jobcard-line{font-size:.8rem}
+}
+
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -699,8 +723,9 @@ function render(){
     String(b.applicant_name||b.name||'').localeCompare(String(a.applicant_name||a.name||''))
    )[0];
    const displayApplicant=String(latestApplicant?.applicant_name||latestApplicant?.name||'').trim()||c.name;
-   topLine.append(document.createTextNode(' • '+displayApplicant));detail.appendChild(topLine);
-   const statusLine=document.createElement('div');statusLine.style.display='flex';statusLine.style.flexWrap='wrap';statusLine.style.gap='5px';statusLine.style.alignItems='center';statusLine.style.marginTop='5px';
+   detail.appendChild(topLine);
+   const personLine=document.createElement('div');personLine.className='mobile-person-line';personLine.textContent=displayApplicant;detail.appendChild(personLine);
+   const statusLine=document.createElement('div');statusLine.className='mobile-status-line';statusLine.style.display='flex';statusLine.style.flexWrap='wrap';statusLine.style.gap='5px';statusLine.style.alignItems='center';statusLine.style.marginTop='5px';
    if(c.balance<0){const tag=document.createElement('span');tag.className='row-status overpaid';tag.textContent='Overpaid '+fmt(Math.abs(c.balance));statusLine.appendChild(tag);}
    if(c.balance===0){const tag=document.createElement('span');tag.className='row-status settled';tag.textContent='Settled';statusLine.appendChild(tag);}
    if(c.deferred>0){const tag=document.createElement('span');tag.className='row-status deferred';tag.textContent='Deferred '+fmt(c.deferred);statusLine.appendChild(tag);}

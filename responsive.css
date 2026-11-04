@@ -51,6 +51,9 @@ th, td { overflow-wrap: anywhere; }
 }
 
 
+/* Actions sit inside the first content surface, not in a separate header card. */
+.page-panel-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+@media(max-width:700px){.page-panel-actions{gap:6px}.page-panel-actions>*{flex:0 1 auto}}
 /* Standard page-header action alignment. */
 .app-header{display:flex;align-items:center;justify-content:flex-end;gap:8px}
 .app-header-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}

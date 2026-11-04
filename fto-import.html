@@ -389,6 +389,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 <script src="./js/supabase-client.js?v=20261104b"></script>
 <script src="./js/data-loader.js?v=20261104b"></script>
 <script src="./js/fto.js?v=20261104a"></script>
+<script src="./toast.js?v=20261103"></script>
 <script>
 const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
@@ -399,7 +400,7 @@ const {
  parseAmount,periodToDate,rawStatus,bytesToHex,sha256
 }=window.VBGRAMGFTO;
 let authSequence=0,notInActiveMisCards=new Set(),sharedPeriods=[],previewPages={reconciliation:1,imports:1,applicants:1},parsedDataRows=[],importGroups=[],duplicateCards=new Map(),duplicateReferences=new Map(),alreadyAllocatedCards=new Map(),exemptedCards=new Set(),reviewedCards=new Set(),unknownCards=new Set(),reviewedNewCards=new Set(),reconciliationApplicantSelections=new Map(),manualChargeActions=new Map(),manualAmountConfirmations=new Set(),applicantMatchSuggestions=new Map(),alreadyImportedReferences=new Set(),deferredCards=new Map(),duplicateCheckSequence=0,checkingDuplicates=false,duplicateCheckFailed=false,existingFtoUnchanged=false,existingFtoKnown=false,ftoIdentityMismatch=false;
-function status(msg,type){if((type==='error'||type==='success')&&window.showToast){window.showToast(msg,type);$('data-status').textContent='';$('data-status').classList.remove('error','success');return}$('data-status').textContent=msg;$('data-status').classList.remove('error','success')}
+function status(msg,type,duration){if(window.showToast){window.showToast(msg,type==='error'?'error':type==='success'?'success':'info',duration);$('data-status').textContent='';$('data-status').classList.remove('error','success');return}$('data-status').textContent=msg;$('data-status').classList.remove('error','success')}
 function syncStatus(msg,type){if(window.showToast){window.showToast(msg,type||'info');const el=$('sync-status');el.textContent='';el.classList.add('hidden');el.classList.remove('error','success');return}const el=$('sync-status');el.textContent=msg;el.classList.remove('hidden');el.classList.toggle('error',type==='error');el.classList.toggle('success',type==='success')}
 async function edgeFunctionErrorMessage(error,fallback){if(error&&error.context){try{const response=error.context.clone?error.context.clone():error.context;let body=null;if(response&&typeof response.json==='function')body=await response.json();else if(response&&typeof response.text==='function'){const raw=await response.text();try{body=JSON.parse(raw)}catch{body={message:raw}}}if(body&&typeof body==='object'&&(body.error||body.message||body.msg))return String(body.error||body.message||body.msg);if(typeof body==='string'&&body.trim())return body.trim()}catch(_){}}return (error&&error.message)||fallback}
 const FTO_HEADERS=[
@@ -720,8 +721,8 @@ async function refreshDuplicates(){
   checkingDuplicates=false;duplicateCheckFailed=false;renderImportPreview();
  }catch(err){
   if(seq!==duplicateCheckSequence)return;
-  checkingDuplicates=false;duplicateCheckFailed=true;$('import-summary').classList.add('error');
-  $('import-summary').textContent='Could not verify duplicates: '+(err.message||'check failed')+'. Synchronization is disabled until the check succeeds.';
+  checkingDuplicates=false;duplicateCheckFailed=true;$('import-summary').textContent='';$('import-summary').classList.remove('error');
+  status('Could not verify duplicates: '+(err.message||'check failed')+'. Synchronization is disabled until the check succeeds.','error',9000);
   updateImportButton();
  }
 }
@@ -824,6 +825,6 @@ supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT')
 supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){window.location.replace('./');return}return verifyAccess(data.session.user)});
 
 </script>
-<script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261104-sidebar1"></script>
+<script src="./navigation.js?v=20261104-sidebar1"></script>
 </body>
 </html>

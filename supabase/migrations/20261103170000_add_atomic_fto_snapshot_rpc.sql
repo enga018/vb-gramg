@@ -225,9 +225,10 @@ begin
 
   update public.vbgramg_fto_transactions
     set is_current = false, updated_at = now()
-  where id = any(
-    coalesce(array(select jsonb_array_elements_text(coalesce(p_plan->'omitted_transaction_ids','[]'::jsonb))::uuid), '{}'::uuid[])
-  );
+  where batch_id = v_batch_id
+    and id = any(
+      coalesce(array(select jsonb_array_elements_text(coalesce(p_plan->'omitted_transaction_ids','[]'::jsonb))::uuid), '{}'::uuid[])
+    );
 
   -- A source hash is globally unique; re-importing the same source completes the
   -- existing import record rather than creating a duplicate.
@@ -300,7 +301,8 @@ begin
     set ledger_entry_id = x.ledger_entry_id, updated_at = now()
   from jsonb_to_recordset(coalesce(p_plan->'transaction_links', '[]'::jsonb))
     as x(id uuid, ledger_entry_id uuid)
-  where tx.id = x.id;
+  where tx.id = x.id
+    and tx.batch_id = v_batch_id;
 
   update public.vbgramg_charge_ledger
     set is_voided = true

@@ -300,6 +300,7 @@ body.mis-import-open{overflow:hidden}
 </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./js/mis.js?v=20261104a"></script>
 <script>
 const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
@@ -430,14 +431,9 @@ async function loadData(){
  }catch(error){if(seq===loadSequence)status($('data-status'),'Could not load MIS data: '+(error&&error.message?error.message:String(error)),'error')}
  finally{}
 }
-function normalize(value){return String(value==null?'':value).trim()}
+const normalize=window.VBGRAMGMIS.normalize;
 function money(value){return '₹'+(Number(value)||0).toLocaleString('en-IN',{maximumFractionDigits:2})}
-function applicantStableKey(groupKey, values, nameIndex, applicantNoIndex, uniqueIdIndex){
- const uniqueId=normalize(uniqueIdIndex>=0?values[uniqueIdIndex]:'');
- if(uniqueId)return 'uid:'+uniqueId.toLocaleLowerCase();
- const fallback=[groupKey,normalize(applicantNoIndex>=0?values[applicantNoIndex]:''),normalize(nameIndex>=0?values[nameIndex]:'')].map(v=>v.toLocaleLowerCase());
- return 'fallback:'+JSON.stringify(fallback);
-}
+
 async function loadSavedSelections(){
  const result=await invokeSelection({action:'get'});
  if(!result||result.approved!==true||!Array.isArray(result.selections))throw new Error('Could not load shared MIS selections.');
@@ -471,42 +467,18 @@ async function invokeSelection(payload){
  return data;
 }
 function updateKpis(){
- const totalApplications=allRows.length;
- const validJobCards=jobCards.filter(g=>g.key!=='(Job card number missing)');
- const selectedCount=validJobCards.filter(g=>selectedApplicants.has(g.key)).length;
- $('total-jobcards').textContent=validJobCards.length;
- $('total-applicants').textContent=totalApplications;
- $('total-demand').textContent=selectedCount;
- $('total-unwilling').textContent=validJobCards.length-selectedCount;
+ const summary=window.VBGRAMGMIS.getSummary(jobCards,allRows.length,selectedApplicants);
+ $('total-jobcards').textContent=summary.totalJobCards;
+ $('total-applicants').textContent=summary.totalApplicants;
+ $('total-demand').textContent=summary.totalDemand;
+ $('total-unwilling').textContent=summary.totalUnwilling;
 }
 function buildJobCards(){
- const jobIndex=headers.findIndex(h=>/^(job card number|jobcard number)$/i.test(h.trim()));
- const fallbackIndex=headers.findIndex(h=>/^jc no\.?$/i.test(h.trim()));
- const householdIndex=headers.findIndex(h=>/head of household/i.test(h));
- const nameIndex=headers.findIndex(h=>/name of applicant|applicant name/i.test(h));
- const applicantNoIndex=headers.findIndex(h=>/applicant no/i.test(h));
- const uniqueIdIndex=headers.findIndex(h=>/^unique id$/i.test(h.trim()));
- const keyIndex=jobIndex>=0?jobIndex:fallbackIndex;
- const groups=new Map();
- allRows.forEach((row,i)=>{
-  const values=row.values||[];
-  const key=normalize(keyIndex>=0?values[keyIndex]:'')||'(Job card number missing)';
-  if(!groups.has(key))groups.set(key,{key,household:normalize(householdIndex>=0?values[householdIndex]:''),applicants:[],firstRow:i});
-  const group=groups.get(key);
-  if(!group.household&&householdIndex>=0)group.household=normalize(values[householdIndex]);
-  group.applicants.push({name:normalize(nameIndex>=0?values[nameIndex]:''),number:normalize(applicantNoIndex>=0?values[applicantNoIndex]:''),selectionKey:applicantStableKey(key,values,nameIndex,applicantNoIndex,uniqueIdIndex),values,rowNumber:row.rowNumber});
- });
- jobCards=Array.from(groups.values());
+ jobCards=window.VBGRAMGMIS.buildJobCards(allRows,headers);
  updateKpis();
 }
 function getFilteredCards(){
- const q=$('search-input').value.trim().toLocaleLowerCase(),filter=$('selection-filter').value;
- return jobCards.filter(group=>{
-  const hasSelection=selectedApplicants.has(group.key);
-  if(filter==='selected'&&!hasSelection)return false;
-  if(filter==='none'&&hasSelection)return false;
-  return !q||[group.key,group.household,...group.applicants.flatMap(a=>[a.name,a.number,...a.values.map(normalize)])].some(v=>String(v||'').toLocaleLowerCase().includes(q));
- });
+ return window.VBGRAMGMIS.filterJobCards(jobCards,selectedApplicants,$('search-input').value,$('selection-filter').value);
 }
 function renderTable(){
  const filtered=getFilteredCards(),isMobile=window.matchMedia('(max-width: 700px)').matches,totalPages=Math.max(1,Math.ceil(filtered.length/pageSize));currentPage=Math.min(currentPage,totalPages-1);

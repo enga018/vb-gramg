@@ -175,6 +175,9 @@ body{background:#f3f6fb;color:#172033}.sidebar{display:none}.main{margin-left:0}
  #demand-preview-table th{font-size:7px}
 }
 
+
+@media(min-width:701px){.desktop-fetch{display:inline-flex}.mis-stats{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media(max-width:700px){.desktop-fetch{display:none!important}.mis-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.mis-stats .stat:last-child{grid-column:1/-1}}
 </style>
 </head>
 <body>
@@ -226,7 +229,7 @@ body{background:#f3f6fb;color:#172033}.sidebar{display:none}.main{margin-left:0}
     </section>
 
     <section class="screen" id="screen-mis" aria-labelledby="title-mis">
-      <div class="page-head"><div><div class="eyebrow">People and records</div><h1 id="title-mis">MIS</h1><p>Manage active job cards, households and applicant selection.</p></div><div class="head-actions"><button class="btn">↻ Refresh</button><button class="btn primary">↑ Import</button></div></div>
+      <div class="page-head"><div><div class="eyebrow">People and records</div><h1 id="title-mis">MIS</h1><p>Manage active job cards, households and applicant selection.</p></div><div class="head-actions"><button class="btn desktop-fetch">Fetch Official MIS</button><button class="btn primary">↑ Import</button></div></div>
       <div class="grid stats">
         <div class="stat"><div class="stat-label">Total Job Cards</div><div class="stat-value">683</div><div class="stat-foot">Sample data</div></div><div class="stat"><div class="stat-label">Total Applications</div><div class="stat-value">1,248</div><div class="stat-foot">Sample data</div></div><div class="stat"><div class="stat-label">Demand</div><div class="stat-value">426</div><div class="stat-foot">Selected applicants</div></div><div class="stat"><div class="stat-label">Unwilling</div><div class="stat-value">257</div><div class="stat-foot">No selected applicant</div></div>
       </div>
@@ -234,20 +237,20 @@ body{background:#f3f6fb;color:#172033}.sidebar{display:none}.main{margin-left:0}
     </section>
 
     <section class="screen" id="screen-fto" aria-labelledby="title-fto">
-      <div class="page-head"><div><div class="eyebrow">Payment records</div><h1 id="title-fto">FTO History</h1><p>Review imported FTOs and their contribution periods.</p></div><div class="head-actions"><button class="btn">↻ Refresh</button><button class="btn primary">＋ Import FTO</button></div></div>
-      <div class="summary-strip"><div class="summary-box"><span>Total FTOs</span><strong>128</strong></div><div class="summary-box"><span>Last imported</span><strong>04 Nov 2026</strong></div><div class="summary-box"><span>Needs review</span><strong>3</strong></div></div>
+      <div class="page-head"><div><div class="eyebrow">Payment records</div><h1 id="title-fto">FTO</h1><p>Review imported FTOs, payment statuses and period mappings.</p></div><div class="head-actions"><button class="btn primary">＋ Import FTO</button></div></div>
+      <div class="summary-strip"><div class="summary-box"><span>Imported FTOs</span><strong>128</strong></div><div class="summary-box"><span>Total transactions</span><strong>2,587</strong></div><div class="summary-box"><span>Deferred transactions</span><strong>14</strong></div></div>
       <div class="panel table-panel"><div class="table-tools"><input class="search" placeholder="Search FTO number…" aria-label="Search sample FTO records"><div class="tool-right"><button class="btn">All periods⌄</button></div></div><div class="table-wrap"><table id="fto-preview-table" data-preview-paginate="fto"><thead><tr><th>FTO number</th><th>Contribution period</th><th>Status summary</th><th>Last imported / checked</th><th>Action</th></tr></thead><tbody id="fto-preview-rows"></tbody></table></div><div class="table-foot"><span>Showing 3 illustrative records</span><span>Page 1 of 1</span></div></div>
     </section>
 
     <section class="screen" id="screen-contribution" aria-labelledby="title-contribution">
       <div class="page-head"><div><div class="eyebrow">Financial operations</div><h1 id="title-contribution">Contribution</h1><p>Review contribution status and outstanding balances.</p></div><div class="head-actions"><button class="btn">↻ Refresh</button><button class="btn">Exemptions</button><button class="btn primary">＋ Bank Payment</button></div></div>
       <div class="summary-strip"><div class="summary-box"><span>Total citizens</span><strong>683</strong></div><div class="summary-box"><span>Settled</span><strong style="color:#16834a">426</strong></div><div class="summary-box"><span>Due</span><strong style="color:#a96512">257</strong></div></div>
-      <div class="panel table-panel"><div class="table-tools"><input class="search" placeholder="Search job card or household…" aria-label="Search sample contribution records"><div class="tool-right"><button class="btn">Due records⌄</button></div></div><div class="table-wrap"><table id="contribution-preview-table" data-preview-paginate="contribution"><thead><tr><th>Job card / household</th><th>Contribution period</th><th style="text-align:right">Settled</th><th style="text-align:right">Due</th><th>Status</th></tr></thead><tbody id="contribution-preview-rows"></tbody></table></div><div class="table-foot"><span>Illustrative records only</span><span>Tap a row in the real app to open its ledger</span></div></div>
+      <div class="panel table-panel"><div class="table-tools"><input class="search" placeholder="Search job card or household…" aria-label="Search sample contribution records"><div class="tool-right"><button class="btn">Due records⌄</button></div></div><div class="table-wrap"><table id="contribution-preview-table" data-preview-paginate="contribution"><thead><tr><th>Job card / household</th><th>Last charges</th><th style="text-align:right">Outstanding</th></tr></thead><tbody id="contribution-preview-rows"></tbody></table></div><div class="table-foot"><span>Illustrative records only</span><span>Tap a row in the real app to open its ledger</span></div></div>
     </section>
 
     <section class="screen" id="screen-periods" aria-labelledby="title-periods">
-      <div class="page-head"><div><div class="eyebrow">Contribution setup</div><h1 id="title-periods">Periods</h1><p>Manage contribution periods and their current status.</p></div><div class="head-actions"><button class="btn primary">＋ New period</button></div></div>
-      <div class="panel table-panel"><div class="table-tools"><div class="panel-title">Contribution periods</div><div class="tool-right"><button class="btn">All periods⌄</button></div></div><div class="table-wrap"><table id="periods-preview-table"><thead><tr><th>Period</th><th>Contribution month</th><th>Period date</th><th>Status</th><th>Action</th></tr></thead><tbody id="periods-preview-rows"></tbody></table></div><div class="table-foot"><span>8 illustrative periods</span><span>Period rules are unchanged in the real app</span></div></div>
+      <div class="page-head"><div><div class="eyebrow">Contribution setup</div><h1 id="title-periods">Periods</h1><p>Manage shared periods used by Work Demand and FTO.</p></div></div>
+      <div class="panel table-panel"><div class="panel-head"><div class="panel-title">All periods</div><button class="btn primary">＋ Create period</button></div><div class="table-wrap"><table id="periods-preview-table"><thead><tr><th>Period</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody id="periods-preview-rows"></tbody></table></div><div class="table-foot"><span>8 illustrative periods</span><span>Period rules are unchanged in the real app</span></div></div>
     </section>
 
     <section class="screen" id="screen-demand" aria-labelledby="title-demand">

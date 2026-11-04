@@ -767,6 +767,8 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{padding:18px 
 <script src="./js/allocation.js?v=20261104a"></script>
 <script src="./js/charges.js?v=20261104a"></script>
 <script src="./js/payments.js?v=20261104a"></script>
+<script src="./js/supabase-client.js?v=20261104b"></script>
+<script src="./js/data-loader.js?v=20261104b"></script>
 <script>
 (async () => {
 'use strict';
@@ -785,29 +787,13 @@ function setStartupError(message){
  retry.addEventListener('click',()=>window.location.reload());
  node.appendChild(retry);
 }
-function loadSupabaseLibrary(url){
- return new Promise((resolve,reject)=>{
-  const script=document.createElement('script');
-  let settled=false;
-  const timer=window.setTimeout(()=>{if(settled)return;settled=true;script.remove();reject(new Error('Library request timed out'));},10000);
-  script.src=url;
-  script.onload=()=>{if(settled)return;settled=true;window.clearTimeout(timer);window.supabase&&window.supabase.createClient?resolve():reject(new Error('Supabase library did not initialize'));};
-  script.onerror=()=>{if(settled)return;settled=true;window.clearTimeout(timer);script.remove();reject(new Error('Could not download Supabase library'));};
-  document.head.appendChild(script);
- });
-}
-try{
- if(!window.supabase||!window.supabase.createClient){
-  try{await loadSupabaseLibrary('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2');}
-  catch(firstError){await loadSupabaseLibrary('https://unpkg.com/@supabase/supabase-js@2');}
- }
-}catch(libraryError){
+let supabaseClient;
+try {
+ supabaseClient = await window.VBGRAMG_SUPABASE_READY;
+} catch (libraryError) {
  setStartupError('Could not load the connection library. Check your internet connection and use Reload page to try again.');
  return;
 }
-const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
-const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 let entries=[], citizens=[], citizenRegistry=[], applicantsByCard={}, extraCharges=[], exemptions=[], periods=[], paymentAllocations=[], paymentRefundReconciliations=[], currentCitizen=null, busy=false, currentPage=0, pageSize=10, mobileShown=10, appRole="";
 const exemptCardSet=()=>new Set(exemptions.map(x=>String(x.job_card_number||"").trim()));
 const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
@@ -843,7 +829,7 @@ async function saveExemption(){
  try{
   for(const jobCard of jobCards){
    try{
-    const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'save-exemption',job_card_number:jobCard,exempt:true,note}});
+    const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'save-exemption',job_card_number:jobCard,exempt:true,note},timeoutMs:false});
     if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save exemption.');
     exemptions=data.exemptions||exemptions;
     entries=entries.filter(e=>String(e.job_card_number||"").trim()!==jobCard);
@@ -864,7 +850,7 @@ async function removeExemption(jobCard){
  if(!window.confirm('Remove the contribution exemption for '+jobCard+'? Its retained contribution ledger and payment allocations will become active again, and FTO-generated charges will be recalculated from the saved FTO history.'))return;
  busy=true;
  try{
-  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'save-exemption',job_card_number:jobCard,exempt:false}});
+  const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'save-exemption',job_card_number:jobCard,exempt:false},timeoutMs:false});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not remove exemption.');
   exemptions=data.exemptions||[];deriveCitizens();renderExemptions();render();
   $('exemptionStatus').textContent='Exemption removed for '+jobCard+'. Its existing contribution ledger now counts again.';
@@ -1162,7 +1148,7 @@ function showPaymentAllocationForm(transactionId){
   if(total>Number(payment.amount)+0.00001){$('allocationError').innerHTML='<div class="notice err">Allocated amount cannot exceed the payment.</div>';return;}
   busy=true;$('saveAllocationBtn').disabled=true;$('saveAllocationBtn').textContent='Saving…';
   try{
-   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'set-payment-allocations',transaction_id:payment.id,allocations,allocation_source:'manual'}});
+   const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'set-payment-allocations',transaction_id:payment.id,allocations,allocation_source:'manual'},timeoutMs:false});
    if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save allocation.');
    paymentAllocations=paymentAllocations.filter(a=>String(a.transaction_id)!==String(payment.id)).concat(data.allocations||[]);
    openCitizen(c.id);status('Payment allocation saved.','info');
@@ -1197,7 +1183,7 @@ function showExtraChargeForm(){
   if(!reason){$('extraAmountError').innerHTML='<div class="notice err">Enter a reason for the extra amount.</div>';return;}
   busy=true;$('saveExtraAmount').disabled=true;$('saveExtraAmount').textContent='Saving…';
   try{
-   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'save-contribution-extra',job_card_number:c.id,period_id:periodId,charge_period:month+'-01',amount,reason}});
+   const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'save-contribution-extra',job_card_number:c.id,period_id:periodId,charge_period:month+'-01',amount,reason},timeoutMs:false});
    if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save extra amount.');
    updateEntryInMemory(data.entry);
    extraCharges=extraCharges.filter(x=>!(String(x.job_card_number)===String(data.extra.job_card_number)&&String(x.period_id||'')===String(data.extra.period_id||'')));
@@ -1219,7 +1205,7 @@ function showPaymentForm(){
   if(!Number.isFinite(amount)||amount<=0){$('paymentError').innerHTML='<div class="notice err">Enter an amount greater than zero.</div>';return;}
   busy=true;$('savePayment').disabled=true;$('savePayment').textContent='Saving…';
   try{
-   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'add-payment',job_card_number:c.id,amount,entry_date:date,note}});
+   const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'add-payment',job_card_number:c.id,amount,entry_date:date,note},timeoutMs:false});
    if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save payment.');
    entries.push(data.entry);deriveCitizens();render();openCitizen(c.id);status('Payment saved. Ledger updated.','info');
   }catch(err){$('paymentError').innerHTML='<div class="notice err">'+esc(err.message||'Could not save payment.')+'</div>';}
@@ -1266,7 +1252,7 @@ function showBulkPaymentForm(){
    if(!window.confirm('Save '+parsed.rows.length+' Bank payment entries totalling '+fmt(total)+'?'))return;
    busy=true;$('saveBulkPayments').disabled=true;$('saveBulkPayments').textContent='Saving batch…';
    try{
-    const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:"bulk-bank-payment",entry_date:date,entries:parsed.rows}});
+    const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:"bulk-bank-payment",entry_date:date,entries:parsed.rows},timeoutMs:false});
     if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save bank payment batch.');
     entries.push(...(data.entries||[]));deriveCitizens();render();$('overlay').classList.add('hidden');
     status('Saved '+data.count+' Bank payments totalling '+fmt(data.total_amount)+'. Ledger updated.','success');
@@ -1296,7 +1282,7 @@ function showEditForm(id){
   if(!Number.isFinite(payload.amount)||payload.amount<=0){$('editError').innerHTML='<div class="notice err">Enter an amount greater than zero.</div>';return;}
   busy=true;$('saveEdit').disabled=true;$('saveEdit').textContent='Saving…';
   try{
-   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:payload});
+   const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:payload,timeoutMs:false});
    if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not edit transaction.');
    updateEntryInMemory(data.entry);openCitizen(c.id);status('Transaction updated. Original and revised values were logged.','success');
   }catch(err){$('editError').innerHTML='<div class="notice err">'+esc(err.message||'Could not edit transaction.')+'</div>';}
@@ -1315,7 +1301,7 @@ function showAdjustmentForm(action){
   if(!Number.isFinite(amount)||amount<=0){$('adjustmentError').innerHTML='<div class="notice err">Enter an amount greater than zero.</div>';return;}
   busy=true;$('saveAdjustment').disabled=true;$('saveAdjustment').textContent='Saving…';
   try{
-   const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action,job_card_number:c.id,amount,entry_date:date,note}});
+   const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action,job_card_number:c.id,amount,entry_date:date,note},timeoutMs:false});
    if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save adjustment.');
    updateEntryInMemory(data.entry);openCitizen(c.id);status((isWaiver?'Charge Waiver':'Refund')+' recorded and ledger recalculated.','success');
   }catch(err){$('adjustmentError').innerHTML='<div class="notice err">'+esc(err.message||'Could not save adjustment.')+'</div>';}
@@ -1327,7 +1313,7 @@ async function payInFull(){
  if(!window.confirm('Record a payment of '+fmt(c.balance)+' to settle this job card?'))return;
  busy=true;
  try{
-  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:"pay-in-full",job_card_number:c.id,entry_date:new Date().toISOString().slice(0,10)}});
+  const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:"pay-in-full",job_card_number:c.id,entry_date:new Date().toISOString().slice(0,10)},timeoutMs:false});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not record full payment.');
   updateEntryInMemory(data.entry);openCitizen(c.id);status('Full payment recorded. Ledger recalculated.','success');
  }catch(err){status(err.message||'Could not record full payment.','err');}
@@ -1354,7 +1340,7 @@ async function load(){
   let listResult;
   try{
    listResult=await Promise.race([
-    supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}}),
+    window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'list'},deduplicate:true,timeoutMs:45000}),
     new Promise((_,reject)=>{listTimer=window.setTimeout(()=>reject(new Error('Contribution data request timed out after 45 seconds. Check your connection and retry. If this continues, report the time of the failure so the server request can be investigated.')),45000);})
    ]);
   }finally{if(listTimer)window.clearTimeout(listTimer);}

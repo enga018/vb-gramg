@@ -16,9 +16,9 @@
   async function request(functionName, options) {
     const settings = options || {};
     const body = settings.body || {};
-    const timeoutMs = Number.isFinite(settings.timeoutMs) ? settings.timeoutMs : 30000;
+    const timeoutMs = settings.timeoutMs === false ? null : (Number.isFinite(settings.timeoutMs) ? settings.timeoutMs : 30000);
     const deduplicate = settings.deduplicate === true;
-    const key = deduplicate ? functionName + ":" + JSON.stringify(body) : null;
+    const key = deduplicate ? functionName + ":" + String(timeoutMs) + ":" + JSON.stringify(body) : null;
 
     if (key && inFlightReads.has(key)) return inFlightReads.get(key);
 
@@ -26,16 +26,19 @@
       const client = await clientReady();
       let timeoutId;
       try {
-        const result = await Promise.race([
-          client.functions.invoke(functionName, { body }),
-          new Promise((_, reject) => {
-            timeoutId = window.setTimeout(
-              () => reject(new Error(functionName + " request timed out after " + Math.round(timeoutMs / 1000) + " seconds.")),
-              timeoutMs
-            );
-          })
-        ]);
-        if (result.error) throw new Error(result.error.message || ("Request to " + functionName + " failed."));
+        const invocation = client.functions.invoke(functionName, { body });
+        const result = timeoutMs === null
+          ? await invocation
+          : await Promise.race([
+              invocation,
+              new Promise((_, reject) => {
+                timeoutId = window.setTimeout(
+                  () => reject(new Error(functionName + " request timed out after " + Math.round(timeoutMs / 1000) + " seconds.")),
+                  timeoutMs
+                );
+              })
+            ]);
+        if (result.error) throw result.error;
         if (!result.data) throw new Error("The " + functionName + " service returned an empty response.");
         if (result.data.error) throw new Error(String(result.data.error));
         return result.data;
@@ -52,5 +55,13 @@
     }
   }
 
-  window.VBGRAMGData = Object.freeze({ request });
+  async function invoke(functionName, options) {
+    try {
+      return { data: await request(functionName, options), error: null };
+    } catch (error) {
+      return { data: null, error };
+    }
+  }
+
+  window.VBGRAMGData = Object.freeze({ request, invoke });
 })();

@@ -572,6 +572,8 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./js/supabase-client.js?v=20261104b"></script>
+<script src="./js/data-loader.js?v=20261104b"></script>
 <div id="fto-view-modal-backdrop" class="fto-view-modal-backdrop hidden" role="presentation">
  <section class="fto-view-modal" role="dialog" aria-modal="true" aria-labelledby="fto-view-modal-title">
   <header class="fto-view-modal-header">
@@ -588,7 +590,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 
 <script>const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
-const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+const supabaseClient=window.vbgramgSupabase;
 const $=id=>document.getElementById(id);
 let authSequence=0,sharedPeriods=[];
 const FTO_HEADERS=[
@@ -749,7 +751,7 @@ let lastFtoMobile=window.matchMedia("(max-width: 700px)").matches;window.addEven
 
 let pendingPeriodBatch=null;
 async function loadSharedPeriods(selectedId=""){
- const {data,error}=await supabaseClient.functions.invoke("vbgramg-periods",{body:{action:"list"}});
+ const {data,error}=await window.VBGRAMGData.invoke("vbgramg-periods",{body:{action:"list"},deduplicate:true});
  if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||"Could not load shared periods.");
  sharedPeriods=data.periods||[];
  const allowed=sharedPeriods.filter(p=>p.contribution_month&&(p.status==="open"||p.id===selectedId));
@@ -791,7 +793,7 @@ async function saveFtoPeriod(event){
  $("period-modal-save").disabled=true;$("period-modal-cancel").disabled=true;$("period-modal-save").textContent="Saving…";
  historyMessage("Changing FTO period and recalculating contribution charges…");
  try{
-  const {data,error}=await supabaseClient.functions.invoke("vbgramg-contribution-data",{body:{action:"change-fto-period",batch_id:batch.id,period_id:period.id,contribution_period:normalizedLabel,charge_period:chargePeriod}});
+  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"change-fto-period",batch_id:batch.id,period_id:period.id,contribution_period:normalizedLabel,charge_period:chargePeriod},timeoutMs:false});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||"Could not change the FTO period.");
   closePeriodModal();
   await loadFtoHistory();
@@ -805,7 +807,7 @@ async function loadFtoHistory(){
  const seq=++historyLoadSequence;
  historyMessage("Loading imported FTO history…");
  try{
-  const {data,error}=await supabaseClient.functions.invoke("vbgramg-contribution-data",{body:{action:"list-fto-history"}});
+  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"list-fto-history"},deduplicate:true});
   if(seq!==historyLoadSequence)return;
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||"Could not load FTO history.");
   ftoHistoryRows=Array.isArray(data.batches)?data.batches:[];
@@ -835,7 +837,7 @@ document.addEventListener("keydown",event=>{if(event.key!=="Escape")return;if(!$
 async function verifyAccess(user){
  const seq=++authSequence;
  if(!user){window.location.replace('./');return false}
- const {data,error}=await supabaseClient.functions.invoke('vbgramg-app-access',{body:{}});
+ const {data,error}=await window.VBGRAMGData.invoke('vbgramg-app-access',{body:{}});
  if(seq!==authSequence)return false;
  if(error||!data||data.approved!==true){await supabaseClient.auth.signOut();window.location.replace('./');return false}
  $('app-panel').classList.remove('hidden');

@@ -301,18 +301,20 @@ body.mis-import-open{overflow:hidden}
 </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./js/supabase-client.js?v=20261104b"></script>
+<script src="./js/data-loader.js?v=20261104b"></script>
 <script src="./js/mis.js?v=20261104a"></script>
 <script>
 const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
-const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+const supabaseClient=window.vbgramgSupabase;
 const $=id=>document.getElementById(id);
 let currentRole=null,allRows=[],headers=[],jobCards=[],currentPage=0,pageSize=50,mobileShown=10,loadSequence=0,expandedCards=new Set(),selectedApplicants=new Map(),scrollExpandedCardKey=null;
 function status(el,msg,type){if(type==='error'||type==='success'){if(window.showToast)window.showToast(msg,type);el.textContent='';el.classList.remove('error','success');return}el.textContent=msg;el.classList.remove('error','success')}
 async function verifyAccess(user){
  const seq=++loadSequence;
  if(!user){window.location.replace('./');return false}
- const {data,error}=await supabaseClient.functions.invoke('vbgramg-app-access',{body:{}});
+ const {data,error}=await window.VBGRAMGData.invoke('vbgramg-app-access',{body:{}});
  if(seq!==loadSequence)return false;
  if(error||!data||data.approved!==true){await supabaseClient.auth.signOut();window.location.replace('./');return false}
  currentRole=data.role;$('import-link').classList.toggle('hidden',currentRole!=='admin');
@@ -398,7 +400,7 @@ async function loadData(){
  status($('data-status'),'Loading current MIS data…');
  try{
   const fetchPageSize=1000,concurrentPageRequests=4;
-  const first=await supabaseClient.functions.invoke('vbgramg-mis-data',{body:{page:0,pageSize:fetchPageSize}});
+  const first=await window.VBGRAMGData.invoke('vbgramg-mis-data',{body:{page:0,pageSize:fetchPageSize},deduplicate:true});
   if(first.error)throw new Error(first.error.message||'Could not load MIS data.');
   const data=first.data;if(!data||data.approved!==true)throw new Error((data&&data.error)||'MIS data access was denied.');
   if(seq!==loadSequence)return;
@@ -408,7 +410,7 @@ async function loadData(){
   const totalPages=Math.ceil(data.totalRows/fetchPageSize);
   for(let firstPage=1;firstPage<totalPages;firstPage+=concurrentPageRequests){
    const pages=Array.from({length:Math.min(concurrentPageRequests,totalPages-firstPage)},(_,index)=>firstPage+index);
-   const results=await Promise.all(pages.map(page=>supabaseClient.functions.invoke('vbgramg-mis-data',{body:{page,pageSize:fetchPageSize}})));
+   const results=await Promise.all(pages.map(page=>window.VBGRAMGData.invoke('vbgramg-mis-data',{body:{page,pageSize:fetchPageSize},deduplicate:true})));
    if(seq!==loadSequence)return;
    for(let index=0;index<results.length;index++){
     const next=results[index];
@@ -459,7 +461,7 @@ async function pruneStaleSelections(){
  return removed;
 }
 async function invokeSelection(payload){
- const {data,error}=await supabaseClient.functions.invoke('vbgramg-mis-selection',{body:payload});
+ const {data,error}=await window.VBGRAMGData.invoke('vbgramg-mis-selection',{body:payload,timeoutMs:false});
  if(error){
   let message=error.message||'Selection request failed.';
   try{const response=error.context;if(response&&typeof response.json==='function'){const detail=await response.json();if(detail&&detail.error)message=detail.error}}catch(_){}

@@ -387,11 +387,13 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./js/supabase-client.js?v=20261104b"></script>
+<script src="./js/data-loader.js?v=20261104b"></script>
 <script src="./js/fto.js?v=20261104a"></script>
 <script>
 const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
-const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+const supabaseClient=window.vbgramgSupabase;
 const $=id=>document.getElementById(id);
 const {
  parsePastedTable,isHeaderOrSeparator,jobCardFromRow,villageFromRow,normalizeVillage,
@@ -506,7 +508,7 @@ function selectedPeriod(){return sharedPeriods.find(p=>p.id===$('charge-period')
 function selectedPeriodDate(){return selectedPeriod()?.contribution_month||'';}
 function selectedPeriodName(){return selectedPeriod()?.period_name||'';}
 async function loadSharedPeriods(selectedId=''){
- const {data,error}=await supabaseClient.functions.invoke('vbgramg-periods',{body:{action:'list'}});
+ const {data,error}=await window.VBGRAMGData.invoke('vbgramg-periods',{body:{action:'list'},deduplicate:true});
  if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||'Could not load shared periods.');
  sharedPeriods=data.periods||[];
  const allowed=sharedPeriods.filter(p=>p.status==='open'||p.id===selectedId);
@@ -705,7 +707,7 @@ async function refreshDuplicates(){
  checkingDuplicates=true;duplicateCheckFailed=false;renderImportPreview();
  try{
   const groups=actionGroups();
-  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'check-fto-duplicates',period_id:$('charge-period').value,charge_period:period,job_cards:groups.map(g=>g.job_card_number),reference_rows:groups.map(g=>({job_card_number:g.job_card_number,person_name:g.person_name,reference_numbers:g.reference_numbers}))}});
+  const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'check-fto-duplicates',period_id:$('charge-period').value,charge_period:period,job_cards:groups.map(g=>g.job_card_number),reference_rows:groups.map(g=>({job_card_number:g.job_card_number,person_name:g.person_name,reference_numbers:g.reference_numbers}))},deduplicate:true});
   if(seq!==duplicateCheckSequence)return;
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not check for duplicate charges.');
   duplicateCards=new Map((data.duplicates||[]).map(row=>[String(row.job_card_number),row]));
@@ -740,7 +742,7 @@ async function lookupFtoBatch(){
  const ftoNumber=$('fto-number').value.trim();if(!ftoNumber)return;
  try{
   const incoming=parsedDataRows.map(row=>({reference_no:String(row[3]||'').replace(/\s+/g,' ').trim(),job_card_number:jobCardFromRow(row),status:rawStatus(row),transaction_date:String(row[4]||'').trim(),processed_date:String(row[13]||'').trim(),amount_to_be_credited:parseAmount(row[10]),credit_amount:parseAmount(row[11]),rejection_reason:String(row[16]||'').trim()}));
-  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'check-fto-import-state',fto_number:ftoNumber,transactions:incoming}});
+  const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'check-fto-import-state',fto_number:ftoNumber,transactions:incoming},deduplicate:true});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not look up the FTO.');
   if(data.found&&data.batch){
    const nameMatches=sharedPeriods.filter(p=>p.period_name.toLowerCase()===String(data.batch.contribution_period||'').toLowerCase());const monthMatches=sharedPeriods.filter(p=>p.contribution_month===data.batch.ledger_charge_period);const savedPeriod=sharedPeriods.find(p=>p.id===data.batch.period_id)||(nameMatches.length===1?nameMatches[0]:(monthMatches.length===1?monthMatches[0]:null));
@@ -767,7 +769,7 @@ $('amount-multiplier').addEventListener('input',()=>buildImportGroups());
 
 
 async function executeFtoSync(payload,button){
- const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:payload});
+ const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:payload,timeoutMs:false});
  if(error||!data||data.error){
   if(data&&Array.isArray(data.duplicates)){duplicateCards=new Map(data.duplicates.map(row=>[String(row.job_card_number),row]));reviewedCards=new Set();}
   if(data&&Array.isArray(data.unknown_job_cards)){unknownCards=new Set(data.unknown_job_cards.map(String));reviewedNewCards=new Set();}
@@ -811,7 +813,7 @@ $('table-input').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key
 async function verifyAccess(user){
  const seq=++authSequence;
  if(!user){window.location.replace('./');return false}
- const {data,error}=await supabaseClient.functions.invoke('vbgramg-app-access',{body:{}});
+ const {data,error}=await window.VBGRAMGData.invoke('vbgramg-app-access',{body:{}});
  if(seq!==authSequence)return false;
  if(error||!data||data.approved!==true){await supabaseClient.auth.signOut();window.location.replace('./');return false}
  try{await loadSharedPeriods();}catch(err){status('Could not load shared periods: '+(err.message||'unknown error'),'error');return false;}

@@ -747,6 +747,43 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{padding:18px 
 @media(min-width:701px){
  #contribution-layout .table-foot .actions{transform:translateY(10px)}
 }
+/* Restore the desktop table + Citizen View workspace at a 5:1 width ratio. */
+@media(min-width:1101px){
+ #contribution-layout{display:grid!important;grid-template-columns:minmax(0,5fr) minmax(0,1fr)!important;gap:12px;align-items:stretch}
+ #contribution-layout>.panel.contribution-main-panel{width:auto;min-width:0}
+ #contribution-layout>#desktop-detail-panel.has-selection{display:block!important;min-width:0;min-height:0;height:calc(100vh - 40px);position:sticky;top:20px;overflow:hidden;border:1px solid #dfe5ee;border-radius:14px;background:#fff;box-shadow:0 3px 14px rgb(23 32 51 / 5%)}
+ #citizen-sheet{display:flex;flex-direction:column;width:100%;max-width:none;height:100%;min-height:0;max-height:none;overflow:hidden;border:0;border-radius:13px;box-shadow:none}
+ #citizen-sheet .sheet-head{flex:0 0 auto;padding:10px 9px;gap:6px}
+ #citizen-sheet .sheet-head h2{font-size:.82rem;overflow-wrap:anywhere}
+ #citizen-sheet .sheet-subtitle{font-size:.68rem;overflow-wrap:anywhere}
+ #citizen-sheet .sheet-head-actions{gap:4px}
+ #citizen-sheet .sheet-head-actions .btn{min-height:30px;padding:5px 6px;font-size:.7rem}
+ #citizen-sheet .sheet-body{flex:1 1 auto;min-height:0;padding:8px;overflow-y:auto}
+ #citizen-sheet .citizen-summary{grid-template-columns:minmax(0,1fr);gap:5px;margin-bottom:8px}
+ #citizen-sheet .citizen-summary-card{padding:7px 8px;gap:2px}
+ #citizen-sheet .citizen-summary-card span{font-size:.6rem}
+ #citizen-sheet .citizen-summary-card b{font-size:.78rem}
+ #citizen-sheet .sheet-body .section-title{font-size:.65rem;margin:9px 0 5px;padding-bottom:5px}
+ #citizen-sheet .fifo-period-toggle{gap:4px;padding:7px 0}
+ #citizen-sheet .fifo-label{font-size:.72rem;overflow-wrap:anywhere}
+ #citizen-sheet .fifo-side>b{font-size:.7rem}
+ #citizen-sheet .fifo-period-summary .fifo-summary-row{gap:5px}
+ #citizen-sheet .fifo-period-summary .fifo-summary-row span,#citizen-sheet .fifo-period-summary .fifo-summary-row b{font-size:.68rem}
+ #citizen-sheet .sheet-body .entry{gap:4px;padding:7px 6px;margin-bottom:4px}
+ #citizen-sheet .sheet-body .entry .desc{min-width:0}
+ #citizen-sheet .sheet-body .entry .desc b{font-size:.68rem;overflow-wrap:anywhere}
+ #citizen-sheet .sheet-body .entry .desc small{font-size:.62rem}
+ #citizen-sheet .sheet-body .entry .amt{font-size:.68rem;white-space:nowrap}
+ #citizen-sheet .sheet-body .entry .entry-actions{flex-wrap:wrap}
+ #citizen-sheet .sheet-body .entry .entry-actions .btn{min-height:26px;padding:3px 5px;font-size:.62rem}
+ #citizen-sheet .sheet-footer{flex:0 0 auto;padding:7px}
+ #citizen-sheet .sheet-footer .balance{padding:7px;margin:0 0 6px}
+ #citizen-sheet .sheet-footer .balance .label{font-size:.6rem}
+ #citizen-sheet .sheet-footer .balance .amount{font-size:21px}
+ #citizen-sheet .sheet-footer .transaction-actions{display:grid;grid-template-columns:1fr;gap:5px;margin:0}
+ #citizen-sheet .sheet-footer .transaction-actions .btn{min-height:32px;padding:5px 6px;font-size:.68rem;white-space:normal}
+}
+@media(max-width:1100px){#desktop-detail-panel{display:none!important}}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -1459,4 +1496,3 @@ load().catch(err=>setStartupError(err&&err.message?err.message:'Could not start 
 <script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261031f"></script>
 </body>
 </html>
-\n/* Restore the desktop table + Citizen View workspace at a 5:1 width ratio. */\n@media(min-width:1101px){\n #contribution-layout{display:grid!important;grid-template-columns:minmax(0,5fr) minmax(0,1fr)!important;gap:12px;align-items:stretch}\n #contribution-layout>.panel.contribution-main-panel{width:auto;min-width:0}\n #contribution-layout>#desktop-detail-panel.has-selection{display:block!important;min-width:0;min-height:0;height:calc(100vh - 40px);position:sticky;top:20px;overflow:hidden;border:1px solid #dfe5ee;border-radius:14px;background:#fff;box-shadow:0 3px 14px rgb(23 32 51 / 5%)}\n #citizen-sheet{display:flex;flex-direction:column;width:100%;max-width:none;height:100%;min-height:0;max-height:none;overflow:hidden;border:0;border-radius:13px;box-shadow:none}\n #citizen-sheet .sheet-head{flex:0 0 auto;padding:10px 9px;gap:6px}\n #citizen-sheet .sheet-head h2{font-size:.82rem;overflow-wrap:anywhere}\n #citizen-sheet .sheet-subtitle{font-size:.68rem;overflow-wrap:anywhere}\n #citizen-sheet .sheet-head-actions{gap:4px}\n #citizen-sheet .sheet-head-actions .btn{min-height:30px;padding:5px 6px;font-size:.7rem}\n #citizen-sheet .sheet-body{flex:1 1 auto;min-height:0;padding:8px;overflow-y:auto}\n #citizen-sheet .citizen-summary{grid-template-columns:minmax(0,1fr);gap:5px;margin-bottom:8px}\n #citizen-sheet .citizen-summary-card{padding:7px 8px;gap:2px}\n #citizen-sheet .citizen-summary-card span{font-size:.6rem}\n #citizen-sheet .citizen-summary-card b{font-size:.78rem}\n #citizen-sheet .sheet-body .section-title{font-size:.65rem;margin:9px 0 5px;padding-bottom:5px}\n #citizen-sheet .fifo-period-toggle{gap:4px;padding:7px 0}\n #citizen-sheet .fifo-label{font-size:.72rem;overflow-wrap:anywhere}\n #citizen-sheet .fifo-side>b{font-size:.7rem}\n #citizen-sheet .fifo-period-summary .fifo-summary-row{gap:5px}\n #citizen-sheet .fifo-period-summary .fifo-summary-row span,#citizen-sheet .fifo-period-summary .fifo-summary-row b{font-size:.68rem}\n #citizen-sheet .sheet-body .entry{gap:4px;padding:7px 6px;margin-bottom:4px}\n #citizen-sheet .sheet-body .entry .desc{min-width:0}\n #citizen-sheet .sheet-body .entry .desc b{font-size:.68rem;overflow-wrap:anywhere}\n #citizen-sheet .sheet-body .entry .desc small{font-size:.62rem}\n #citizen-sheet .sheet-body .entry .amt{font-size:.68rem;white-space:nowrap}\n #citizen-sheet .sheet-body .entry .entry-actions{flex-wrap:wrap}\n #citizen-sheet .sheet-body .entry .entry-actions .btn{min-height:26px;padding:3px 5px;font-size:.62rem}\n #citizen-sheet .sheet-footer{flex:0 0 auto;padding:7px}\n #citizen-sheet .sheet-footer .balance{padding:7px;margin:0 0 6px}\n #citizen-sheet .sheet-footer .balance .label{font-size:.6rem}\n #citizen-sheet .sheet-footer .balance .amount{font-size:21px}\n #citizen-sheet .sheet-footer .transaction-actions{display:grid;grid-template-columns:1fr;gap:5px;margin:0}\n #citizen-sheet .sheet-footer .transaction-actions .btn{min-height:32px;padding:5px 6px;font-size:.68rem;white-space:normal}\n}\n@media(max-width:1100px){#desktop-detail-panel{display:none!important}}\n

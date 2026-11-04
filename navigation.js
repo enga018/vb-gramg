@@ -61,7 +61,8 @@
       "/periods.html": "Periods",
       "/contribution.html": "Contribution"
     };
-    var pageName = pageNames[cleanPath] || document.title.replace(/\s*[—|–-]\\s*VBGRAMG.*$/i, "").trim() || "VBGRAMG";
+    var pageKey = Object.keys(pageNames).find(function (key) { return cleanPath.endsWith(key); });
+    var pageName = (pageKey && pageNames[pageKey]) || document.title.split("—")[0].split("|")[0].trim() || "VBGRAMG";
     var mobileHeader = document.createElement("div");
     mobileHeader.className = "global-mobile-header";
     var title = document.createElement("span");

@@ -415,7 +415,7 @@ async function loadPeriods(){
   // Use the same approved server-side period-list endpoint as FTO Import.
   // This avoids relying on direct browser SELECT permissions for the periods table.
   const {data,error}=await withTimeout(
-   window.VBGRAMGData.invoke("vbgramg-periods",{body:{action:"list"}}),
+   window.VBGRAMGData.invoke("vbgramg-periods",{body:{action:"list"},deduplicate:true}),
    10000,
    "Open periods request"
   );
@@ -451,7 +451,7 @@ function stableApplicantKey(jobCard,values,nameIndex,numberIndex,uniqueIdIndex){
 }
 async function fetchAllMisRows(seq){
  const pageSize=1000,concurrency=4;
- const first=await window.VBGRAMGData.invoke('vbgramg-mis-data',{body:{page:0,pageSize}});
+ const first=await window.VBGRAMGData.invoke('vbgramg-mis-data',{body:{page:0,pageSize},deduplicate:true});
  if(first.error)throw new Error(first.error.message||'Could not load MIS data.');
  const data=first.data;
  if(!data||data.approved!==true)throw new Error((data&&data.error)||'MIS data access was denied.');
@@ -460,7 +460,7 @@ async function fetchAllMisRows(seq){
  const totalPages=Math.ceil(data.totalRows/pageSize);
  for(let firstPage=1;firstPage<totalPages;firstPage+=concurrency){
   const pages=Array.from({length:Math.min(concurrency,totalPages-firstPage)},(_,i)=>firstPage+i);
-  const results=await Promise.all(pages.map(page=>window.VBGRAMGData.invoke('vbgramg-mis-data',{body:{page,pageSize}})));
+  const results=await Promise.all(pages.map(page=>window.VBGRAMGData.invoke('vbgramg-mis-data',{body:{page,pageSize},deduplicate:true})));
   if(seq!==loadSequence)return {headers:[],rows:[]};
   for(const result of results){if(result.error)throw new Error(result.error.message||'Could not load all MIS rows.');if(!result.data||result.data.approved!==true)throw new Error((result.data&&result.data.error)||'MIS data access was denied.');rows.push(...(result.data.rows||[]).map(r=>({rowNumber:r.rowNumber,values:Array.isArray(r.values)?r.values:[]})));}
  }
@@ -513,7 +513,7 @@ async function load(){
   status('Loading active MIS data and Contribution balances…');
   const [misData,selectionResult]=await Promise.all([
    fetchAllMisRows(seq),
-   window.VBGRAMGData.invoke('vbgramg-mis-selection',{body:{action:'get'}}),
+   window.VBGRAMGData.invoke('vbgramg-mis-selection',{body:{action:'get'},deduplicate:true}),
    periodsPromise
   ]);
   if(seq!==loadSequence)return;
@@ -523,7 +523,7 @@ async function load(){
   allCards=buildCards(misData.headers,misData.rows);
   const balanceJobCards=allCards.filter(group=>group.applicants.some(applicant=>applicant.name)).map(group=>group.key);
   const balanceResult=await withTimeout(
-   window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'work-demand-balances',job_cards:balanceJobCards}}),
+   window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'work-demand-balances',job_cards:balanceJobCards},deduplicate:true}),
    20000,
    'Contribution balance request'
   );

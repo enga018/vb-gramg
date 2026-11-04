@@ -364,7 +364,7 @@ let demandFinalised = false;
 const draftId = query.get("draftId") || crypto.randomUUID();
 if(query.get("days")) $("days").value = query.get("days");
 const includedKey = id => "vbgramg-demand-included:" + id;
-let allCards=[],selectedApplicants=new Map(),contributionData=null,reviewApplicants=[],allReviewCandidates=[],demandApplicants=[],generated=null,pendingSnapshot=null,loading=false,loadSequence=0,saving=false,periods=[];const pageSize=50;const tablePages={review:0,demand:0,unwilling:0};
+let allCards=[],selectedApplicants=new Map(),reviewApplicants=[],allReviewCandidates=[],demandApplicants=[],generated=null,pendingSnapshot=null,loading=false,loadSequence=0,saving=false,periods=[];const pageSize=50;const tablePages={review:0,demand:0,unwilling:0};
 function currentPeriodId(){return query.get("periodId") || draftId;}
 function getIncludedIds(id){try{return new Set(JSON.parse(localStorage.getItem(includedKey(id)) || "[]"));}catch{return new Set();}}
 function saveIncludedIds(id,ids){localStorage.setItem(includedKey(id),JSON.stringify([...ids]));}
@@ -465,30 +465,6 @@ async function fetchAllMisRows(seq){
  return {headers:(rows[0]?.values||[]).map(v=>String(v??'')),rows:rows.slice(1)};
 }
 function formatRupees(value){return new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(value)||0);}
-function contributionBalances(data){
- const exemptions=new Set((data.exemptions||[]).map(x=>normalize(x.job_card_number)));
- const ledgers=new Map();
- for(const entry of (data.entries||[])){const id=normalize(entry.job_card_number);if(!id)continue;if(!ledgers.has(id))ledgers.set(id,[]);ledgers.get(id).push(entry);}
- const registered=new Set((data.citizens||[]).map(c=>normalize(c.job_card_number)).filter(Boolean));
- const balances=new Map();
- for(const id of registered){
-  if(exemptions.has(id)){balances.set(id,0);continue;}
-  let paid=0,returned=0,waived=0;const active=[];
-  for(const e of ledgers.get(id)||[]){
-   const n=Math.max(0,Number(e.amount)||0),type=e.entry_type;
-   if(type==='payment'){paid+=n;continue;}
-   if(type==='return'||(type==='charge'&&String(e.note||'').trim()==='Return')){returned+=n;continue;}
-   if(type==='forgive'){waived+=n;continue;}
-   if(type!=='charge'&&type!=='sanitationFee')continue;
-   if(e.is_deferred)continue;
-   active.push(n);
-  }
-  let credit=Math.min(waived,active.reduce((sum,n)=>sum+n,0));
-  for(let i=0;i<active.length&&credit>0;i++){const used=Math.min(credit,active[i]);active[i]-=used;credit-=used;}
-  balances.set(id,active.reduce((sum,n)=>sum+n,0)-paid+returned);
- }
- return balances;
-}
 function buildCards(headers,rows){
  const jobIndex=headers.findIndex(h=>/^(job card number|jobcard number)$/i.test(h.trim()));
  const fallbackIndex=headers.findIndex(h=>/^jc no\.?$/i.test(h.trim()));
@@ -533,21 +509,26 @@ async function load(){
   if(query.get("days") && /^\d+$/.test(query.get("days"))) $("days").value=query.get("days");
   applyWorkflowVisibility();
   status('Loading active MIS data and Contribution balances…');
-  const [misData,contributionResult,selectionResult]=await Promise.all([
+  const [misData,selectionResult]=await Promise.all([
    fetchAllMisRows(seq),
-   supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}}),
    supabaseClient.functions.invoke('vbgramg-mis-selection',{body:{action:'get'}}),
    periodsPromise
   ]);
   if(seq!==loadSequence)return;
-  const cdata=contributionResult.data;
-  if(contributionResult.error||!cdata||cdata.approved!==true||cdata.error)throw new Error((cdata&&cdata.error)||(contributionResult.error&&contributionResult.error.message)||'Could not load Contribution data.');
   if(selectionResult.error||!selectionResult.data||selectionResult.data.approved!==true||!Array.isArray(selectionResult.data.selections))throw new Error((selectionResult.data&&selectionResult.data.error)||(selectionResult.error&&selectionResult.error.message)||'Could not load saved MIS applicant selections.');
   selectedApplicants=new Map();
   selectionResult.data.selections.forEach(item=>{if(item&&typeof item.job_card_number==='string'&&typeof item.applicant_key==='string')selectedApplicants.set(item.job_card_number,item.applicant_key);});
-  contributionData=cdata;
   allCards=buildCards(misData.headers,misData.rows);
-  const balances=contributionBalances(cdata);
+  const balanceJobCards=allCards.filter(group=>group.applicants.some(applicant=>applicant.name)).map(group=>group.key);
+  const balanceResult=await withTimeout(
+   supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'work-demand-balances',job_cards:balanceJobCards}}),
+   20000,
+   'Contribution balance request'
+  );
+  if(seq!==loadSequence)return;
+  const balanceData=balanceResult.data;
+  if(balanceResult.error||!balanceData||balanceData.approved!==true||balanceData.error||!balanceData.balances||typeof balanceData.balances!=='object')throw new Error((balanceData&&balanceData.error)||(balanceResult.error&&balanceResult.error.message)||'Could not load Contribution balances.');
+  const balances=new Map(Object.entries(balanceData.balances).map(([jobCard,balance])=>[jobCard,Number(balance)||0]));
   reviewApplicants=[];demandApplicants=[];
   for(const group of allCards){
    const balance=balances.get(group.key)||0;

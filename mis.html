@@ -393,6 +393,7 @@ $('run-desktop-fetch').addEventListener('click',async()=>{
  }finally{button.disabled=false}
 });
 async function loadData(){
+ $('mis-see-more').hidden=true;$('mis-see-more').style.display='none';
  const seq=++loadSequence;
  status($('data-status'),'Loading current MIS data…');
  try{

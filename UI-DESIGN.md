@@ -62,29 +62,28 @@ Status must never rely on colour alone. Pair colour with a clear text label or a
 
 ### Desktop
 
-- Target a persistent left navigation sidebar for the main application modules.
+- Preserve the existing desktop navigation model; do not introduce a persistent sidebar as part of this design specification.
 - Keep the content area aligned to a consistent maximum width and use available desktop space efficiently.
-- The sidebar should identify the current module clearly and provide predictable access to MIS, FTO, Work Demand, Periods, and Contribution.
-- Keep page-level actions in a consistent header area, separated from global navigation.
-- Do not introduce a second competing navigation system.
+- Keep page-level action buttons aligned to the right in the existing shared header/container.
+- Do not add a separate page-title/description header container or introduce a competing navigation system.
 
 ### Mobile
 
-- Use a compact header with a clear page title and a single navigation entry point (drawer/menu).
-- Keep navigation reachable without consuming excessive vertical space.
-- Use full-width or appropriately grouped actions; avoid narrow rows of crowded buttons.
-- Respect safe areas and avoid horizontal page scrolling.
+- Use one compact mobile header: hamburger menu on the left and the page link/identity on the right.
+- The right-side identity uses the format **VBGRAMG / [PAGE]**, for example **VBGRAMG / MIS**.
+- The hamburger opens the existing navigation drawer/menu; the right-side page identity identifies the current module.
+- Keep the header compact, respect safe areas, and avoid horizontal page scrolling.
+- Do not place page action buttons in this mobile header unless separately approved.
 
 ### Page header
 
-Every module should follow one shared header pattern:
-- Page title on the left.
-- Relevant page actions on the right (wrapping cleanly on small screens).
-- A short, useful description below the title when needed.
-- A consistent route back to the main menu.
+- Desktop: keep relevant page action buttons on the right, within the same container as the page content.
+- Do not show a separate page title or descriptive subtitle in the desktop header.
+- Mobile: show the hamburger on the left and **VBGRAMG / [PAGE]** on the right.
+- Do not add a Back to Menu action or a separate main-menu navigation item.
 - Avoid repeating account/admin status text when it does not help the task.
 
-The existing shared navigation and header implementation must be assessed before replacing it. Any transition from the current three-dot navigation to a desktop sidebar/mobile drawer must be planned and tested as a single coherent change.
+The existing shared navigation and header implementation is the baseline. Any change must be planned and tested as a coherent desktop and mobile change, without replacing the agreed layout with a new sidebar/header pattern.
 
 ## 4. Shared component standards
 

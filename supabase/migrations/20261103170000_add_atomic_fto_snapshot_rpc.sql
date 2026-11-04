@@ -198,7 +198,7 @@ begin
        v_row.calculated_charge, v_row.status, v_row.rejection_reason,
        coalesce(v_row.last_seen_at,now()), v_row.ledger_entry_id, coalesce(v_row.source_row,'{}'::jsonb),
        coalesce(v_row.created_at,now()), coalesce(v_row.updated_at,now()),
-       true, v_row.processed_date, coalesce(v_row.is_current,true))
+       coalesce(v_row.is_in_scope,true), v_row.processed_date, coalesce(v_row.is_current,true))
     on conflict (id) do update set
       batch_id=excluded.batch_id, reference_no=excluded.reference_no,
       job_card_number=excluded.job_card_number, village_name=excluded.village_name,
@@ -207,7 +207,7 @@ begin
       calculated_charge=excluded.calculated_charge, status=excluded.status,
       rejection_reason=excluded.rejection_reason, last_seen_at=excluded.last_seen_at,
       source_row=excluded.source_row, updated_at=excluded.updated_at,
-      is_in_scope=true, processed_date=excluded.processed_date, is_current=excluded.is_current;
+      is_in_scope=excluded.is_in_scope, processed_date=excluded.processed_date, is_current=excluded.is_current;
     v_count_transactions := v_count_transactions + 1;
   end loop;
 

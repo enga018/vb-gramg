@@ -5,6 +5,15 @@
 (function () {
   "use strict";
 
+  function formatPeriod(value) {
+    const match = String(value || "").match(/^(\\d{4})-(\\d{2})/);
+    if (!match) return value || "Monthly charge";
+    const months = ["January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"];
+    const month = Number(match[2]);
+    return month >= 1 && month <= 12 ? months[month - 1] + " " + match[1] : (value || "Monthly charge");
+  }
+
   function calculateFifoGroups(options) {
     const {
       ledger = [],
@@ -14,15 +23,15 @@
       paymentAllocations = [],
       periods = []
     } = options || {};
- const charges=(c.ledger||[]).filter(e=>{
+ const charges=(ledger||[]).filter(e=>{
   const t=e.entry_type;
   return !e.is_voided&&!e.is_deferred&&(t==='charge'||t==='other_charge'||t==='sanitationFee')&&!(t==='charge'&&String(e.note||'').trim()==='Return');
  }).map(e=>({...e,remaining:Math.max(0,Number(e.amount)||0),allocated:0,waivedAmount:0}));
  const sortKey=e=>String(e.charge_period||e.entry_date||e.created_at||'').slice(0,10);
  charges.sort((a,b)=>sortKey(a).localeCompare(sortKey(b))||String(a.entry_date||'').localeCompare(String(b.entry_date||''))||String(a.created_at||'').localeCompare(String(b.created_at||'')));
- let waiverCredit=Math.min(Math.max(0,Number(c.waived)||0),charges.reduce((sum,e)=>sum+e.remaining,0));
+ let waiverCredit=Math.min(Math.max(0,Number(waived)||0),charges.reduce((sum,e)=>sum+e.remaining,0));
  for(const charge of charges){if(waiverCredit<=0)break;const used=Math.min(charge.remaining,waiverCredit);charge.remaining-=used;charge.waivedAmount=used;waiverCredit-=used;}
- const cardPayments=(c.ledger||[]).filter(e=>e.entry_type==='payment');
+ const cardPayments=(ledger||[]).filter(e=>e.entry_type==='payment');
  const cardPaymentIds=new Set(cardPayments.map(e=>String(e.id)));
  const cardAllocations=paymentAllocations.filter(a=>cardPaymentIds.has(String(a.transaction_id)));
  const allocatedByPeriod=new Map();
@@ -36,7 +45,7 @@
   const used=Math.min(charge.remaining,available);charge.remaining-=used;charge.allocated+=used;explicitlyApplied+=used;allocatedByPeriod.set(key,available-used);
  }
  // Payments without a usable explicit allocation retain the existing FIFO treatment.
- const netPaymentCredit=Math.max(0,(Number(c.paid)||0)-(Number(c.returns)||0)-explicitlyApplied);
+ const netPaymentCredit=Math.max(0,(Number(paid)||0)-(Number(returns)||0)-explicitlyApplied);
  let paymentCredit=netPaymentCredit;
  for(const charge of charges){if(paymentCredit<=0)break;const used=Math.min(charge.remaining,paymentCredit);charge.remaining-=used;charge.allocated+=used;paymentCredit-=used;}
  const groups=new Map();

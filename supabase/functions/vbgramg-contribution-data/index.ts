@@ -134,7 +134,7 @@ Deno.serve(async(req:Request)=>{
    for(let cardOffset=0;cardOffset<requested.length;cardOffset+=200){
     const cards=requested.slice(cardOffset,cardOffset+200);
     for(let offset=0;;offset+=1000){
-     const {data,error}=await admin.from("vbgramg_charge_ledger").select("job_card_number,entry_type,amount,note,is_deferred").in("job_card_number",cards).order("job_card_number",{ascending:true}).order("entry_date",{ascending:true}).range(offset,offset+999);
+     const {data,error}=await admin.from("vbgramg_charge_ledger").select("job_card_number,entry_type,amount,note,is_deferred,is_voided").in("job_card_number",cards).order("job_card_number",{ascending:true}).order("entry_date",{ascending:true}).range(offset,offset+999);
      if(error)throw error;
      ledgerRows.push(...(data||[]));
      if(!data||data.length<1000)break;
@@ -156,11 +156,12 @@ Deno.serve(async(req:Request)=>{
     let paid=0,returned=0,waived=0;
     const active:number[]=[];
     for(const entry of ledgers.get(id)||[]){
+     if(entry.is_voided)continue;
      const amount=Math.max(0,Number(entry.amount)||0),type=entry.entry_type;
      if(type==="payment"){paid+=amount;continue;}
-     if(type==="return"||(type==="charge"&&String(entry.note||"").trim()==="Return")){returned+=amount;continue;}
-     if(type==="forgive"){waived+=amount;continue;}
-     if(type!=="charge"&&type!=="sanitationFee")continue;
+     if(type==="refund"||type==="return"||(type==="charge"&&String(entry.note||"").trim()==="Return")){returned+=amount;continue;}
+     if(type==="charge_waiver"||type==="forgive"){waived+=amount;continue;}
+     if(type!=="charge"&&type!=="other_charge"&&type!=="sanitationFee")continue;
      if(entry.is_deferred)continue;
      active.push(amount);
     }

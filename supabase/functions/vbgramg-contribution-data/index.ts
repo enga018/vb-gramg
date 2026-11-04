@@ -542,8 +542,7 @@ Deno.serve(async(req:Request)=>{
     reconciliationApplicants.set(card,chosen);
    }
    const localInputRows=rows;
-   const excludedNotInActiveMis=rowsSeen-localInputRows.filter((raw:Record<string,any>)=>activeJobCards.has(String(raw?.job_card_number||"").trim().toUpperCase())).length;
-   const excludedOutsideActiveMis=rowsSeen-excludedNotInActiveMis;
+   const excludedOutsideActiveMis=rowsSeen-localInputRows.filter((raw:Record<string,any>)=>activeJobCards.has(String(raw?.job_card_number||"").trim().toUpperCase())).length;
    const normalized:Record<string,any>[]=[];
    const seenReferences=new Map<string,string>();
    for(const raw of localInputRows){

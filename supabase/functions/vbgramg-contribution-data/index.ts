@@ -144,7 +144,7 @@ Deno.serve(async(req:Request)=>{
    const householdByCard=new Map<string,string>(),seenCards=new Set<string>(),applicantsByCard=new Map<string,Record<string,string|null>[]>();
    for(const record of misRows.slice(1)){const row=Array.isArray(record.row_data)?record.row_data as unknown[]:[];const jobCard=String(row[jcCol]||"").trim();if(!jobCard)continue;const applicant=String(row[nameCol]||"").trim();if(!applicant)continue;seenCards.add(jobCard);const household=String(houseCol>=0?row[houseCol]||"":"").trim();if(household&&!householdByCard.has(jobCard))householdByCard.set(jobCard,household);const item={applicant_name:applicant,applicant_number:applicantNoCol>=0?String(row[applicantNoCol]||"").trim()||null:null,applicant_unique_id:uniqueIdCol>=0?String(row[uniqueIdCol]||"").trim()||null:null};if(!applicantsByCard.has(jobCard))applicantsByCard.set(jobCard,[]);applicantsByCard.get(jobCard)!.push(item);}
    const citizens=[...seenCards].map(job_card_number=>({job_card_number,person_name:householdByCard.get(job_card_number)||"Household name unavailable"}));
-   const chargeEntries=all.filter(r=>r.entry_type==="charge");
+   const chargeEntries=all.filter(r=>r.entry_type==="charge"&&!r.is_voided);
    if(chargeEntries.length){
     const entryById=new Map(chargeEntries.map(entry=>[String(entry.id),entry]));
     // Fetch only linked, charge-bearing FTO transactions in one request. The previous
@@ -953,11 +953,11 @@ Deno.serve(async(req:Request)=>{
    const requestedAmount=Number(body.amount),entryDate=String(body.entry_date||new Date().toISOString().slice(0,10));
    const note=String(body.note||(action==="add-waiver"?"Waiver":action==="add-return"?"Return":"Pay in full")).trim().slice(0,200);
    if(!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)||Number.isNaN(Date.parse(entryDate)))return reply({error:"Enter a valid transaction date."},400);
-   const {data:ledger,error:ledgerError}=await admin.from("vbgramg_charge_ledger").select("id,entry_type,amount,note,is_deferred,charge_period,person_name").eq("job_card_number",jobCard);
+   const {data:ledger,error:ledgerError}=await admin.from("vbgramg_charge_ledger").select("id,entry_type,amount,note,is_deferred,is_voided,charge_period,person_name").eq("job_card_number",jobCard);
    if(ledgerError)throw ledgerError;
    if(!ledger||!ledger.length)return reply({error:"Job card not found in the contribution ledger."},404);
    let charges=0,paid=0,returns=0,waived=0;
-   for(const e of ledger){const n=Math.max(0,Number(e.amount)||0),t=String(e.entry_type||"");
+   for(const e of ledger){if(e.is_voided)continue;const n=Math.max(0,Number(e.amount)||0),t=String(e.entry_type||"");
     if(t==="payment")paid+=n;
     else if(t==="refund"||t==="return"||(t==="charge"&&String(e.note||"").trim().toLowerCase()==="return"))returns+=n;
     else if(t==="charge_waiver"||t==="forgive")waived+=n;

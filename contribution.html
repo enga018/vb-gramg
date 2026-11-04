@@ -1268,6 +1268,8 @@ function showPaymentForm(){
 
 
 function showExemptionsForm(){
+ $('overlay').appendChild($('citizen-sheet'));
+ $('desktop-detail-panel').classList.remove('has-selection');
  $('overlay').classList.remove('hidden');
  $('sheetTitle').textContent='Exemptions';
  $('sheetSubtitle').textContent='Manage job cards excluded from Contribution.';
@@ -1282,6 +1284,8 @@ function showExemptionsForm(){
 }
 const parseBulkPayments = window.VBGRAMGPayments.parseBulkPayments;
 function showBulkPaymentForm(){
+ $('overlay').appendChild($('citizen-sheet'));
+ $('desktop-detail-panel').classList.remove('has-selection');
  $('overlay').classList.remove('hidden');
  $('sheetFooter').classList.add('hidden');
  if(appRole!=="admin"){status("Only an approved administrator can register bulk bank payments.","err");return;}

@@ -28,3 +28,26 @@ jobs:
           node-version: 22
       - name: Run shared ledger tests
         run: node --test tests/ledger-calculations.test.cjs
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Verify shared module in Deno
+        run: |
+          deno eval '
+            import "./supabase/functions/shared/ledger-calculations.js";
+            const api = globalThis.VBGRAMGLedgerCalculations;
+            if (typeof api?.calculateLedgerState !== "function") {
+              throw new Error("Shared ledger calculation API did not load in Deno.");
+            }
+            const result = api.calculateLedgerState([
+              { entry_type: "charge", amount: 100 },
+              { entry_type: "sanitationFee", amount: 25 },
+              { entry_type: "payment", amount: 40 },
+              { entry_type: "refund", amount: 5 }
+            ]);
+            if (result.balance !== 90) {
+              throw new Error(`Unexpected Deno ledger balance: ${result.balance}`);
+            }
+            console.log("Deno shared-module check passed.");
+          '

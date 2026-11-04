@@ -793,7 +793,7 @@ async function saveFtoPeriod(event){
  $("period-modal-save").disabled=true;$("period-modal-cancel").disabled=true;$("period-modal-save").textContent="Saving…";
  historyMessage("Changing FTO period and recalculating contribution charges…");
  try{
-  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"change-fto-period",batch_id:batch.id,period_id:period.id,contribution_period:normalizedLabel,charge_period:chargePeriod}});
+  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"change-fto-period",batch_id:batch.id,period_id:period.id,contribution_period:normalizedLabel,charge_period:chargePeriod},timeoutMs:false});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||"Could not change the FTO period.");
   closePeriodModal();
   await loadFtoHistory();

@@ -882,7 +882,7 @@ try {
  setStartupError('Could not load the connection library. Check your internet connection and use Reload page to try again.');
  return;
 }
-let entries=[], citizens=[], citizenRegistry=[], applicantsByCard={}, extraCharges=[], exemptions=[], periods=[], paymentAllocations=[], paymentRefundReconciliations=[], currentCitizen=null, busy=false, currentPage=0, pageSize=10, mobileShown=10, appRole="";
+let entries=[], citizens=[], citizenRegistry=[], applicantsByCard={}, extraCharges=[], exemptions=[], periods=[], paymentAllocations=[], paymentRefundReconciliations=[], currentCitizen=null, busy=false, currentPage=0, pageSize=10, appRole="";
 const exemptCardSet=()=>new Set(exemptions.map(x=>String(x.job_card_number||"").trim()));
 const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1446,8 +1446,8 @@ async function load(){
 }
 
 const syncSearchClear=()=>$('clearSearch').classList.toggle('visible',Boolean($('search').value));
-$('search').addEventListener('input',()=>{currentPage=0;mobileShown=10;syncSearchClear();render()});
-$('clearSearch').addEventListener('click',()=>{$('search').value='';syncSearchClear();currentPage=0;mobileShown=10;render();$('search').focus()});
+$('search').addEventListener('input',()=>{currentPage=0;syncSearchClear();render()});
+$('clearSearch').addEventListener('click',()=>{$('search').value='';syncSearchClear();currentPage=0;render();$('search').focus()});
 syncSearchClear();
 $('statusFilter').addEventListener('change',()=>{currentPage=0;mobileShown=10;render()});
 

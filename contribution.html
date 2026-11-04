@@ -880,6 +880,31 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{padding:18px 
 /* Keep non-action controls (close, clear-search, expandable period rows)
    at their purpose-built dimensions. */
 
+/* App-wide row-marker removal: keep status and selection information without vertical stripes. */
+#contribution-table tbody tr.contribution-row,
+#contribution-table tbody tr.contribution-row.due,
+#contribution-table tbody tr.contribution-row.settled,
+#contribution-table tbody tr.contribution-row.overpaid,
+#contribution-table tbody tr.selected{
+  box-shadow:none!important;
+  border-left:0!important;
+}
+#contribution-table tbody tr.contribution-row td:first-child,
+#contribution-table tbody tr.contribution-row.due td:first-child,
+#contribution-table tbody tr.contribution-row.settled td:first-child,
+#contribution-table tbody tr.contribution-row.overpaid td:first-child{
+  border-left:0!important;
+}
+#contribution-table tbody tr.selected{background:#edf5ff!important}
+.sheet-body .entry,
+.sheet-body .entry-payment,
+.sheet-body .entry-refund,
+.sheet-body .entry-waiver,
+.sheet-body .entry-charge,
+.sheet-body .entry-voided,
+.sheet-body .entry-other{
+  border-left:1px solid var(--line)!important;
+}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>

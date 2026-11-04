@@ -1,0 +1,30 @@
+name: Test shared ledger calculations
+
+on:
+  pull_request:
+    paths:
+      - "supabase/functions/shared/ledger-calculations.js"
+      - "tests/ledger-calculations.test.cjs"
+      - ".github/workflows/test-ledger-calculations.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/shared/ledger-calculations.js"
+      - "tests/ledger-calculations.test.cjs"
+      - ".github/workflows/test-ledger-calculations.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  ledger-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run shared ledger tests
+        run: node --test tests/ledger-calculations.test.cjs

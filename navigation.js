@@ -2,7 +2,7 @@
 (function () {
   function install() {
     var path = window.location.pathname || "/";
-    var cleanPath = path.replace(/\\/+$/, "") || "/";
+    var cleanPath = path.replace(/\/+$/, "") || "/";
     if (cleanPath.endsWith("/index.html") || cleanPath === "/" || path.endsWith("/")) return;
     var header = document.querySelector("header");
     if (document.querySelector(".global-sidebar")) return;
@@ -28,7 +28,7 @@
       a.innerHTML = '<span class="global-sidebar-icon" aria-hidden="true"></span><span class="global-sidebar-text"></span>';
       a.querySelector(".global-sidebar-icon").textContent = item[2];
       a.querySelector(".global-sidebar-text").textContent = item[0];
-      var targetPath = new URL(item[1], window.location.href).pathname.replace(/\\/+$/, "") || "/";
+      var targetPath = new URL(item[1], window.location.href).pathname.replace(/\/+$/, "") || "/";
       var isCurrent = targetPath === cleanPath || (item[0] === "FTO History" && cleanPath.endsWith("/fto-import.html"));
       if (isCurrent) { a.classList.add("is-current"); a.setAttribute("aria-current", "page"); }
       nav.appendChild(a);
@@ -61,7 +61,7 @@
       "/periods.html": "Periods",
       "/contribution.html": "Contribution"
     };
-    var pageName = pageNames[cleanPath] || document.title.replace(/\\s*[—|–-]\\s*VBGRAMG.*$/i, "").trim() || "VBGRAMG";
+    var pageName = pageNames[cleanPath] || document.title.replace(/\s*[—|–-]\\s*VBGRAMG.*$/i, "").trim() || "VBGRAMG";
     var mobileHeader = document.createElement("div");
     mobileHeader.className = "global-mobile-header";
     var title = document.createElement("span");

@@ -289,6 +289,28 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 
 /* Keep Step 2 transaction preview hidden; parsing and validation still run in JavaScript. */
 #table-output{display:none!important}
+/* Live Step 5: category navigation and one-job-card-at-a-time review, matching preview.html. */
+.live-category-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}
+.live-category-kpi{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;min-height:108px;padding:14px;background:#fff;border:1px solid var(--line);border-radius:12px;color:var(--ink)}
+.live-category-kpi span{font-size:.82rem;color:#475467;font-weight:750}.live-category-kpi strong{font-size:1.55rem;line-height:1.2}.live-category-kpi small{font-size:.72rem;color:var(--muted);font-weight:500}
+.live-category-kpi.active{border:2px solid #2457c5;background:#f5f8ff;padding:13px}
+.live-category-panel{border:1px solid var(--line);border-radius:13px;padding:16px;background:#fbfcfe}
+.live-category-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:13px}
+.live-category-heading h3{margin:0 0 4px;font-size:1rem}.live-category-heading p{margin:0;font-size:.84rem;color:var(--muted)}
+.live-badge{display:inline-flex;align-items:center;padding:5px 9px;border-radius:7px;font-size:.74rem;font-weight:750;white-space:nowrap}
+.live-badge.ready{background:#eaf8ef;color:#17663a}.live-badge.action{background:#fff2d9;color:#8a4b08}.live-badge.existing{background:#eaf2ff;color:#1d4f91}.live-badge.excluded{background:#fff0ed;color:#9b2c20}
+.live-jobcard-view{background:#fff;border:1px solid #dfe5ee;border-radius:12px;padding:15px;min-width:0}
+.live-jobcard-title{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid #edf0f5}
+.live-jobcard-title strong{font-size:.94rem;overflow-wrap:anywhere}.live-jobcard-person{font-size:.82rem;color:var(--muted);margin-top:4px}
+.live-jobcard-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:13px 0}
+.live-jobcard-stats>div{padding:10px;border-radius:9px;background:#f5f7fb;min-width:0}.live-jobcard-stats span{display:block;font-size:.7rem;color:var(--muted);margin-bottom:3px}.live-jobcard-stats strong{font-size:.88rem;overflow-wrap:anywhere}
+.live-reason{padding:10px 12px;border-radius:9px;background:#fff4ed;color:#9b3c18;font-size:.82rem;font-weight:650;margin:12px 0}
+.live-tx-title{font-size:.8rem;font-weight:750;color:#475467;margin:14px 0 8px}
+.live-tx-list{display:grid;gap:8px}.live-tx-item{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:10px;padding:10px;border:1px solid #edf0f5;border-radius:9px;align-items:center}
+.live-tx-item span{display:block;font-size:.67rem;color:var(--muted);margin-bottom:2px}.live-tx-item strong{font-size:.78rem;overflow-wrap:anywhere}
+.live-pager{display:flex;justify-content:center;align-items:center;gap:14px;margin-top:13px}.live-pager span{min-width:55px;text-align:center;font-size:.8rem;font-weight:700;color:#475467}.live-pager button{min-width:94px}
+.live-empty{padding:18px;border:1px dashed #d7dee8;border-radius:10px;background:#fff;color:var(--muted);font-size:.86rem;text-align:center}
+@media(max-width:700px){.live-category-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.live-category-kpi{min-height:100px;padding:10px 9px}.live-category-kpi.active{padding:9px 8px}.live-category-kpi span{font-size:.74rem;line-height:1.25}.live-category-kpi strong{font-size:1.35rem}.live-category-kpi small{font-size:.66rem;line-height:1.25}.live-category-panel{padding:11px}.live-jobcard-view{padding:11px}.live-jobcard-stats{gap:6px}.live-jobcard-stats>div{padding:8px 6px}.live-jobcard-stats span{font-size:.64rem}.live-jobcard-stats strong{font-size:.77rem}.live-tx-item{grid-template-columns:1fr 1fr;gap:8px}.live-pager{gap:8px}.live-pager button{min-width:0;flex:1}}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -323,21 +345,38 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  <div id="import-summary" class="status" aria-live="polite"></div>
  </div>
  <section id="step5-review" class="reconciliation-panel" aria-live="polite" style="margin-top:18px">
-  <div class="section-head"><div><h2>Review FTO Import</h2><p>Review each job card before synchronization.</p></div></div>
-  <div class="meta" style="grid-template-columns:repeat(4,minmax(0,1fr));margin:14px 0">
-   <div class="stat"><small>Automatic Import</small><strong id="auto-count">0</strong></div>
-   <div class="stat"><small>Manual Review</small><strong id="manual-count">0</strong></div>
-   <div class="stat"><small>Already Imported</small><strong id="already-imported-count">0</strong></div>
-   <div class="stat"><small>Cannot Import</small><strong id="cannot-count">0</strong></div>
+  <div class="section-head"><div><h2>5. Review FTO Import</h2><p>Review job cards by category, one at a time.</p></div></div>
+  <div class="live-category-kpis">
+   <button class="live-category-kpi active" type="button" data-live-category="automatic" aria-expanded="true"><span>Automatic Import</span><strong id="auto-count">0</strong><small>Eligible without manual review</small></button>
+   <button class="live-category-kpi" type="button" data-live-category="manual" aria-expanded="false"><span>Manual Review</span><strong id="manual-count">0</strong><small>Requires confirmation</small></button>
+   <button class="live-category-kpi" type="button" data-live-category="already" aria-expanded="false"><span>Already Imported</span><strong id="already-imported-count">0</strong><small>No new charge required</small></button>
+   <button class="live-category-kpi" type="button" data-live-category="cannot" aria-expanded="false"><span>Cannot Import</span><strong id="cannot-count">0</strong><small>Excluded from synchronization</small></button>
   </div>
-  <div id="manual-review-panel" class="hidden" style="padding:14px;border:1px solid #e8b45f;border-radius:12px;background:#fffdf8;margin:14px 0">
-   <div class="section-head"><div><h2>Manual Review Needed</h2><p>Select a job card to review its individual FTO transactions, calculated charges, and required confirmation.</p></div></div>
-   <label for="manual-jobcard-select" style="margin-top:12px">Job Card</label><select id="manual-jobcard-select"><option value="">Select a job card</option></select>
-   <div id="manual-jobcard-details" style="margin-top:12px"></div>
+  <div class="live-category-panel" id="live-automatic-panel">
+   <div class="live-category-heading"><div><h3>Automatic Import</h3><p>Eligible job cards. Browsing does not require individual approval.</p></div><span class="live-badge ready">Ready</span></div>
+   <div id="live-automatic-card" class="live-jobcard-view"></div>
+   <div class="live-pager"><button type="button" class="secondary" id="live-automatic-prev">Previous</button><span id="live-automatic-position"></span><button type="button" class="secondary" id="live-automatic-next">Next</button></div>
   </div>
-
+  <div class="live-category-panel hidden" id="live-manual-panel">
+   <div class="live-category-heading"><div><h3>Manual Review Needed</h3><p>Review the FTO transactions, existing charge and applicant mapping, then complete the required confirmation.</p></div><span class="live-badge action">Action required</span></div>
+   <div id="live-manual-card" class="live-jobcard-view"></div>
+   <div class="live-pager"><button type="button" class="secondary" id="live-manual-prev">Previous</button><span id="live-manual-position"></span><button type="button" class="secondary" id="live-manual-next">Next</button></div>
+  </div>
+  <div class="live-category-panel hidden" id="live-already-panel">
+   <div class="live-category-heading"><div><h3>Already Imported</h3><p>These references are already recorded for this FTO and will not create duplicate charges.</p></div><span class="live-badge existing">Existing</span></div>
+   <div id="live-already-card" class="live-jobcard-view"></div>
+   <div class="live-pager"><button type="button" class="secondary" id="live-already-prev">Previous</button><span id="live-already-position"></span><button type="button" class="secondary" id="live-already-next">Next</button></div>
+  </div>
+  <div class="live-category-panel hidden" id="live-cannot-panel">
+   <div class="live-category-heading"><div><h3>Cannot Import</h3><p>Excluded job cards and the reason they are not eligible for contribution synchronization.</p></div><span class="live-badge excluded">Excluded</span></div>
+   <div id="live-cannot-card" class="live-jobcard-view"></div>
+   <div class="live-pager"><button type="button" class="secondary" id="live-cannot-prev">Previous</button><span id="live-cannot-position"></span><button type="button" class="secondary" id="live-cannot-next">Next</button></div>
+  </div>
+  <div id="manual-review-panel" class="hidden"><label for="manual-jobcard-select">Manual review job card</label><select id="manual-jobcard-select"></select><div id="manual-jobcard-details"></div></div>
   <div class="table-foot"><span id="import-count" class="muted"></span><div class="actions"><button id="fto-import-button" type="button" disabled>Synchronize FTO</button></div></div>
  </section>
+  <div id="sync-status" class="status hidden" aria-live="polite" role="status"></div>
+
   <div id="sync-status" class="status hidden" aria-live="polite" role="status"></div>
 
 
@@ -626,32 +665,83 @@ function renderManualTransactionDetails(group){
   }
   const actionLabel=document.createElement('label');actionLabel.textContent='How should this existing manual charge be handled?';actionLabel.style.display='block';actionLabel.style.marginTop='12px';
   const actionSelect=document.createElement('select');actionSelect.style.marginTop='6px';actionSelect.setAttribute('aria-label','Manual charge action for '+group.job_card_number);
-  const noAction=document.createElement('option');noAction.value='';noAction.textContent='Choose an action';actionSelect.appendChild(noAction);
-  const linkAction=document.createElement('option');linkAction.value='link';linkAction.textContent='Link existing charge to this FTO';actionSelect.appendChild(linkAction);
-  const separateAction=document.createElement('option');separateAction.value='keep_separate';separateAction.textContent='Keep manual charge separate';actionSelect.appendChild(separateAction);
-  actionSelect.value=manualChargeActions.get(group.job_card_number)||'';
-  actionSelect.addEventListener('change',()=>{if(actionSelect.value)manualChargeActions.set(group.job_card_number,actionSelect.value);else manualChargeActions.delete(group.job_card_number);updateImportButton()});
-  review.append(actionLabel,actionSelect);
-  const hint=document.createElement('div');hint.className='muted';hint.style.marginTop='6px';hint.textContent='Linking preserves the existing ledger record and its identity. Keeping it separate creates an independent FTO charge.';review.appendChild(hint);
-  const amountDiff=Math.abs(Number(duplicate.amount||0)-Number(group.amount||0))>0.009;
-  if(amountDiff){
-   const confirm=document.createElement('input');confirm.type='checkbox';confirm.checked=manualAmountConfirmations.has(group.job_card_number);
-   confirm.addEventListener('change',()=>{if(confirm.checked)manualAmountConfirmations.add(group.job_card_number);else manualAmountConfirmations.delete(group.job_card_number);updateImportButton()});
-   const confirmLabel=document.createElement('label');confirmLabel.style.display='flex';confirmLabel.style.gap='8px';confirmLabel.style.alignItems='center';confirmLabel.style.marginTop='10px';
-   confirmLabel.append(confirm,document.createTextNode('I confirm replacing ₹'+Number(duplicate.amount||0).toLocaleString('en-IN')+' with the FTO charge of ₹'+Number(group.amount||0).toLocaleString('en-IN')));
-   review.appendChild(confirmLabel);
-  }else manualAmountConfirmations.delete(group.job_card_number);
- }else if(isUnknown){
-  const check=document.createElement('input');check.type='checkbox';check.checked=reviewedNewCards.has(group.job_card_number);check.addEventListener('change',()=>{if(check.checked)reviewedNewCards.add(group.job_card_number);else reviewedNewCards.delete(group.job_card_number);updateImportButton()});
-  const label=document.createElement('label');label.style.display='flex';label.style.gap='8px';label.style.alignItems='center';label.style.marginTop='10px';label.append(check,document.createTextNode('I verified this new job card'));review.appendChild(label);
+  const noAction=document.createElement('option');noAction.value='';noAction.textContent='Choose an action';actionSelect.appendChild(noAconst liveReviewState={category:'automatic',indexes:{automatic:0,manual:0,already:0,cannot:0},groups:{automatic:[],manual:[],already:[],cannot:[]}};
+function liveMoney(value){return '₹'+Number(value||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function liveAddField(parent,label,value){const item=document.createElement('div');const l=document.createElement('span');l.textContent=label;const v=document.createElement('strong');v.textContent=String(value??'—');item.append(l,v);parent.appendChild(item)}
+function liveRenderCard(type){
+ const list=liveReviewState.groups[type]||[],index=liveReviewState.indexes[type]||0,target=$('live-'+type+'-card');
+ const position=$('live-'+type+'-position'),prev=$('live-'+type+'-prev'),next=$('live-'+type+'-next');
+ target.replaceChildren();
+ if(!list.length){target.innerHTML='<div class="live-empty">No job cards in this category.</div>';position.textContent='0 of 0';prev.disabled=true;next.disabled=true;return}
+ const group=list[Math.min(index,list.length-1)],card=group.job_card_number;
+ position.textContent=(Math.min(index,list.length-1)+1)+' of '+list.length;prev.disabled=index<=0;next.disabled=index>=list.length-1;
+ const title=document.createElement('div');title.className='live-jobcard-title';
+ const identity=document.createElement('div');const jc=document.createElement('strong');jc.textContent=card;const person=document.createElement('div');person.className='live-jobcard-person';person.textContent='FTO applicant: '+(group.person_name||'Name not provided');identity.append(jc,person);
+ const badge=document.createElement('span');badge.className='live-badge '+({automatic:'ready',manual:'action',already:'existing',cannot:'excluded'}[type]);badge.textContent=({automatic:'Ready to import',manual:'Manual review',already:'Already imported',cannot:'Cannot import'}[type]);title.append(identity,badge);target.appendChild(title);
+ if(group.reason){const reason=document.createElement('div');reason.className='live-reason';reason.textContent=group.reason;target.appendChild(reason)}
+ const stats=document.createElement('div');stats.className='live-jobcard-stats';
+ liveAddField(stats,'Transactions',group.row_count||0);liveAddField(stats,'Current status',group.status==='blank'?'Deferred':(group.status||'—'));liveAddField(stats,'Calculated charge',liveMoney(group.amount));target.appendChild(stats);
+ const txTitle=document.createElement('div');txTitle.className='live-tx-title';txTitle.textContent='FTO transactions';target.appendChild(txTitle);
+ const txList=document.createElement('div');txList.className='live-tx-list';
+ parsedDataRows.filter(row=>jobCardFromRow(row)===card).forEach(row=>{
+  const tx=document.createElement('div');tx.className='live-tx-item';
+  liveAddField(tx,'Reference',row[3]||'—');liveAddField(tx,'Processed date',row[13]||'—');liveAddField(tx,'Credit amount',liveMoney(parseAmount(row[11])));liveAddField(tx,'Calculated charge',liveMoney((parseAmount(row[11])/(Number($('amount-divisor').value)||300))*(Number($('amount-multiplier').value)||100)));
+  txList.appendChild(tx);
+ });
+ target.appendChild(txList);
+ if(type==='manual'){
+  const selector=$('manual-jobcard-select');selector.value=card;
+  $('manual-jobcard-details').replaceChildren();
+  renderManualTransactionDetails(group);
+  const details=$('manual-jobcard-details');
+  if(details.childNodes.length){const heading=document.createElement('div');heading.className='live-tx-title';heading.textContent='Required review and confirmation';target.appendChild(heading);target.appendChild(details)}
  }
- container.appendChild(review);
+}
+function liveOpenCategory(type){
+ liveReviewState.category=type;
+ document.querySelectorAll('.live-category-kpi').forEach(button=>{const active=button.dataset.liveCategory===type;button.classList.toggle('active',active);button.setAttribute('aria-expanded',String(active))});
+ document.querySelectorAll('.live-category-panel').forEach(panel=>panel.classList.toggle('hidden',panel.id!=='live-'+type+'-panel'));
+}
+function liveBindNavigation(){
+ document.querySelectorAll('.live-category-kpi').forEach(button=>button.addEventListener('click',()=>liveOpenCategory(button.dataset.liveCategory)));
+ ['automatic','manual','already','cannot'].forEach(type=>{
+  $('live-'+type+'-prev').addEventListener('click',()=>{liveReviewState.indexes[type]=Math.max(0,liveReviewState.indexes[type]-1);liveRenderCard(type)});
+  $('live-'+type+'-next').addEventListener('click',()=>{liveReviewState.indexes[type]=Math.min(liveReviewState.groups[type].length-1,liveReviewState.indexes[type]+1);liveRenderCard(type)});
+ });
 }
 function renderImportPreview(){
  $('import-summary').classList.remove('error');
  const manualGroups=[],automaticGroups=[],cannotGroups=[],alreadyGroups=[];
  let automaticTotal=0;
  const sorted=[...importGroups].sort((a,b)=>a.job_card_number.localeCompare(b.job_card_number,undefined,{numeric:true,sensitivity:'base'}));
+ sorted.forEach(group=>{
+  const card=group.job_card_number,exempt=exemptedCards.has(card),outOfMis=notInActiveMisCards.has(card),duplicate=duplicateCards.has(card),refs=duplicateReferences.get(card)||[],match=applicantMatchSuggestions.get(card);
+  const hasCharge=group.amount>0&&['blank','processed','mixed'].includes(group.status);
+  let reason='';
+  if(exempt)reason='Exempted';
+  else if(outOfMis)reason='Outside active MIS';
+  else if(refs.length)reason='Duplicate reference number';
+  else if(alreadyImportedReferences.size&&group.reference_numbers.length&&group.reference_numbers.every(ref=>alreadyImportedReferences.has(ref)))alreadyGroups.push(group);
+  else if(duplicate||(hasCharge&&match?.requires_manual))manualGroups.push(group);
+  else automaticGroups.push(group);
+  if(reason)cannotGroups.push({...group,reason});
+  else if(!alreadyGroups.includes(group)&&!duplicate&&!(hasCharge&&match?.requires_manual)&&group.status!=='rejected')automaticTotal+=group.amount;
+ });
+ liveReviewState.groups={automatic:automaticGroups,manual:manualGroups,already:alreadyGroups,cannot:cannotGroups};
+ for(const type of ['automatic','manual','already','cannot'])liveReviewState.indexes[type]=Math.min(liveReviewState.indexes[type],Math.max(0,liveReviewState.groups[type].length-1));
+ $('auto-count').textContent=automaticGroups.length+' · '+liveMoney(automaticTotal);
+ $('manual-count').textContent=String(manualGroups.length);
+ $('cannot-count').textContent=String(cannotGroups.length);
+ $('already-imported-count').textContent=String(alreadyGroups.length);
+ const selector=$('manual-jobcard-select'),previous=selector.value;selector.replaceChildren();
+ manualGroups.forEach(group=>{const option=document.createElement('option');option.value=group.job_card_number;option.textContent=group.job_card_number;selector.appendChild(option)});
+ selector.value=manualGroups.some(group=>group.job_card_number===previous)?previous:(manualGroups[0]?.job_card_number||'');
+ $('import-count').textContent=parsedDataRows.length+' FTO transactions · '+importGroups.length+' job cards';
+ for(const type of ['automatic','manual','already','cannot'])liveRenderCard(type);
+ liveOpenCategory(liveReviewState.category);
+ updateImportButton();
+}
+pare(b.job_card_number,undefined,{numeric:true,sensitivity:'base'}));
  sorted.forEach(group=>{
   const card=group.job_card_number,exempt=exemptedCards.has(card),outOfMis=notInActiveMisCards.has(card),duplicate=duplicateCards.has(card),unknown=unknownCards.has(card),refs=duplicateReferences.get(card)||[],match=applicantMatchSuggestions.get(card);
   const hasCharge=group.amount>0&&['blank','processed','mixed'].includes(group.status);
@@ -745,6 +835,7 @@ async function lookupFtoBatch(){
  }catch(err){status('Could not look up saved FTO details: '+(err.message||'unknown error'),'error')}
 }
 $('fto-number').addEventListener('change',lookupFtoBatch);
+liveBindNavigation();
 $('charge-period').addEventListener('change',()=>{reviewedCards=new Set();reviewedNewCards=new Set();manualChargeActions=new Map();manualAmountConfirmations=new Set();refreshDuplicates()});
 $('amount-divisor').addEventListener('input',()=>buildImportGroups());
 $('amount-multiplier').addEventListener('input',()=>buildImportGroups());

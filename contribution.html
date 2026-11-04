@@ -147,8 +147,10 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  .mobile-jobcard-line{font-size:.88rem;font-weight:650;line-height:1.45;color:#344054;overflow-wrap:anywhere}
  .mobile-jobcard-line .suffix{font-weight:800;color:var(--ink)}
  .mobile-outstanding{font-size:.96rem;font-weight:800;letter-spacing:-.02em;color:var(--due)!important;text-align:right;white-space:nowrap}
- #contribution-table tbody tr.contribution-row.due{box-shadow:inset 3px 0 var(--due)}
- #contribution-table tbody tr.contribution-row.settled{box-shadow:inset 3px 0 #16a34a}
+ /* Draw status markers on the visible mobile cell, not the row background. */
+ #contribution-table tbody tr.contribution-row.due td.mobile-details{border-left:4px solid var(--due);padding-left:8px}
+ #contribution-table tbody tr.contribution-row.settled td.mobile-details{border-left:4px solid #16a34a;padding-left:8px}
+ #contribution-table tbody tr.contribution-row.overpaid td.mobile-details{border-left:4px solid #2563eb;padding-left:8px}
 }
 
 /* Desktop contribution table: show latest charge status and due balance. */

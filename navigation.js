@@ -10,7 +10,7 @@
     document.body.classList.add("has-global-sidebar");
     var links = [
       ["MIS", "./mis.html", "♙"],
-      ["FTO History", "./fto.html", "▤"],
+      ["FTO", "./fto.html", "▤"],
       ["Work Demand", "./demand.html", "☷"],
       ["Periods", "./periods.html", "◷"],
       ["Contribution", "./contribution.html", "₹"]
@@ -29,7 +29,7 @@
       a.querySelector(".global-sidebar-icon").textContent = item[2];
       a.querySelector(".global-sidebar-text").textContent = item[0];
       var targetPath = new URL(item[1], window.location.href).pathname.replace(/\/+$/, "") || "/";
-      var isCurrent = targetPath === cleanPath || (item[0] === "FTO History" && cleanPath.endsWith("/fto-import.html"));
+      var isCurrent = targetPath === cleanPath || (item[0] === "FTO" && cleanPath.endsWith("/fto-import.html"));
       if (isCurrent) { a.classList.add("is-current"); a.setAttribute("aria-current", "page"); }
       nav.appendChild(a);
     });
@@ -55,7 +55,7 @@
 
     var pageNames = {
       "/mis.html": "MIS",
-      "/fto.html": "FTO History",
+      "/fto.html": "FTO",
       "/fto-import.html": "FTO Import",
       "/demand.html": "Work Demand",
       "/periods.html": "Periods",

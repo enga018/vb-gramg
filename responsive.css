@@ -51,11 +51,10 @@ th, td { overflow-wrap: anywhere; }
 }
 
 
-/* Standard page-header alignment and action placement. */
-.app-header .brand,.app-header .page-title{margin-left:auto;text-align:right}
-.app-header .brand h1,.app-header .page-title h1{margin-left:auto;text-align:right}
-.content-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin:0 0 16px}
-@media(max-width:700px){.content-actions{justify-content:stretch}.content-actions>*{flex:1 1 auto}}
+/* Standard page-header action alignment. */
+.app-header{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+.app-header-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+@media(max-width:700px){.app-header-actions{gap:6px}.app-header-actions>*{flex:0 1 auto}}
 
 /* Sidebar-only navigation shell. Existing page components and layouts are untouched. */
 body.has-global-sidebar{padding-left:252px!important;box-sizing:border-box}

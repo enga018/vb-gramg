@@ -79,6 +79,121 @@
   .head-actions{grid-template-columns:1fr 1fr}
 }
 
+
+/* Match the real VBGRAMG shell: compact header with a three-dot navigation menu. */
+:root{--bg:#f3f6fb;--blue:#2457c5;--blue-soft:#eaf1ff;--line:#e3e8f0;--sidebar:0px}
+body{background:#f3f6fb;color:#172033}.sidebar{display:none}.main{margin-left:0}
+.topbar{height:58px;padding:0 max(16px,calc((100vw - 1440px)/2));background:#fff;border-bottom:1px solid #e3e8f0}
+.crumb{font-size:12px;font-weight:750;color:#667085}.crumb strong{color:#172033}.top-right{display:none}
+.mobile-menu{display:inline-grid;place-items:center;width:40px;height:40px;border:1px solid #cbd5e1;border-radius:10px;background:#e2e8f0;color:#172033;font-size:22px;line-height:1}
+.overlay.show{display:block;position:fixed;inset:0;background:#17203355;z-index:25}
+.sidebar.open{display:flex;position:fixed;inset:66px 14px auto auto;width:min(260px,calc(100vw - 28px));height:auto;max-height:calc(100dvh - 82px);overflow:auto;padding:12px;border:1px solid #dfe5ee;border-radius:14px;box-shadow:0 16px 40px #17203324;transform:none}
+.sidebar.open .brand,.sidebar.open .nav-label,.sidebar.open .sidebar-bottom{display:none}
+.sidebar.open .nav{gap:3px}.sidebar.open .nav button{min-height:42px;padding:10px 12px}
+.content{max-width:1440px;padding:22px 24px 42px}.preview-note{margin-bottom:17px}.page-head{margin-bottom:17px}
+.page-head h1{font-size:24px;letter-spacing:-.55px}
+.btn{border-color:#cbd5e1;background:#e2e8f0;color:#172033;border-radius:10px;box-shadow:none}
+.btn:hover{background:#d7e0ec}.btn.primary{background:#2457c5;border-color:#2457c5;color:#fff;box-shadow:none}
+.panel,.stat,.summary-box{border-radius:14px}.panel-head{padding:14px 17px}.panel-body{padding:15px 17px}
+.table-tools{padding:11px 14px}th{background:#f5f7fb;color:#667085}td{padding:11px 13px}.status{border-radius:7px}
+@media(max-width:700px){
+ .topbar{height:54px;padding:0 12px}.mobile-menu{display:inline-grid;flex:none}
+ .content{padding:14px 10px 28px}.preview-note{padding:8px 10px;margin-bottom:13px}
+ .page-head{display:flex;flex-direction:column;gap:10px;margin-bottom:13px}
+ .page-head h1{font-size:21px}.page-head p{font-size:12px;margin-top:4px}
+ .head-actions{width:100%;display:flex;gap:6px;margin-top:0}
+ .head-actions .btn{flex:1;min-width:0;min-height:37px;padding:7px 6px;font-size:10px;justify-content:center}
+ .stats{gap:7px;margin-bottom:12px}.stat{padding:10px 11px;border-radius:11px}
+ .stat-value{font-size:19px;margin-top:7px}.stat-foot{font-size:9px}
+ .summary-strip{gap:7px;margin-bottom:12px}.summary-box{padding:10px 11px;border-radius:10px}
+ .summary-box strong{font-size:16px;margin-top:5px}.panel-head{padding:11px 12px}
+ .panel-body{padding:12px}.table-tools{padding:9px 10px}.table-foot{padding:9px 10px}
+ .pagination{padding:8px 10px}.pagination button{height:31px;min-width:31px}
+ /* MIS: grouped job-card heading with compact applicant details. */
+ #mis-preview-table{display:block;width:100%;white-space:normal}
+ #mis-preview-table thead{display:none}#mis-preview-table tbody{display:grid;gap:5px}
+ #mis-preview-table tbody tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 8px;padding:8px 9px;border:1px solid #e3e8f0;border-radius:9px;background:#fff}
+ #mis-preview-table tbody td{display:block;padding:3px 0;border:0;font-size:10px;text-align:left}
+ #mis-preview-table tbody td:first-child{grid-column:1/-1;padding:0 0 5px;margin:0 0 3px;border-bottom:1px solid #edf0f5}
+ #mis-preview-table tbody td:first-child .primary-cell{font-size:11px}
+ #mis-preview-table tbody td:first-child .secondary-cell{font-size:9px;margin-top:2px}
+ #mis-preview-table tbody td:nth-child(2){grid-column:1}#mis-preview-table tbody td:nth-child(3){grid-column:2;text-align:right}
+ #mis-preview-table tbody td:nth-child(4){grid-column:1/-1;display:flex;padding-top:4px}
+ #mis-preview-table tbody td:before{display:none!important}
+ /* FTO: compact FTO identifier, action and status metadata. */
+ #fto-preview-table{display:block;width:100%;white-space:normal}
+ #fto-preview-table thead{display:none}#fto-preview-table tbody{display:grid;gap:6px}
+ #fto-preview-table tbody tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1px 8px;padding:8px 10px;border:1px solid #e3e8f0;border-radius:10px;background:#fff}
+ #fto-preview-table tbody td{display:block;padding:2px 0;border:0;font-size:9px;text-align:left}
+ #fto-preview-table tbody td:first-child{grid-column:1;font-size:11px;padding-bottom:3px}
+ #fto-preview-table tbody td:nth-child(2),#fto-preview-table tbody td:nth-child(3),#fto-preview-table tbody td:nth-child(4){grid-column:1}
+ #fto-preview-table tbody td:nth-child(4){color:#667085}
+ #fto-preview-table tbody td:nth-child(5){grid-column:2;grid-row:1/5;align-self:center;text-align:right}
+ #fto-preview-table tbody td:before{display:none!important}
+ /* Contribution: compact job-card row with outstanding balance prominent. */
+ #contribution-preview-table{display:block;width:100%;white-space:normal}
+ #contribution-preview-table thead{display:none}#contribution-preview-table tbody{display:grid;gap:5px}
+ #contribution-preview-table tbody tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 8px;padding:8px 9px;border:1px solid #e3e8f0;border-radius:9px;background:#fff}
+ #contribution-preview-table tbody td{display:block;padding:2px 0;border:0;font-size:9px;text-align:left}
+ #contribution-preview-table tbody td:first-child{grid-column:1;padding-bottom:4px}
+ #contribution-preview-table tbody td:first-child .primary-cell{font-size:11px}
+ #contribution-preview-table tbody td:first-child .secondary-cell{font-size:9px;margin-top:2px}
+ #contribution-preview-table tbody td:nth-child(2){grid-column:1;color:#667085;font-size:9px}
+ #contribution-preview-table tbody td:nth-child(3){grid-column:1}
+ #contribution-preview-table tbody td:nth-child(4){grid-column:2;grid-row:2/4;align-self:center;text-align:right;font-size:11px}
+ #contribution-preview-table tbody td:nth-child(5){grid-column:1;grid-row:4}
+ #contribution-preview-table tbody td:before{display:none!important}
+ /* Periods: same compact two-column row as the live page. */
+ #periods-preview-table{display:block;width:100%;white-space:normal}
+ #periods-preview-table thead{display:none}#periods-preview-table tbody{display:grid;gap:6px}
+ #periods-preview-table tbody tr{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:0 8px;padding:9px 10px;border:1px solid #e3e8f0;border-radius:10px;background:#fff}
+ #periods-preview-table tbody td{display:block;padding:1px 0;border:0;font-size:10px}
+ #periods-preview-table tbody td:first-child{grid-column:1;font-size:12px;font-weight:750}
+ #periods-preview-table tbody td:nth-child(2){grid-column:1;color:#667085;font-size:9px}
+ #periods-preview-table tbody td:nth-child(3),#periods-preview-table tbody td:nth-child(4){display:none}
+ #periods-preview-table tbody td:nth-child(5){grid-column:2;grid-row:1/3;align-self:center;text-align:right}
+ #periods-preview-table tbody td:before{display:none!important}
+ /* Work Demand stays a compact table, not tall record cards. */
+ #demand-preview-table{display:table;width:100%;table-layout:fixed;white-space:normal;font-size:9px}
+ #demand-preview-table thead{display:table-header-group}#demand-preview-table tbody{display:table-row-group}
+ #demand-preview-table tr{display:table-row;border:0;background:transparent}
+ #demand-preview-table th,#demand-preview-table td{display:table-cell;min-width:0;padding:7px 3px;border-bottom:1px solid #edf0f5;font-size:9px;white-space:normal;overflow-wrap:anywhere;text-align:left}
+ #demand-preview-table th{font-size:8px;line-height:1.2}
+ #demand-preview-table th:nth-child(1),#demand-preview-table td:nth-child(1){width:34%}
+ #demand-preview-table th:nth-child(2),#demand-preview-table td:nth-child(2){width:29%}
+ #demand-preview-table th:nth-child(3),#demand-preview-table td:nth-child(3){width:21%;text-align:right}
+ #demand-preview-table th:nth-child(4),#demand-preview-table td:nth-child(4){width:16%;text-align:center}
+ #demand-preview-table tbody td:before{display:none!important}
+ #demand-preview-table .text-link{font-size:9px;padding:2px}
+ .table-wrap{overflow-x:hidden}.table-panel{overflow:hidden}
+ .table-foot{font-size:9px;line-height:1.35}.pagination{flex-wrap:wrap}
+ .pagination-info{width:100%;margin:0}
+}
+@media(max-width:380px){
+ .content{padding-left:8px;padding-right:8px}.head-actions .btn{font-size:9px}
+ #demand-preview-table th,#demand-preview-table td{padding:6px 2px;font-size:8px}
+ #demand-preview-table th{font-size:7px}
+}
+
+
+@media(min-width:701px){.desktop-fetch{display:inline-flex}.mis-stats{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media(max-width:700px){.desktop-fetch{display:none!important}.mis-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.mis-stats .stat:last-child{grid-column:1/-1}}
+
+@media(min-width:701px){.desktop-fetch{display:inline-flex}.mis-stats{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media(max-width:700px){.desktop-fetch{display:none!important}.mis-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.mis-stats .stat:last-child{grid-column:1/-1}}
+@media(min-width:701px){.mis-stats{grid-template-columns:repeat(5,minmax(0,1fr))}}@media(max-width:700px){.mis-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.mis-stats .stat:last-child{grid-column:1/-1}}
+/* Match the current live-page FTO list and the four-column period row. */
+#fto-preview-table{width:100%;white-space:normal;border-collapse:separate}
+#fto-preview-table thead{display:none}
+#fto-preview-table tbody{display:grid;gap:0}
+#fto-preview-table tbody tr{display:grid;grid-template-columns:minmax(180px,1.2fr) minmax(90px,.55fr) minmax(170px,1fr) minmax(130px,.8fr) 70px;align-items:center;border-bottom:1px solid #e8edf4;background:#fff}
+#fto-preview-table tbody td{display:block;min-width:0;padding:11px 10px;border:0;white-space:normal;overflow-wrap:anywhere}
+@media(max-width:700px){
+ #contribution-preview-table tbody td:nth-child(2){grid-column:1;grid-row:2}
+ #contribution-preview-table tbody td:nth-child(3){grid-column:2;grid-row:1/3;align-self:center;text-align:right;font-size:11px}
+ #periods-preview-table tbody td:nth-child(3){display:none}
+ #periods-preview-table tbody td:nth-child(4){display:block;grid-column:2;grid-row:1/3;align-self:center;text-align:right}
+}
 </style>
 </head>
 <body>
@@ -99,7 +214,7 @@
 <div class="overlay" id="overlay"></div>
 <div class="main">
   <header class="topbar">
-    <button class="mobile-menu" id="menu-button" aria-label="Open navigation" aria-expanded="false">☰</button>
+    <button class="mobile-menu" id="menu-button" aria-label="Open navigation" aria-expanded="false">⋮</button>
     <div class="crumb">Workspace <span style="color:#c1c7d1;padding:0 6px">/</span> <strong id="breadcrumb">Overview</strong></div>
     <div class="top-right"><span class="date-label">Design concept · November 2026</span><div class="top-avatar">AD</div></div>
   </header>
@@ -130,28 +245,28 @@
     </section>
 
     <section class="screen" id="screen-mis" aria-labelledby="title-mis">
-      <div class="page-head"><div><div class="eyebrow">People and records</div><h1 id="title-mis">MIS</h1><p>Manage active job cards, households and applicant selection.</p></div><div class="head-actions"><button class="btn">↻ Refresh</button><button class="btn primary">↑ Import</button></div></div>
+      <div class="page-head"><div><div class="eyebrow">People and records</div><h1 id="title-mis">MIS</h1><p>Manage active job cards, households and applicant selection.</p></div><div class="head-actions"><button class="btn desktop-fetch">Fetch Official MIS</button><button class="btn primary">↑ Import</button></div></div>
       <div class="grid stats">
-        <div class="stat"><div class="stat-label">Total Job Cards</div><div class="stat-value">683</div><div class="stat-foot">Sample data</div></div><div class="stat"><div class="stat-label">Total Applications</div><div class="stat-value">1,248</div><div class="stat-foot">Sample data</div></div><div class="stat"><div class="stat-label">Demand</div><div class="stat-value">426</div><div class="stat-foot">Selected applicants</div></div><div class="stat"><div class="stat-label">Unwilling</div><div class="stat-value">257</div><div class="stat-foot">No selected applicant</div></div>
+        <div class="stat"><div class="stat-label">Total Job Cards</div><div class="stat-value">683</div><div class="stat-foot">Sample data</div></div><div class="stat"><div class="stat-label">Total Applications</div><div class="stat-value">1,248</div><div class="stat-foot">Sample data</div></div><div class="stat"><div class="stat-label">Demand</div><div class="stat-value">426</div><div class="stat-foot">Selected applicants</div></div><div class="stat"><div class="stat-label">Unwilling</div><div class="stat-value">257</div><div class="stat-foot">No selected applicant</div></div><div class="stat"><div class="stat-label">Last Updated</div><div class="stat-value" style="font-size:14px">04 Nov 2026</div></div>
       </div>
       <div class="panel table-panel"><div class="table-tools"><input class="search" placeholder="Search job card or applicant…" aria-label="Search sample MIS records"><div class="tool-right"><button class="btn">All job cards⌄</button></div></div><div class="table-wrap"><table id="mis-preview-table" data-preview-paginate="mis"><thead><tr><th>Job card / household</th><th>Applicant</th><th>Applicant no.</th><th>Selection</th></tr></thead><tbody id="mis-preview-rows"></tbody></table></div><div class="table-foot"><span>Showing 4 illustrative records</span><span>Page 1 of 1</span></div></div>
     </section>
 
     <section class="screen" id="screen-fto" aria-labelledby="title-fto">
-      <div class="page-head"><div><div class="eyebrow">Payment records</div><h1 id="title-fto">FTO History</h1><p>Review imported FTOs and their contribution periods.</p></div><div class="head-actions"><button class="btn">↻ Refresh</button><button class="btn primary">＋ Import FTO</button></div></div>
-      <div class="summary-strip"><div class="summary-box"><span>Total FTOs</span><strong>128</strong></div><div class="summary-box"><span>Last imported</span><strong>04 Nov 2026</strong></div><div class="summary-box"><span>Needs review</span><strong>3</strong></div></div>
+      <div class="page-head"><div><div class="eyebrow">Payment records</div><h1 id="title-fto">FTO</h1><p>Review imported FTOs, payment statuses and period mappings.</p></div><div class="head-actions"><button class="btn primary">＋ Import FTO</button></div></div>
+      <div class="summary-strip"><div class="summary-box"><span>Imported FTOs</span><strong>128</strong></div><div class="summary-box"><span>Total transactions</span><strong>2,587</strong></div><div class="summary-box"><span>Deferred transactions</span><strong>14</strong></div></div>
       <div class="panel table-panel"><div class="table-tools"><input class="search" placeholder="Search FTO number…" aria-label="Search sample FTO records"><div class="tool-right"><button class="btn">All periods⌄</button></div></div><div class="table-wrap"><table id="fto-preview-table" data-preview-paginate="fto"><thead><tr><th>FTO number</th><th>Contribution period</th><th>Status summary</th><th>Last imported / checked</th><th>Action</th></tr></thead><tbody id="fto-preview-rows"></tbody></table></div><div class="table-foot"><span>Showing 3 illustrative records</span><span>Page 1 of 1</span></div></div>
     </section>
 
     <section class="screen" id="screen-contribution" aria-labelledby="title-contribution">
-      <div class="page-head"><div><div class="eyebrow">Financial operations</div><h1 id="title-contribution">Contribution</h1><p>Review contribution status and outstanding balances.</p></div><div class="head-actions"><button class="btn">↻ Refresh</button><button class="btn">Exemptions</button><button class="btn primary">＋ Bank Payment</button></div></div>
-      <div class="summary-strip"><div class="summary-box"><span>Total citizens</span><strong>683</strong></div><div class="summary-box"><span>Settled</span><strong style="color:#16834a">426</strong></div><div class="summary-box"><span>Due</span><strong style="color:#a96512">257</strong></div></div>
-      <div class="panel table-panel"><div class="table-tools"><input class="search" placeholder="Search job card or household…" aria-label="Search sample contribution records"><div class="tool-right"><button class="btn">Due records⌄</button></div></div><div class="table-wrap"><table id="contribution-preview-table" data-preview-paginate="contribution"><thead><tr><th>Job card / household</th><th>Contribution period</th><th style="text-align:right">Settled</th><th style="text-align:right">Due</th><th>Status</th></tr></thead><tbody id="contribution-preview-rows"></tbody></table></div><div class="table-foot"><span>Illustrative records only</span><span>Tap a row in the real app to open its ledger</span></div></div>
+      <div class="page-head"><div><div class="eyebrow">Financial operations</div><h1 id="title-contribution">Contribution</h1><p>Review contribution status and outstanding balances.</p></div><div class="head-actions"><button class="btn">Exemptions</button><button class="btn">Export</button><button class="btn primary">＋ Bulk Payment</button></div></div>
+      <div class="summary-strip contribution-summary"><div class="summary-box"><span>Outstanding</span><strong style="color:#b42318">₹1,23,200</strong></div><div class="summary-box"><span>Deferred</span><strong style="color:#a96512">14</strong></div></div>
+      <div class="panel table-panel"><div class="table-tools"><input class="search" placeholder="Search job card or household…" aria-label="Search sample contribution records"><div class="tool-right"><button class="btn">Due records⌄</button></div></div><div class="table-wrap"><table id="contribution-preview-table" data-preview-paginate="contribution"><thead><tr><th>Job card / household</th><th>Last charges</th><th style="text-align:right">Outstanding</th></tr></thead><tbody id="contribution-preview-rows"></tbody></table></div><div class="table-foot"><span>Illustrative records only</span><span>Tap a row in the real app to open its ledger</span></div></div>
     </section>
 
     <section class="screen" id="screen-periods" aria-labelledby="title-periods">
-      <div class="page-head"><div><div class="eyebrow">Contribution setup</div><h1 id="title-periods">Periods</h1><p>Manage contribution periods and their current status.</p></div><div class="head-actions"><button class="btn primary">＋ New period</button></div></div>
-      <div class="panel table-panel"><div class="table-tools"><div class="panel-title">Contribution periods</div><div class="tool-right"><button class="btn">All periods⌄</button></div></div><div class="table-wrap"><table id="periods-preview-table"><thead><tr><th>Period</th><th>Contribution month</th><th>Period date</th><th>Status</th><th>Action</th></tr></thead><tbody id="periods-preview-rows"></tbody></table></div><div class="table-foot"><span>8 illustrative periods</span><span>Period rules are unchanged in the real app</span></div></div>
+      <div class="page-head"><div><div class="eyebrow">Contribution setup</div><h1 id="title-periods">Periods</h1><p>Manage shared periods used by Work Demand and FTO.</p></div></div>
+      <div class="panel table-panel"><div class="panel-head"><div class="panel-title">All periods</div><button class="btn primary">＋ Create period</button></div><div class="table-wrap"><table id="periods-preview-table"><thead><tr><th>Period</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody id="periods-preview-rows"></tbody></table></div><div class="table-foot"><span>8 illustrative periods</span><span>Period rules are unchanged in the real app</span></div></div>
     </section>
 
     <section class="screen" id="screen-demand" aria-labelledby="title-demand">
@@ -184,13 +299,13 @@
   records.forEach(function(r){var tr=document.createElement("tr");tr.innerHTML='<td><div class="primary-cell">'+r.job+'</div><div class="secondary-cell">'+r.household+' · '+r.applicationCount+' applicants</div></td><td class="primary-cell">'+r.applicant+'</td><td>'+r.appNo+'</td><td><span class="status '+(r.selected?"green":"gray")+'">'+(r.selected?"Selected":"Not selected")+'</span></td>';misBody.appendChild(tr);});
 
   var contributionBody=document.getElementById("contribution-preview-rows");
-  records.forEach(function(r,i){var dueIndex=i%5===0?0:(i%4)+1,settled=7000-dueIndex*700,due=dueIndex*700;if(r.job.endsWith("/1055")){settled=6300;due=700;}if(r.job.endsWith("/1128")){settled=5600;due=1400;}var tr=document.createElement("tr");tr.innerHTML='<td><div class="primary-cell">'+r.job+'</div><div class="secondary-cell">'+r.household+'</div></td><td>January – October 2026</td><td class="amount">₹'+settled.toLocaleString("en-IN")+'</td><td class="amount">₹'+due.toLocaleString("en-IN")+'</td><td><span class="status '+(due===0?"green":"amber")+'">'+(due===0?"Settled":"Due")+'</span></td>';contributionBody.appendChild(tr);});
+  records.forEach(function(r,i){var dueIndex=i%5===0?0:(i%4)+1,due=dueIndex*700;if(r.job.endsWith("/1055"))due=700;if(r.job.endsWith("/1128"))due=1400;var tr=document.createElement("tr");tr.innerHTML='<td><div class="primary-cell">'+r.job+'</div><div class="secondary-cell">'+r.household+'</div></td><td>'+(due===0?"OCT26":"SEP26")+'</td><td class="amount">'+(due===0?'<span class="status green">Settled</span>':'₹'+due.toLocaleString("en-IN"))+'</td>';contributionBody.appendChild(tr);});
 
   var ftoBody=document.getElementById("fto-preview-rows"),ftoPeriods=["OCT26","SEP26","AUG26","JUL26","JUN26","MAY26","APR26","MAR26","FEB26","JAN26","DEC25","NOV25"];
   ftoPeriods.forEach(function(period,i){var tr=document.createElement("tr"),number=String(18-i).padStart(3,"0"),status=i===1||i===6?"Partially processed":"Processed";tr.innerHTML='<td class="primary-cell">FTO-2026-'+number+'</td><td>'+period+'</td><td><span class="status '+(status==="Processed"?"green":"amber")+'">'+status+'</span></td><td>'+["04 Nov 2026","02 Nov 2026","29 Oct 2026","25 Oct 2026"][i%4]+'</td><td><button class="text-link" type="button">View</button></td>';ftoBody.appendChild(tr);});
 
   var periodsBody=document.getElementById("periods-preview-rows");
-  ["OCT26","SEP26","AUG26","JUL26","JUN26","MAY26","APR26","MAR26"].forEach(function(p,i){var d=new Date(2026,9-i,1),label=d.toLocaleDateString("en-IN",{month:"long",year:"numeric"}),date=d.toLocaleDateString("en-GB",{day:"2-digit",month:"long",year:"numeric"}),tr=document.createElement("tr");tr.innerHTML='<td class="primary-cell">'+p+'</td><td>'+label+'</td><td>'+date+'</td><td><span class="status '+(i===0?"green":"gray")+'">'+(i===0?"Open":"Closed")+'</span></td><td><button class="text-link" type="button">Open</button></td>';periodsBody.appendChild(tr);});
+  ["OCT26","SEP26","AUG26","JUL26","JUN26","MAY26","APR26","MAR26"].forEach(function(p,i){var d=new Date(2026,9-i,1),created=new Date(2026,10-i,4).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}),tr=document.createElement("tr");tr.innerHTML='<td class="primary-cell">'+p+'</td><td><span class="status '+(i===0?"green":"gray")+'">'+(i===0?"Open":"Closed")+'</span></td><td>'+created+'</td><td><button class="text-link" type="button">Open</button></td>';periodsBody.appendChild(tr);});
 
   var demandBody=document.getElementById("demand-preview-rows");
   records.filter(function(r,i){return i%4===1||i%7===0;}).slice(0,18).forEach(function(r,i){var due=(i%4+1)*350,tr=document.createElement("tr");tr.innerHTML='<td class="primary-cell">'+r.job+'</td><td>'+r.household+'</td><td class="amount">₹'+due.toLocaleString("en-IN")+'</td><td><button class="text-link" type="button">Review →</button></td>';demandBody.appendChild(tr);});

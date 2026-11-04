@@ -48,7 +48,7 @@
     throw lastError || new Error("Supabase library is unavailable.");
   }
 
-  window.VBGRAMG_SUPABASE_READY = ensureLibrary().then(() => {
+  function createSharedClient() {
     if (!window.vbgramgSupabase) {
       window.vbgramgSupabase = window.supabase.createClient(
         SUPABASE_URL,
@@ -56,5 +56,17 @@
       );
     }
     return window.vbgramgSupabase;
-  });
+  }
+
+  // Most pages load the Supabase CDN synchronously before this file. Create the
+  // client immediately in that case; retain the async fallback for standalone use.
+  if (window.supabase && typeof window.supabase.createClient === "function") {
+    try {
+      window.VBGRAMG_SUPABASE_READY = Promise.resolve(createSharedClient());
+    } catch (error) {
+      window.VBGRAMG_SUPABASE_READY = Promise.reject(error);
+    }
+  } else {
+    window.VBGRAMG_SUPABASE_READY = ensureLibrary().then(createSharedClient);
+  }
 })();

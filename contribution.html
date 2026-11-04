@@ -408,6 +408,11 @@ main{width:min(100%,1440px);max-width:1440px;padding-bottom:36px}
   #contribution-table tbody tr.contribution-row.due{border-left:4px solid var(--due)!important}
   #contribution-table tbody tr.contribution-row.settled{border-left:4px solid #16a34a!important}
   #contribution-table tbody tr.contribution-row.overpaid{border-left:4px solid #d97706!important}
+  /* Use the mobile card border as the sole status marker; the base inset shadow
+     otherwise draws a second stripe immediately beside it. */
+  #contribution-table tbody tr.contribution-row.due,
+  #contribution-table tbody tr.contribution-row.settled,
+  #contribution-table tbody tr.contribution-row.overpaid{box-shadow:none!important}
 }
 
 /* Desktop restoration: conventional contribution table and a true two-pane workspace. */

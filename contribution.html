@@ -393,6 +393,10 @@ main{width:min(100%,1200px);padding-bottom:36px}
   #contribution-table .jobcard{font-variant-numeric:tabular-nums}
   #contribution-table .outstanding-cell{text-align:right}
   #contribution-table tbody tr:last-child td{border-bottom:1px solid #e2e8f0}
+  /* Keep status markers visible above opaque desktop table-cell backgrounds. */
+  #contribution-table tbody tr.contribution-row.settled td:first-child{border-left:4px solid #16a34a;padding-left:9px}
+  #contribution-table tbody tr.contribution-row.due td:first-child{border-left:4px solid var(--due);padding-left:9px}
+  #contribution-table tbody tr.contribution-row.overpaid td:first-child{border-left:4px solid #2563eb;padding-left:9px}
   #contribution-see-more{display:none!important}
 }
 

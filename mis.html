@@ -548,7 +548,6 @@ function renderTable(){
   const selectedApplicant=group.applicants.find(applicant=>applicant.selectionKey===selectedKey);
   secondLine.textContent=selectedApplicant?((selectedApplicant.name||'Unnamed applicant')+(selectedApplicant.number?' • Applicant No. '+selectedApplicant.number:'')):'No Applicant Selected';
   detailCell.appendChild(secondLine);
-  const expandHint=document.createElement('span');expandHint.className='mobile-expand-hint';expandHint.textContent=expandedCards.has(group.key)?'Tap to close':'Tap to select';firstLine.appendChild(expandHint);
   tr.appendChild(detailCell);tr.tabIndex=0;tr.setAttribute('role','button');tr.setAttribute('aria-expanded',String(expandedCards.has(group.key)));
   tbody.appendChild(tr);
   const toggleMobileApplicants=()=>{

@@ -111,10 +111,12 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 </section>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./js/supabase-client.js?v=20261104b"></script>
+<script src="./js/data-loader.js?v=20261104b"></script>
 <script>
 const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
-const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+const supabaseClient=window.vbgramgSupabase;
 const $=id=>document.getElementById(id);
 let authSequence=0;
 function setStatus(el,msg,type){if(type==='error'||type==='success'){if(window.showToast)window.showToast(msg,type);el.textContent='';el.classList.remove('error','success');return}el.textContent=msg;el.classList.remove('error','success')}
@@ -122,7 +124,7 @@ function showLoggedOut(){ $('login-panel').classList.remove('hidden');$('home-pa
 async function verifyAccess(user){
  const seq=++authSequence;
  if(!user){showLoggedOut();setStatus($('login-status'),'Sign in to continue.');return false}
- const {data,error}=await supabaseClient.functions.invoke('vbgramg-app-access',{body:{}});
+ const {data,error}=await window.VBGRAMGData.invoke('vbgramg-app-access',{body:{}});
  if(seq!==authSequence)return false;
  if(error||!data||data.approved!==true){await supabaseClient.auth.signOut();showLoggedOut();setStatus($('login-status'),(data&&data.error)||(error&&error.message)||'This account is not approved.','error');return false}
  $('account-label').textContent=data.email+(data.role==='admin'?' · Administrator':'');

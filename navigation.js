@@ -5,8 +5,8 @@
     var cleanPath = path.replace(/\/+$/, "") || "/";
     if (cleanPath.endsWith("/index.html") || cleanPath === "/" || path.endsWith("/")) return;
     var header = document.querySelector("header");
-    if (!header || document.querySelector(".global-sidebar")) return;
-    header.querySelectorAll("a.menu-link").forEach(function (a) { a.remove(); });
+    if (document.querySelector(".global-sidebar")) return;
+    if (header) header.querySelectorAll("a.menu-link").forEach(function (a) { a.remove(); });
     document.body.classList.add("has-global-sidebar");
     var links = [
       ["MIS", "./mis.html", "♙"],
@@ -42,7 +42,13 @@
     button.setAttribute("aria-controls", "global-sidebar");
     button.setAttribute("aria-expanded", "false");
     button.textContent = "☰";
-    header.insertBefore(button, header.firstChild);
+    if (header) {
+      header.insertBefore(button, header.firstChild);
+    } else {
+      var mount = document.querySelector("main .panel, main section, main") || document.body;
+      button.style.marginBottom = "10px";
+      mount.insertBefore(button, mount.firstChild);
+    }
     document.body.insertBefore(sidebar, document.body.firstChild);
     document.body.appendChild(overlay);
     function close() {

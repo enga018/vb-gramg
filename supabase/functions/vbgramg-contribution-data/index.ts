@@ -721,7 +721,7 @@ Deno.serve(async(req:Request)=>{
     const txs=txByCard.get(card)||[];
     const active=txs.filter(tx=>["blank","processed"].includes(String(tx.status||"").trim().toLowerCase())&&Number(tx.calculated_charge||0)>0);
     if(!active.length)continue;
-    const cardRows=(ledgerRows||[]).filter(r=>String(r.job_card_number)===card&&["charge","other_charge"].includes(String(r.entry_type))&&(!r.period_id||String(r.period_id)===periodId)&&!r.is_voided);
+    const cardRows=(ledgerRows||[]).filter(r=>String(r.job_card_number)===card&&r.entry_type==="charge"&&(!r.period_id||String(r.period_id)===periodId)&&!r.is_voided);
     const manualRows=cardRows.filter(r=>!/^FTO\b/i.test(String(r.note||""))&&!(Array.isArray(r.reference_numbers)?r.reference_numbers:[]).some((ref:string)=>incomingRefs.includes(String(ref))));
     if(manualRows.length>1){manualReviewIssues.push(card+" (multiple manual charges; resolve individually)");continue;}
     if(manualRows.length===1){

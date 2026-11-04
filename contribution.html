@@ -842,7 +842,7 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{padding:18px 
 <div id="app" class="hidden">
 <div id="contribution-layout"><section class="panel contribution-main-panel">
 <div class="page-panel-actions"><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk Payment</button><button class="btn hidden" id="exportDueBtn" type="button">Export</button></div>
-<div class="contribution-controls"><div class="stat outstanding-kpi"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred</div><div class="v deferred-kpi" id="deferred">—</div></div><div class="search-wrap"><label for="search">Search name or full job card number</label><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><button id="clearSearch" class="search-clear" type="button" aria-label="Clear search" title="Clear search">×</button></div><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="overpaid">Overpaid</option><option value="deferred">Has deferred charges</option></select></div></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button><button id="contribution-see-more" class="btn ghost mobile-see-more" type="button" hidden>See more</button></div></div>
+<div class="contribution-controls"><div class="stat outstanding-kpi"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred</div><div class="v deferred-kpi" id="deferred">—</div></div><div class="search-wrap"><label for="search">Search name or full job card number</label><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><button id="clearSearch" class="search-clear" type="button" aria-label="Clear search" title="Clear search">×</button></div><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="overpaid">Overpaid</option><option value="deferred">Has deferred charges</option></select></div></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button></div></div>
 </section></div>
 </div>
 </main>
@@ -996,11 +996,9 @@ function render(){
  }).sort((a,b)=>jobCardSuffixNumber(a.id)-jobCardSuffixNumber(b.id)||a.id.localeCompare(b.id,undefined,{numeric:true})||a.name.localeCompare(b.name));
  $('outstanding').textContent=fmt(citizens.reduce((s,c)=>s+Math.max(0,c.balance),0));
  $('deferred').textContent=fmt(citizens.reduce((s,c)=>s+c.deferred,0));
- const isMobile=window.matchMedia('(max-width: 700px)').matches;const totalPages=Math.max(1,Math.ceil(list.length/pageSize));currentPage=Math.min(currentPage,totalPages-1);
- const start=isMobile?0:currentPage*pageSize,shown=isMobile?list.slice(0,mobileShown):list.slice(start,start+pageSize);
- $('prev-button').classList.toggle('hidden',isMobile);
- $('next-button').classList.toggle('hidden',isMobile);
- const showMore=isMobile&&shown.length<list.length;$('contribution-see-more').hidden=!showMore;$('contribution-see-more').style.display=showMore?'inline-flex':'none';
+ const isMobile=window.matchMedia('(max-width: 700px)').matches;const totalPages=Math.max(1,Math.ceil(list.length/pageSize)),mobileTotalPages=Math.max(1,Math.ceil(list.length/10)),activePageSize=isMobile?10:pageSize,effectiveTotalPages=isMobile?mobileTotalPages:totalPages;currentPage=Math.min(currentPage,effectiveTotalPages-1);
+ const start=currentPage*activePageSize,shown=list.slice(start,start+activePageSize);
+ $('prev-button').classList.remove('hidden');$('next-button').classList.remove('hidden');
  const thead=$('contribution-table').querySelector('thead'),tbody=$('contribution-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
  const head=document.createElement('tr');
  (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Last Charges','Outstanding']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Remarks'){th.style.textAlign='right';th.className='balance-heading';}head.appendChild(th)});thead.appendChild(head);
@@ -1049,7 +1047,7 @@ function render(){
  });
  $('table-wrap').classList.toggle('hidden',list.length===0);$('empty').classList.toggle('hidden',list.length!==0);
  $('count').textContent=list.length.toLocaleString('en-IN')+' job card'+(list.length===1?'':'s')+' matching filters';
- $('page-label').textContent=list.length?(isMobile?'Showing 1–'+shown.length+' of '+list.length:'Showing '+(start+1)+'–'+Math.min(start+pageSize,list.length)+' of '+list.length):'No matching job cards';
+ $('page-label').textContent=list.length?('Showing '+(start+1)+'–'+Math.min(start+activePageSize,list.length)+' of '+list.length+' · Page '+(currentPage+1)+' of '+effectiveTotalPages):'No matching job cards';
  $('prev-button').disabled=currentPage<=0;$('next-button').disabled=currentPage>=totalPages-1;
 }
 function exportOutstandingDueList(){
@@ -1453,7 +1451,7 @@ $('clearSearch').addEventListener('click',()=>{$('search').value='';syncSearchCl
 syncSearchClear();
 $('statusFilter').addEventListener('change',()=>{currentPage=0;mobileShown=10;render()});
 
-$('prev-button').addEventListener('click',()=>{currentPage--;render()});$('next-button').addEventListener('click',()=>{currentPage++;render()});$('contribution-see-more').addEventListener('click',()=>{mobileShown+=10;render()});
+$('prev-button').addEventListener('click',()=>{currentPage=Math.max(0,currentPage-1);render()});$('next-button').addEventListener('click',()=>{currentPage++;render()});
 window.addEventListener('resize',()=>render());
 $('exportDueBtn').addEventListener('click',exportOutstandingDueList);
 $('bulkPaymentBtn').addEventListener('click',showBulkPaymentForm);

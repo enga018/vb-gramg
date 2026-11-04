@@ -874,15 +874,37 @@ function deriveCitizens(){
 }
 const jobCardSuffixNumber=window.VBGRAMGContribution.jobCardSuffixNumber;
 function fitDesktopTableToViewport(){
- const wrap=$('table-wrap'),foot=document.querySelector('#contribution-layout .table-foot');
+ const wrap=$('table-wrap');
+ const foot=document.querySelector('#contribution-layout .table-foot');
  if(!wrap||window.matchMedia('(max-width:700px)').matches)return;
+
+ // Fit the table into the actual viewport after reserving the page's real
+ // bottom padding and the pagination footer. This prevents the page itself
+ // from becoming taller than the screen on different desktop resolutions.
  const top=wrap.getBoundingClientRect().top;
  const footerHeight=foot?foot.getBoundingClientRect().height:0;
- const available=Math.max(180,window.innerHeight-top-footerHeight-24);
- const rows=Math.max(3,Math.min(16,Math.floor((available-42)/44)));
- const nextHeight=Math.max(180,Math.min(available,42+rows*44));
+ const main=document.querySelector('body>main');
+ const panel=wrap.closest('.contribution-main-panel');
+ const bodyStyle=window.getComputedStyle(document.body);
+ const mainStyle=main?window.getComputedStyle(main):null;
+ const panelStyle=panel?window.getComputedStyle(panel):null;
+ const footStyle=foot?window.getComputedStyle(foot):null;
+ const bodyBottom=parseFloat(bodyStyle.paddingBottom)||0;
+ const mainBottom=mainStyle?(parseFloat(mainStyle.paddingBottom)||0):0;
+ const panelBottom=panelStyle?(parseFloat(panelStyle.paddingBottom)||0):0;
+ const footerGap=footStyle?(parseFloat(footStyle.marginTop)||0):0;
+ const safetyGap=8;
+ const available=Math.max(0,window.innerHeight-top-footerHeight-footerGap-bodyBottom-mainBottom-panelBottom-safetyGap);
+
+ // Use every available pixel, but derive pagination from the resulting
+ // table height so the row count remains correct on short and tall screens.
+ const nextHeight=Math.floor(available);
+ const rows=Math.max(1,Math.floor((nextHeight-42)/44));
  wrap.style.setProperty('--contribution-table-height',nextHeight+'px');
- if(pageSize!==rows){pageSize=rows;currentPage=Math.min(currentPage,Math.max(0,Math.ceil(citizens.filter(c=>!c.exempt).length/pageSize)-1));}
+ if(pageSize!==rows){
+  pageSize=rows;
+  currentPage=Math.min(currentPage,Math.max(0,Math.ceil(citizens.filter(c=>!c.exempt).length/pageSize)-1));
+ }
 }
 function render(){
  fitDesktopTableToViewport();

@@ -769,7 +769,7 @@ $('amount-multiplier').addEventListener('input',()=>buildImportGroups());
 
 
 async function executeFtoSync(payload,button){
- const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:payload});
+ const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:payload,timeoutMs:false});
  if(error||!data||data.error){
   if(data&&Array.isArray(data.duplicates)){duplicateCards=new Map(data.duplicates.map(row=>[String(row.job_card_number),row]));reviewedCards=new Set();}
   if(data&&Array.isArray(data.unknown_job_cards)){unknownCards=new Set(data.unknown_job_cards.map(String));reviewedNewCards=new Set();}

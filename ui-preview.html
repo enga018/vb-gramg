@@ -12,6 +12,14 @@
 @media(max-width:700px){:root{--sidebar:0px}.sidebar{width:270px;transform:translateX(-100%);transition:transform .2s ease;box-shadow:12px 0 35px #1720331a}.sidebar.open{transform:translateX(0)}.overlay.show{display:block;position:fixed;inset:0;background:#17203355;z-index:25}.main{margin-left:0}.topbar{height:61px;padding:0 15px;gap:10px}.mobile-menu{display:inline-grid;place-items:center;flex:none}.crumb{flex:1}.date-label{display:none}.content{padding:20px 14px 34px}.preview-note{font-size:10px;align-items:flex-start;line-height:1.45;margin-bottom:18px}.page-head{display:block;margin-bottom:18px}.page-head h1{font-size:23px}.head-actions{margin-top:15px}.head-actions .btn{flex:1;justify-content:center}.stats{gap:9px}.stat{padding:13px}.stat-value{font-size:21px;margin-top:9px}.stat-label{font-size:10px}.stat-icon{width:27px;height:27px}.panel-head{padding:14px}.panel-body{padding:14px}.table-tools{padding:12px 13px}.search{width:100%;flex:1;min-width:0}.tool-right{display:none}.table-foot{padding:11px 13px}.summary-strip{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.summary-box{padding:12px}.summary-box strong{font-size:17px}}
 @media(max-width:370px){.stats{grid-template-columns:1fr 1fr}.stat-value{font-size:19px}.content{padding-left:11px;padding-right:11px}.page-head h1{font-size:21px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
+
+.pagination{display:flex;align-items:center;justify-content:flex-end;gap:7px;padding:11px 16px;border-top:1px solid #eef0f4;background:#fff}
+.pagination-info{margin-right:auto;color:#929aaa;font-size:10px;font-variant-numeric:tabular-nums}
+.pagination button{min-width:32px;height:31px;padding:0 9px;border:1px solid #e1e6ef;background:#fff;color:#46536a;border-radius:7px;font-size:10px;font-weight:700}
+.pagination button:disabled{opacity:.4;cursor:not-allowed}
+.pagination button.current{background:var(--blue-soft);border-color:#d9e3ff;color:#315ee8}
+@media(max-width:700px){.pagination{padding:10px 12px;gap:6px}.pagination-info{font-size:10px}.pagination button{min-width:34px;height:34px}}
+
 </style>
 </head>
 <body>
@@ -67,51 +75,30 @@
       <div class="grid stats">
         <div class="stat"><div class="stat-label">Total Job Cards</div><div class="stat-value">683</div><div class="stat-foot">Sample data</div></div><div class="stat"><div class="stat-label">Total Applications</div><div class="stat-value">1,248</div><div class="stat-foot">Sample data</div></div><div class="stat"><div class="stat-label">Demand</div><div class="stat-value">426</div><div class="stat-foot">Selected applicants</div></div><div class="stat"><div class="stat-label">Unwilling</div><div class="stat-value">257</div><div class="stat-foot">No selected applicant</div></div>
       </div>
-      <div class="panel table-panel"><div class="table-tools"><input class="search" placeholder="Search job card or applicant…" aria-label="Search sample MIS records"><div class="tool-right"><button class="btn">All job cards⌄</button></div></div><div class="table-wrap"><table><thead><tr><th>Job card / household</th><th>Applicant</th><th>Applicant no.</th><th>Selection</th></tr></thead><tbody>
-        <tr><td><div class="primary-cell">JC / 0042</div><div class="secondary-cell">Lalhmingthanga</div></td><td class="primary-cell">Lalrinpuii</td><td>01</td><td><span class="status green">Selected</span></td></tr>
-        <tr><td><div class="primary-cell">JC / 0043</div><div class="secondary-cell">Zothanmawia</div></td><td class="primary-cell">Lalremruati</td><td>02</td><td><span class="status green">Selected</span></td></tr>
-        <tr><td><div class="primary-cell">JC / 0044</div><div class="secondary-cell">Rochungnunga</div></td><td class="primary-cell">Lalduhawmi</td><td>01</td><td><span class="status gray">Not selected</span></td></tr>
-        <tr><td><div class="primary-cell">JC / 0045</div><div class="secondary-cell">Vanlalruata</div></td><td class="primary-cell">Malsawmtluangi</td><td>01</td><td><span class="status green">Selected</span></td></tr>
-      </tbody></table></div><div class="table-foot"><span>Showing 4 illustrative records</span><span>Page 1 of 1</span></div></div>
+      <div class="panel table-panel"><div class="table-tools"><input class="search" placeholder="Search job card or applicant…" aria-label="Search sample MIS records"><div class="tool-right"><button class="btn">All job cards⌄</button></div></div><div class="table-wrap"><table id="mis-preview-table" data-preview-paginate="mis"><thead><tr><th>Job card / household</th><th>Applicant</th><th>Applicant no.</th><th>Selection</th></tr></thead><tbody id="mis-preview-rows"></tbody></table></div><div class="table-foot"><span>Showing 4 illustrative records</span><span>Page 1 of 1</span></div></div>
     </section>
 
     <section class="screen" id="screen-fto" aria-labelledby="title-fto">
       <div class="page-head"><div><div class="eyebrow">Payment records</div><h1 id="title-fto">FTO History</h1><p>Review imported FTOs and their contribution periods.</p></div><div class="head-actions"><button class="btn">↻ Refresh</button><button class="btn primary">＋ Import FTO</button></div></div>
       <div class="summary-strip"><div class="summary-box"><span>Total FTOs</span><strong>128</strong></div><div class="summary-box"><span>Last imported</span><strong>04 Nov 2026</strong></div><div class="summary-box"><span>Needs review</span><strong>3</strong></div></div>
-      <div class="panel table-panel"><div class="table-tools"><input class="search" placeholder="Search FTO number…" aria-label="Search sample FTO records"><div class="tool-right"><button class="btn">All periods⌄</button></div></div><div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Contribution period</th><th>Status summary</th><th>Last imported / checked</th><th>Action</th></tr></thead><tbody>
-        <tr><td class="primary-cell">FTO-2026-018</td><td>MAY26</td><td><span class="status green">Processed</span></td><td>04 Nov 2026</td><td><button class="text-link">View</button></td></tr>
-        <tr><td class="primary-cell">FTO-2026-017</td><td>APR26</td><td><span class="status amber">Partially processed</span></td><td>02 Nov 2026</td><td><button class="text-link">View</button></td></tr>
-        <tr><td class="primary-cell">FTO-2026-016</td><td>MAR26</td><td><span class="status green">Processed</span></td><td>29 Oct 2026</td><td><button class="text-link">View</button></td></tr>
-      </tbody></table></div><div class="table-foot"><span>Showing 3 illustrative records</span><span>Page 1 of 1</span></div></div>
+      <div class="panel table-panel"><div class="table-tools"><input class="search" placeholder="Search FTO number…" aria-label="Search sample FTO records"><div class="tool-right"><button class="btn">All periods⌄</button></div></div><div class="table-wrap"><table id="fto-preview-table" data-preview-paginate="fto"><thead><tr><th>FTO number</th><th>Contribution period</th><th>Status summary</th><th>Last imported / checked</th><th>Action</th></tr></thead><tbody id="fto-preview-rows"></tbody></table></div><div class="table-foot"><span>Showing 3 illustrative records</span><span>Page 1 of 1</span></div></div>
     </section>
 
     <section class="screen" id="screen-contribution" aria-labelledby="title-contribution">
       <div class="page-head"><div><div class="eyebrow">Financial operations</div><h1 id="title-contribution">Contribution</h1><p>Review contribution status and outstanding balances.</p></div><div class="head-actions"><button class="btn">↻ Refresh</button><button class="btn primary">＋ Bank Payment</button></div></div>
       <div class="summary-strip"><div class="summary-box"><span>Total citizens</span><strong>683</strong></div><div class="summary-box"><span>Settled</span><strong style="color:#16834a">426</strong></div><div class="summary-box"><span>Due</span><strong style="color:#a96512">257</strong></div></div>
-      <div class="panel table-panel"><div class="table-tools"><input class="search" placeholder="Search job card or household…" aria-label="Search sample contribution records"><div class="tool-right"><button class="btn">Due records⌄</button></div></div><div class="table-wrap"><table><thead><tr><th>Job card / household</th><th>Contribution period</th><th style="text-align:right">Settled</th><th style="text-align:right">Due</th><th>Status</th></tr></thead><tbody>
-        <tr><td><div class="primary-cell">JC / 0042</div><div class="secondary-cell">Lalhmingthanga</div></td><td>January – May 2026</td><td class="amount">₹3,500</td><td class="amount">₹0</td><td><span class="status green">Settled</span></td></tr>
-        <tr><td><div class="primary-cell">JC / 0043</div><div class="secondary-cell">Zothanmawia</div></td><td>January – May 2026</td><td class="amount">₹2,800</td><td class="amount">₹700</td><td><span class="status amber">Due</span></td></tr>
-        <tr><td><div class="primary-cell">JC / 0044</div><div class="secondary-cell">Rochungnunga</div></td><td>January – May 2026</td><td class="amount">₹1,400</td><td class="amount">₹2,100</td><td><span class="status red">Due</span></td></tr>
-      </tbody></table></div><div class="table-foot"><span>Illustrative records only</span><span>Tap a row in the real app to open its ledger</span></div></div>
+      <div class="panel table-panel"><div class="table-tools"><input class="search" placeholder="Search job card or household…" aria-label="Search sample contribution records"><div class="tool-right"><button class="btn">Due records⌄</button></div></div><div class="table-wrap"><table id="contribution-preview-table" data-preview-paginate="contribution"><thead><tr><th>Job card / household</th><th>Contribution period</th><th style="text-align:right">Settled</th><th style="text-align:right">Due</th><th>Status</th></tr></thead><tbody id="contribution-preview-rows"></tbody></table></div><div class="table-foot"><span>Illustrative records only</span><span>Tap a row in the real app to open its ledger</span></div></div>
     </section>
 
     <section class="screen" id="screen-periods" aria-labelledby="title-periods">
       <div class="page-head"><div><div class="eyebrow">Contribution setup</div><h1 id="title-periods">Periods</h1><p>Manage contribution periods and their current status.</p></div><div class="head-actions"><button class="btn primary">＋ New period</button></div></div>
-      <div class="panel table-panel"><div class="table-tools"><div class="panel-title">Contribution periods</div><div class="tool-right"><button class="btn">All periods⌄</button></div></div><div class="table-wrap"><table><thead><tr><th>Period</th><th>Contribution month</th><th>Period date</th><th>Status</th><th>Action</th></tr></thead><tbody>
-        <tr><td class="primary-cell">MAY26</td><td>May 2026</td><td>01 May 2026</td><td><span class="status green">Open</span></td><td><button class="text-link">Open</button></td></tr>
-        <tr><td class="primary-cell">APR26</td><td>April 2026</td><td>01 April 2026</td><td><span class="status gray">Closed</span></td><td><button class="text-link">Open</button></td></tr>
-        <tr><td class="primary-cell">MAR26</td><td>March 2026</td><td>01 March 2026</td><td><span class="status gray">Closed</span></td><td><button class="text-link">Open</button></td></tr>
-      </tbody></table></div><div class="table-foot"><span>3 illustrative periods</span><span>Period rules are unchanged in the real app</span></div></div>
+      <div class="panel table-panel"><div class="table-tools"><div class="panel-title">Contribution periods</div><div class="tool-right"><button class="btn">All periods⌄</button></div></div><div class="table-wrap"><table id="periods-preview-table"><thead><tr><th>Period</th><th>Contribution month</th><th>Period date</th><th>Status</th><th>Action</th></tr></thead><tbody id="periods-preview-rows"></tbody></table></div><div class="table-foot"><span>8 illustrative periods</span><span>Period rules are unchanged in the real app</span></div></div>
     </section>
 
     <section class="screen" id="screen-demand" aria-labelledby="title-demand">
       <div class="page-head"><div><div class="eyebrow">Work planning</div><h1 id="title-demand">Work Demand</h1><p>Prepare the demand list and review records that need attention.</p></div><div class="head-actions"><button class="btn">View saved demands</button><button class="btn primary">＋ Create demand</button></div></div>
       <div class="summary-strip"><div class="summary-box"><span>Selected applicants</span><strong>426</strong></div><div class="summary-box"><span>Manual review needed</span><strong>18</strong></div><div class="summary-box"><span>Unwilling to work</span><strong>257</strong></div></div>
-      <div class="panel"><div class="panel-head"><div><div class="panel-title">Manual Review Needed</div><div class="panel-sub">Illustrative records with an outstanding contribution balance</div></div><span class="status amber">18 to review</span></div><div class="table-wrap"><table><thead><tr><th>Job card</th><th>Head of household</th><th style="text-align:right">Outstanding</th><th>Action</th></tr></thead><tbody>
-        <tr><td class="primary-cell">JC / 0043</td><td>Zothanmawia</td><td class="amount">₹700</td><td><button class="text-link">Review →</button></td></tr>
-        <tr><td class="primary-cell">JC / 0044</td><td>Rochungnunga</td><td class="amount">₹2,100</td><td><button class="text-link">Review →</button></td></tr>
-        <tr><td class="primary-cell">JC / 0051</td><td>Vanlalhriata</td><td class="amount">₹350</td><td><button class="text-link">Review →</button></td></tr>
-      </tbody></table></div></div>
+      <div class="panel"><div class="panel-head"><div><div class="panel-title">Manual Review Needed</div><div class="panel-sub">Illustrative records with an outstanding contribution balance</div></div><span class="status amber">18 to review</span></div><div class="table-wrap"><table id="demand-preview-table" data-preview-paginate="demand"><thead><tr><th>Job card</th><th>Head of household</th><th style="text-align:right">Outstanding</th><th>Action</th></tr></thead><tbody id="demand-preview-rows"></tbody></table></div></div>
     </section>
   </main>
 </div>
@@ -119,26 +106,45 @@
 <script>
 (function(){
   var names={overview:"Overview",mis:"MIS",fto:"FTO History",contribution:"Contribution",periods:"Periods",demand:"Work Demand"};
-  var screens=document.querySelectorAll(".screen");
-  var navButtons=document.querySelectorAll("[data-target]");
-  var sidebar=document.getElementById("sidebar");
-  var overlay=document.getElementById("overlay");
-  var menuButton=document.getElementById("menu-button");
+  var screens=document.querySelectorAll(".screen"),navButtons=document.querySelectorAll("[data-target]");
+  var sidebar=document.getElementById("sidebar"),overlay=document.getElementById("overlay"),menuButton=document.getElementById("menu-button");
   function closeMenu(){sidebar.classList.remove("open");overlay.classList.remove("show");menuButton.setAttribute("aria-expanded","false");}
-  function show(name){
-    if(!names[name])return;
-    screens.forEach(function(s){s.classList.toggle("active",s.id==="screen-"+name);});
-    document.querySelectorAll(".nav button[data-target]").forEach(function(b){b.classList.toggle("active",b.dataset.target===name);});
-    document.getElementById("breadcrumb").textContent=names[name];
-    document.title="VBGRAMG — "+names[name]+" Preview";
-    closeMenu();
-    window.scrollTo({top:0,behavior:"smooth"});
-  }
+  function show(name){if(!names[name])return;screens.forEach(function(s){s.classList.toggle("active",s.id==="screen-"+name);});document.querySelectorAll(".nav button[data-target]").forEach(function(b){b.classList.toggle("active",b.dataset.target===name);});document.getElementById("breadcrumb").textContent=names[name];document.title="VBGRAMG — "+names[name]+" Preview";closeMenu();window.scrollTo({top:0,behavior:"smooth"});}
   navButtons.forEach(function(b){b.addEventListener("click",function(){show(b.dataset.target);});});
   menuButton.addEventListener("click",function(){var open=!sidebar.classList.contains("open");sidebar.classList.toggle("open",open);overlay.classList.toggle("show",open);menuButton.setAttribute("aria-expanded",String(open));});
-  overlay.addEventListener("click",closeMenu);
-  document.addEventListener("keydown",function(e){if(e.key==="Escape")closeMenu();});
-  document.querySelectorAll(".search").forEach(function(input){input.addEventListener("input",function(){var q=input.value.toLowerCase();var table=input.closest(".panel").querySelector("tbody");if(!table)return;table.querySelectorAll("tr").forEach(function(row){row.hidden=!row.textContent.toLowerCase().includes(q);});});});
+  overlay.addEventListener("click",closeMenu);document.addEventListener("keydown",function(e){if(e.key==="Escape")closeMenu();});
+
+  // Synthetic records follow VBGRAMG's job-card / household / applicant structure.
+  var households=["Lalhmingthanga","Zothanmawia","Rochungnunga","Vanlalruata","Lalrinawma","Lalremruata","Lalnunmawia","Thangliana","Lalzarliana","Lalchhuanawma","Zoramthanga","Lalhriatpuia","Vanlalhruaia","Lalmuankima","Lalhmangaiha","Lalrammawia","Lalbiakzuala","Lalduhawma","Lalrinpuii","Malsawmtluangi","Lalremruati","Vanlalhlimpuia","Lalnuntluangi","Lalrohlui","Lalchhanhima","Lalnunfeli","Lalrinsanga","Lalhmingliana"];
+  var applicants=["Lalrinpuii","Lalremruati","Lalduhawmi","Malsawmtluangi","Lalnunmawii","Lalhmingmawii","Vanlalhruaii","Lalhmangaihi","Lalruatfeli","Lalrinchhani","Lalchhuanawmi","Lalnunhlui","Lalramnghaki","Lalbiakdiki","Lalhlimpuii","Lalrintluangi","Lalmuansangi","Lalrinmawii","Lalchhanhimi","Lalrohluii"];
+  var records=[];
+  for(var i=0;i<68;i++){var n=1001+i;records.push({job:"2207001005/"+n,household:households[i%households.length],applicant:applicants[(i*3)%applicants.length],appNo:String((i%3)+1).padStart(2,"0"),applicationCount:1+(i%3),selected:i%5!==2&&i%11!==0});}
+  records.push({job:"2207001005/1128",household:"Lalhmingthanga",applicant:"Lalnunpuii",appNo:"02",applicationCount:2,selected:false});
+
+  var misBody=document.getElementById("mis-preview-rows");
+  records.forEach(function(r){var tr=document.createElement("tr");tr.innerHTML='<td><div class="primary-cell">'+r.job+'</div><div class="secondary-cell">'+r.household+' · '+r.applicationCount+' applicants</div></td><td class="primary-cell">'+r.applicant+'</td><td>'+r.appNo+'</td><td><span class="status '+(r.selected?"green":"gray")+'">'+(r.selected?"Selected":"Not selected")+'</span></td>';misBody.appendChild(tr);});
+
+  var contributionBody=document.getElementById("contribution-preview-rows");
+  records.forEach(function(r,i){var dueIndex=i%5===0?0:(i%4)+1,settled=7000-dueIndex*700,due=dueIndex*700;if(r.job.endsWith("/1055")){settled=6300;due=700;}if(r.job.endsWith("/1128")){settled=5600;due=1400;}var tr=document.createElement("tr");tr.innerHTML='<td><div class="primary-cell">'+r.job+'</div><div class="secondary-cell">'+r.household+'</div></td><td>January – October 2026</td><td class="amount">₹'+settled.toLocaleString("en-IN")+'</td><td class="amount">₹'+due.toLocaleString("en-IN")+'</td><td><span class="status '+(due===0?"green":"amber")+'">'+(due===0?"Settled":"Due")+'</span></td>';contributionBody.appendChild(tr);});
+
+  var ftoBody=document.getElementById("fto-preview-rows"),ftoPeriods=["OCT26","SEP26","AUG26","JUL26","JUN26","MAY26","APR26","MAR26","FEB26","JAN26","DEC25","NOV25"];
+  ftoPeriods.forEach(function(period,i){var tr=document.createElement("tr"),number=String(18-i).padStart(3,"0"),status=i===1||i===6?"Partially processed":"Processed";tr.innerHTML='<td class="primary-cell">FTO-2026-'+number+'</td><td>'+period+'</td><td><span class="status '+(status==="Processed"?"green":"amber")+'">'+status+'</span></td><td>'+["04 Nov 2026","02 Nov 2026","29 Oct 2026","25 Oct 2026"][i%4]+'</td><td><button class="text-link" type="button">View</button></td>';ftoBody.appendChild(tr);});
+
+  var periodsBody=document.getElementById("periods-preview-rows");
+  ["OCT26","SEP26","AUG26","JUL26","JUN26","MAY26","APR26","MAR26"].forEach(function(p,i){var d=new Date(2026,9-i,1),label=d.toLocaleDateString("en-IN",{month:"long",year:"numeric"}),date=d.toLocaleDateString("en-GB",{day:"2-digit",month:"long",year:"numeric"}),tr=document.createElement("tr");tr.innerHTML='<td class="primary-cell">'+p+'</td><td>'+label+'</td><td>'+date+'</td><td><span class="status '+(i===0?"green":"gray")+'">'+(i===0?"Open":"Closed")+'</span></td><td><button class="text-link" type="button">Open</button></td>';periodsBody.appendChild(tr);});
+
+  var demandBody=document.getElementById("demand-preview-rows");
+  records.filter(function(r,i){return i%4===1||i%7===0;}).slice(0,18).forEach(function(r,i){var due=(i%4+1)*350,tr=document.createElement("tr");tr.innerHTML='<td class="primary-cell">'+r.job+'</td><td>'+r.household+'</td><td class="amount">₹'+due.toLocaleString("en-IN")+'</td><td><button class="text-link" type="button">Review →</button></td>';demandBody.appendChild(tr);});
+
+  function setupPagination(table){
+    var panel=table.closest(".panel"),tbody=table.querySelector("tbody"),search=panel.querySelector(".search"),foot=panel.querySelector(".table-foot");
+    if(!foot){foot=document.createElement("div");foot.className="table-foot";table.closest(".table-wrap").after(foot);}
+    var controls=document.createElement("div");controls.className="pagination";controls.setAttribute("aria-label","Table pagination");foot.after(controls);
+    var page=1,pageSize=10,filtered=[];
+    function update(){pageSize=window.matchMedia("(max-width:700px)").matches?10:50;var query=search?(search.value||"").trim().toLowerCase():"";filtered=Array.from(tbody.querySelectorAll("tr")).filter(function(row){return row.textContent.toLowerCase().includes(query);});var pages=Math.max(1,Math.ceil(filtered.length/pageSize));page=Math.min(page,pages);var start=(page-1)*pageSize,end=Math.min(start+pageSize,filtered.length);Array.from(tbody.querySelectorAll("tr")).forEach(function(row){row.hidden=true;});filtered.slice(start,end).forEach(function(row){row.hidden=false;});foot.innerHTML='<span>Showing '+(filtered.length?start+1:0)+'–'+end+' of '+filtered.length+' illustrative records</span><span>'+pageSize+' per page on '+(pageSize===10?"mobile":"desktop")+'</span>';controls.innerHTML='';var info=document.createElement("span");info.className="pagination-info";info.textContent="Page "+page+" of "+pages;controls.appendChild(info);var prev=document.createElement("button");prev.type="button";prev.textContent="Previous";prev.disabled=page===1;prev.addEventListener("click",function(){page--;update();});controls.appendChild(prev);for(var p=Math.max(1,page-1);p<=Math.min(pages,page+1);p++){(function(target){var b=document.createElement("button");b.type="button";b.textContent=target;b.className=target===page?"current":"";b.setAttribute("aria-current",target===page?"page":"false");b.addEventListener("click",function(){page=target;update();});controls.appendChild(b);})(p);}var next=document.createElement("button");next.type="button";next.textContent="Next";next.disabled=page===pages;next.addEventListener("click",function(){page++;update();});controls.appendChild(next);}
+    if(search)search.addEventListener("input",function(){page=1;update();});window.addEventListener("resize",update);update();
+  }
+  document.querySelectorAll("table[data-preview-paginate]").forEach(setupPagination);
 })();
 </script>
 </body>

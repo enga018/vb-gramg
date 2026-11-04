@@ -533,6 +533,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  .fto-view-summary .summary-tile strong{font-size:.72rem}
 }
 
+@media(min-width:701px){#fto-history-more{display:none!important}}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -555,7 +556,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  <div id="fto-history-status" class="status" aria-live="polite">Loading imported FTO history…</div>
  <div id="fto-history-list" class="history-list" aria-live="polite"></div>
  <div id="fto-history-empty" class="history-empty hidden">No FTOs match this search or period.</div>
- <div class="history-list-foot"><span id="fto-history-count" class="muted"></span><button id="fto-history-more" type="button" class="secondary hidden">See more</button></div>
+ <div class="history-list-foot"><span id="fto-history-count" class="muted"></span><button id="fto-history-more" type="button" class="secondary hidden mobile-see-more">See more</button></div>
 </section>
 </div>
 <div id="period-modal-backdrop" class="period-modal-backdrop hidden" role="presentation">
@@ -725,7 +726,9 @@ function renderFtoHistory(reset=true){
  const list=$("fto-history-list");list.replaceChildren();
  const search=$("fto-history-search").value.trim().toLowerCase(),period=$("fto-history-period").value;
  const filtered=ftoHistoryRows.filter(batch=>(!period||batch.contribution_period===period)&&(!search||String(batch.fto_number||"").toLowerCase().includes(search)||String(batch.contribution_period||"").toLowerCase().includes(search)));
- filtered.slice(0,shownFtoHistory).forEach(batch=>{
+ const isMobile=window.matchMedia("(max-width: 700px)").matches;
+ const visibleBatches=isMobile?filtered.slice(0,shownFtoHistory):filtered;
+ visibleBatches.forEach(batch=>{
   const card=document.createElement("article");card.className="fto-card";card.setAttribute("tabindex","0");card.setAttribute("role","button");card.setAttribute("aria-label","Open FTO "+String(batch.fto_number||""));
   card.addEventListener("click",()=>openFtoViewModal(batch));
   card.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();openFtoViewModal(batch)}});
@@ -737,11 +740,12 @@ function renderFtoHistory(reset=true){
   const checked=document.createElement("div");checked.className="last-checked";checked.textContent="Last checked";const checkedValue=document.createElement("strong");checkedValue.textContent=fmtHistoryDate(batch.last_checked_at||batch.first_imported_at);checked.appendChild(checkedValue);
   side.appendChild(checked);card.append(main,side);list.appendChild(card);
  });
- $("fto-history-count").textContent="Showing "+Math.min(shownFtoHistory,filtered.length)+" of "+filtered.length+" matching FTOs · "+ftoHistoryRows.length+" imported";
+ $("fto-history-count").textContent="Showing "+visibleBatches.length+" of "+filtered.length+" matching FTOs · "+ftoHistoryRows.length+" imported";
  $("fto-history-empty").classList.toggle("hidden",filtered.length!==0);
- $("fto-history-more").classList.toggle("hidden",filtered.length<=shownFtoHistory);
+ $("fto-history-more").classList.toggle("hidden",!isMobile||filtered.length<=shownFtoHistory);
 }
 $("fto-history-more").addEventListener("click",()=>{shownFtoHistory+=10;renderFtoHistory(false)});
+let lastFtoMobile=window.matchMedia("(max-width: 700px)").matches;window.addEventListener("resize",()=>{const next=window.matchMedia("(max-width: 700px)").matches;if(next!==lastFtoMobile){lastFtoMobile=next;renderFtoHistory(false)}});
 
 let pendingPeriodBatch=null;
 async function loadSharedPeriods(selectedId=""){

@@ -374,7 +374,29 @@ main{width:min(100%,1200px);padding-bottom:36px}
  #overlay .sheet-body form .field input,#overlay .sheet-body form .field select{min-height:48px;font-size:16px}
  #overlay .sheet-body form .notice{margin-bottom:12px}
 }
-\n/* Give the Outstanding KPI a clear due-state treatment on desktop and mobile. */\n.stat.outstanding-kpi{background:#fff1f1;border-color:#fecaca}\n.stat.outstanding-kpi .k,.stat.outstanding-kpi .v{color:#991b1b}\n</style>
+\n/* Give the Outstanding KPI a clear due-state treatment on desktop and mobile. */\n.stat.outstanding-kpi{background:#fff1f1;border-color:#fecaca}\n.stat.outstanding-kpi .k,.stat.outstanding-kpi .v{color:#991b1b}\n
+/* Contribution KPI cards: make each metric visibly contained on every screen. */
+.kpi-row .stat{background:#fff;border:1px solid #cbd5e1;box-shadow:0 2px 7px rgb(23 32 51 / 7%)}
+.kpi-row .stat:not(.outstanding-kpi) .k{color:#475467}
+.kpi-row .stat:not(.outstanding-kpi) .v{color:#8a5a00}
+@media(min-width:701px){
+  /* Office-style desktop table; mobile card rows remain unchanged. */
+  #contribution-table{table-layout:fixed;border-collapse:collapse;font-size:.86rem}
+  #contribution-table thead th{background:#e8eef6;color:#344054;border:1px solid #cbd5e1;border-bottom:2px solid #aebdce;padding:10px 12px}
+  #contribution-table th:nth-child(1),#contribution-table td:nth-child(1){width:27%}
+  #contribution-table th:nth-child(2),#contribution-table td:nth-child(2){width:43%}
+  #contribution-table th:nth-child(3),#contribution-table td:nth-child(3){width:30%}
+  #contribution-table tbody td{padding:9px 12px;border:1px solid #e2e8f0;vertical-align:middle;line-height:1.35}
+  #contribution-table tbody tr:nth-child(even) td{background:#f8fafc}
+  #contribution-table tbody tr:hover td{background:#eef4ff}
+  #contribution-table tbody tr:focus-visible td{background:#e8f0ff}
+  #contribution-table .jobcard{font-variant-numeric:tabular-nums}
+  #contribution-table .outstanding-cell{text-align:right}
+  #contribution-table tbody tr:last-child td{border-bottom:1px solid #e2e8f0}
+  #contribution-see-more{display:none!important}
+}
+
+</style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
 <body>
@@ -387,7 +409,7 @@ main{width:min(100%,1200px);padding-bottom:36px}
 <div class="kpi-row"><div class="stats"><div class="stat outstanding-kpi"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred</div><div class="v deferred-kpi" id="deferred">—</div></div></div><div class="kpi-actions"><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk Payment</button><button class="btn hidden" id="exportDueBtn" type="button">Export</button></div></div>
 
 
-<div class="toolbar"><div class="search-wrap"><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><button id="clearSearch" class="search-clear" type="button" aria-label="Clear search" title="Clear search">×</button></div><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="overpaid">Overpaid</option><option value="deferred">Has deferred charges</option></select></div></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button><button id="contribution-see-more" class="btn ghost" type="button" hidden>See more</button></div></div>
+<div class="toolbar"><div class="search-wrap"><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><button id="clearSearch" class="search-clear" type="button" aria-label="Clear search" title="Clear search">×</button></div><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="overpaid">Overpaid</option><option value="deferred">Has deferred charges</option></select></div></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button><button id="contribution-see-more" class="btn ghost mobile-see-more" type="button" hidden>See more</button></div></div>
 </section><aside id="desktop-detail-panel" aria-label="Selected citizen ledger"></aside></div>
 </div>
 </main>
@@ -587,7 +609,8 @@ function exportOutstandingDueList(){
  const rows=due.map(c=>'<tr><td>'+esc(c.id)+'</td><td>'+esc(c.name||'—')+'</td><td class="amount">'+fmt(c.balance)+'</td></tr>').join('');
  const popup=window.open('','_blank');
  if(!popup){status('Allow pop-ups for this site to export the due list.','err');return;}
- const report='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contribution Outstanding Due List</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#172033;margin:28px}h1{font-size:20px;margin:0 0 5px}.meta{color:#667085;font-size:12px;margin-bottom:18px}.summary{display:flex;gap:24px;margin:0 0 18px;font-size:13px}.summary b{font-size:15px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;border-bottom:1px solid #dfe5ee;text-align:left}th{background:#edf2f8;text-transform:uppercase;font-size:10px;letter-spacing:.04em}.amount{text-align:right;white-space:nowrap;font-weight:700}.total td{font-weight:800;border-top:2px solid #667085}@media print{body{margin:12mm}thead{display:table-header-group}tr{break-inside:avoid}}@media(max-width:600px){body{margin:14px;overflow-x:auto}.summary{gap:14px;flex-wrap:wrap}}</style></head><body><h1>Contribution Outstanding Due List</h1><div class="meta">VBGRAMG · Generated on '+esc(new Date().toLocaleDateString('en-IN'))+'</div><table><thead><tr><th>Job Card Number</th><th>Head of Household</th><th style="text-align:right">Outstanding</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
+ const report='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contribution Outstanding Due List</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#172033;margin:28px}h1{font-size:20px;margin:0 0 5px}.meta{color:#667085;font-size:12px;margin-bottom:18px}.summary{display:flex;gap:24px;margin:0 0 18px;font-size:13px}.summary b{font-size:15px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;border-bottom:1px solid #dfe5ee;text-align:left}th{background:#edf2f8;text-transform:uppercase;font-size:10px;letter-spacing:.04em}.amount{text-align:right;white-space:nowrap;font-weight:700}.total td{font-weight:800;border-top:2px solid #667085}@media print{body{margin:12mm}thead{display:table-header-group}tr{break-inside:avoid}}@media(max-width:600px){body{margin:14px;overflow-x:auto}.summary{gap:14px;flex-wrap:wrap}}
+</style></head><body><h1>Contribution Outstanding Due List</h1><div class="meta">VBGRAMG · Generated on '+esc(new Date().toLocaleDateString('en-IN'))+'</div><table><thead><tr><th>Job Card Number</th><th>Head of Household</th><th style="text-align:right">Outstanding</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
  popup.document.open();popup.document.write(report);popup.document.close();popup.focus();popup.print();
 }
 function buildFifoBreakdown(c){

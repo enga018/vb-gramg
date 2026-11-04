@@ -282,6 +282,17 @@ body.mis-import-open{overflow:hidden}
 .jobcard-row.has-selection,
 .jobcard-row.no-selection{box-shadow:none!important}
 
+
+/* Mobile MIS job-card summary: identity left, applicant count right, selection below. */
+@media(max-width:700px){
+ #mis-table .mobile-jobcard-line{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;width:100%;min-width:0}
+ #mis-table .mobile-jobcard-identity{display:flex;align-items:baseline;flex-wrap:wrap;gap:3px 6px;flex:1 1 auto;min-width:0}
+ #mis-table .mobile-jobcard-number{font-weight:800;overflow-wrap:anywhere;color:#172033}
+ #mis-table .mobile-jobcard-household{font-weight:600;color:#475569;overflow-wrap:anywhere}
+ #mis-table .mobile-applicant-count-badge{display:inline-flex;align-items:center;justify-content:center;gap:4px;flex:0 0 auto;min-width:34px;padding:4px 8px;border:1px solid #dbe3ee;border-radius:999px;background:#f1f5f9;color:#475569;font-size:.76rem;font-weight:750;line-height:1.25;white-space:nowrap}
+ #mis-table .mobile-selection-status{width:100%;box-sizing:border-box}
+}
+
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -543,15 +554,17 @@ function renderTable(){
   }
   const tr=document.createElement('tr');tr.className='jobcard-row '+(hasSelection?'has-selection':'no-selection');
   const detailCell=document.createElement('td');detailCell.style.verticalAlign='top';detailCell.style.padding='12px 11px';
-  const firstLine=document.createElement('div');firstLine.className='mobile-jobcard-line';firstLine.style.display='flex';firstLine.style.alignItems='baseline';firstLine.style.flexWrap='wrap';firstLine.style.gap='3px 6px';
-  const cardNumber=document.createElement('span');cardNumber.textContent=group.key;cardNumber.style.fontWeight='800';cardNumber.style.overflowWrap='anywhere';firstLine.appendChild(cardNumber);
-  const household=document.createElement('span');household.textContent='• '+(group.household||'—');household.style.fontWeight='600';household.style.color='#475569';household.style.overflowWrap='anywhere';firstLine.appendChild(household);
-  const applicantCount=document.createElement('span');applicantCount.textContent='• No. of Applicants: '+group.applicants.length;applicantCount.style.fontWeight='600';applicantCount.style.color='#64748b';firstLine.appendChild(applicantCount);
+  const firstLine=document.createElement('div');firstLine.className='mobile-jobcard-line';
+  const identity=document.createElement('div');identity.className='mobile-jobcard-identity';
+  const cardNumber=document.createElement('span');cardNumber.className='mobile-jobcard-number';cardNumber.textContent=group.key;identity.appendChild(cardNumber);
+  const household=document.createElement('span');household.className='mobile-jobcard-household';household.textContent='• '+(group.household||'—');identity.appendChild(household);
+  firstLine.appendChild(identity);
+  const applicantCount=document.createElement('span');applicantCount.className='mobile-applicant-count-badge';applicantCount.textContent='👥 '+group.applicants.length;applicantCount.setAttribute('aria-label',group.applicants.length+' applicants');firstLine.appendChild(applicantCount);
   detailCell.appendChild(firstLine);
   const secondLine=document.createElement('div');secondLine.className='mobile-selection-status '+(hasSelection?'is-selected':'is-unselected');secondLine.style.display='block';secondLine.style.marginTop='6px';
   const selectedKey=selectedApplicants.get(group.key)||'';
   const selectedApplicant=group.applicants.find(applicant=>applicant.selectionKey===selectedKey);
-  secondLine.textContent=selectedApplicant?((selectedApplicant.name||'Unnamed applicant')+(selectedApplicant.number?' • Applicant No. '+selectedApplicant.number:'')):'No Applicant Selected';
+  secondLine.textContent=selectedApplicant?((selectedApplicant.name||'Unnamed applicant')+(selectedApplicant.number?' • '+selectedApplicant.number:'')):'No Applicant Selected';
   detailCell.appendChild(secondLine);
   tr.appendChild(detailCell);tr.tabIndex=0;tr.setAttribute('role','button');tr.setAttribute('aria-expanded',String(expandedCards.has(group.key)));
   tbody.appendChild(tr);

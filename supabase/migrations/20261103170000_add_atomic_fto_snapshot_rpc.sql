@@ -283,6 +283,7 @@ begin
        v_row.fto_applicant_name,coalesce(v_row.is_voided,false))
     on conflict (id) do update set
       job_card_number=excluded.job_card_number, person_name=excluded.person_name,
+      entry_type=excluded.entry_type,
       amount=excluded.amount, charge_period=excluded.charge_period, entry_date=excluded.entry_date,
       note=excluded.note, import_id=coalesce(excluded.import_id,public.vbgramg_charge_ledger.import_id),
       is_deferred=excluded.is_deferred, reference_numbers=excluded.reference_numbers,

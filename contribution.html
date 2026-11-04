@@ -427,7 +427,15 @@ const startupNode=$('status');
 if(startupNode)startupNode.textContent='JavaScript started — loading connection library…';
 function setStartupError(message){
  const node=$('status');
- if(node){node.className='notice err';node.textContent=message;}
+ if(!node)return;
+ node.className='notice err';
+ node.replaceChildren(document.createTextNode(message+' '));
+ const retry=document.createElement('button');
+ retry.type='button';
+ retry.className='btn ghost small';
+ retry.textContent='Reload page';
+ retry.addEventListener('click',()=>window.location.reload());
+ node.appendChild(retry);
 }
 function loadSupabaseLibrary(url){
  return new Promise((resolve,reject)=>{
@@ -446,7 +454,7 @@ try{
   catch(firstError){await loadSupabaseLibrary('https://unpkg.com/@supabase/supabase-js@2');}
  }
 }catch(libraryError){
- setStartupError('Could not load the connection library. Check your internet connection and tap Refresh to try again.');
+ setStartupError('Could not load the connection library. Check your internet connection and use Reload page to try again.');
  return;
 }
 const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
@@ -458,7 +466,18 @@ const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const day=s=>s?new Date(s+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'Date not recorded';
 const formatPeriod=s=>{const m=String(s||'').match(/^(\d{4})-(\d{2})/);if(!m)return s||'Monthly charge';const months=['January','February','March','April','May','June','July','August','September','October','November','December'];const n=Number(m[2]);return n>=1&&n<=12?months[n-1]+' '+m[1]:(s||'Monthly charge')};
-function status(message,type='info'){ if(type==='err'||type==='error'||type==='success'){if(window.showToast)window.showToast(message,type==='err'?'error':type);const el=$('status');el.textContent='';el.classList.add('hidden');return;}const el=$('status');el.className='notice info';el.textContent=message;el.classList.remove('hidden'); }
+function status(message,type='info'){
+ const el=$('status');
+ if(type==='success'){
+  if(window.showToast)window.showToast(message,'success');
+  el.textContent='';el.classList.add('hidden');return;
+ }
+ if(type==='err'||type==='error'){
+  if(window.showToast)window.showToast(message,'error');
+  el.className='notice err';el.textContent=message;el.classList.remove('hidden');return;
+ }
+ el.className='notice info';el.textContent=message;el.classList.remove('hidden');
+}
 const calculateLedgerState=window.VBGRAMGContribution.calculateLedgerState;
 function renderExemptions(){
  const host=$('exemptionList');if(!host)return;
@@ -1016,7 +1035,19 @@ async function load(){
   appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");$("exportDueBtn").classList.remove("hidden");entries=data.entries||[];periods=data.periods||[];paymentAllocations=Array.from(new Map((data.payment_allocations||[]).filter(a=>a&&a.id).map(a=>[String(a.id),a])).values());paymentRefundReconciliations=data.payment_refund_reconciliations||[];extraCharges=data.extras||[];citizenRegistry=data.citizens||[];applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];deriveCitizens();renderExemptions();
   $('app').classList.remove('hidden');$('status').classList.add('hidden');
   render();
- }catch(err){status(err.message||'Could not load contribution data.','err');}
+ }catch(err){
+  $('app').classList.add('hidden');
+  const node=$('status');
+  const message=err&&err.message?err.message:'Could not load contribution data.';
+  if(node){
+   node.className='notice err';
+   node.replaceChildren(document.createTextNode(message+' '));
+   const retry=document.createElement('button');
+   retry.type='button';retry.className='btn ghost small';retry.textContent='Retry loading';
+   retry.addEventListener('click',()=>{retry.disabled=true;retry.textContent='Retrying…';load().finally(()=>{retry.disabled=false;retry.textContent='Retry loading';});});
+   node.appendChild(retry);node.classList.remove('hidden');
+  }
+ }
 }
 
 const syncSearchClear=()=>$('clearSearch').classList.toggle('visible',Boolean($('search').value));

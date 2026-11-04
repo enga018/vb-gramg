@@ -18,7 +18,7 @@
     const body = settings.body || {};
     const timeoutMs = settings.timeoutMs === false ? null : (Number.isFinite(settings.timeoutMs) ? settings.timeoutMs : 30000);
     const deduplicate = settings.deduplicate === true;
-    const key = deduplicate ? functionName + ":" + JSON.stringify(body) : null;
+    const key = deduplicate ? functionName + ":" + String(timeoutMs) + ":" + JSON.stringify(body) : null;
 
     if (key && inFlightReads.has(key)) return inFlightReads.get(key);
 

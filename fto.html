@@ -611,7 +611,8 @@ function periodToDate(value){
 let ftoHistoryRows=[],expandedFtoId=null,historyLoadSequence=0;
 function historyMessage(message,type=""){
  const el=$("fto-history-status");
- if((type==="error"||type==="success")&&window.showToast){window.showToast(message,type);el.textContent="";el.classList.add("hidden");el.classList.remove("error","success");return;}
+ if(type==="loading"){el.textContent=message;el.classList.remove("error","success");el.classList.remove("hidden");return;}
+ if(window.showToast){window.showToast(message,type==="error"?"error":type==="success"?"success":"info");el.textContent="";el.classList.add("hidden");el.classList.remove("error","success");return;}
  el.textContent=message;el.classList.remove("error","success");el.classList.toggle("hidden",!message);
 }
 function fmtHistoryDate(value){
@@ -804,7 +805,7 @@ async function saveFtoPeriod(event){
 }
 async function loadFtoHistory(){
  const seq=++historyLoadSequence;
- historyMessage("Loading imported FTO history…");
+ historyMessage("Loading imported FTO history…","loading");
  try{
   const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"list-fto-history"},deduplicate:true});
   if(seq!==historyLoadSequence)return;
@@ -817,7 +818,7 @@ async function loadFtoHistory(){
   if(expandedFtoId&&!ftoHistoryRows.some(b=>b.id===expandedFtoId))expandedFtoId=null;
   renderFtoHistory();
   const historyStatus=$("fto-history-status");
-  if(ftoHistoryRows.length){historyMessage(ftoHistoryRows.length+" imported FTO(s) loaded.");}
+  if(ftoHistoryRows.length){historyMessage(ftoHistoryRows.length+" imported FTO(s) loaded.","success");}
   else{historyStatus.textContent="";historyStatus.classList.add("hidden");historyStatus.classList.remove("error","success");}
  }catch(err){if(seq!==historyLoadSequence)return;historyMessage(err.message||"Could not load FTO history.","error");}
 }

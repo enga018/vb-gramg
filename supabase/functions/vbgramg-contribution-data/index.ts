@@ -183,17 +183,33 @@ Deno.serve(async(req:Request)=>{
    }
    const exemptions=exemptionsResult.data||[],imports=importsResult.data||[],extras=extrasResult.data||[];
    const misState=misStateResult.data;
+   const activeMisRowCount=Number(misState?.row_count||0);
    if(!misState?.active_import_id)throw new Error("There is no active MIS import. Load the active MIS before using the contribution table.");
-   const misRows:Record<string,unknown>[]=[];
-   for(let offset=0;;offset+=1000){const {data,error}=await admin.from("vbgramg_mis_rows").select("row_number,row_data").eq("import_id",misState.active_import_id).order("row_number",{ascending:true}).range(offset,offset+999);if(error)throw error;misRows.push(...(data||[]));if(!data||data.length<1000)break;}
-   if(!misRows.length)throw new Error("The active MIS import contains no rows.");
-   const header=Array.isArray(misRows[0].row_data)?(misRows[0].row_data as unknown[]).map(v=>String(v||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim()):[];
-   const col=(...names:string[])=>header.findIndex(v=>names.includes(v));
-   const jcCol=col("job card number","jobcard number"),houseCol=col("head of household","head of household name"),nameCol=col("name of applicant","applicant name"),applicantNoCol=col("applicant no","applicant number"),uniqueIdCol=col("unique id","unique applicant id");
-   if(jcCol<0||nameCol<0)throw new Error("The active MIS is missing Job Card Number or Name of Applicant columns.");
-   const householdByCard=new Map<string,string>(),seenCards=new Set<string>(),applicantsByCard=new Map<string,Record<string,string|null>[]>();
-   for(const record of misRows.slice(1)){const row=Array.isArray(record.row_data)?record.row_data as unknown[]:[];const jobCard=String(row[jcCol]||"").trim();if(!jobCard)continue;const applicant=String(row[nameCol]||"").trim();if(!applicant)continue;seenCards.add(jobCard);const household=String(houseCol>=0?row[houseCol]||"":"").trim();if(household&&!householdByCard.has(jobCard))householdByCard.set(jobCard,household);const item={applicant_name:applicant,applicant_number:applicantNoCol>=0?String(row[applicantNoCol]||"").trim()||null:null,applicant_unique_id:uniqueIdCol>=0?String(row[uniqueIdCol]||"").trim()||null:null};if(!applicantsByCard.has(jobCard))applicantsByCard.set(jobCard,[]);applicantsByCard.get(jobCard)!.push(item);}
-   const citizens=[...seenCards].map(job_card_number=>({job_card_number,person_name:householdByCard.get(job_card_number)||"Household name unavailable"}));
+   // Reuse a versioned lookup built from this exact active MIS import. The cache is
+   // immutable per import ID, so a new MIS automatically gets a fresh lookup.
+   const {data:lookupCache,error:lookupCacheError}=await admin.from("vbgramg_mis_contribution_lookup")
+    .select("payload").eq("import_id",misState.active_import_id).maybeSingle();
+   if(lookupCacheError)throw lookupCacheError;
+   let applicantsByCard=new Map<string,Record<string,string|null>[]>();
+   let citizens:Record<string,string>[];
+   if(lookupCache?.payload&&Array.isArray(lookupCache.payload.citizens)&&lookupCache.payload.applicants_by_job_card&&typeof lookupCache.payload.applicants_by_job_card==="object"){
+    citizens=lookupCache.payload.citizens;
+    applicantsByCard=new Map(Object.entries(lookupCache.payload.applicants_by_job_card as Record<string,Record<string,string|null>[]>));
+   }else{
+    const misRows:Record<string,unknown>[]=[];
+    for(let offset=0;;offset+=1000){const {data,error}=await admin.from("vbgramg_mis_rows").select("row_number,row_data").eq("import_id",misState.active_import_id).order("row_number",{ascending:true}).range(offset,offset+999);if(error)throw error;misRows.push(...(data||[]));if(!data||data.length<1000)break;}
+    if(!misRows.length)throw new Error("The active MIS import contains no rows.");
+    const header=Array.isArray(misRows[0].row_data)?(misRows[0].row_data as unknown[]).map(v=>String(v||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim()):[];
+    const col=(...names:string[])=>header.findIndex(v=>names.includes(v));
+    const jcCol=col("job card number","jobcard number"),houseCol=col("head of household","head of household name"),nameCol=col("name of applicant","applicant name"),applicantNoCol=col("applicant no","applicant number"),uniqueIdCol=col("unique id","unique applicant id");
+    if(jcCol<0||nameCol<0)throw new Error("The active MIS is missing Job Card Number or Name of Applicant columns.");
+    const householdByCard=new Map<string,string>(),seenCards=new Set<string>();
+    for(const record of misRows.slice(1)){const row=Array.isArray(record.row_data)?record.row_data as unknown[]:[];const jobCard=String(row[jcCol]||"").trim();if(!jobCard)continue;const applicant=String(row[nameCol]||"").trim();if(!applicant)continue;seenCards.add(jobCard);const household=String(houseCol>=0?row[houseCol]||"":"").trim();if(household&&!householdByCard.has(jobCard))householdByCard.set(jobCard,household);const item={applicant_name:applicant,applicant_number:applicantNoCol>=0?String(row[applicantNoCol]||"").trim()||null:null,applicant_unique_id:uniqueIdCol>=0?String(row[uniqueIdCol]||"").trim()||null:null};if(!applicantsByCard.has(jobCard))applicantsByCard.set(jobCard,[]);applicantsByCard.get(jobCard)!.push(item);}
+    citizens=[...seenCards].map(job_card_number=>({job_card_number,person_name:householdByCard.get(job_card_number)||"Household name unavailable"}));
+    const payload={citizens,applicants_by_job_card:Object.fromEntries(applicantsByCard)};
+    const {error:cacheWriteError}=await admin.from("vbgramg_mis_contribution_lookup").upsert({import_id:misState.active_import_id,payload,built_at:new Date().toISOString()},{onConflict:"import_id"});
+    if(cacheWriteError)throw cacheWriteError;
+   }
    const chargeEntries=all.filter(r=>r.entry_type==="charge"&&!r.is_voided);
    if(chargeEntries.length){
     const entryById=new Map(chargeEntries.map(entry=>[String(entry.id),entry]));
@@ -229,7 +245,7 @@ Deno.serve(async(req:Request)=>{
    const periodRows=periodRowsResult.data||[];
    const paymentAllocations=allocationsResult;
    const paymentRefundReconciliations=refundsResult;
-   return reply({approved:true,role:approved.role,entries:all,imports:imports||[],extras:extras||[],citizens,periods:periodRows||[],payment_allocations:paymentAllocations||[],payment_refund_reconciliations:paymentRefundReconciliations||[],applicants_by_job_card:Object.fromEntries(applicantsByCard),exemptions:exemptions||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:misRows.length});
+   return reply({approved:true,role:approved.role,entries:all,imports:imports||[],extras:extras||[],citizens,periods:periodRows||[],payment_allocations:paymentAllocations||[],payment_refund_reconciliations:paymentRefundReconciliations||[],applicants_by_job_card:Object.fromEntries(applicantsByCard),exemptions:exemptions||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:activeMisRowCount});
   }
   if(action==="check-fto-duplicates"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can import FTO charges."},403);

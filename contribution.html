@@ -834,10 +834,10 @@ async function saveExemption(){
    $('saveExemptionBtn').textContent='Saving '+(saved+failed.length)+'/'+jobCards.length+'…';
   }
   deriveCitizens();renderExemptions();render();
-  if(saved===jobCards.length){$('exemptJobCards').value='';$('exemptNote').value='';$('exemptionStatus').textContent=saved+' job card(s) are now exempt. FTO history is retained and contribution balances are excluded.';status(saved+' exemption(s) saved.','success');}
+  if(saved===jobCards.length){$('exemptJobCards').value='';$('exemptNote').value='';$('exemptionStatus').textContent='';status(saved+' exemption(s) saved.','success');}
   else{$('exemptionStatus').textContent=saved+' saved; '+failed.length+' failed. '+failed.join(' | ');status('Some exemptions could not be saved. Review the exemption form.','err');}
   if(currentCitizen&&jobCards.includes(currentCitizen.id))$('overlay').classList.add('hidden');
- }catch(err){$('exemptionStatus').textContent=err.message||'Could not save exemptions.';}
+ }catch(err){$('exemptionStatus').textContent='';status(err.message||'Could not save exemptions.','err');}
  finally{busy=false;$('saveExemptionBtn').disabled=false;$('saveExemptionBtn').textContent='Add exemptions';}
 }
 async function removeExemption(jobCard){
@@ -848,9 +848,9 @@ async function removeExemption(jobCard){
   const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'save-exemption',job_card_number:jobCard,exempt:false},timeoutMs:false});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not remove exemption.');
   exemptions=data.exemptions||[];deriveCitizens();renderExemptions();render();
-  $('exemptionStatus').textContent='Exemption removed for '+jobCard+'. Its existing contribution ledger now counts again.';
+  $('exemptionStatus').textContent='';
   status('Exemption removed. Contribution totals recalculated.','success');
- }catch(err){$('exemptionStatus').textContent=err.message||'Could not remove exemption.';}
+ }catch(err){$('exemptionStatus').textContent='';status(err.message||'Could not remove exemption.','err');}
  finally{busy=false;}
 }
 function deriveCitizens(){
@@ -1197,7 +1197,7 @@ function showPaymentForm(){
    const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'add-payment',job_card_number:c.id,amount,entry_date:date,note},timeoutMs:false});
    if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save payment.');
    entries.push(data.entry);deriveCitizens();render();openCitizen(c.id);status('Payment saved. Ledger updated.','info');
-  }catch(err){$('paymentError').innerHTML='<div class="notice err">'+esc(err.message||'Could not save payment.')+'</div>';}
+  }catch(err){status(err.message||'Could not save payment.','err');}
   finally{busy=false;if($('savePayment')){$('savePayment').disabled=false;$('savePayment').textContent='Save payment';}}
  });
 }
@@ -1293,7 +1293,7 @@ function showAdjustmentForm(action){
    const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action,job_card_number:c.id,amount,entry_date:date,note},timeoutMs:false});
    if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save adjustment.');
    updateEntryInMemory(data.entry);openCitizen(c.id);status((isWaiver?'Charge Waiver':'Refund')+' recorded and ledger recalculated.','success');
-  }catch(err){$('adjustmentError').innerHTML='<div class="notice err">'+esc(err.message||'Could not save adjustment.')+'</div>';}
+  }catch(err){status(err.message||'Could not save adjustment.','err');}
   finally{busy=false;if($('saveAdjustment')){$('saveAdjustment').disabled=false;$('saveAdjustment').textContent=title;}}
  });
 }

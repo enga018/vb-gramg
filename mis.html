@@ -461,7 +461,7 @@ async function pruneStaleSelections(){
  return removed;
 }
 async function invokeSelection(payload){
- const {data,error}=await window.VBGRAMGData.invoke('vbgramg-mis-selection',{body:payload});
+ const {data,error}=await window.VBGRAMGData.invoke('vbgramg-mis-selection',{body:payload,timeoutMs:false});
  if(error){
   let message=error.message||'Selection request failed.';
   try{const response=error.context;if(response&&typeof response.json==='function'){const detail=await response.json();if(detail&&detail.error)message=detail.error}}catch(_){}

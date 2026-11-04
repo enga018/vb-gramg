@@ -6,7 +6,7 @@
   "use strict";
 
   function formatPeriod(value) {
-    const match = String(value || "").match(/^(\\d{4})-(\\d{2})/);
+    const match = String(value || "").match(/^(\d{4})-(\d{2})/);
     if (!match) return value || "Monthly charge";
     const months = ["January", "February", "March", "April", "May", "June",
       "July", "August", "September", "October", "November", "December"];

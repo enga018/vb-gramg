@@ -508,7 +508,7 @@ function selectedPeriod(){return sharedPeriods.find(p=>p.id===$('charge-period')
 function selectedPeriodDate(){return selectedPeriod()?.contribution_month||'';}
 function selectedPeriodName(){return selectedPeriod()?.period_name||'';}
 async function loadSharedPeriods(selectedId=''){
- const {data,error}=await window.VBGRAMGData.invoke('vbgramg-periods',{body:{action:'list'}});
+ const {data,error}=await window.VBGRAMGData.invoke('vbgramg-periods',{body:{action:'list'},deduplicate:true});
  if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||'Could not load shared periods.');
  sharedPeriods=data.periods||[];
  const allowed=sharedPeriods.filter(p=>p.status==='open'||p.id===selectedId);
@@ -707,7 +707,7 @@ async function refreshDuplicates(){
  checkingDuplicates=true;duplicateCheckFailed=false;renderImportPreview();
  try{
   const groups=actionGroups();
-  const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'check-fto-duplicates',period_id:$('charge-period').value,charge_period:period,job_cards:groups.map(g=>g.job_card_number),reference_rows:groups.map(g=>({job_card_number:g.job_card_number,person_name:g.person_name,reference_numbers:g.reference_numbers}))}});
+  const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'check-fto-duplicates',period_id:$('charge-period').value,charge_period:period,job_cards:groups.map(g=>g.job_card_number),reference_rows:groups.map(g=>({job_card_number:g.job_card_number,person_name:g.person_name,reference_numbers:g.reference_numbers}))},deduplicate:true});
   if(seq!==duplicateCheckSequence)return;
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not check for duplicate charges.');
   duplicateCards=new Map((data.duplicates||[]).map(row=>[String(row.job_card_number),row]));
@@ -742,7 +742,7 @@ async function lookupFtoBatch(){
  const ftoNumber=$('fto-number').value.trim();if(!ftoNumber)return;
  try{
   const incoming=parsedDataRows.map(row=>({reference_no:String(row[3]||'').replace(/\s+/g,' ').trim(),job_card_number:jobCardFromRow(row),status:rawStatus(row),transaction_date:String(row[4]||'').trim(),processed_date:String(row[13]||'').trim(),amount_to_be_credited:parseAmount(row[10]),credit_amount:parseAmount(row[11]),rejection_reason:String(row[16]||'').trim()}));
-  const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'check-fto-import-state',fto_number:ftoNumber,transactions:incoming}});
+  const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'check-fto-import-state',fto_number:ftoNumber,transactions:incoming},deduplicate:true});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not look up the FTO.');
   if(data.found&&data.batch){
    const nameMatches=sharedPeriods.filter(p=>p.period_name.toLowerCase()===String(data.batch.contribution_period||'').toLowerCase());const monthMatches=sharedPeriods.filter(p=>p.contribution_month===data.batch.ledger_charge_period);const savedPeriod=sharedPeriods.find(p=>p.id===data.batch.period_id)||(nameMatches.length===1?nameMatches[0]:(monthMatches.length===1?monthMatches[0]:null));

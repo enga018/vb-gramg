@@ -526,55 +526,18 @@ function renderTable(){
    return;
   }
   const tr=document.createElement('tr');tr.className='jobcard-row '+(hasSelection?'has-selection':'no-selection');
-  const toggleGroup=()=>{if(expandedCards.has(group.key)){expandedCards.clear();scrollExpandedCardKey=null}else{expandedCards.clear();expandedCards.add(group.key);scrollExpandedCardKey=group.key}renderTable()};
-  tr.tabIndex=0;tr.setAttribute('aria-expanded',String(expandedCards.has(group.key)));
-  tr.setAttribute('aria-label',(expandedCards.has(group.key)?'Collapse ':'Expand ')+'applicants for job card '+group.key);
-  tr.addEventListener('click',toggleGroup);
-  tr.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleGroup()}});
-  const detailCell=document.createElement('td');detailCell.style.verticalAlign='top';
-  const firstLine=document.createElement('div');firstLine.style.display='flex';firstLine.style.alignItems='baseline';firstLine.style.justifyContent='flex-start';firstLine.style.gap='3px 5px';firstLine.style.flexWrap='wrap';
-  const cardNumber=document.createElement('div');cardNumber.textContent=group.key;cardNumber.style.fontWeight='750';cardNumber.style.fontSize='0.98rem';cardNumber.style.overflowWrap='anywhere';firstLine.appendChild(cardNumber);
-  const household=document.createElement('span');household.textContent=' • '+(group.household||'—');household.style.fontWeight='500';household.style.color='#64748b';household.style.fontSize='0.94rem';household.style.overflowWrap='anywhere';firstLine.appendChild(household);
+  const detailCell=document.createElement('td');detailCell.style.verticalAlign='top';detailCell.style.padding='12px 11px';
+  const firstLine=document.createElement('div');firstLine.className='mobile-jobcard-line';firstLine.style.display='flex';firstLine.style.alignItems='baseline';firstLine.style.flexWrap='wrap';firstLine.style.gap='3px 6px';
+  const cardNumber=document.createElement('span');cardNumber.textContent=group.key;cardNumber.style.fontWeight='800';cardNumber.style.overflowWrap='anywhere';firstLine.appendChild(cardNumber);
+  const household=document.createElement('span');household.textContent='• '+(group.household||'—');household.style.fontWeight='600';household.style.color='#475569';household.style.overflowWrap='anywhere';firstLine.appendChild(household);
+  const applicantCount=document.createElement('span');applicantCount.textContent='• '+group.applicants.length+' applicant'+(group.applicants.length===1?'':'s');applicantCount.style.fontWeight='600';applicantCount.style.color='#64748b';firstLine.appendChild(applicantCount);
   detailCell.appendChild(firstLine);
-  const mobileMeta=document.createElement('div');mobileMeta.className='mobile-jobcard-meta';
-  const applicantCount=document.createElement('span');applicantCount.className='mobile-applicant-count';
-  applicantCount.textContent=group.applicants.length+' applicant'+(group.applicants.length===1?'':'s');
-  mobileMeta.appendChild(applicantCount);
-  const selectionStatus=document.createElement('span');selectionStatus.className='mobile-selection-status '+(hasSelection?'is-selected':'is-unselected');
-  selectionStatus.textContent=hasSelection?'✓ Applicant selected':'⚠ No applicant selected';
-  mobileMeta.appendChild(selectionStatus);
-  const expandHint=document.createElement('span');expandHint.className='mobile-expand-hint';
-  expandHint.textContent=expandedCards.has(group.key)?'Close ▲':'View applicants ▼';
-  mobileMeta.appendChild(expandHint);
-  detailCell.appendChild(mobileMeta);tr.appendChild(detailCell);tbody.appendChild(tr);
-  if(expandedCards.has(group.key)){
-   const detailTr=document.createElement('tr');detailTr.className='applicant-detail';const detailTd=document.createElement('td');detailTd.colSpan=1;detailTd.style.padding='12px 14px 16px';detailTd.style.background='#f8fafc';
-   const subtable=document.createElement('table');subtable.style.width='100%';subtable.style.maxWidth='none';subtable.style.tableLayout='fixed';
-   const subhead=document.createElement('thead'),subheadRow=document.createElement('tr');
-   ['Name of Applicant','Applicant No.',''].forEach((label,index)=>{const th=document.createElement('th');th.textContent=label;th.style.position='static';th.style.background='#e2e8f0';if(index===0)th.style.width='56%';if(index===1)th.style.width='32%';if(index===2){th.style.width='12%';th.style.textAlign='center';th.style.minWidth='52px'}subheadRow.appendChild(th)});subhead.appendChild(subheadRow);subtable.appendChild(subhead);
-   const subbody=document.createElement('tbody');
-   group.applicants.forEach(applicant=>{
-    const ar=document.createElement('tr'),applicantId=applicant.selectionKey;
-    const name=document.createElement('td');name.textContent=applicant.name||'—';name.style.width='56%';name.style.minWidth='0';name.style.overflowWrap='anywhere';ar.appendChild(name);
-    const no=document.createElement('td');no.textContent=applicant.number||'—';no.style.width='32%';no.style.minWidth='0';no.style.overflowWrap='anywhere';ar.appendChild(no);
-    const selectCell=document.createElement('td');selectCell.style.width='12%';selectCell.style.minWidth='52px';selectCell.style.textAlign='center';
-    const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.style.width='18px';checkbox.style.minHeight='18px';checkbox.style.padding='0';checkbox.style.margin='2px 0';checkbox.checked=selectedApplicants.get(group.key)===applicantId;checkbox.setAttribute('aria-label','Select '+(applicant.name||'applicant')+' for job card '+group.key);
-    checkbox.addEventListener('change',async()=>{
-     const shouldSelect=checkbox.checked;checkbox.disabled=true;
-     try{
-      await invokeSelection({action:shouldSelect?'set':'clear',jobCardNumber:group.key,applicantKey:applicantId});
-      selectedApplicants=await loadSavedSelections();updateKpis();
-      status($('data-status'),shouldSelect?'Selection saved for job card '+group.key+'.':'Selection cleared for job card '+group.key+'.','success');
-     }catch(error){
-      status($('data-status'),'Could not save selection: '+(error&&error.message?error.message:String(error))+'. Reload the page if another user may have changed this selection.','error');
-     }
-     renderTable();
-    });
-    selectCell.appendChild(checkbox);ar.appendChild(selectCell);subbody.appendChild(ar);
-   });
-   subtable.appendChild(subbody);detailTd.appendChild(subtable);detailTr.appendChild(detailTd);detailTr.style.scrollMarginTop='56px';tbody.appendChild(detailTr);
-   if(scrollExpandedCardKey===group.key){scrollExpandedCardKey=null;requestAnimationFrame(()=>detailTr.scrollIntoView({behavior:'smooth',block:'start'}))}
-  }
+  const secondLine=document.createElement('div');secondLine.className='mobile-selection-status '+(hasSelection?'is-selected':'is-unselected');secondLine.style.display='block';secondLine.style.marginTop='6px';
+  const selectedKey=selectedApplicants.get(group.key)||'';
+  const selectedApplicant=group.applicants.find(applicant=>applicant.selectionKey===selectedKey);
+  secondLine.textContent=selectedApplicant?((selectedApplicant.name||'Unnamed applicant')+(selectedApplicant.number?' • '+selectedApplicant.number:'')):'No Applicant Selected';
+  detailCell.appendChild(secondLine);tr.appendChild(detailCell);tbody.appendChild(tr);
+
  });
  $('table-wrap').classList.toggle('hidden',!headers.length);
  const totalApplicants=filtered.reduce((sum,g)=>sum+g.applicants.length,0);

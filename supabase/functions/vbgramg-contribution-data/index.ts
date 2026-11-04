@@ -541,9 +541,9 @@ Deno.serve(async(req:Request)=>{
     if(!chosen)return reply({error:"The selected applicant for "+card+" is not in the current active MIS. Refresh the preview and try again."},409);
     reconciliationApplicants.set(card,chosen);
    }
-   const localInputRows=rows.filter((raw:Record<string,any>)=>activeJobCards.has(String(raw?.job_card_number||"").trim().toUpperCase()));
-   const excludedNotInActiveMis=rowsSeen-localInputRows.length;
-   if(!localInputRows.length)return reply({error:"No FTO transactions matched job cards in the active MIS. Nothing was imported."},400);
+   const localInputRows=rows;
+   const excludedNotInActiveMis=rowsSeen-localInputRows.filter((raw:Record<string,any>)=>activeJobCards.has(String(raw?.job_card_number||"").trim().toUpperCase())).length;
+   const excludedOutsideActiveMis=rowsSeen-excludedNotInActiveMis;
    const normalized:Record<string,any>[]=[];
    const seenReferences=new Map<string,string>();
    for(const raw of localInputRows){
@@ -572,7 +572,7 @@ Deno.serve(async(req:Request)=>{
       credit_amount:Number.isFinite(creditAmount)&&creditAmount>0?creditAmount:null,
       calculated_charge:status==="rejected"||status==="other"?0:calculatedCharge,
       status,rejection_reason:rejectionReason||null,
-      is_in_scope:true,
+      is_in_scope:activeJobCards.has(jobCard),
       source_row:raw.source_row&&typeof raw.source_row==="object"?raw.source_row:{}
     });
    }
@@ -677,7 +677,7 @@ Deno.serve(async(req:Request)=>{
     const old=oldByRef.get(String(row.reference_no));
     const id=String(old?.id||crypto.randomUUID());
     transactionRows.push({...row,id,batch_id:batchId,last_seen_at:nowIso,updated_at:nowIso,
-      created_at:old?.created_at||nowIso,is_current:true,is_in_scope:true,
+      created_at:old?.created_at||nowIso,is_current:true,is_in_scope:row.is_in_scope===true,
       ledger_entry_id:old?.ledger_entry_id||null});
     if(!old||String(old.status||"")!==String(row.status||"")||
        Number(old.calculated_charge||0)!==Number(row.calculated_charge||0)||
@@ -789,7 +789,7 @@ Deno.serve(async(req:Request)=>{
    const {data:rpcResult,error:rpcError}=await admin.rpc("vbgramg_apply_fto_snapshot",{p_plan:plan});
    if(rpcError)throw rpcError;
    if(!rpcResult?.committed)return reply({error:"The atomic FTO snapshot did not confirm a commit. No success was reported."},500);
-   return reply({approved:true,fto_number:ftoNumber,contribution_period:contributionPeriod,charge_period:chargePeriod,rows_seen:rowsSeen,local_transactions:normalized.length,excluded_not_in_active_mis:excludedNotInActiveMis,excluded_other_village:excludedNotInActiveMis,skipped_duplicate_references:skippedDuplicateReferences,skipped_duplicate_reference_count:skippedDuplicateReferences.length,inserted:insertedCount,updated:updatedCount,reconciled:reconciledCount,deleted:deletedCount,total_amount:totalAmount,batch_id:rpcResult.batch_id,import_id:rpcResult.import_id,atomic:true});
+   return reply({approved:true,fto_number:ftoNumber,contribution_period:contributionPeriod,charge_period:chargePeriod,rows_seen:rowsSeen,local_transactions:normalized.length,excluded_not_in_active_mis:excludedOutsideActiveMis,excluded_other_village:excludedOutsideActiveMis,skipped_duplicate_references:skippedDuplicateReferences,skipped_duplicate_reference_count:skippedDuplicateReferences.length,inserted:insertedCount,updated:updatedCount,reconciled:reconciledCount,deleted:deletedCount,total_amount:totalAmount,batch_id:rpcResult.batch_id,import_id:rpcResult.import_id,atomic:true});
 
   }
 

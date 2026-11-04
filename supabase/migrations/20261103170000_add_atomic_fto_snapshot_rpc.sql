@@ -130,7 +130,7 @@ begin
       and l.entry_type in ('charge', 'other_charge')
       and coalesce(l.is_deferred, false) = false
       and coalesce(l.is_voided, false) = false
-      and upper(left(coalesce(l.note, ''), 3)) <> 'FTO'
+      and (upper(left(coalesce(l.note, ''), 3)) <> 'FTO' or upper(left(coalesce(l.note, ''), 9)) = 'FTO EXTRA')
       and not (l.id = any(v_manual_link_ids));
 
     v_total_prospective := v_manual_charges + v_guard.prospective_fto_amount;

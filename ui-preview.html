@@ -178,6 +178,9 @@ body{background:#f3f6fb;color:#172033}.sidebar{display:none}.main{margin-left:0}
 
 @media(min-width:701px){.desktop-fetch{display:inline-flex}.mis-stats{grid-template-columns:repeat(5,minmax(0,1fr))}}
 @media(max-width:700px){.desktop-fetch{display:none!important}.mis-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.mis-stats .stat:last-child{grid-column:1/-1}}
+
+@media(min-width:701px){.desktop-fetch{display:inline-flex}.mis-stats{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media(max-width:700px){.desktop-fetch{display:none!important}.mis-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.mis-stats .stat:last-child{grid-column:1/-1}}
 </style>
 </head>
 <body>
@@ -283,13 +286,13 @@ body{background:#f3f6fb;color:#172033}.sidebar{display:none}.main{margin-left:0}
   records.forEach(function(r){var tr=document.createElement("tr");tr.innerHTML='<td><div class="primary-cell">'+r.job+'</div><div class="secondary-cell">'+r.household+' · '+r.applicationCount+' applicants</div></td><td class="primary-cell">'+r.applicant+'</td><td>'+r.appNo+'</td><td><span class="status '+(r.selected?"green":"gray")+'">'+(r.selected?"Selected":"Not selected")+'</span></td>';misBody.appendChild(tr);});
 
   var contributionBody=document.getElementById("contribution-preview-rows");
-  records.forEach(function(r,i){var dueIndex=i%5===0?0:(i%4)+1,settled=7000-dueIndex*700,due=dueIndex*700;if(r.job.endsWith("/1055")){settled=6300;due=700;}if(r.job.endsWith("/1128")){settled=5600;due=1400;}var tr=document.createElement("tr");tr.innerHTML='<td><div class="primary-cell">'+r.job+'</div><div class="secondary-cell">'+r.household+'</div></td><td>January – October 2026</td><td class="amount">₹'+settled.toLocaleString("en-IN")+'</td><td class="amount">₹'+due.toLocaleString("en-IN")+'</td><td><span class="status '+(due===0?"green":"amber")+'">'+(due===0?"Settled":"Due")+'</span></td>';contributionBody.appendChild(tr);});
+  records.forEach(function(r,i){var dueIndex=i%5===0?0:(i%4)+1,due=dueIndex*700;if(r.job.endsWith("/1055"))due=700;if(r.job.endsWith("/1128"))due=1400;var tr=document.createElement("tr");tr.innerHTML='<td><div class="primary-cell">'+r.job+'</div><div class="secondary-cell">'+r.household+'</div></td><td>'+(due===0?"OCT26":"SEP26")+'</td><td class="amount">'+(due===0?'<span class="status green">Settled</span>':'₹'+due.toLocaleString("en-IN"))+'</td>';contributionBody.appendChild(tr);});
 
   var ftoBody=document.getElementById("fto-preview-rows"),ftoPeriods=["OCT26","SEP26","AUG26","JUL26","JUN26","MAY26","APR26","MAR26","FEB26","JAN26","DEC25","NOV25"];
   ftoPeriods.forEach(function(period,i){var tr=document.createElement("tr"),number=String(18-i).padStart(3,"0"),status=i===1||i===6?"Partially processed":"Processed";tr.innerHTML='<td class="primary-cell">FTO-2026-'+number+'</td><td>'+period+'</td><td><span class="status '+(status==="Processed"?"green":"amber")+'">'+status+'</span></td><td>'+["04 Nov 2026","02 Nov 2026","29 Oct 2026","25 Oct 2026"][i%4]+'</td><td><button class="text-link" type="button">View</button></td>';ftoBody.appendChild(tr);});
 
   var periodsBody=document.getElementById("periods-preview-rows");
-  ["OCT26","SEP26","AUG26","JUL26","JUN26","MAY26","APR26","MAR26"].forEach(function(p,i){var d=new Date(2026,9-i,1),label=d.toLocaleDateString("en-IN",{month:"long",year:"numeric"}),date=d.toLocaleDateString("en-GB",{day:"2-digit",month:"long",year:"numeric"}),tr=document.createElement("tr");tr.innerHTML='<td class="primary-cell">'+p+'</td><td>'+label+'</td><td>'+date+'</td><td><span class="status '+(i===0?"green":"gray")+'">'+(i===0?"Open":"Closed")+'</span></td><td><button class="text-link" type="button">Open</button></td>';periodsBody.appendChild(tr);});
+  ["OCT26","SEP26","AUG26","JUL26","JUN26","MAY26","APR26","MAR26"].forEach(function(p,i){var d=new Date(2026,9-i,1),created=new Date(2026,10-i,4).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}),tr=document.createElement("tr");tr.innerHTML='<td class="primary-cell">'+p+'</td><td><span class="status '+(i===0?"green":"gray")+'">'+(i===0?"Open":"Closed")+'</span></td><td>'+created+'</td><td><button class="text-link" type="button">Open</button></td>';periodsBody.appendChild(tr);});
 
   var demandBody=document.getElementById("demand-preview-rows");
   records.filter(function(r,i){return i%4===1||i%7===0;}).slice(0,18).forEach(function(r,i){var due=(i%4+1)*350,tr=document.createElement("tr");tr.innerHTML='<td class="primary-cell">'+r.job+'</td><td>'+r.household+'</td><td class="amount">₹'+due.toLocaleString("en-IN")+'</td><td><button class="text-link" type="button">Review →</button></td>';demandBody.appendChild(tr);});

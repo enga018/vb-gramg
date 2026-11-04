@@ -8,6 +8,14 @@
     if (document.querySelector(".global-sidebar")) return;
     if (header) header.querySelectorAll("a.menu-link").forEach(function (a) { a.remove(); });
     document.body.classList.add("has-global-sidebar");
+    function syncResponsiveMode(){
+      var phoneLandscape=window.matchMedia("(max-height:600px) and (pointer:coarse)").matches;
+      var tablet=window.innerWidth>=768&&window.innerWidth<=1023;
+      var mobile=window.innerWidth<=767||phoneLandscape;
+      document.body.classList.toggle("is-mobile-layout",mobile);
+      document.body.classList.toggle("is-tablet-layout",tablet&&!phoneLandscape);
+    }
+    syncResponsiveMode();
     var links = [
       ["MIS", "./mis.html", "♙"],
       ["FTO", "./fto.html", "▤"],
@@ -78,7 +86,7 @@
     var mobileHeaderStyle = document.createElement("style");
     mobileHeaderStyle.textContent = `
       .global-mobile-header{display:none}
-      @media(max-width:700px){
+      @media(max-width:1023px), (max-height:600px) and (pointer:coarse){
         .global-mobile-header{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:48px;margin:0 auto 12px;padding:5px 10px;background:#fff;border:1px solid #e3e8f0;border-radius:12px;box-shadow:0 3px 12px rgb(23 32 51 / 4%)}
         .global-mobile-header-title{margin-left:auto;text-align:right;font-size:.94rem;font-weight:750;letter-spacing:-.015em;color:#172033;line-height:1.25}
         .global-sidebar-desktop-toggle{display:none!important}
@@ -105,7 +113,7 @@
     document.addEventListener("keydown", function (event) {
       if (event.key === "Escape" && sidebar.classList.contains("is-open")) { close(); button.focus(); }
     });
-    window.addEventListener("resize", function () { if (window.innerWidth > 700) close(); });
+    window.addEventListener("resize", function () { syncResponsiveMode(); if (window.innerWidth > 1023 && !window.matchMedia("(max-height:600px) and (pointer:coarse)").matches) close(); });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", install);
   else install();

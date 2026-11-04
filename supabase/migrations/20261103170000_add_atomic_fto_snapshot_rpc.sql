@@ -371,6 +371,8 @@ begin
   from public.vbgramg_charge_ledger
   where period_id = new.period_id
     and entry_type in ('charge','other_charge','sanitationFee')
+    and coalesce(is_deferred,false) = false
+    and coalesce(is_voided,false) = false
     and job_card_number = new.job_card_number
   limit 1;
 

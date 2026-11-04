@@ -137,9 +137,8 @@ Deno.serve(async(req:Request)=>{
      const {data,error}=await admin.from("vbgramg_charge_ledger").select("job_card_number,entry_type,amount,note,is_deferred").in("job_card_number",cards).order("job_card_number",{ascending:true}).order("entry_date",{ascending:true}).range(offset,offset+999);
      if(error)throw error;
      ledgerRows.push(...(data||[]));
-     if(!data||data.length<1000||ledgerRows.length>=20000)break;
+     if(!data||data.length<1000)break;
     }
-    if(ledgerRows.length>=20000)break;
    }
    const {data:exemptionRows,error:exemptionError}=await admin.from("vbgramg_contribution_exemptions").select("job_card_number").in("job_card_number",requested);
    if(exemptionError)throw exemptionError;

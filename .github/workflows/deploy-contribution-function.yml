@@ -26,4 +26,4 @@ jobs:
       - name: Deploy contribution Edge Function
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: supabase functions deploy vbgramg-contribution-data --project-ref trtzhafgvqosjwrgckty --use-api
+        run: supabase functions deploy vbgramg-contribution-data --project-ref trtzhafgvqosjwrgckty --use-api --yes

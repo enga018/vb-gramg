@@ -120,4 +120,4 @@ $("period-see-more").addEventListener("click",()=>{periodsShown=Math.min(periods
 let lastPeriodsMobile=window.matchMedia("(max-width: 700px)").matches;window.addEventListener("resize",()=>{const next=window.matchMedia("(max-width: 700px)").matches;if(next!==lastPeriodsMobile){lastPeriodsMobile=next;render()}});
 $("create-period").addEventListener("click",createPeriod);$("toggle-create").addEventListener("click",()=>{const dialog=$("create-dialog");if(typeof dialog.showModal==="function")dialog.showModal();else dialog.setAttribute("open","");$("new-month").focus()});$("cancel-create").addEventListener("click",()=>{$("new-month").value="";$("create-dialog").close()});$("create-dialog").addEventListener("close",()=>{$("new-month").value=""});
 (async()=>{if(await verify())await load()})();
-</script><script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261031f"></script></body></html>
+</script><script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261104-sidebar1"></script></body></html>

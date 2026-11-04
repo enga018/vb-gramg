@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f7f8fc">
+<title>VBGRAMG — UI Preview</title>
+<style>
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f7f8fc;font-synthesis:none;text-rendering:optimizeLegibility;--bg:#f7f8fc;--surface:#fff;--ink:#172033;--muted:#667085;--line:#e7eaf0;--blue:#315ee8;--blue-soft:#eef3ff;--green:#16834a;--green-soft:#eaf7ef;--amber:#a96512;--amber-soft:#fff5e6;--red:#c13d3d;--red-soft:#fff0ef;--sidebar:252px}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:var(--bg)}button,input{font:inherit}button{cursor:pointer}.app{min-height:100vh}.sidebar{position:fixed;inset:0 auto 0 0;width:var(--sidebar);background:#fff;border-right:1px solid var(--line);padding:23px 16px;display:flex;flex-direction:column;z-index:30}.brand{display:flex;align-items:center;gap:11px;padding:0 10px 27px}.brand-mark{width:38px;height:38px;border-radius:12px;background:#315ee8;color:#fff;display:grid;place-items:center;font-weight:800;font-size:17px;box-shadow:0 5px 12px #315ee82b}.brand-name{font-weight:800;font-size:16px;letter-spacing:-.4px}.brand-sub{font-size:11px;color:#8a93a5;margin-top:2px}.nav-label{font-size:10px;font-weight:750;letter-spacing:1.15px;color:#9aa2b1;padding:10px 12px 8px}.nav{display:grid;gap:4px}.nav button{width:100%;display:flex;align-items:center;gap:12px;border:0;background:transparent;color:#596579;text-align:left;padding:11px 12px;border-radius:10px;font-size:13px;font-weight:620;min-height:43px}.nav button:hover{background:#f6f8fc;color:#23304a}.nav button.active{background:var(--blue-soft);color:#2854d7;font-weight:750}.nav-icon{width:19px;text-align:center;font-size:16px}.sidebar-bottom{margin-top:auto;border-top:1px solid var(--line);padding:16px 9px 0}.user{display:flex;align-items:center;gap:10px}.avatar{width:34px;height:34px;border-radius:50%;background:#e9edfa;color:#3154b8;display:grid;place-items:center;font-weight:750;font-size:12px}.user-name{font-size:12px;font-weight:700}.user-role{font-size:11px;color:#8992a2;margin-top:2px}.main{margin-left:var(--sidebar);min-height:100vh}.topbar{height:70px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 34px;position:sticky;top:0;z-index:20}.crumb{font-size:12px;color:#8a93a5}.crumb strong{color:#26334b;font-weight:700}.top-right{display:flex;align-items:center;gap:13px}.date-label{font-size:12px;color:#7b8494}.top-avatar{width:33px;height:33px;border-radius:50%;background:#edf1fb;color:#3154b8;display:grid;place-items:center;font-size:12px;font-weight:750}.mobile-menu{display:none;border:1px solid var(--line);background:#fff;border-radius:9px;width:38px;height:38px;color:#344054;font-size:18px}.content{max-width:1500px;margin:0 auto;padding:29px 34px 48px}.preview-note{display:flex;align-items:center;gap:9px;background:#f0f5ff;border:1px solid #dce7ff;color:#3756a4;border-radius:10px;padding:10px 13px;font-size:11px;margin-bottom:23px}.preview-dot{width:7px;height:7px;border-radius:50%;background:#4774ec;flex:none}.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:23px}.eyebrow{font-size:10px;text-transform:uppercase;letter-spacing:1.15px;color:#8b95a7;font-weight:750;margin-bottom:7px}.page-head h1{font-size:25px;letter-spacing:-.8px;margin:0;color:#182238}.page-head p{font-size:13px;color:#7b8494;margin:7px 0 0;line-height:1.5}.head-actions{display:flex;gap:9px;flex-wrap:wrap}.btn{border:1px solid #e1e6ef;background:#fff;color:#39465c;border-radius:9px;min-height:38px;padding:8px 13px;font-size:12px;font-weight:680;display:inline-flex;align-items:center;gap:7px}.btn:hover{background:#f8faff}.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 3px 8px #315ee82b}.btn.primary:hover{background:#244fd2}.btn:focus-visible,.nav button:focus-visible,.mobile-menu:focus-visible{outline:3px solid #315ee844;outline-offset:2px}.grid{display:grid;gap:15px}.stats{grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:18px}.stat{background:#fff;border:1px solid var(--line);border-radius:13px;padding:17px 18px;min-width:0}.stat-top{display:flex;justify-content:space-between;align-items:center;gap:8px}.stat-label{font-size:11px;color:#7c8697;font-weight:620}.stat-icon{width:30px;height:30px;border-radius:9px;background:#f0f4ff;color:#4569d6;display:grid;place-items:center;font-size:14px}.stat-value{font-size:24px;font-weight:780;letter-spacing:-.8px;margin-top:12px;color:#1b263b;font-variant-numeric:tabular-nums}.stat-foot{font-size:10px;color:#929aaa;margin-top:5px}.stat-foot .positive{color:var(--green);font-weight:700}.two-col{grid-template-columns:minmax(0,1.45fr) minmax(270px,.8fr)}.panel{background:#fff;border:1px solid var(--line);border-radius:13px;min-width:0}.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:17px 19px;border-bottom:1px solid #eef0f4}.panel-title{font-size:13px;font-weight:750;color:#26334a}.panel-sub{font-size:10px;color:#929aaa;margin-top:4px}.panel-body{padding:17px 19px}.text-link{border:0;background:none;color:#315ee8;font-size:11px;font-weight:700;padding:4px}.activity{display:grid;gap:17px}.activity-item{display:flex;gap:11px;align-items:flex-start}.activity-icon{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:none;font-size:13px}.activity-icon.blue{background:#eef3ff;color:#315ee8}.activity-icon.green{background:#eaf7ef;color:#16834a}.activity-icon.amber{background:#fff5e6;color:#a96512}.activity-title{font-size:11px;font-weight:700;color:#354158}.activity-meta{font-size:10px;color:#929aaa;margin-top:4px}.status{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:5px 8px;font-size:10px;font-weight:750;white-space:nowrap}.status:before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor}.status.green{color:var(--green);background:var(--green-soft)}.status.amber{color:var(--amber);background:var(--amber-soft)}.status.red{color:var(--red);background:var(--red-soft)}.status.blue{color:#315ee8;background:var(--blue-soft)}.status.gray{color:#687386;background:#f0f2f5}.table-panel{overflow:hidden}.table-tools{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid #eef0f4}.search{width:min(100%,290px);height:36px;border:1px solid #e1e6ef;border-radius:8px;padding:0 11px;color:#344054;font-size:11px;outline:none;background:#fff}.search:focus{border-color:#8da7f5;box-shadow:0 0 0 3px #315ee818}.tool-right{display:flex;gap:8px;align-items:center}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:11px;white-space:nowrap}th{text-align:left;padding:11px 16px;background:#fafbfc;color:#8992a2;font-size:9px;letter-spacing:.65px;text-transform:uppercase;font-weight:750;border-bottom:1px solid #edf0f4}td{padding:13px 16px;border-bottom:1px solid #f0f2f5;color:#4a566b}tbody tr:last-child td{border-bottom:0}tbody tr:hover{background:#fbfcff}.primary-cell{font-weight:750;color:#29364d}.secondary-cell{font-size:10px;color:#9099a9;margin-top:4px}.amount{font-variant-numeric:tabular-nums;text-align:right;font-weight:750;color:#29364d}.table-foot{padding:12px 17px;border-top:1px solid #eef0f4;display:flex;justify-content:space-between;align-items:center;color:#929aaa;font-size:10px}.mini-list{display:grid;gap:0}.mini-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid #f0f2f5}.mini-row:last-child{border:0}.mini-name{font-size:11px;font-weight:700;color:#3b475c}.mini-desc{font-size:10px;color:#929aaa;margin-top:4px}.mini-value{font-size:11px;font-weight:750;color:#354158;text-align:right}.screen{display:none}.screen.active{display:block}.screen .panel{margin-bottom:15px}.summary-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}.summary-box{padding:14px 16px;border:1px solid var(--line);background:#fff;border-radius:11px}.summary-box span{display:block;color:#8a93a5;font-size:10px;font-weight:650}.summary-box strong{display:block;margin-top:7px;font-size:19px;color:#25324a;letter-spacing:-.4px}.empty-hint{color:#929aaa;font-size:11px}.overlay{display:none}
+@media(max-width:1050px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.two-col{grid-template-columns:1fr}.content{padding:25px 24px 40px}}
+@media(max-width:700px){:root{--sidebar:0px}.sidebar{width:270px;transform:translateX(-100%);transition:transform .2s ease;box-shadow:12px 0 35px #1720331a}.sidebar.open{transform:translateX(0)}.overlay.show{display:block;position:fixed;inset:0;background:#17203355;z-index:25}.main{margin-left:0}.topbar{height:61px;padding:0 15px;gap:10px}.mobile-menu{display:inline-grid;place-items:center;flex:none}.crumb{flex:1}.date-label{display:none}.content{padding:20px 14px 34px}.preview-note{font-size:10px;align-items:flex-start;line-height:1.45;margin-bottom:18px}.page-head{display:block;margin-bottom:18px}.page-head h1{font-size:23px}.head-actions{margin-top:15px}.head-actions .btn{flex:1;justify-content:center}.stats{gap:9px}.stat{padding:13px}.stat-value{font-size:21px;margin-top:9px}.stat-label{font-size:10px}.stat-icon{width:27px;height:27px}.panel-head{padding:14px}.panel-body{padding:14px}.table-tools{padding:12px 13px}.search{width:100%;flex:1;min-width:0}.tool-right{display:none}.table-foot{padding:11px 13px}.summary-strip{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.summary-box{padding:12px}.summary-box strong{font-size:17px}}
+@media(max-width:370px){.stats{grid-template-columns:1fr 1fr}.stat-value{font-size:19px}.content{padding-left:11px;padding-right:11px}.page-head h1{font-size:21px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar" id="sidebar" aria-label="Main navigation">
+  <div class="brand"><div class="brand-mark">V</div><div><div class="brand-name">VBGRAMG</div><div class="brand-sub">Village Benefit Management</div></div></div>
+  <div class="nav-label">WORKSPACE</div>
+  <nav class="nav">
+    <button class="active" data-target="overview"><span class="nav-icon">▦</span>Overview</button>
+    <button data-target="mis"><span class="nav-icon">♙</span>MIS</button>
+    <button data-target="fto"><span class="nav-icon">▤</span>FTO History</button>
+    <button data-target="contribution"><span class="nav-icon">₹</span>Contribution</button>
+    <button data-target="periods"><span class="nav-icon">◷</span>Periods</button>
+    <button data-target="demand"><span class="nav-icon">☷</span>Work Demand</button>
+  </nav>
+  <div class="sidebar-bottom"><div class="user"><div class="avatar">AD</div><div><div class="user-name">Administrator</div><div class="user-role">Preview account</div></div></div></div>
+</aside>
+<div class="overlay" id="overlay"></div>
+<div class="main">
+  <header class="topbar">
+    <button class="mobile-menu" id="menu-button" aria-label="Open navigation" aria-expanded="false">☰</button>
+    <div class="crumb">Workspace <span style="color:#c1c7d1;padding:0 6px">/</span> <strong id="breadcrumb">Overview</strong></div>
+    <div class="top-right"><span class="date-label">Design concept · November 2026</span><div class="top-avatar">AD</div></div>
+  </header>
+  <main class="content">
+    <div class="preview-note"><span class="preview-dot"></span><span><strong>Design preview only.</strong> All names, figures and records shown here are illustrative. This page is isolated and does not read or modify VBGRAMG data.</span></div>
+
+    <section class="screen active" id="screen-overview" aria-labelledby="title-overview">
+      <div class="page-head"><div><div class="eyebrow">Workspace overview</div><h1 id="title-overview">Good afternoon</h1><p>Here is a summary of your administrative workspace.</p></div><div class="head-actions"><button class="btn">↻ &nbsp;Refresh preview</button><button class="btn primary" data-target="mis">Open MIS <span>→</span></button></div></div>
+      <div class="grid stats">
+        <div class="stat"><div class="stat-top"><span class="stat-label">Total Job Cards</span><span class="stat-icon">♙</span></div><div class="stat-value">683</div><div class="stat-foot">Illustrative figure</div></div>
+        <div class="stat"><div class="stat-top"><span class="stat-label">Total Applications</span><span class="stat-icon">▤</span></div><div class="stat-value">1,248</div><div class="stat-foot">Illustrative figure</div></div>
+        <div class="stat"><div class="stat-top"><span class="stat-label">Demand</span><span class="stat-icon">✓</span></div><div class="stat-value">426</div><div class="stat-foot"><span class="positive">62.4%</span> of job cards</div></div>
+        <div class="stat"><div class="stat-top"><span class="stat-label">Unwilling</span><span class="stat-icon">−</span></div><div class="stat-value">257</div><div class="stat-foot">Illustrative figure</div></div>
+      </div>
+      <div class="grid two-col">
+        <div class="panel table-panel"><div class="panel-head"><div><div class="panel-title">Recent activity</div><div class="panel-sub">A quick view of recent workspace events</div></div><button class="text-link" data-target="fto">View FTO history →</button></div><div class="panel-body"><div class="activity">
+          <div class="activity-item"><div class="activity-icon green">✓</div><div><div class="activity-title">FTO import completed</div><div class="activity-meta">FTO-2026-018 · 24 transactions · Sample event</div></div><span class="status green" style="margin-left:auto">Completed</span></div>
+          <div class="activity-item"><div class="activity-icon blue">↻</div><div><div class="activity-title">MIS data refreshed</div><div class="activity-meta">683 job cards · Sample event</div></div><span class="status blue" style="margin-left:auto">Updated</span></div>
+          <div class="activity-item"><div class="activity-icon amber">₹</div><div><div class="activity-title">Contribution review needed</div><div class="activity-meta">12 records · Sample event</div></div><span class="status amber" style="margin-left:auto">Review</span></div>
+        </div></div></div>
+        <div class="panel"><div class="panel-head"><div><div class="panel-title">Quick access</div><div class="panel-sub">Jump to a workspace</div></div></div><div class="panel-body mini-list">
+          <div class="mini-row"><div><div class="mini-name">MIS</div><div class="mini-desc">Applicants and job cards</div></div><button class="text-link" data-target="mis">Open →</button></div>
+          <div class="mini-row"><div><div class="mini-name">FTO History</div><div class="mini-desc">Imported payment records</div></div><button class="text-link" data-target="fto">Open →</button></div>
+          <div class="mini-row"><div><div class="mini-name">Contribution</div><div class="mini-desc">Settled and due records</div></div><button class="text-link" data-target="contribution">Open →</button></div>
+          <div class="mini-row"><div><div class="mini-name">Work Demand</div><div class="mini-desc">Prepare and review demand</div></div><button class="text-link" data-target="demand">Open →</button></div>
+        </div></div>
+      </div>
+    </section>
+
+    <section class="screen" id="screen-mis" aria-labelledby="title-mis">
+      <div class="page-head"><div><div class="eyebrow">People and records</div><h1 id="title-mis">MIS</h1><p>Manage active job cards, households and applicant selection.</p></div><div class="head-actions"><button class="btn">↻ Refresh</button><button class="btn primary">↑ Import</button></div></div>
+      <div class="grid stats">
+        <div class="stat"><div class="stat-label">Total Job Cards</div><div class="stat-value">683</div><div class="stat-foot">Sample data</div></div><div class="stat"><div class="stat-label">Total Applications</div><div class="stat-value">1,248</div><div class="stat-foot">Sample data</div></div><div class="stat"><div class="stat-label">Demand</div><div class="stat-value">426</div><div class="stat-foot">Selected applicants</div></div><div class="stat"><div class="stat-label">Unwilling</div><div class="stat-value">257</div><div class="stat-foot">No selected applicant</div></div>
+      </div>
+      <div class="panel table-panel"><div class="table-tools"><input class="search" placeholder="Search job card or applicant…" aria-label="Search sample MIS records"><div class="tool-right"><button class="btn">All job cards⌄</button></div></div><div class="table-wrap"><table><thead><tr><th>Job card / household</th><th>Applicant</th><th>Applicant no.</th><th>Selection</th></tr></thead><tbody>
+        <tr><td><div class="primary-cell">JC / 0042</div><div class="secondary-cell">Lalhmingthanga</div></td><td class="primary-cell">Lalrinpuii</td><td>01</td><td><span class="status green">Selected</span></td></tr>
+        <tr><td><div class="primary-cell">JC / 0043</div><div class="secondary-cell">Zothanmawia</div></td><td class="primary-cell">Lalremruati</td><td>02</td><td><span class="status green">Selected</span></td></tr>
+        <tr><td><div class="primary-cell">JC / 0044</div><div class="secondary-cell">Rochungnunga</div></td><td class="primary-cell">Lalduhawmi</td><td>01</td><td><span class="status gray">Not selected</span></td></tr>
+        <tr><td><div class="primary-cell">JC / 0045</div><div class="secondary-cell">Vanlalruata</div></td><td class="primary-cell">Malsawmtluangi</td><td>01</td><td><span class="status green">Selected</span></td></tr>
+      </tbody></table></div><div class="table-foot"><span>Showing 4 illustrative records</span><span>Page 1 of 1</span></div></div>
+    </section>
+
+    <section class="screen" id="screen-fto" aria-labelledby="title-fto">
+      <div class="page-head"><div><div class="eyebrow">Payment records</div><h1 id="title-fto">FTO History</h1><p>Review imported FTOs and their contribution periods.</p></div><div class="head-actions"><button class="btn">↻ Refresh</button><button class="btn primary">＋ Import FTO</button></div></div>
+      <div class="summary-strip"><div class="summary-box"><span>Total FTOs</span><strong>128</strong></div><div class="summary-box"><span>Last imported</span><strong>04 Nov 2026</strong></div><div class="summary-box"><span>Needs review</span><strong>3</strong></div></div>
+      <div class="panel table-panel"><div class="table-tools"><input class="search" placeholder="Search FTO number…" aria-label="Search sample FTO records"><div class="tool-right"><button class="btn">All periods⌄</button></div></div><div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Contribution period</th><th>Status summary</th><th>Last imported / checked</th><th>Action</th></tr></thead><tbody>
+        <tr><td class="primary-cell">FTO-2026-018</td><td>MAY26</td><td><span class="status green">Processed</span></td><td>04 Nov 2026</td><td><button class="text-link">View</button></td></tr>
+        <tr><td class="primary-cell">FTO-2026-017</td><td>APR26</td><td><span class="status amber">Partially processed</span></td><td>02 Nov 2026</td><td><button class="text-link">View</button></td></tr>
+        <tr><td class="primary-cell">FTO-2026-016</td><td>MAR26</td><td><span class="status green">Processed</span></td><td>29 Oct 2026</td><td><button class="text-link">View</button></td></tr>
+      </tbody></table></div><div class="table-foot"><span>Showing 3 illustrative records</span><span>Page 1 of 1</span></div></div>
+    </section>
+
+    <section class="screen" id="screen-contribution" aria-labelledby="title-contribution">
+      <div class="page-head"><div><div class="eyebrow">Financial operations</div><h1 id="title-contribution">Contribution</h1><p>Review contribution status and outstanding balances.</p></div><div class="head-actions"><button class="btn">↻ Refresh</button><button class="btn primary">＋ Bank Payment</button></div></div>
+      <div class="summary-strip"><div class="summary-box"><span>Total citizens</span><strong>683</strong></div><div class="summary-box"><span>Settled</span><strong style="color:#16834a">426</strong></div><div class="summary-box"><span>Due</span><strong style="color:#a96512">257</strong></div></div>
+      <div class="panel table-panel"><div class="table-tools"><input class="search" placeholder="Search job card or household…" aria-label="Search sample contribution records"><div class="tool-right"><button class="btn">Due records⌄</button></div></div><div class="table-wrap"><table><thead><tr><th>Job card / household</th><th>Contribution period</th><th style="text-align:right">Settled</th><th style="text-align:right">Due</th><th>Status</th></tr></thead><tbody>
+        <tr><td><div class="primary-cell">JC / 0042</div><div class="secondary-cell">Lalhmingthanga</div></td><td>January – May 2026</td><td class="amount">₹3,500</td><td class="amount">₹0</td><td><span class="status green">Settled</span></td></tr>
+        <tr><td><div class="primary-cell">JC / 0043</div><div class="secondary-cell">Zothanmawia</div></td><td>January – May 2026</td><td class="amount">₹2,800</td><td class="amount">₹700</td><td><span class="status amber">Due</span></td></tr>
+        <tr><td><div class="primary-cell">JC / 0044</div><div class="secondary-cell">Rochungnunga</div></td><td>January – May 2026</td><td class="amount">₹1,400</td><td class="amount">₹2,100</td><td><span class="status red">Due</span></td></tr>
+      </tbody></table></div><div class="table-foot"><span>Illustrative records only</span><span>Tap a row in the real app to open its ledger</span></div></div>
+    </section>
+
+    <section class="screen" id="screen-periods" aria-labelledby="title-periods">
+      <div class="page-head"><div><div class="eyebrow">Contribution setup</div><h1 id="title-periods">Periods</h1><p>Manage contribution periods and their current status.</p></div><div class="head-actions"><button class="btn primary">＋ New period</button></div></div>
+      <div class="panel table-panel"><div class="table-tools"><div class="panel-title">Contribution periods</div><div class="tool-right"><button class="btn">All periods⌄</button></div></div><div class="table-wrap"><table><thead><tr><th>Period</th><th>Contribution month</th><th>Period date</th><th>Status</th><th>Action</th></tr></thead><tbody>
+        <tr><td class="primary-cell">MAY26</td><td>May 2026</td><td>01 May 2026</td><td><span class="status green">Open</span></td><td><button class="text-link">Open</button></td></tr>
+        <tr><td class="primary-cell">APR26</td><td>April 2026</td><td>01 April 2026</td><td><span class="status gray">Closed</span></td><td><button class="text-link">Open</button></td></tr>
+        <tr><td class="primary-cell">MAR26</td><td>March 2026</td><td>01 March 2026</td><td><span class="status gray">Closed</span></td><td><button class="text-link">Open</button></td></tr>
+      </tbody></table></div><div class="table-foot"><span>3 illustrative periods</span><span>Period rules are unchanged in the real app</span></div></div>
+    </section>
+
+    <section class="screen" id="screen-demand" aria-labelledby="title-demand">
+      <div class="page-head"><div><div class="eyebrow">Work planning</div><h1 id="title-demand">Work Demand</h1><p>Prepare the demand list and review records that need attention.</p></div><div class="head-actions"><button class="btn">View saved demands</button><button class="btn primary">＋ Create demand</button></div></div>
+      <div class="summary-strip"><div class="summary-box"><span>Selected applicants</span><strong>426</strong></div><div class="summary-box"><span>Manual review needed</span><strong>18</strong></div><div class="summary-box"><span>Unwilling to work</span><strong>257</strong></div></div>
+      <div class="panel"><div class="panel-head"><div><div class="panel-title">Manual Review Needed</div><div class="panel-sub">Illustrative records with an outstanding contribution balance</div></div><span class="status amber">18 to review</span></div><div class="table-wrap"><table><thead><tr><th>Job card</th><th>Head of household</th><th style="text-align:right">Outstanding</th><th>Action</th></tr></thead><tbody>
+        <tr><td class="primary-cell">JC / 0043</td><td>Zothanmawia</td><td class="amount">₹700</td><td><button class="text-link">Review →</button></td></tr>
+        <tr><td class="primary-cell">JC / 0044</td><td>Rochungnunga</td><td class="amount">₹2,100</td><td><button class="text-link">Review →</button></td></tr>
+        <tr><td class="primary-cell">JC / 0051</td><td>Vanlalhriata</td><td class="amount">₹350</td><td><button class="text-link">Review →</button></td></tr>
+      </tbody></table></div></div>
+    </section>
+  </main>
+</div>
+</div>
+<script>
+(function(){
+  var names={overview:"Overview",mis:"MIS",fto:"FTO History",contribution:"Contribution",periods:"Periods",demand:"Work Demand"};
+  var screens=document.querySelectorAll(".screen");
+  var navButtons=document.querySelectorAll("[data-target]");
+  var sidebar=document.getElementById("sidebar");
+  var overlay=document.getElementById("overlay");
+  var menuButton=document.getElementById("menu-button");
+  function closeMenu(){sidebar.classList.remove("open");overlay.classList.remove("show");menuButton.setAttribute("aria-expanded","false");}
+  function show(name){
+    if(!names[name])return;
+    screens.forEach(function(s){s.classList.toggle("active",s.id==="screen-"+name);});
+    document.querySelectorAll(".nav button[data-target]").forEach(function(b){b.classList.toggle("active",b.dataset.target===name);});
+    document.getElementById("breadcrumb").textContent=names[name];
+    document.title="VBGRAMG — "+names[name]+" Preview";
+    closeMenu();
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+  navButtons.forEach(function(b){b.addEventListener("click",function(){show(b.dataset.target);});});
+  menuButton.addEventListener("click",function(){var open=!sidebar.classList.contains("open");sidebar.classList.toggle("open",open);overlay.classList.toggle("show",open);menuButton.setAttribute("aria-expanded",String(open));});
+  overlay.addEventListener("click",closeMenu);
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")closeMenu();});
+  document.querySelectorAll(".search").forEach(function(input){input.addEventListener("input",function(){var q=input.value.toLowerCase();var table=input.closest(".panel").querySelector("tbody");if(!table)return;table.querySelectorAll("tr").forEach(function(row){row.hidden=!row.textContent.toLowerCase().includes(q);});});});
+})();
+</script>
+</body>
+</html>

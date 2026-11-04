@@ -711,10 +711,10 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{padding:18px 
 }
 
 
-/* Final desktop table sizing: show ten standard rows without changing height
-   between pages, while allowing long names and status badges to wrap safely. */
+/* Desktop table: show 20 rows at natural height; the page scrolls normally.
+   Keep row count independent of viewport height and footer spacing. */
 @media(min-width:701px){
- #table-wrap{height:var(--contribution-table-height,510px);min-height:0;max-height:none;overflow:auto;position:relative;contain:layout paint}
+ #table-wrap{height:auto;min-height:0;max-height:none;overflow:visible;position:relative;contain:none}
  #contribution-table{width:100%;min-width:0;table-layout:fixed;border-collapse:collapse;border-spacing:0}
  #contribution-table thead th:nth-child(1){width:34%;text-align:left}
  #contribution-table thead th:nth-child(2){width:27%;text-align:left}
@@ -745,10 +745,6 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{padding:18px 
  #contribution-table tbody tr.contribution-row.overpaid td:first-child{border-left:4px solid #d97706!important}
 }
 
-/* Keep desktop pagination closer to the bottom edge without changing layout height. */
-@media(min-width:701px){
- #contribution-layout .table-foot .actions{transform:translateY(10px)}
-}
 
 /* Final button system: consistent sizing, typography, radius and alignment
    across Contribution actions on desktop and mobile. */
@@ -933,7 +929,7 @@ try {
  setStartupError('Could not load the connection library. Check your internet connection and use Reload page to try again.');
  return;
 }
-let entries=[], citizens=[], citizenRegistry=[], applicantsByCard={}, extraCharges=[], exemptions=[], periods=[], paymentAllocations=[], paymentRefundReconciliations=[], currentCitizen=null, busy=false, currentPage=0, pageSize=10, appRole="";
+let entries=[], citizens=[], citizenRegistry=[], applicantsByCard={}, extraCharges=[], exemptions=[], periods=[], paymentAllocations=[], paymentRefundReconciliations=[], currentCitizen=null, busy=false, currentPage=0, pageSize=20, appRole="";
 const exemptCardSet=()=>new Set(exemptions.map(x=>String(x.job_card_number||"").trim()));
 const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1002,41 +998,7 @@ function deriveCitizens(){
  citizens=[...map.values()].map(c=>{const x=calculateLedgerState(c.ledger);return c.exempt?{...c,charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,totalCharged:0,balance:0}:{...c,charges:x.charged,activeCharges:x.charged,deferred:x.deferred,paid:x.paid,waived:x.waived,returns:x.returned,totalCharged:Math.max(0,x.charged-Math.min(x.charged,x.waived)),balance:x.balance}}).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
 }
 const jobCardSuffixNumber=window.VBGRAMGContribution.jobCardSuffixNumber;
-function fitDesktopTableToViewport(){
- const wrap=$('table-wrap');
- const foot=document.querySelector('#contribution-layout .table-foot');
- if(!wrap||window.matchMedia('(max-width:700px)').matches)return;
-
- // Fit the table into the actual viewport after reserving the page's real
- // bottom padding and the pagination footer. This prevents the page itself
- // from becoming taller than the screen on different desktop resolutions.
- const top=wrap.getBoundingClientRect().top;
- const footerHeight=foot?foot.getBoundingClientRect().height:0;
- const main=document.querySelector('body>main');
- const panel=wrap.closest('.contribution-main-panel');
- const bodyStyle=window.getComputedStyle(document.body);
- const mainStyle=main?window.getComputedStyle(main):null;
- const panelStyle=panel?window.getComputedStyle(panel):null;
- const footStyle=foot?window.getComputedStyle(foot):null;
- const bodyBottom=parseFloat(bodyStyle.paddingBottom)||0;
- const mainBottom=mainStyle?(parseFloat(mainStyle.paddingBottom)||0):0;
- const panelBottom=panelStyle?(parseFloat(panelStyle.paddingBottom)||0):0;
- const footerGap=footStyle?(parseFloat(footStyle.marginTop)||0):0;
- const safetyGap=30;
- const available=Math.max(0,window.innerHeight-top-footerHeight-footerGap-bodyBottom-mainBottom-panelBottom-safetyGap);
-
- // Use every available pixel, but derive pagination from the resulting
- // table height so the row count remains correct on short and tall screens.
- const nextHeight=Math.floor(available);
- const rows=Math.max(1,Math.floor((nextHeight-42)/44));
- wrap.style.setProperty('--contribution-table-height',nextHeight+'px');
- if(pageSize!==rows){
-  pageSize=rows;
-  currentPage=Math.min(currentPage,Math.max(0,Math.ceil(citizens.filter(c=>!c.exempt).length/pageSize)-1));
- }
-}
 function render(){
- fitDesktopTableToViewport();
  const q=$('search').value.trim().toLocaleLowerCase(),filter=$('statusFilter').value;
  const list=citizens.filter(c=>{
   if(c.exempt)return false;

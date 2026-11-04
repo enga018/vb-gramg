@@ -199,7 +199,6 @@ Deno.serve(async(req:Request)=>{
    const misRows:Record<string,unknown>[]=[];
    for(let offset=0;;offset+=1000){const {data,error}=await admin.from("vbgramg_mis_rows").select("row_number,row_data").eq("import_id",misState.active_import_id).order("row_number",{ascending:true}).range(offset,offset+999);if(error)throw error;misRows.push(...(data||[]));if(!data||data.length<1000)break;}
    if(!misRows.length)throw new Error("The active MIS import contains no rows.");
-   if(!misRows.length)throw new Error("The active MIS import contains no rows.");
    const header=Array.isArray(misRows[0].row_data)?(misRows[0].row_data as unknown[]).map(v=>String(v||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim()):[];
    const col=(...names:string[])=>header.findIndex(v=>names.includes(v));
    const jcCol=col("job card number","jobcard number"),houseCol=col("head of household","head of household name"),nameCol=col("name of applicant","applicant name"),applicantNoCol=col("applicant no","applicant number"),uniqueIdCol=col("unique id","unique applicant id");

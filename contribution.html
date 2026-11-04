@@ -884,14 +884,17 @@ function fitDesktopTableToViewport(){
  const top=wrap.getBoundingClientRect().top;
  const footerHeight=foot?foot.getBoundingClientRect().height:0;
  const main=document.querySelector('body>main');
+ const panel=wrap.closest('.contribution-main-panel');
  const bodyStyle=window.getComputedStyle(document.body);
  const mainStyle=main?window.getComputedStyle(main):null;
+ const panelStyle=panel?window.getComputedStyle(panel):null;
  const footStyle=foot?window.getComputedStyle(foot):null;
  const bodyBottom=parseFloat(bodyStyle.paddingBottom)||0;
  const mainBottom=mainStyle?(parseFloat(mainStyle.paddingBottom)||0):0;
+ const panelBottom=panelStyle?(parseFloat(panelStyle.paddingBottom)||0):0;
  const footerGap=footStyle?(parseFloat(footStyle.marginTop)||0):0;
  const safetyGap=8;
- const available=Math.max(0,window.innerHeight-top-footerHeight-footerGap-bodyBottom-mainBottom-safetyGap);
+ const available=Math.max(0,window.innerHeight-top-footerHeight-footerGap-bodyBottom-mainBottom-panelBottom-safetyGap);
 
  // Use every available pixel, but derive pagination from the resulting
  // table height so the row count remains correct on short and tall screens.

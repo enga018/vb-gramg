@@ -1340,7 +1340,7 @@ async function load(){
   let listResult;
   try{
    listResult=await Promise.race([
-    window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'list'}}),
+    window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'list'},deduplicate:true}),
     new Promise((_,reject)=>{listTimer=window.setTimeout(()=>reject(new Error('Contribution data request timed out after 45 seconds. Check your connection and retry. If this continues, report the time of the failure so the server request can be investigated.')),45000);})
    ]);
   }finally{if(listTimer)window.clearTimeout(listTimer);}

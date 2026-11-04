@@ -352,11 +352,13 @@ window.addEventListener('unhandledrejection',function(e){
 });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="document.getElementById('status').className='status error';document.getElementById('status').textContent='Could not load the sign-in library. Check your internet connection, then refresh this page.'"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./js/supabase-client.js?v=20261104b"></script>
+<script src="./js/data-loader.js?v=20261104b"></script>
 <script>
 const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
-const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+const supabaseClient=window.vbgramgSupabase;
 const $=id=>document.getElementById(id);
 const query = new URLSearchParams(location.search);
 let workflowStarted = false;
@@ -401,7 +403,7 @@ function renderPeriodOptions(){
  if(preferred&&!$("days").value&&preferred.days)$("days").value=String(preferred.days);
 }
 async function callPeriodAction(action,extra={}){
- const {data,error}=await supabaseClient.functions.invoke("vbgramg-periods",{body:{action,...extra}});
+ const {data,error}=await window.VBGRAMGData.invoke("vbgramg-periods",{body:{action,...extra}});
  if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||"Could not prepare the selected period.");
  return data;
 }
@@ -413,7 +415,7 @@ async function loadPeriods(){
   // Use the same approved server-side period-list endpoint as FTO Import.
   // This avoids relying on direct browser SELECT permissions for the periods table.
   const {data,error}=await withTimeout(
-   supabaseClient.functions.invoke("vbgramg-periods",{body:{action:"list"}}),
+   window.VBGRAMGData.invoke("vbgramg-periods",{body:{action:"list"}}),
    10000,
    "Open periods request"
   );
@@ -449,7 +451,7 @@ function stableApplicantKey(jobCard,values,nameIndex,numberIndex,uniqueIdIndex){
 }
 async function fetchAllMisRows(seq){
  const pageSize=1000,concurrency=4;
- const first=await supabaseClient.functions.invoke('vbgramg-mis-data',{body:{page:0,pageSize}});
+ const first=await window.VBGRAMGData.invoke('vbgramg-mis-data',{body:{page:0,pageSize}});
  if(first.error)throw new Error(first.error.message||'Could not load MIS data.');
  const data=first.data;
  if(!data||data.approved!==true)throw new Error((data&&data.error)||'MIS data access was denied.');
@@ -458,7 +460,7 @@ async function fetchAllMisRows(seq){
  const totalPages=Math.ceil(data.totalRows/pageSize);
  for(let firstPage=1;firstPage<totalPages;firstPage+=concurrency){
   const pages=Array.from({length:Math.min(concurrency,totalPages-firstPage)},(_,i)=>firstPage+i);
-  const results=await Promise.all(pages.map(page=>supabaseClient.functions.invoke('vbgramg-mis-data',{body:{page,pageSize}})));
+  const results=await Promise.all(pages.map(page=>window.VBGRAMGData.invoke('vbgramg-mis-data',{body:{page,pageSize}})));
   if(seq!==loadSequence)return {headers:[],rows:[]};
   for(const result of results){if(result.error)throw new Error(result.error.message||'Could not load all MIS rows.');if(!result.data||result.data.approved!==true)throw new Error((result.data&&result.data.error)||'MIS data access was denied.');rows.push(...(result.data.rows||[]).map(r=>({rowNumber:r.rowNumber,values:Array.isArray(r.values)?r.values:[]})));}
  }
@@ -496,7 +498,7 @@ async function load(){
   const {data:sessionData,error:sessionError}=await withTimeout(supabaseClient.auth.getSession(),6000,'Sign-in session check');
   if(sessionError||!sessionData.session){window.location.replace('./');return;}
   const {data:access,error:accessError}=await withTimeout(
-   supabaseClient.functions.invoke('vbgramg-app-access',{body:{}}),
+   window.VBGRAMGData.invoke('vbgramg-app-access',{body:{}}),
    12000,
    'App access check'
   );
@@ -511,7 +513,7 @@ async function load(){
   status('Loading active MIS data and Contribution balances…');
   const [misData,selectionResult]=await Promise.all([
    fetchAllMisRows(seq),
-   supabaseClient.functions.invoke('vbgramg-mis-selection',{body:{action:'get'}}),
+   window.VBGRAMGData.invoke('vbgramg-mis-selection',{body:{action:'get'}}),
    periodsPromise
   ]);
   if(seq!==loadSequence)return;
@@ -521,7 +523,7 @@ async function load(){
   allCards=buildCards(misData.headers,misData.rows);
   const balanceJobCards=allCards.filter(group=>group.applicants.some(applicant=>applicant.name)).map(group=>group.key);
   const balanceResult=await withTimeout(
-   supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'work-demand-balances',job_cards:balanceJobCards}}),
+   window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'work-demand-balances',job_cards:balanceJobCards}}),
    20000,
    'Contribution balance request'
   );

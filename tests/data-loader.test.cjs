@@ -44,7 +44,7 @@ test("identical opted-in reads share one in-flight request", async () => {
 
   const first = loader.request("read-data", { body: { page: 1 }, deduplicate: true });
   const second = loader.request("read-data", { body: { page: 1 }, deduplicate: true });
-  await Promise.resolve();
+  await new Promise(resolve => setImmediate(resolve));
   assert.equal(calls, 1);
 
   resolveRequest({ data: { rows: [1] }, error: null });

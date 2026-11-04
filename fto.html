@@ -751,7 +751,7 @@ let lastFtoMobile=window.matchMedia("(max-width: 700px)").matches;window.addEven
 
 let pendingPeriodBatch=null;
 async function loadSharedPeriods(selectedId=""){
- const {data,error}=await window.VBGRAMGData.invoke("vbgramg-periods",{body:{action:"list"}});
+ const {data,error}=await window.VBGRAMGData.invoke("vbgramg-periods",{body:{action:"list"},deduplicate:true});
  if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||"Could not load shared periods.");
  sharedPeriods=data.periods||[];
  const allowed=sharedPeriods.filter(p=>p.contribution_month&&(p.status==="open"||p.id===selectedId));
@@ -807,7 +807,7 @@ async function loadFtoHistory(){
  const seq=++historyLoadSequence;
  historyMessage("Loading imported FTO history…");
  try{
-  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"list-fto-history"}});
+  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"list-fto-history"},deduplicate:true});
   if(seq!==historyLoadSequence)return;
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||"Could not load FTO history.");
   ftoHistoryRows=Array.isArray(data.batches)?data.batches:[];

@@ -278,7 +278,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 
 /* Contribution UI refresh — ported from the approved preview; data and actions remain unchanged. */
 body{padding:16px;background:#f3f6fb}
-main{width:min(100%,1200px);padding-bottom:36px}
+main{width:min(100%,1440px);max-width:1440px;padding-bottom:36px}
 .topbar{position:relative;padding:17px 20px;margin:0 auto 13px;border-radius:15px}
 .brand h1{font-size:1.35rem;letter-spacing:-.025em}
 .brand p{font-size:.86rem}
@@ -411,7 +411,7 @@ main{width:min(100%,1200px);padding-bottom:36px}
 /* Desktop restoration: conventional contribution table and a true two-pane workspace. */
 @media (min-width:1101px){
  body{padding:20px 24px}
- body>main{width:min(100%,1600px);max-width:1600px}
+ body>main{width:min(100%,1440px);max-width:1440px}
  #contribution-layout{grid-template-columns:minmax(0,1.08fr) minmax(480px,.92fr);gap:18px;align-items:start}
  #contribution-layout>.panel{padding:20px 22px}
  #contribution-table{display:table!important;width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0}
@@ -565,7 +565,7 @@ main{width:min(100%,1200px);padding-bottom:36px}
 }
 html,body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 body{padding:16px;background:#f3f6fb;line-height:1.45;color:var(--ink)}
-body>header.topbar,body>.topbar,body>main{width:min(100%,1200px);max-width:1200px}
+body>main{width:min(100%,1440px);max-width:1440px}
 .topbar{padding:17px 20px!important;padding-right:60px!important;margin:0 auto 13px!important;border-radius:15px!important}
 .brand h1{font-size:1.35rem!important;letter-spacing:-.025em!important;font-weight:700}
 .brand p{font-size:.86rem!important;margin:4px 0 0!important;color:var(--muted)!important}
@@ -676,9 +676,8 @@ body>header.topbar,body>.topbar,body>main{width:min(100%,1200px);max-width:1200p
   <link rel="stylesheet" href="./responsive.css">
 </head>
 <body>
-<header class="topbar app-header"><div class="brand"><h1>Contribution</h1><p>Track contribution charges, payments and outstanding balances.</p></div></header>
-
 <main>
+<header class="topbar app-header"><div class="brand"><h1>Contribution</h1><p>Track contribution charges, payments and outstanding balances.</p></div></header>
 <div id="status" class="notice info hidden" role="status" aria-live="polite"></div>
 <div id="app" class="hidden">
 <div id="contribution-layout"><section class="panel contribution-main-panel">

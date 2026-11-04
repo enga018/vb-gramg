@@ -126,6 +126,54 @@ Deno.serve(async(req:Request)=>{
    return reply({approved:true,job_card_number:jobCard,exempt,exemptions:exemptions||[]});
   }
 
+  if(action==="work-demand-balances"){
+   const requested=Array.isArray(body.job_cards)?[...new Set(body.job_cards.map((value:unknown)=>String(value||"").trim()).filter(Boolean))]:[];
+   if(requested.length>5000)return reply({error:"Work Demand can request at most 5,000 job cards."},400);
+   if(!requested.length)return reply({approved:true,balances:{}});
+   const ledgerRows:Record<string,unknown>[]=[];
+   for(let cardOffset=0;cardOffset<requested.length;cardOffset+=200){
+    const cards=requested.slice(cardOffset,cardOffset+200);
+    for(let offset=0;;offset+=1000){
+     const {data,error}=await admin.from("vbgramg_charge_ledger").select("job_card_number,entry_type,amount,note,is_deferred").in("job_card_number",cards).order("job_card_number",{ascending:true}).order("entry_date",{ascending:true}).range(offset,offset+999);
+     if(error)throw error;
+     ledgerRows.push(...(data||[]));
+     if(!data||data.length<1000||ledgerRows.length>=20000)break;
+    }
+    if(ledgerRows.length>=20000)break;
+   }
+   const {data:exemptionRows,error:exemptionError}=await admin.from("vbgramg_contribution_exemptions").select("job_card_number").in("job_card_number",requested);
+   if(exemptionError)throw exemptionError;
+   const exempted=new Set((exemptionRows||[]).map(row=>String(row.job_card_number||"").trim()));
+   const ledgers=new Map<string,Record<string,unknown>[]>();
+   for(const entry of ledgerRows){
+    const id=String(entry.job_card_number||"").trim();
+    if(!id)continue;
+    if(!ledgers.has(id))ledgers.set(id,[]);
+    ledgers.get(id)!.push(entry);
+   }
+   const balances:Record<string,number>={};
+   for(const id of requested){
+    if(exempted.has(id)){balances[id]=0;continue;}
+    let paid=0,returned=0,waived=0;
+    const active:number[]=[];
+    for(const entry of ledgers.get(id)||[]){
+     const amount=Math.max(0,Number(entry.amount)||0),type=entry.entry_type;
+     if(type==="payment"){paid+=amount;continue;}
+     if(type==="return"||(type==="charge"&&String(entry.note||"").trim()==="Return")){returned+=amount;continue;}
+     if(type==="forgive"){waived+=amount;continue;}
+     if(type!=="charge"&&type!=="sanitationFee")continue;
+     if(entry.is_deferred)continue;
+     active.push(amount);
+    }
+    let credit=Math.min(waived,active.reduce((sum,value)=>sum+value,0));
+    for(let index=0;index<active.length&&credit>0;index++){
+     const used=Math.min(credit,active[index]);active[index]-=used;credit-=used;
+    }
+    balances[id]=active.reduce((sum,value)=>sum+value,0)-paid+returned;
+   }
+   return reply({approved:true,balances});
+  }
+
   if(action==="list"){
    const all:Record<string,unknown>[]=[];
    for(let offset=0;;offset+=1000){const {data,error}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,applicant_name,applicant_number,applicant_unique_id,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,is_voided,source_created_at_ms,legacy_entry_id").order("job_card_number",{ascending:true}).order("entry_date",{ascending:true}).range(offset,offset+999);if(error)throw error;all.push(...(data||[]));if(!data||data.length<1000||all.length>=20000)break;}

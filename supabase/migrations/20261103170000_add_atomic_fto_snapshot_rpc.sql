@@ -7,7 +7,7 @@ create or replace function public.vbgramg_apply_fto_snapshot(p_plan jsonb)
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $function$
 declare
   v_batch jsonb := p_plan->'batch';
@@ -327,7 +327,7 @@ create or replace function public.vbgramg_validate_payment_allocation()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $function$
 declare
   tx public.vbgramg_charge_ledger%rowtype;

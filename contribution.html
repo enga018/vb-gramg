@@ -476,11 +476,6 @@ main{width:min(100%,1440px);max-width:1440px;padding-bottom:36px}
  #overlay>.sheet{width:100%;height:100dvh;max-height:100dvh;border-radius:0}
 }
 
-/* Citizen View: household summary, readable ledger entries and a distinct action footer. */
-.citizen-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:0 0 18px}
-.citizen-summary-card{display:flex;flex-direction:column;gap:5px;min-width:0;padding:12px 14px;border:1px solid var(--line);border-radius:11px;background:#f8fafc}
-.citizen-summary-card span{font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.045em}
-.citizen-summary-card b{font-size:1.02rem;font-weight:800;font-variant-numeric:tabular-nums}
 .sheet-head{background:#fff}
 .sheet-head h2{font-weight:800;letter-spacing:-.02em}
 .sheet-subtitle{color:#526078}
@@ -498,16 +493,11 @@ main{width:min(100%,1440px);max-width:1440px;padding-bottom:36px}
 .sheet-footer .transaction-actions{display:flex;flex-wrap:wrap}
 .sheet-footer .transaction-actions .btn{min-height:42px}
 @media(min-width:701px){
- #desktop-detail-panel .citizen-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}
- #desktop-detail-panel .citizen-summary-card{padding:10px 12px}
- #desktop-detail-panel .citizen-summary-card b{font-size:.94rem}
  #desktop-detail-panel .sheet-body .entry{padding:10px 11px;margin-bottom:6px}
  #desktop-detail-panel .sheet-body .entry .desc b{font-size:.8rem}
  #desktop-detail-panel .sheet-body .entry .amt{font-size:.82rem}
 }
 @media(max-width:700px){
- #overlay .citizen-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}
- #overlay .citizen-summary-card{padding:10px 11px}
  #overlay .sheet-body>.section-title{margin-top:15px}
 }
 
@@ -1088,13 +1078,7 @@ function openCitizen(id){
   const entryClass=e.is_voided?'entry-voided':isPayment?'entry-payment':(type==='refund'||type==='return')?'entry-refund':(type==='charge_waiver'||type==='forgive')?'entry-waiver':(type==='charge'||type==='other_charge'||type==='sanitationFee')?'entry-charge':'entry-other';
   return '<div class="entry '+entryClass+'"'+(e.is_voided?' data-voided-entry="true"':'')+(isPayment?' data-payment-toggle role="button" tabindex="0" aria-expanded="false" title="Tap to view payment allocation details"':'')+'><div class="desc"><b>'+esc(label)+(e.is_voided?' · Removed from current FTO snapshot':(isExtra&&extraReason?' · '+esc(extraReason):type!=='charge'&&displayNote?' · '+esc(displayNote):''))+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+(refundReconciliation?'<div class="payment-allocation-note">Matched to payment · '+fmt(refundReconciliation.amount)+' (not a period allocation)</div>':'')+allocationDetails+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+(appRole==='admin'&&!e.is_voided&&!isExtra&&!c.exempt?'<div class="entry-actions">'+(isPayment?'<button class="btn ghost small" type="button" data-review-allocation="'+esc(e.id)+'">Review allocation</button>':'')+'<button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button></div>':'')+'</div>';
  }).join('');
- const summaryCards='<div class="citizen-summary">'+
-  '<div class="citizen-summary-card"><span>Charges</span><b>'+fmt(c.charges)+'</b></div>'+
-  '<div class="citizen-summary-card"><span>Payments</span><b>'+fmt(c.paid)+'</b></div>'+
-  '<div class="citizen-summary-card"><span>Waivers</span><b>'+fmt(c.waived)+'</b></div>'+
-  '<div class="citizen-summary-card"><span>Deferred</span><b>'+fmt(c.deferred)+'</b></div>'+
- '</div>';
- $('sheetBody').innerHTML=(c.exempt?'<div class="notice info"><b>Exempt job card.</b> Its contribution records and payment allocations are retained, but excluded from active balances.</div>':'')+summaryCards+'<div class="section-title">Ledger transactions · oldest first</div>'+(lines||'<div class="empty">No ledger entries.</div>');
+ $('sheetBody').innerHTML=(c.exempt?'<div class="notice info"><b>Exempt job card.</b> Its contribution records and payment allocations are retained, but excluded from active balances.</div>':'')+'<div class="section-title">Ledger transactions · oldest first</div>'+(lines||'<div class="empty">No ledger entries.</div>');
  document.querySelectorAll('[data-fifo-toggle]').forEach(toggle=>toggle.addEventListener('click',()=>{
   const wasOpen=toggle.getAttribute('aria-expanded')==='true';
   document.querySelectorAll('[data-fifo-toggle]').forEach(other=>{

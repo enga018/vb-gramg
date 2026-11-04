@@ -395,6 +395,8 @@ main{width:min(100%,1200px);padding-bottom:36px}
 
 <script src="./js/contribution.js?v=20261104a"></script>
 <script src="./js/allocation.js?v=20261104a"></script>
+<script src="./js/charges.js?v=20261104a"></script>
+<script src="./js/payments.js?v=20261104a"></script>
 <script>
 (async () => {
 'use strict';
@@ -613,7 +615,7 @@ function buildFifoBreakdown(c){
    entryDetail.push('Paid '+fmt(e.allocated),'Due '+fmt(e.remaining));
    const note=String(e.note||'').trim();
    const safeNote=note&&!/^FTO EXTRA:/i.test(note)?'<small>'+esc(note)+'</small>':'';
-   const isExtraEntry=e.entry_type==='charge'&&/^FTO EXTRA:/i.test(String(e.note||''));
+   const isExtraEntry=window.VBGRAMGCharges.isExtraChargeEntry(e);
    const editAction=appRole==='admin'&&!isExtraEntry&&!c.exempt?'<div class="fifo-edit"><button class="btn ghost small" type="button" data-fifo-edit-entry="'+esc(e.id)+'">Edit</button></div>':'';
    return '<div class="fifo-detail-row"><div class="fifo-detail-main"><b>Charge entry '+(i+1)+'</b>'+(date?'<small>'+esc(day(date))+'</small>':'')+safeNote+'<small>'+esc(entryDetail.join(' · '))+'</small></div><div class="fifo-side"><b>'+fmt(amount)+'</b><span class="fifo-status '+(e.remaining<=0?'paid':e.allocated>0?'partial':'due')+'">'+entryStatus+'</span></div>'+editAction+'</div>';
   }).join('');
@@ -653,7 +655,7 @@ function openCitizen(id){
  const sorted=[...chronological];
  const lines=sorted.map(e=>{
   const type=e.entry_type, amount=Number(e.amount)||0, isPayment=type==='payment';
-  const isExtra=type==='charge'&&/^FTO EXTRA:/i.test(String(e.note||''));
+  const isExtra=window.VBGRAMGCharges.isExtraChargeEntry(e);
   // Formula-generated charge labels come from the contribution period, never the note.
   // Occurrence numbering is assigned chronologically above, so newest-first display keeps stable labels.
   const periodMatch=String(e.charge_period||'').match(/^(\d{4})-(\d{2})/);
@@ -852,24 +854,7 @@ function showExemptionsForm(){
  $('exemptionList').addEventListener('click',async ev=>{const btn=ev.target.closest('[data-remove-exemption]');if(btn)await removeExemption(btn.dataset.removeExemption);});
  $('exemptJobCards').focus();
 }
-function parseBulkPayments(raw){
- const rows=[],errors=[],seen=new Set();
- const lines=String(raw||"").split(/\r?\n/);
- for(let i=0;i<lines.length;i++){
-  const line=lines[i].trim();if(!line)continue;
-  if(i===0&&/job.?card/i.test(line)&&/amount/i.test(line))continue;
-  const parts=line.split(/\t|,|;/).map(v=>v.trim());
-  if(parts.length<2){errors.push('Line '+(i+1)+': use Job Card, Amount.');continue;}
-  const jobCard=parts[0],amount=Number(parts[1].replace(/[₹,\s]/g,""));
-  if(!jobCard){errors.push('Line '+(i+1)+': job card number is missing.');continue;}
-  if(!Number.isFinite(amount)||amount<=0||amount>10000000){errors.push('Line '+(i+1)+': enter a valid positive amount.');continue;}
-  if(seen.has(jobCard)){errors.push('Line '+(i+1)+': duplicate job card '+jobCard+'.');continue;}
-  seen.add(jobCard);rows.push({job_card_number:jobCard,amount});
- }
- if(!rows.length&&!errors.length)errors.push('Paste at least one job card and amount.');
- if(rows.length>500)errors.push('A batch can contain at most 500 payments.');
- return {rows,errors};
-}
+const parseBulkPayments = window.VBGRAMGPayments.parseBulkPayments;
 function showBulkPaymentForm(){
  if(window.matchMedia('(min-width: 701px)').matches){
   const sheet=document.querySelector('.sheet');

@@ -287,7 +287,6 @@ Deno.serve(async(req:Request)=>{
     fetchPagedRows(admin,"vbgramg_payment_refund_reconciliations","id,payment_id,refund_id,job_card_number,amount,note,created_at","created_at",true)
    ]);
    if(periodRowsResult.error)throw periodRowsResult.error;
-   if(periodRowsResult.error)throw periodRowsResult.error;
    const periodRows=periodRowsResult.data||[];
    stageTimes.support_reads_ms=Number((performance.now()-supportReadsStarted).toFixed(1));
    const payload={approved:true,role:approved.role,entries:all,imports:imports||[],extras:extras||[],citizens,periods:periodRows||[],payment_allocations:paymentAllocations||[],payment_refund_reconciliations:paymentRefundReconciliations||[],applicants_by_job_card:Object.fromEntries(applicantsByCard),exemptions:exemptions||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:activeMisRowCount};

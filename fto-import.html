@@ -721,6 +721,7 @@ function renderImportPreview(){
   if(exempt)reason='Exempted';
   else if(outOfMis)reason='Outside active MIS';
   else if(refs.length)reason='Duplicate reference number';
+  else if(group.status==='rejected')reason='Rejected transaction only — no eligible contribution charge';
   else if(alreadyImportedReferences.size&&group.reference_numbers.length&&group.reference_numbers.every(ref=>alreadyImportedReferences.has(ref)))alreadyGroups.push(group);
   else if(duplicate||(hasCharge&&match?.requires_manual))manualGroups.push(group);
   else automaticGroups.push(group);

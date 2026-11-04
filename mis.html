@@ -431,7 +431,7 @@ async function loadData(){
  }catch(error){if(seq===loadSequence)status($('data-status'),'Could not load MIS data: '+(error&&error.message?error.message:String(error)),'error')}
  finally{}
 }
-function normalize(value){return String(value==null?'':value).trim()}
+const normalize=window.VBGRAMGMIS.normalize;
 function money(value){return '₹'+(Number(value)||0).toLocaleString('en-IN',{maximumFractionDigits:2})}
 
 async function loadSavedSelections(){

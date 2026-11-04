@@ -403,7 +403,7 @@ function renderPeriodOptions(){
  if(preferred&&!$("days").value&&preferred.days)$("days").value=String(preferred.days);
 }
 async function callPeriodAction(action,extra={}){
- const {data,error}=await window.VBGRAMGData.invoke("vbgramg-periods",{body:{action,...extra}});
+ const {data,error}=await window.VBGRAMGData.invoke("vbgramg-periods",{body:{action,...extra},timeoutMs:false});
  if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||"Could not prepare the selected period.");
  return data;
 }

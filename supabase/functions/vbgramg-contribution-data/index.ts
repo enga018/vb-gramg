@@ -183,6 +183,7 @@ Deno.serve(async(req:Request)=>{
    }
    const exemptions=exemptionsResult.data||[],imports=importsResult.data||[],extras=extrasResult.data||[];
    const misState=misStateResult.data;
+   const activeMisRowCount=Number(misState?.row_count||0);
    if(!misState?.active_import_id)throw new Error("There is no active MIS import. Load the active MIS before using the contribution table.");
    // Reuse a versioned lookup built from this exact active MIS import. The cache is
    // immutable per import ID, so a new MIS automatically gets a fresh lookup.
@@ -244,7 +245,7 @@ Deno.serve(async(req:Request)=>{
    const periodRows=periodRowsResult.data||[];
    const paymentAllocations=allocationsResult;
    const paymentRefundReconciliations=refundsResult;
-   return reply({approved:true,role:approved.role,entries:all,imports:imports||[],extras:extras||[],citizens,periods:periodRows||[],payment_allocations:paymentAllocations||[],payment_refund_reconciliations:paymentRefundReconciliations||[],applicants_by_job_card:Object.fromEntries(applicantsByCard),exemptions:exemptions||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:misRows.length});
+   return reply({approved:true,role:approved.role,entries:all,imports:imports||[],extras:extras||[],citizens,periods:periodRows||[],payment_allocations:paymentAllocations||[],payment_refund_reconciliations:paymentRefundReconciliations||[],applicants_by_job_card:Object.fromEntries(applicantsByCard),exemptions:exemptions||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:activeMisRowCount});
   }
   if(action==="check-fto-duplicates"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can import FTO charges."},403);

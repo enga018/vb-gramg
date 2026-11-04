@@ -265,7 +265,16 @@ body.mis-import-open{overflow:hidden}
  #mis-table .desktop-applicant-dropdown:disabled{opacity:.65;cursor:wait}
 }
 
-@media(max-width:700px){.jobcard-row{cursor:default}.jobcard-row:hover,.jobcard-row:active{background:#fff}}
+@media(max-width:700px){
+ .jobcard-row{cursor:pointer}
+ .jobcard-row:hover,.jobcard-row:active{background:#f1f6ff}
+ .jobcard-row[aria-expanded="true"]{background:#eef4ff}
+ .mobile-applicant-picker-row td{padding:10px 12px 14px!important;background:#f8fafd;border-bottom:1px solid #e3e8f0}
+ .mobile-applicant-picker{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+ .mobile-applicant-picker label{margin:0;flex:0 0 auto;font-size:.8rem}
+ .mobile-applicant-picker select{flex:1 1 190px;min-width:0;min-height:44px;font:inherit;padding:9px 34px 9px 10px;border:1px solid #cbd5e1;border-radius:9px;background:#fff}
+ .mobile-expand-hint{margin-left:auto;font-size:.72rem;color:#64748b;font-weight:600;white-space:nowrap}
+}
 
 @media(min-width:701px){#mis-see-more{display:none!important}}
 </style>
@@ -538,7 +547,45 @@ function renderTable(){
   const selectedKey=selectedApplicants.get(group.key)||'';
   const selectedApplicant=group.applicants.find(applicant=>applicant.selectionKey===selectedKey);
   secondLine.textContent=selectedApplicant?((selectedApplicant.name||'Unnamed applicant')+(selectedApplicant.number?' • Applicant No. '+selectedApplicant.number:'')):'No Applicant Selected';
-  detailCell.appendChild(secondLine);tr.appendChild(detailCell);tbody.appendChild(tr);
+  detailCell.appendChild(secondLine);
+  const expandHint=document.createElement('span');expandHint.className='mobile-expand-hint';expandHint.textContent=expandedCards.has(group.key)?'Tap to close':'Tap to select';firstLine.appendChild(expandHint);
+  tr.appendChild(detailCell);tr.tabIndex=0;tr.setAttribute('role','button');tr.setAttribute('aria-expanded',String(expandedCards.has(group.key)));
+  tbody.appendChild(tr);
+  const toggleMobileApplicants=()=>{
+   if(expandedCards.has(group.key))expandedCards.delete(group.key);else expandedCards.add(group.key);
+   renderTable();
+  };
+  tr.addEventListener('click',toggleMobileApplicants);
+  tr.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleMobileApplicants()}});
+  if(expandedCards.has(group.key)){
+   const detailRow=document.createElement('tr');detailRow.className='mobile-applicant-picker-row';
+   const detail=document.createElement('td');detail.colSpan=1;
+   const picker=document.createElement('div');picker.className='mobile-applicant-picker';
+   const pickerLabel=document.createElement('label');pickerLabel.textContent='Select applicant';picker.appendChild(pickerLabel);
+   const dropdown=document.createElement('select');dropdown.setAttribute('aria-label','Select applicant for job card '+group.key);
+   const emptyOption=document.createElement('option');emptyOption.value='';emptyOption.textContent='— No applicant selected —';dropdown.appendChild(emptyOption);
+   group.applicants.forEach(applicant=>{
+    const option=document.createElement('option');option.value=applicant.selectionKey;
+    option.textContent=[applicant.name||'Unnamed applicant',applicant.number||''].filter(Boolean).join(' · ');
+    dropdown.appendChild(option);
+   });
+   dropdown.value=selectedApplicants.get(group.key)||'';
+   dropdown.addEventListener('click',event=>event.stopPropagation());
+   dropdown.addEventListener('keydown',event=>event.stopPropagation());
+   dropdown.addEventListener('change',async()=>{
+    const applicantKey=dropdown.value,previousApplicantKey=selectedApplicants.get(group.key);dropdown.disabled=true;
+    try{
+     await invokeSelection({action:applicantKey?'set':'clear',jobCardNumber:group.key,applicantKey:applicantKey||previousApplicantKey});
+     selectedApplicants=await loadSavedSelections();updateKpis();
+     const selected=group.applicants.find(applicant=>applicant.selectionKey===applicantKey);
+     status($('data-status'),applicantKey?'Selection saved: '+(selected?.name||'applicant')+' for job card '+group.key+'.':'Selection cleared for job card '+group.key+'.','success');
+    }catch(error){
+     status($('data-status'),'Could not save selection: '+(error&&error.message?error.message:String(error))+'. Reload the page if another user may have changed this selection.','error');
+    }
+    renderTable();
+   });
+   picker.appendChild(dropdown);detail.appendChild(picker);detailRow.appendChild(detail);tbody.appendChild(detailRow);
+  }
 
  });
  $('table-wrap').classList.toggle('hidden',!headers.length);

@@ -54,7 +54,7 @@
       return toggle;
     }
     var desktopButton = makeToggle("global-sidebar-toggle global-sidebar-desktop-toggle");
-    if (header) header.insertBefore(desktopButton, header.firstChild);
+    if (header) header.appendChild(desktopButton);
     else {
       var desktopMount = document.querySelector("main .panel, main section, main") || document.body;
       desktopMount.insertBefore(desktopButton, desktopMount.firstChild);
@@ -77,8 +77,8 @@
     var title = document.createElement("span");
     title.className = "global-mobile-header-title";
     title.textContent = "VBGRAMG / " + pageName;
-    mobileHeader.appendChild(button);
     mobileHeader.appendChild(title);
+    mobileHeader.appendChild(button);
     var main = document.querySelector("main");
     if (main) main.insertBefore(mobileHeader, main.firstChild);
     else document.body.insertBefore(mobileHeader, document.body.firstChild);
@@ -88,7 +88,7 @@
       .global-mobile-header{display:none}
       @media(max-width:1023px), (max-height:600px) and (pointer:coarse){
         .global-mobile-header{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:48px;margin:0 auto 12px;padding:5px 10px;background:#fff;border:1px solid #e3e8f0;border-radius:12px;box-shadow:0 3px 12px rgb(23 32 51 / 4%)}
-        .global-mobile-header-title{margin-left:auto;text-align:right;font-size:.94rem;font-weight:750;letter-spacing:-.015em;color:#172033;line-height:1.25}
+        .global-mobile-header-title{margin-right:auto;text-align:left;font-size:.94rem;font-weight:750;letter-spacing:-.015em;color:#172033;line-height:1.25}
         .global-sidebar-desktop-toggle{display:none!important}
         .global-mobile-header .global-sidebar-toggle{display:inline-flex!important;position:static!important;inset:auto!important;transform:none!important;flex:0 0 40px;width:40px;height:40px;min-height:40px;margin:0!important;padding:0!important;align-items:center;justify-content:center;border:1px solid #e0e6ef!important;border-radius:9px!important;background:#f0f3f8!important;color:#172033!important;font-size:21px!important;line-height:1!important;box-shadow:none!important}
       }

@@ -1004,14 +1004,8 @@ Deno.serve(async(req:Request)=>{
    const {data:ledger,error:ledgerError}=await admin.from("vbgramg_charge_ledger").select("id,entry_type,amount,note,is_deferred,is_voided,charge_period,person_name").eq("job_card_number",jobCard);
    if(ledgerError)throw ledgerError;
    if(!ledger||!ledger.length)return reply({error:"Job card not found in the contribution ledger."},404);
-   let charges=0,paid=0,returns=0,waived=0;
-   for(const e of ledger){if(e.is_voided)continue;const n=Math.max(0,Number(e.amount)||0),t=String(e.entry_type||"");
-    if(t==="payment")paid+=n;
-    else if(t==="refund"||t==="return"||(t==="charge"&&String(e.note||"").trim().toLowerCase()==="return"))returns+=n;
-    else if(t==="charge_waiver"||t==="forgive")waived+=n;
-    else if((t==="charge"||t==="other_charge"||t==="sanitationFee")&&!e.is_deferred)charges+=n;
-   }
-   const balance=charges-Math.min(waived,charges)-paid+returns;
+   const ledgerState=ledgerCalculations.calculateLedgerState(ledger);
+   const {paid,returned:returns,balance}=ledgerState;
    let amount=requestedAmount,type="",finalNote=note;
    if(action==="pay-in-full"){amount=Math.max(0,Number(balance.toFixed(2)));type="payment";finalNote="Cash";}
    else if(action==="add-waiver"){type="charge_waiver";if(!Number.isFinite(amount)||amount<=0||amount>Math.max(0,balance)+0.001)return reply({error:"Waiver must be positive and cannot exceed the current outstanding balance."},400);}

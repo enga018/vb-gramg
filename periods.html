@@ -46,7 +46,19 @@ dialog#create-dialog::backdrop{background:rgb(15 23 42 / 48%)}
 .field input,.field select{font:inherit;font-size:16px;min-height:46px;padding:10px 12px;border:1px solid #cfd7e4;border-radius:10px;width:100%;background:#fff;color:var(--ink)}
 .dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
 .dialog-actions button{min-width:112px}
-@media(min-width:701px){.table-wrap{overflow:hidden}}
+@media(min-width:701px){
+ .table-wrap{overflow-x:auto;overflow-y:hidden}
+ .table-wrap table{width:100%;min-width:760px;table-layout:fixed}
+ .table-wrap thead th:nth-child(1),.table-wrap tbody td:nth-child(1){width:23%}
+ .table-wrap thead th:nth-child(2),.table-wrap tbody td:nth-child(2){width:16%}
+ .table-wrap thead th:nth-child(3),.table-wrap tbody td:nth-child(3){width:34%}
+ .table-wrap thead th:nth-child(4),.table-wrap tbody td:nth-child(4){width:27%}
+ .table-wrap tbody td:nth-child(1){font-weight:700;white-space:nowrap}
+ .table-wrap tbody td:nth-child(2){white-space:nowrap}
+ .table-wrap tbody td:nth-child(3){white-space:normal;color:var(--muted);font-size:.84rem}
+ .row-actions{display:flex;justify-content:flex-start;gap:8px;flex-wrap:nowrap}
+ .row-actions button{min-width:96px;white-space:nowrap}
+}
 @media(max-width:700px){
  body{padding:10px}
  .topbar{padding:15px 16px;align-items:flex-start}

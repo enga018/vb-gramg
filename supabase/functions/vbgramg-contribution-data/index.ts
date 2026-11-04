@@ -96,7 +96,7 @@ Deno.serve(async(req:Request)=>{
       const active=txs.filter(tx=>["blank","processed"].includes(String(tx.status))&&Number(tx.calculated_charge||0)>0);
       const refs=[...new Set(active.map(tx=>String(tx.reference_no)))];
       const amount=Number(active.reduce((sum,tx)=>sum+Number(tx.calculated_charge||0),0).toFixed(2));
-      const ftoRows=(ledgerRows||[]).filter(row=>String(row.period_id||"")===periodId&&/^FTO\\b/i.test(String(row.note||""))&&!/^FTO EXTRA\\b/i.test(String(row.note||"")));
+      const ftoRows=(ledgerRows||[]).filter(row=>String(row.period_id||"")===periodId&&/^FTO\b/i.test(String(row.note||""))&&!/^FTO EXTRA\\b/i.test(String(row.note||"")));
       let keeper=ftoRows.find(row=>(Array.isArray(row.reference_numbers)?row.reference_numbers:[]).some((ref:string)=>refs.includes(String(ref))))||ftoRows[0]||null;
       let ledgerId="";
       if(amount>0){
@@ -722,7 +722,7 @@ Deno.serve(async(req:Request)=>{
     const active=txs.filter(tx=>["blank","processed"].includes(String(tx.status||"").trim().toLowerCase())&&Number(tx.calculated_charge||0)>0);
     if(!active.length)continue;
     const cardRows=(ledgerRows||[]).filter(r=>String(r.job_card_number)===card&&["charge","other_charge"].includes(String(r.entry_type))&&(!r.period_id||String(r.period_id)===periodId)&&!r.is_voided);
-    const manualRows=cardRows.filter(r=>!/^FTO\\b/i.test(String(r.note||""))&&!(Array.isArray(r.reference_numbers)?r.reference_numbers:[]).some((ref:string)=>incomingRefs.includes(String(ref))));
+    const manualRows=cardRows.filter(r=>!/^FTO\b/i.test(String(r.note||""))&&!(Array.isArray(r.reference_numbers)?r.reference_numbers:[]).some((ref:string)=>incomingRefs.includes(String(ref))));
     if(manualRows.length>1){manualReviewIssues.push(card+" (multiple manual charges; resolve individually)");continue;}
     if(manualRows.length===1){
      const action=manualChargeActions.get(card);
@@ -732,8 +732,6 @@ Deno.serve(async(req:Request)=>{
      const incomingAmount=Number(active.reduce((sum,tx)=>sum+Number(tx.calculated_charge||0),0).toFixed(2));
      if(action==="link"&&Math.abs(Number(manualRows[0].amount||0)-incomingAmount)>0.009&&!manualAmountConfirmations.has(card))
       manualReviewIssues.push(card+" (confirm the manual charge amount change)");
-     const incomingAmount=Number(active.reduce((sum,tx)=>sum+Number(tx.calculated_charge||0),0).toFixed(2));
-     if(action==="link"&&Math.abs(Number(manualRows[0].amount||0)-incomingAmount)>0.009&&!manualAmountConfirmations.has(card))manualReviewIssues.push(card+" (confirm the manual charge amount change)");
     }
    }
    if(manualReviewIssues.length)return reply({error:"Manual charge review is incomplete: "+manualReviewIssues.join(", ")+"."},409);
@@ -750,9 +748,9 @@ Deno.serve(async(req:Request)=>{
     const refs=[...new Set(active.map(tx=>String(tx.reference_no)))];
     const amount=Number(active.reduce((sum,tx)=>sum+Number(tx.calculated_charge||0),0).toFixed(2));
     const cardRows=(ledgerRows||[]).filter(r=>String(r.job_card_number)===card&&r.entry_type==="charge"&&(!r.period_id||String(r.period_id)===periodId));
-    const ftoRows=cardRows.filter(r=>/^FTO\\b/i.test(String(r.note||""))&&!/^FTO EXTRA\\b/i.test(String(r.note||"")));
+    const ftoRows=cardRows.filter(r=>/^FTO\b/i.test(String(r.note||""))&&!/^FTO EXTRA\\b/i.test(String(r.note||"")));
     const keeper=ftoRows.find(r=>(r.reference_numbers||[]).some((ref:string)=>refs.includes(String(ref))))||ftoRows[0]||null;
-    const manualRows=cardRows.filter(r=>!/^FTO\\b/i.test(String(r.note||""))&&!(Array.isArray(r.reference_numbers)?r.reference_numbers:[]).some((ref:string)=>incomingRefs.includes(String(ref))));
+    const manualRows=cardRows.filter(r=>!/^FTO\b/i.test(String(r.note||""))&&!(Array.isArray(r.reference_numbers)?r.reference_numbers:[]).some((ref:string)=>incomingRefs.includes(String(ref))));
     const manualKeeper=manualChargeActions.get(card)==="link"?(manualRows.length===1?manualRows[0]:null):null;
     if(amount>0){
      const isDeferred=active.every(tx=>String(tx.status)==="blank");

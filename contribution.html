@@ -989,7 +989,17 @@ async function load(){
   // The protected list action independently validates the verified session and approved-user record.
   // Avoid a redundant access-function network round trip during startup.
   status('Loading active MIS and contribution ledger…');
-  const {data,error}=await supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}});
+  // The list endpoint reads the active MIS, ledger, allocations and FTO attribution.
+  // Bound startup wait so a stalled request cannot leave the page loading indefinitely.
+  let listTimer;
+  let listResult;
+  try{
+   listResult=await Promise.race([
+    supabaseClient.functions.invoke('vbgramg-contribution-data',{body:{action:'list'}}),
+    new Promise((_,reject)=>{listTimer=window.setTimeout(()=>reject(new Error('Contribution data request timed out after 45 seconds. Check your connection and retry. If this continues, report the time of the failure so the server request can be investigated.')),45000);})
+   ]);
+  }finally{if(listTimer)window.clearTimeout(listTimer);}
+  const {data,error}=listResult;
   if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
   appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");$("exportDueBtn").classList.remove("hidden");entries=data.entries||[];periods=data.periods||[];paymentAllocations=Array.from(new Map((data.payment_allocations||[]).filter(a=>a&&a.id).map(a=>[String(a.id),a])).values());paymentRefundReconciliations=data.payment_refund_reconciliations||[];extraCharges=data.extras||[];citizenRegistry=data.citizens||[];applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];deriveCitizens();renderExemptions();
   $('app').classList.remove('hidden');$('status').classList.add('hidden');
@@ -1088,3 +1098,14 @@ load().catch(err=>setStartupError(err&&err.message?err.message:'Could not start 
 <script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261031f"></script>
 </body>
 </html>
+/* Contribution row-state markers: keep visible after all responsive row backgrounds. */
+@media (min-width:701px){
+  #contribution-table tbody tr.contribution-row.due td:first-child{border-left:4px solid var(--due)!important}
+  #contribution-table tbody tr.contribution-row.settled td:first-child{border-left:4px solid #16a34a!important}
+  #contribution-table tbody tr.contribution-row.overpaid td:first-child{border-left:4px solid #d97706!important}
+}
+@media (max-width:700px){
+  #contribution-table tbody tr.contribution-row.due{border-left:4px solid var(--due)!important}
+  #contribution-table tbody tr.contribution-row.settled{border-left:4px solid #16a34a!important}
+  #contribution-table tbody tr.contribution-row.overpaid{border-left:4px solid #d97706!important}
+}

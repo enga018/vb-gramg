@@ -393,7 +393,7 @@ Deno.serve(async(req:Request)=>{
     const transactions:Record<string,any>[]=[];
     for(let i=0;i<batchIds.length;i+=500){
      const ids=batchIds.slice(i,i+500);
-     const {data,error}=await admin.from("vbgramg_fto_transactions").select("id,batch_id,reference_no,job_card_number,village_name,person_name,transaction_date,processed_date,amount_to_be_credited,credit_amount,calculated_charge,status,rejection_reason,last_seen_at,source_row,is_in_scope").in("batch_id",ids).eq("is_in_scope",true).order("job_card_number",{ascending:true}).order("reference_no",{ascending:true});
+     const {data,error}=await admin.from("vbgramg_fto_transactions").select("id,batch_id,reference_no,job_card_number,village_name,person_name,transaction_date,processed_date,amount_to_be_credited,credit_amount,calculated_charge,status,rejection_reason,last_seen_at,source_row,is_in_scope").in("batch_id",ids).order("job_card_number",{ascending:true}).order("reference_no",{ascending:true});
      if(error)throw error;
      transactions.push(...(data||[]));
     }
@@ -417,7 +417,7 @@ Deno.serve(async(req:Request)=>{
    const iso=(value:unknown)=>{const v=String(value||"").trim();const m=v.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);if(m)return m[3]+"-"+m[2]+"-"+m[1];return /^\d{4}-\d{2}-\d{2}$/.test(v)?v:"";};
    const amount=(value:unknown)=>{const n=Number(value||0);return Number.isFinite(n)?Number(n.toFixed(2)):0;};
    const normalize=(row:Record<string,any>)=>({reference_no:String(row.reference_no||"").trim(),job_card_number:String(row.job_card_number||"").trim().toUpperCase(),transaction_date:iso(row.transaction_date),processed_date:iso(row.processed_date),amount_to_be_credited:amount(row.amount_to_be_credited),credit_amount:amount(row.credit_amount),status:String(row.status||"").trim().toLowerCase()||"blank",rejection_reason:String(row.rejection_reason||"").trim()});
-   const oldRows=saved.filter(row=>row.is_in_scope===true).map(normalize),newRows=incoming.map((row:Record<string,any>)=>normalize(row));
+   const oldRows=saved.map(normalize),newRows=incoming.map((row:Record<string,any>)=>normalize(row));
    const oldMap=new Map(oldRows.map(row=>[row.reference_no,row])),newMap=new Map(newRows.map(row=>[row.reference_no,row]));
    const changed:string[]=[],unchangedReferences:string[]=[];
    for(const [ref,row] of newMap){const old=oldMap.get(ref);if(!old)changed.push(ref);else if(JSON.stringify(old)!==JSON.stringify(row))changed.push(ref);else unchangedReferences.push(ref);}

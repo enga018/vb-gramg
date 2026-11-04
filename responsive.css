@@ -95,3 +95,27 @@ body.has-global-sidebar{padding-left:252px!important;box-sizing:border-box}
  .history-list-foot .mobile-table-pager{margin-top:4px}
  .fto-transaction-pager{margin:12px 0}
 }
+
+
+/* Unified responsive navigation: phones in landscape and tablets use the
+   collapsible workspace drawer; wide desktop keeps the persistent sidebar. */
+@media(max-width:1023px), (max-height:600px) and (pointer:coarse){
+ body.has-global-sidebar{padding-left:10px!important}
+ .global-sidebar{width:min(292px,84vw);padding:19px 14px;transform:translateX(-105%);transition:transform .22s ease;box-shadow:12px 0 35px #17203324}
+ .global-sidebar.is-open{transform:translateX(0)}
+ .global-sidebar-overlay.is-visible{display:block;position:fixed;inset:0;background:#17203366;z-index:1190}
+ .global-sidebar-desktop-toggle{display:none!important}
+ .global-mobile-header{display:flex!important;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:48px;margin:0 auto 12px;padding:5px 10px;background:#fff;border:1px solid #e3e8f0;border-radius:12px;box-shadow:0 3px 12px rgb(23 32 51 / 4%)}
+ .global-mobile-header-title{margin-left:auto;text-align:right;font-size:.94rem;font-weight:750;color:#172033;line-height:1.25}
+ .global-mobile-header .global-sidebar-toggle{display:inline-flex!important;position:static!important;inset:auto!important;transform:none!important;flex:0 0 40px;width:40px;height:40px;min-height:40px;margin:0!important;padding:0!important;align-items:center;justify-content:center;border:1px solid #e0e6ef!important;border-radius:9px!important;background:#f0f3f8!important;color:#172033!important;font-size:21px!important;line-height:1!important;box-shadow:none!important}
+}
+@media(min-width:768px) and (max-width:1023px){
+ body{padding-top:16px;padding-right:16px;padding-bottom:16px}
+ body>main{width:100%;max-width:100%}
+ .global-mobile-header{min-height:54px;padding:7px 13px}
+}
+@media(max-width:767px), (max-height:600px) and (pointer:coarse){
+ body{padding:10px!important}
+ body>main{width:100%;max-width:100%}
+}
+@media(prefers-reduced-motion:reduce){.global-sidebar{transition:none}}

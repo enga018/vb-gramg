@@ -616,10 +616,12 @@ Deno.serve(async(req:Request)=>{
     }
    }
    skippedDuplicateReferences=[...new Set(skippedDuplicateReferences)];
-   if(skippedDuplicateReferences.length){
-    const skippedSet=new Set(skippedDuplicateReferences);
-    for(let i=normalized.length-1;i>=0;i--){if(skippedSet.has(String(normalized[i].reference_no)))normalized.splice(i,1);}
-    chargeCandidateRows=normalized.filter(r=>r.is_in_scope&&!exemptCards.has(String(r.job_card_number))&&["blank","processed"].includes(String(r.status))&&Number(r.calculated_charge||0)>0);
+   const skippedDuplicateSet=new Set(skippedDuplicateReferences);
+   if(skippedDuplicateSet.size){
+    // Keep duplicate rows in the FTO snapshot/history, but exclude them from
+    // contribution reconciliation. Removing them here would mark an older
+    // same-batch transaction as omitted and could void its existing charge.
+    chargeCandidateRows=normalized.filter(r=>r.is_in_scope&&!exemptCards.has(String(r.job_card_number))&&!skippedDuplicateSet.has(String(r.reference_no))&&["blank","processed"].includes(String(r.status))&&Number(r.calculated_charge||0)>0);
     incomingRefs=chargeCandidateRows.map(r=>String(r.reference_no));
    }
    const snapshotReferenceSet=new Set(normalized.map(r=>String(r.reference_no)));
@@ -674,6 +676,9 @@ Deno.serve(async(req:Request)=>{
    const statusHistory:Record<string,any>[]=[];
    for(const row of normalized){
     const old=oldByRef.get(String(row.reference_no));
+    // A conflicting duplicate must not overwrite the previously saved row
+    // belonging to this FTO. Its existing snapshot remains current and unchanged.
+    if(skippedDuplicateSet.has(String(row.reference_no))&&old)continue;
     const id=String(old?.id||crypto.randomUUID());
     transactionRows.push({...row,id,batch_id:batchId,last_seen_at:nowIso,updated_at:nowIso,
       created_at:old?.created_at||nowIso,is_current:true,is_in_scope:row.is_in_scope===true,
@@ -718,7 +723,7 @@ Deno.serve(async(req:Request)=>{
    for(const card of affectedCards){
     if(exemptCards.has(card))continue;
     const txs=txByCard.get(card)||[];
-    const active=txs.filter(tx=>tx.is_in_scope===true&&["blank","processed"].includes(String(tx.status||"").trim().toLowerCase())&&Number(tx.calculated_charge||0)>0);
+    const active=txs.filter(tx=>tx.is_in_scope===true&&!skippedDuplicateSet.has(String(tx.reference_no))&&["blank","processed"].includes(String(tx.status||"").trim().toLowerCase())&&Number(tx.calculated_charge||0)>0);
     if(!active.length)continue;
     const cardRows=(ledgerRows||[]).filter(r=>String(r.job_card_number)===card&&r.entry_type==="charge"&&(!r.period_id||String(r.period_id)===periodId)&&!r.is_voided);
     const manualRows=cardRows.filter(r=>!/^FTO\b/i.test(String(r.note||""))&&!(Array.isArray(r.reference_numbers)?r.reference_numbers:[]).some((ref:string)=>incomingRefs.includes(String(ref))));
@@ -743,7 +748,7 @@ Deno.serve(async(req:Request)=>{
    for(const card of affectedCards){
     if(exemptCards.has(card))continue;
     const txs=txByCard.get(card)||[];
-    const active=txs.filter(tx=>tx.is_in_scope===true&&["blank","processed"].includes(String(tx.status||"").trim().toLowerCase())&&Number(tx.calculated_charge||0)>0);
+    const active=txs.filter(tx=>tx.is_in_scope===true&&!skippedDuplicateSet.has(String(tx.reference_no))&&["blank","processed"].includes(String(tx.status||"").trim().toLowerCase())&&Number(tx.calculated_charge||0)>0);
     const refs=[...new Set(active.map(tx=>String(tx.reference_no)))];
     const amount=Number(active.reduce((sum,tx)=>sum+Number(tx.calculated_charge||0),0).toFixed(2));
     const cardRows=(ledgerRows||[]).filter(r=>String(r.job_card_number)===card&&r.entry_type==="charge"&&(!r.period_id||String(r.period_id)===periodId));
@@ -776,7 +781,7 @@ Deno.serve(async(req:Request)=>{
      if(ftoRows.length)chargeGuards.push({job_card_number:card,period_id:periodId,prospective_fto_amount:0});
     }
    }
-   const totalAmount=Number(normalized.filter(r=>r.is_in_scope&&!exemptCards.has(String(r.job_card_number))&&["blank","processed"].includes(String(r.status))).reduce((sum,r)=>sum+Number(r.calculated_charge||0),0).toFixed(2));
+   const totalAmount=Number(normalized.filter(r=>r.is_in_scope&&!exemptCards.has(String(r.job_card_number))&&!skippedDuplicateSet.has(String(r.reference_no))&&["blank","processed"].includes(String(r.status))).reduce((sum,r)=>sum+Number(r.calculated_charge||0),0).toFixed(2));
    const {data:priorImport,error:priorImportError}=await admin.from("vbgramg_charge_imports").select("id").eq("source_sha256",sourceSha).maybeSingle();
    if(priorImportError)throw priorImportError;
    const importId=String(priorImport?.id||crypto.randomUUID());

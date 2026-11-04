@@ -706,6 +706,28 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{padding:18px 
  #table-wrap{height:auto;min-height:0;max-height:none;overflow:visible}
 }
 
+
+/* Final desktop table sizing: show ten standard rows without changing height
+   between pages, while allowing long names and status badges to wrap safely. */
+@media(min-width:701px){
+ #table-wrap{height:510px;min-height:510px;max-height:510px;overflow:auto;position:relative;contain:layout paint}
+ #contribution-table{width:100%;min-width:0;table-layout:fixed;border-collapse:collapse;border-spacing:0}
+ #contribution-table thead th:nth-child(1){width:34%;text-align:left}
+ #contribution-table thead th:nth-child(2){width:27%;text-align:left}
+ #contribution-table thead th:nth-child(3){width:17%;text-align:right}
+ #contribution-table thead th:nth-child(4){width:22%;text-align:right}
+ #contribution-table thead th{white-space:normal;line-height:1.25;overflow-wrap:anywhere}
+ #contribution-table tbody td{min-width:0;overflow-wrap:anywhere;vertical-align:middle}
+ #contribution-table tbody td.jobcard{white-space:normal;overflow-wrap:anywhere}
+ #contribution-table tbody td.person{white-space:normal;overflow-wrap:anywhere}
+ #contribution-table tbody td.last-charge-cell,
+ #contribution-table tbody td.outstanding-cell{white-space:normal;overflow-wrap:anywhere;text-align:right}
+ #contribution-table tbody td.outstanding-cell .row-status{display:inline-flex;max-width:100%;white-space:normal;overflow-wrap:anywhere;vertical-align:middle;justify-content:center}
+}
+@media(max-width:700px){
+ #table-wrap{height:auto;min-height:0;max-height:none;overflow:visible;contain:none}
+}
+
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>

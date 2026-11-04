@@ -768,7 +768,7 @@ Deno.serve(async(req:Request)=>{
       period_id:periodId,fto_applicant_name:activeApplicantName||manualKeeper?.fto_applicant_name||keeper?.fto_applicant_name||null,is_voided:false});
      for(const tx of txs)transactionLinks.push({id:String(tx.id),ledger_entry_id:ledgerId});
      if(manualKeeper)reconciledCount++;else if(keeper)updatedCount++;else insertedCount++;
-     chargeGuards.push({job_card_number:card,period_id:periodId,prospective_fto_amount:amount});
+     chargeGuards.push({job_card_number:card,period_id:periodId,prospective_fto_amount:isDeferred?0:amount});
     }else{
      for(const row of ftoRows){if(!row.is_voided)voidLedgerIds.push(String(row.id));}
      deletedCount+=ftoRows.filter(row=>!row.is_voided).length;

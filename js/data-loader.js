@@ -35,7 +35,7 @@
             );
           })
         ]);
-        if (result.error) throw new Error(result.error.message || ("Request to " + functionName + " failed."));
+        if (result.error) throw result.error;
         if (!result.data) throw new Error("The " + functionName + " service returned an empty response.");
         if (result.data.error) throw new Error(String(result.data.error));
         return result.data;

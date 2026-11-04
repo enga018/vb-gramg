@@ -72,8 +72,7 @@
     mobileHeader.appendChild(button);
     mobileHeader.appendChild(title);
     var main = document.querySelector("main");
-    if (main && isContributionPage) main.parentNode.insertBefore(mobileHeader, main);
-    else if (main) main.insertBefore(mobileHeader, main.firstChild);
+    if (main) main.insertBefore(mobileHeader, main.firstChild);
     else document.body.insertBefore(mobileHeader, document.body.firstChild);
 
     var mobileHeaderStyle = document.createElement("style");

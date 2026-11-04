@@ -20,6 +20,65 @@
 .pagination button.current{background:var(--blue-soft);border-color:#d9e3ff;color:#315ee8}
 @media(max-width:700px){.pagination{padding:10px 12px;gap:6px}.pagination-info{font-size:10px}.pagination button{min-width:34px;height:34px}}
 
+
+/* Compact mobile preview: stack table rows as labelled cards instead of scrolling sideways. */
+@media(max-width:700px){
+  html,body,.app,.main,.content,.screen{max-width:100%;min-width:0;overflow-x:clip}
+  .content{padding-left:12px;padding-right:12px}
+  .page-head,.page-head>div,.head-actions,.panel,.panel-head,.panel-body,.table-panel{min-width:0;max-width:100%}
+  .page-head{display:flex;flex-direction:column;gap:12px}
+  .page-head>div:first-child{width:100%}
+  .head-actions{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:0}
+  .head-actions .btn{min-width:0;width:100%;padding:8px 7px;font-size:11px;white-space:normal}
+  .table-panel{overflow:hidden}
+  .table-wrap{overflow:visible;width:100%;max-width:100%}
+  .table-wrap table{display:block;width:100%;min-width:0;white-space:normal;font-size:11px}
+  .table-wrap thead{display:none}
+  .table-wrap tbody{display:grid;gap:8px;width:100%}
+  .table-wrap tbody tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 10px;padding:10px 11px;border:1px solid var(--line);border-radius:10px;background:#fff;min-width:0}
+  .table-wrap tbody td{display:flex;align-items:flex-start;justify-content:space-between;gap:7px;min-width:0;padding:7px 0;border:0;white-space:normal;overflow-wrap:anywhere;text-align:right;font-size:10px}
+  .table-wrap tbody td:first-child{grid-column:1/-1;border-bottom:1px solid #f0f2f5;padding:2px 0 9px;margin-bottom:3px;text-align:left}
+  .table-wrap tbody td:first-child:before{display:none}
+  .table-wrap tbody td:before{content:"";flex:0 0 auto;color:#929aaa;font-size:9px;font-weight:700;text-align:left}
+  #mis-preview-table tbody td:nth-child(2):before{content:"Applicant"}
+  #mis-preview-table tbody td:nth-child(3):before{content:"Applicant no."}
+  #mis-preview-table tbody td:nth-child(4):before{content:"Selection"}
+  #fto-preview-table tbody td:nth-child(2):before{content:"Period"}
+  #fto-preview-table tbody td:nth-child(3):before{content:"Status"}
+  #fto-preview-table tbody td:nth-child(4):before{content:"Checked"}
+  #fto-preview-table tbody td:nth-child(5):before{content:"Action"}
+  #contribution-preview-table tbody td:nth-child(2):before{content:"Period"}
+  #contribution-preview-table tbody td:nth-child(3):before{content:"Settled"}
+  #contribution-preview-table tbody td:nth-child(4):before{content:"Due"}
+  #contribution-preview-table tbody td:nth-child(5):before{content:"Status"}
+  #periods-preview-table tbody td:nth-child(2):before{content:"Month"}
+  #periods-preview-table tbody td:nth-child(3):before{content:"Date"}
+  #periods-preview-table tbody td:nth-child(4):before{content:"Status"}
+  #periods-preview-table tbody td:nth-child(5):before{content:"Action"}
+  #demand-preview-table tbody td:nth-child(2):before{content:"Household"}
+  #demand-preview-table tbody td:nth-child(3):before{content:"Outstanding"}
+  #demand-preview-table tbody td:nth-child(4):before{content:"Action"}
+  .table-wrap tbody td .primary-cell{overflow-wrap:anywhere}
+  .table-wrap tbody td .secondary-cell{white-space:normal}
+  .table-foot{gap:8px;flex-wrap:wrap;font-size:9px;line-height:1.4}
+  .pagination{max-width:100%;flex-wrap:wrap}
+  .pagination-info{width:100%;margin:0}
+  .summary-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .activity-item{flex-wrap:wrap}
+  .activity-item .status{margin-left:41px!important}
+  .panel-head{align-items:flex-start;flex-wrap:wrap}
+  .search{min-width:0;max-width:100%}
+}
+@media(max-width:380px){
+  .content{padding-left:10px;padding-right:10px}
+  .stat{padding:11px}
+  .stat-value{font-size:18px}
+  .table-wrap tbody tr{padding:9px}
+  .table-wrap tbody td{font-size:9px}
+  .table-wrap tbody td:before{font-size:8px}
+  .head-actions{grid-template-columns:1fr 1fr}
+}
+
 </style>
 </head>
 <body>

@@ -718,7 +718,7 @@ Deno.serve(async(req:Request)=>{
    for(const card of affectedCards){
     if(exemptCards.has(card))continue;
     const txs=txByCard.get(card)||[];
-    const active=txs.filter(tx=>["blank","processed"].includes(String(tx.status||"").trim().toLowerCase())&&Number(tx.calculated_charge||0)>0);
+    const active=txs.filter(tx=>tx.is_in_scope===true&&["blank","processed"].includes(String(tx.status||"").trim().toLowerCase())&&Number(tx.calculated_charge||0)>0);
     if(!active.length)continue;
     const cardRows=(ledgerRows||[]).filter(r=>String(r.job_card_number)===card&&r.entry_type==="charge"&&(!r.period_id||String(r.period_id)===periodId)&&!r.is_voided);
     const manualRows=cardRows.filter(r=>!/^FTO\b/i.test(String(r.note||""))&&!(Array.isArray(r.reference_numbers)?r.reference_numbers:[]).some((ref:string)=>incomingRefs.includes(String(ref))));
@@ -743,7 +743,7 @@ Deno.serve(async(req:Request)=>{
    for(const card of affectedCards){
     if(exemptCards.has(card))continue;
     const txs=txByCard.get(card)||[];
-    const active=txs.filter(tx=>["blank","processed"].includes(String(tx.status||"").trim().toLowerCase())&&Number(tx.calculated_charge||0)>0);
+    const active=txs.filter(tx=>tx.is_in_scope===true&&["blank","processed"].includes(String(tx.status||"").trim().toLowerCase())&&Number(tx.calculated_charge||0)>0);
     const refs=[...new Set(active.map(tx=>String(tx.reference_no)))];
     const amount=Number(active.reduce((sum,tx)=>sum+Number(tx.calculated_charge||0),0).toFixed(2));
     const cardRows=(ledgerRows||[]).filter(r=>String(r.job_card_number)===card&&r.entry_type==="charge"&&(!r.period_id||String(r.period_id)===periodId));

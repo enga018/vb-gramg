@@ -454,7 +454,7 @@ try{
   catch(firstError){await loadSupabaseLibrary('https://unpkg.com/@supabase/supabase-js@2');}
  }
 }catch(libraryError){
- setStartupError('Could not load the connection library. Check your internet connection and tap Refresh to try again.');
+ setStartupError('Could not load the connection library. Check your internet connection and use Reload page to try again.');
  return;
 }
 const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';

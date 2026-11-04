@@ -509,6 +509,23 @@ main{width:min(100%,1200px);padding-bottom:36px}
  #overlay .sheet-body>.section-title{margin-top:15px}
 }
 
+
+/* Align the Contribution workspace content with the page header's inner width.
+   The header uses 22px horizontal padding on desktop; match the panel so the
+   KPI row, filters and table share the same left/right content edges. */
+@media (min-width:701px){
+  #contribution-layout>.panel.contribution-main-panel{padding:22px}
+  .kpi-row{width:100%;min-width:0}
+  .kpi-row .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #table-wrap{width:100%;min-width:0}
+  #contribution-table{width:100%;min-width:0}
+}
+@media (max-width:700px){
+  #contribution-layout>.panel.contribution-main-panel{padding:14px}
+  .kpi-row{width:100%}
+  .kpi-row .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>

@@ -710,7 +710,7 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{padding:18px 
 /* Final desktop table sizing: show ten standard rows without changing height
    between pages, while allowing long names and status badges to wrap safely. */
 @media(min-width:701px){
- #table-wrap{height:510px;min-height:510px;max-height:510px;overflow:auto;position:relative;contain:layout paint}
+ #table-wrap{height:var(--contribution-table-height,510px);min-height:0;max-height:none;overflow:auto;position:relative;contain:layout paint}
  #contribution-table{width:100%;min-width:0;table-layout:fixed;border-collapse:collapse;border-spacing:0}
  #contribution-table thead th:nth-child(1){width:34%;text-align:left}
  #contribution-table thead th:nth-child(2){width:27%;text-align:left}
@@ -860,7 +860,19 @@ function deriveCitizens(){
  citizens=[...map.values()].map(c=>{const x=calculateLedgerState(c.ledger);let gross=0;for(const e of c.ledger){if(!e.is_voided&&(e.entry_type==='charge'||e.entry_type==='other_charge'||e.entry_type==='sanitationFee')&&!e.is_deferred&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return'))gross+=Math.max(0,Number(e.amount)||0)}return c.exempt?{...c,charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,totalCharged:0,balance:0}:{...c,charges:gross,activeCharges:x.charged,deferred:x.deferred,paid:x.paid,waived:x.waived,returns:x.returned,totalCharged:Math.max(0,gross-Math.min(gross,x.waived)),balance:x.balance}}).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
 }
 const jobCardSuffixNumber=window.VBGRAMGContribution.jobCardSuffixNumber;
+function fitDesktopTableToViewport(){
+ const wrap=$('table-wrap'),foot=document.querySelector('#contribution-layout .table-foot');
+ if(!wrap||window.matchMedia('(max-width:700px)').matches)return;
+ const top=wrap.getBoundingClientRect().top;
+ const footerHeight=foot?foot.getBoundingClientRect().height:0;
+ const available=Math.max(180,window.innerHeight-top-footerHeight-24);
+ const rows=Math.max(3,Math.min(16,Math.floor((available-42)/44)));
+ const nextHeight=Math.max(180,Math.min(available,42+rows*44));
+ wrap.style.setProperty('--contribution-table-height',nextHeight+'px');
+ if(pageSize!==rows){pageSize=rows;currentPage=Math.min(currentPage,Math.max(0,Math.ceil(citizens.filter(c=>!c.exempt).length/pageSize)-1));}
+}
 function render(){
+ fitDesktopTableToViewport();
  const q=$('search').value.trim().toLocaleLowerCase(),filter=$('statusFilter').value;
  const list=citizens.filter(c=>{
   if(c.exempt)return false;

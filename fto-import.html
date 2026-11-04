@@ -313,6 +313,11 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 .live-pager{display:flex;justify-content:center;align-items:center;gap:14px;margin-top:13px}.live-pager span{min-width:55px;text-align:center;font-size:.8rem;font-weight:700;color:#475467}.live-pager button{min-width:94px}
 .live-empty{padding:18px;border:1px dashed #d7dee8;border-radius:10px;background:#fff;color:var(--muted);font-size:.86rem;text-align:center}
 @media(max-width:700px){.live-category-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.live-category-kpi{min-height:100px;padding:10px 9px}.live-category-kpi.active{padding:9px 8px}.live-category-kpi span{font-size:.74rem;line-height:1.25}.live-category-kpi strong{font-size:1.35rem}.live-category-kpi small{font-size:.66rem;line-height:1.25}.live-category-panel{padding:11px}.live-jobcard-view{padding:11px}.live-jobcard-stats{gap:6px}.live-jobcard-stats>div{padding:8px 6px}.live-jobcard-stats span{font-size:.64rem}.live-jobcard-stats strong{font-size:.77rem}.live-tx-item{grid-template-columns:1fr 1fr;gap:8px}.live-pager{gap:8px}.live-pager button{min-width:0;flex:1}}
+
+/* No colored row-edge markers; selection remains indicated by row background. */
+.jobcard-row.has-selection,
+.jobcard-row.no-selection{box-shadow:none!important}
+
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>

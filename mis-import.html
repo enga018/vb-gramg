@@ -169,11 +169,13 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./js/mis-import.js?v=20261104a"></script>
   
   <script>
     const SUPABASE_URL = 'https://trtzhafgvqosjwrgckty.supabase.co';
     const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+    const { parsePastedTable, normText, headerKey, findColumn, isDeletedRow, cleanName } = window.VBGRAMGMISImport;
 
     const tableInput = document.getElementById('table-input');
     const registerFileInput = document.getElementById('register-file');
@@ -217,46 +219,6 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
       currentRole = access.role;
     }
 
-    function parsePastedTable(raw) {
-      const text = String(raw || '').replace(/\r/g, '').trim();
-      if (!text) return [];
-      const lines = text.split('\n').filter(line => line.trim().length > 0);
-      const delimiter = lines.some(line => line.includes('\t')) ? '\t' : lines.some(line => line.includes('|')) ? '|' : ',';
-      return lines.map(line => {
-        if (delimiter === '\t') return line.split('\t').map(cell => cell.trim());
-        if (delimiter === '|') {
-          const cells = line.split('|').map(cell => cell.trim());
-          if (cells.length && cells[0] === '') cells.shift();
-          if (cells.length && cells[cells.length - 1] === '') cells.pop();
-          return cells;
-        }
-        const cells = []; let cell = '', quoted = false;
-        for (let i = 0; i < line.length; i++) {
-          const ch = line[i];
-          if (ch === '"' && line[i + 1] === '"' && quoted) { cell += '"'; i++; }
-          else if (ch === '"') quoted = !quoted;
-          else if (ch === ',' && !quoted) { cells.push(cell.trim()); cell = ''; }
-          else cell += ch;
-        }
-        cells.push(cell.trim()); return cells;
-      });
-    }
-
-    const normText = value => String(value == null ? '' : value).replace(/\u00a0/g, ' ').replace(/&amp;/gi, '&').replace(/\s+/g, ' ').trim();
-    const headerKey = value => normText(value).toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
-    function findColumn(header, aliases) {
-      const keys=header.map(headerKey);
-      let index=keys.findIndex(k=>aliases.includes(k));
-      if(index>=0)return index;
-      return keys.findIndex(k=>aliases.some(alias=>k.includes(alias)||alias.includes(k)));
-    }
-    function isDeletedRow(row, idx) {
-      const household = idx.household >= 0 ? normText(row[idx.household]) : '';
-      const name = idx.name >= 0 ? normText(row[idx.name]) : '';
-      const remarks = idx.remarks >= 0 ? normText(row[idx.remarks]) : '';
-      return household.includes('*') || name.includes('*') || /\bdeleted\b/i.test(remarks);
-    }
-    function cleanName(value) { return normText(value).replace(/\*/g,'').normalize('NFKC').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim(); }
     function rowList(id, values, emptyText) {
       const list=document.getElementById(id); list.replaceChildren();
       const shown=values.length ? values.slice(0,1000) : [emptyText];

@@ -671,6 +671,13 @@ body>main{width:min(100%,1440px);max-width:1440px}
 
 
 
+/* Contribution mobile breadcrumb is its own card, outside the main content surface. */
+@media(max-width:700px){
+ body:has(>.global-mobile-header.contribution-mobile-header){padding-top:10px}
+ body>.global-mobile-header.contribution-mobile-header{width:min(calc(100% - 20px),1440px);min-height:56px;margin:0 auto 12px;padding:7px 12px;background:#fff;border:1px solid #dfe5ee;border-radius:13px;box-shadow:0 4px 14px rgb(23 32 51 / 6%)}
+ body>.global-mobile-header.contribution-mobile-header .global-mobile-header-title{font-size:.92rem;font-weight:750;letter-spacing:-.01em}
+}
+
 /* Contribution page: one shared surface, header actions, one-line desktop controls. */
 body>main{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 4px 18px rgb(23 32 51 / 4%);overflow:hidden;padding:0 0 24px}
 body>main>.topbar.app-header{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:0!important;padding:18px 22px!important;background:transparent!important;border:0!important;border-bottom:1px solid #edf0f5!important;border-radius:0!important;box-shadow:none!important}

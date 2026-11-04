@@ -757,10 +757,11 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{padding:18px 
 <div id="app" class="hidden">
 <div id="contribution-layout"><section class="panel contribution-main-panel">
 <div class="contribution-controls"><div class="stat outstanding-kpi"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred</div><div class="v deferred-kpi" id="deferred">—</div></div><div class="search-wrap"><label for="search">Search name or full job card number</label><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><button id="clearSearch" class="search-clear" type="button" aria-label="Clear search" title="Clear search">×</button></div><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="overpaid">Overpaid</option><option value="deferred">Has deferred charges</option></select></div></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button><button id="contribution-see-more" class="btn ghost mobile-see-more" type="button" hidden>See more</button></div></div>
-</section></div>
+</section><aside id="desktop-detail-panel" aria-label="Citizen View"></aside></div>
 </div>
 </main>
-<div id="overlay" class="overlay hidden" role="dialog" aria-modal="true"><div class="sheet"><div class="sheet-head"><div class="sheet-heading"><h2 id="sheetTitle">Job card number</h2><div id="sheetSubtitle" class="sheet-subtitle"></div></div><div class="sheet-head-actions"><button class="btn ghost small" id="toggleEditMode" type="button" aria-pressed="false">Edit</button><button class="x" id="closeSheet" aria-label="Close">×</button></div></div><div id="sheetBody" class="sheet-body"></div><div id="sheetFooter" class="sheet-footer hidden"></div></div></div>
+<div id="overlay" class="overlay hidden" role="dialog" aria-modal="true"></div>
+<div id="citizen-sheet" class="sheet desktop-inline-sheet"><div class="sheet-head"><div class="sheet-heading"><h2 id="sheetTitle">Job card number</h2><div id="sheetSubtitle" class="sheet-subtitle"></div></div><div class="sheet-head-actions"><button class="btn ghost small" id="toggleEditMode" type="button" aria-pressed="false">Edit</button><button class="x" id="closeSheet" aria-label="Close">×</button></div></div><div id="sheetBody" class="sheet-body"></div><div id="sheetFooter" class="sheet-footer hidden"></div></div>
 
 <script src="./js/contribution.js?v=20261104a"></script>
 <script src="./js/allocation.js?v=20261104a"></script>
@@ -1026,8 +1027,10 @@ function buildFifoBreakdown(c){
 function openCitizen(id){
  currentCitizen=citizens.find(c=>c.id===id);if(!currentCitizen)return;
  const c=currentCitizen;
- const sheet=$('overlay').querySelector('.sheet');
- $('overlay').appendChild(sheet);
+ const sheet=$('citizen-sheet');
+ const desktopView=window.matchMedia('(min-width:1101px)').matches;
+ if(desktopView){$('desktop-detail-panel').appendChild(sheet);$('desktop-detail-panel').classList.add('has-selection');$('overlay').classList.add('hidden');}
+ else{$('overlay').appendChild(sheet);$('overlay').classList.remove('hidden');$('desktop-detail-panel').classList.remove('has-selection');}
  $('sheetTitle').textContent=c.id;
  $('sheetSubtitle').textContent=c.name||'Head of household not recorded';
  $('sheetFooter').classList.remove('hidden');
@@ -1122,7 +1125,7 @@ function openCitizen(id){
   }
  }));
  $('sheetFooter').innerHTML='<div class="balance"><div class="label">Outstanding</div><div class="amount '+(c.balance<=0?'zero':'owing')+'">'+fmt(Math.max(0,c.balance))+'</div></div>'+(c.exempt?'<div class="muted">This job card is exempt from contribution.</div>':'<div class="transaction-actions"><button class="btn" type="button" id="addPaymentBtn">Record payment</button>'+(c.balance>0?'<button class="btn" type="button" id="payFullBtn">Pay in full</button>':'')+(appRole==='admin'?'<button class="btn ghost" type="button" id="extraChargeBtn">Add / edit extra amount</button><button class="btn ghost" type="button" id="waiveBtn">Waive</button><button class="btn ghost" type="button" id="returnBtn">Return</button>':'')+'</div>');
- $('overlay').classList.remove('hidden');
+ if(!desktopView)$('overlay').classList.remove('hidden');
  document.querySelectorAll('#contribution-table tbody tr').forEach(row=>row.classList.toggle('selected',row.dataset.card===c.id));
  const addPayment=$('addPaymentBtn');if(addPayment)addPayment.addEventListener('click',showPaymentForm);
  const payFull=$('payFullBtn');if(payFull)payFull.addEventListener('click',payInFull);
@@ -1401,6 +1404,8 @@ $('toggleEditMode').addEventListener('click',()=>{
 });
 function closeCitizenDetail(){
  $('overlay').classList.add('hidden');
+ $('desktop-detail-panel').classList.remove('has-selection');
+ $('desktop-detail-panel').appendChild($('citizen-sheet'));
  currentCitizen=null;
  document.querySelectorAll('#contribution-table tbody tr').forEach(row=>row.classList.remove('selected'));
 }
@@ -1455,3 +1460,4 @@ load().catch(err=>setStartupError(err&&err.message?err.message:'Could not start 
 <script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261031f"></script>
 </body>
 </html>
+\n/* Restore the desktop table + Citizen View workspace at a 5:1 width ratio. */\n@media(min-width:1101px){\n #contribution-layout{display:grid!important;grid-template-columns:minmax(0,5fr) minmax(0,1fr)!important;gap:12px;align-items:stretch}\n #contribution-layout>.panel.contribution-main-panel{width:auto;min-width:0}\n #contribution-layout>#desktop-detail-panel.has-selection{display:block!important;min-width:0;min-height:0;height:calc(100vh - 40px);position:sticky;top:20px;overflow:hidden;border:1px solid #dfe5ee;border-radius:14px;background:#fff;box-shadow:0 3px 14px rgb(23 32 51 / 5%)}\n #citizen-sheet{display:flex;flex-direction:column;width:100%;max-width:none;height:100%;min-height:0;max-height:none;overflow:hidden;border:0;border-radius:13px;box-shadow:none}\n #citizen-sheet .sheet-head{flex:0 0 auto;padding:10px 9px;gap:6px}\n #citizen-sheet .sheet-head h2{font-size:.82rem;overflow-wrap:anywhere}\n #citizen-sheet .sheet-subtitle{font-size:.68rem;overflow-wrap:anywhere}\n #citizen-sheet .sheet-head-actions{gap:4px}\n #citizen-sheet .sheet-head-actions .btn{min-height:30px;padding:5px 6px;font-size:.7rem}\n #citizen-sheet .sheet-body{flex:1 1 auto;min-height:0;padding:8px;overflow-y:auto}\n #citizen-sheet .citizen-summary{grid-template-columns:minmax(0,1fr);gap:5px;margin-bottom:8px}\n #citizen-sheet .citizen-summary-card{padding:7px 8px;gap:2px}\n #citizen-sheet .citizen-summary-card span{font-size:.6rem}\n #citizen-sheet .citizen-summary-card b{font-size:.78rem}\n #citizen-sheet .sheet-body .section-title{font-size:.65rem;margin:9px 0 5px;padding-bottom:5px}\n #citizen-sheet .fifo-period-toggle{gap:4px;padding:7px 0}\n #citizen-sheet .fifo-label{font-size:.72rem;overflow-wrap:anywhere}\n #citizen-sheet .fifo-side>b{font-size:.7rem}\n #citizen-sheet .fifo-period-summary .fifo-summary-row{gap:5px}\n #citizen-sheet .fifo-period-summary .fifo-summary-row span,#citizen-sheet .fifo-period-summary .fifo-summary-row b{font-size:.68rem}\n #citizen-sheet .sheet-body .entry{gap:4px;padding:7px 6px;margin-bottom:4px}\n #citizen-sheet .sheet-body .entry .desc{min-width:0}\n #citizen-sheet .sheet-body .entry .desc b{font-size:.68rem;overflow-wrap:anywhere}\n #citizen-sheet .sheet-body .entry .desc small{font-size:.62rem}\n #citizen-sheet .sheet-body .entry .amt{font-size:.68rem;white-space:nowrap}\n #citizen-sheet .sheet-body .entry .entry-actions{flex-wrap:wrap}\n #citizen-sheet .sheet-body .entry .entry-actions .btn{min-height:26px;padding:3px 5px;font-size:.62rem}\n #citizen-sheet .sheet-footer{flex:0 0 auto;padding:7px}\n #citizen-sheet .sheet-footer .balance{padding:7px;margin:0 0 6px}\n #citizen-sheet .sheet-footer .balance .label{font-size:.6rem}\n #citizen-sheet .sheet-footer .balance .amount{font-size:21px}\n #citizen-sheet .sheet-footer .transaction-actions{display:grid;grid-template-columns:1fr;gap:5px;margin:0}\n #citizen-sheet .sheet-footer .transaction-actions .btn{min-height:32px;padding:5px 6px;font-size:.68rem;white-space:normal}\n}\n@media(max-width:1100px){#desktop-detail-panel{display:none!important}}\n

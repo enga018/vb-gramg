@@ -40,9 +40,11 @@
   }
 
   function jobCardSuffixNumber(jobCard) {
-    const match = String(jobCard || "").match(/\/([^/]+)$/);
+    // Job card suffixes may include a letter code, e.g. /145-D.
+    // The numeric portion is the primary sort key.
+    const match = String(jobCard || "").trim().match(/\/\s*(\d+)/);
     if (!match) return Number.POSITIVE_INFINITY;
-    const number = Number(match[1].trim());
+    const number = Number(match[1]);
     return Number.isFinite(number) ? number : Number.POSITIVE_INFINITY;
   }
 

@@ -407,6 +407,108 @@ main{width:min(100%,1200px);padding-bottom:36px}
   #contribution-table tbody tr.contribution-row.settled{border-left:4px solid #16a34a!important}
   #contribution-table tbody tr.contribution-row.overpaid{border-left:4px solid #d97706!important}
 }
+
+/* Desktop restoration: conventional contribution table and a true two-pane workspace. */
+@media (min-width:1101px){
+ body{padding:20px 24px}
+ body>main{width:min(100%,1600px);max-width:1600px}
+ #contribution-layout{grid-template-columns:minmax(0,1.08fr) minmax(480px,.92fr);gap:18px;align-items:start}
+ #contribution-layout>.panel{padding:20px 22px}
+ #contribution-table{display:table!important;width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0}
+ #contribution-table thead{display:table-header-group!important}
+ #contribution-table thead th{display:table-cell!important;padding:12px 13px;background:#edf2f8;border-bottom:1px solid #dfe5ee}
+ #contribution-table tbody{display:table-row-group!important}
+ #contribution-table tbody tr.contribution-row{display:table-row!important;margin:0;padding:0;border:0;border-radius:0;background:#fff;box-shadow:none!important}
+ #contribution-table tbody tr.contribution-row:hover{background:#f6f9ff}
+ #contribution-table tbody tr.contribution-row td{display:table-cell!important;padding:13px 13px;border-bottom:1px solid #e8edf4;vertical-align:middle;background:transparent}
+ #contribution-table thead th:nth-child(1){width:34%;text-align:left}
+ #contribution-table thead th:nth-child(2){width:27%;text-align:left}
+ #contribution-table thead th:nth-child(3){width:17%;text-align:right}
+ #contribution-table thead th:nth-child(4){width:22%;text-align:right}
+ #contribution-table tbody td.jobcard{white-space:normal;overflow-wrap:anywhere;font-size:.84rem}
+ #contribution-table tbody td.person{font-size:.88rem}
+ #contribution-table tbody td.last-charge-cell,#contribution-table tbody td.outstanding-cell{text-align:right;white-space:nowrap;font-weight:750;font-variant-numeric:tabular-nums}
+ #contribution-table tbody td.outstanding-cell{color:var(--due)}
+ #contribution-table tbody tr.selected{background:#edf5ff!important;box-shadow:inset 4px 0 #3972df!important}
+ #contribution-table tbody tr.due td:first-child{border-left:4px solid var(--due)}
+ #contribution-table tbody tr.settled td:first-child{border-left:4px solid #16a34a}
+ #contribution-table tbody tr.overpaid td:first-child{border-left:4px solid #d97706}
+ #desktop-detail-panel{top:16px;height:calc(100vh - 32px);margin-top:0;border-radius:16px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet{height:100%;border-radius:16px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-head{padding:18px 20px;background:linear-gradient(180deg,#fff,#f8fafc)}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-head h2{font-size:1.08rem}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-subtitle{font-size:.84rem}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-body{padding:16px 20px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer{padding:14px 20px}
+}
+@media (min-width:701px) and (max-width:1100px){
+ #contribution-layout{grid-template-columns:minmax(0,1fr);gap:14px}
+ #desktop-detail-panel{position:relative;top:auto;height:680px;margin-top:0}
+ #desktop-detail-panel .sheet.desktop-inline-sheet{height:100%}
+ #contribution-table{display:table!important;width:100%;table-layout:fixed}
+ #contribution-table thead{display:table-header-group!important}
+ #contribution-table tbody{display:table-row-group!important}
+ #contribution-table tbody tr.contribution-row{display:table-row!important}
+ #contribution-table tbody tr.contribution-row td{display:table-cell!important}
+ #contribution-table thead th:nth-child(1){width:34%}
+ #contribution-table thead th:nth-child(2){width:27%}
+ #contribution-table thead th:nth-child(3){width:17%;text-align:right}
+ #contribution-table thead th:nth-child(4){width:22%;text-align:right}
+ #contribution-table tbody td.last-charge-cell,#contribution-table tbody td.outstanding-cell{text-align:right;white-space:nowrap}
+}
+@media (max-width:700px){
+ #contribution-layout{display:block}
+ #desktop-detail-panel{display:none!important}
+}
+
+/* Contribution workspace: one full-width white table container; Citizen View always opens as a modal. */
+#contribution-layout{display:block!important;grid-template-columns:minmax(0,1fr)!important}
+#contribution-layout>.panel.contribution-main-panel{width:100%;min-width:0;margin:0;background:#fff;border:1px solid #dfe5ee;box-shadow:0 3px 14px rgb(23 32 51 / 5%)}
+#desktop-detail-panel{display:none!important}
+@media(min-width:701px){
+ #overlay{padding:24px}
+ #overlay>.sheet{width:min(100%,1120px);height:min(92vh,940px);max-height:92vh;border-radius:16px}
+}
+@media(max-width:700px){
+ #overlay{padding:0}
+ #overlay>.sheet{width:100%;height:100dvh;max-height:100dvh;border-radius:0}
+}
+
+/* Citizen View: household summary, readable ledger entries and a distinct action footer. */
+.citizen-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:0 0 18px}
+.citizen-summary-card{display:flex;flex-direction:column;gap:5px;min-width:0;padding:12px 14px;border:1px solid var(--line);border-radius:11px;background:#f8fafc}
+.citizen-summary-card span{font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.045em}
+.citizen-summary-card b{font-size:1.02rem;font-weight:800;font-variant-numeric:tabular-nums}
+.sheet-head{background:#fff}
+.sheet-head h2{font-weight:800;letter-spacing:-.02em}
+.sheet-subtitle{color:#526078}
+.sheet-body>.section-title{margin:18px 0 10px;padding-bottom:8px;border-bottom:1px solid var(--line);font-size:.72rem}
+.sheet-body .entry{padding:13px 13px 13px 15px;margin:0 0 8px;border:1px solid var(--line);border-left:4px solid #94a3b8;border-radius:11px;background:#fff;align-items:center}
+.sheet-body .entry-payment{border-left-color:#16a36a;background:#f7fcf8}
+.sheet-body .entry-refund{border-left-color:#d97706;background:#fffaf3}
+.sheet-body .entry-waiver{border-left-color:#8b5cf6;background:#faf8ff}
+.sheet-body .entry-charge{border-left-color:#64748b}
+.sheet-body .entry .desc b{font-size:.86rem;line-height:1.4}
+.sheet-body .entry .desc small{display:block;margin-top:4px;font-size:.74rem;color:var(--muted)}
+.sheet-body .entry .amt{font-size:.9rem;font-weight:800;font-variant-numeric:tabular-nums}
+.sheet-footer{background:#fff;border-top:1px solid #dfe5ee;box-shadow:0 -5px 18px rgb(23 32 51 / 5%)}
+.sheet-footer .balance{background:#f8fafc;border-color:#dfe5ee}
+.sheet-footer .transaction-actions{display:flex;flex-wrap:wrap}
+.sheet-footer .transaction-actions .btn{min-height:42px}
+@media(min-width:701px){
+ #desktop-detail-panel .citizen-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}
+ #desktop-detail-panel .citizen-summary-card{padding:10px 12px}
+ #desktop-detail-panel .citizen-summary-card b{font-size:.94rem}
+ #desktop-detail-panel .sheet-body .entry{padding:10px 11px;margin-bottom:6px}
+ #desktop-detail-panel .sheet-body .entry .desc b{font-size:.8rem}
+ #desktop-detail-panel .sheet-body .entry .amt{font-size:.82rem}
+}
+@media(max-width:700px){
+ #overlay .citizen-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}
+ #overlay .citizen-summary-card{padding:10px 11px}
+ #overlay .sheet-body>.section-title{margin-top:15px}
+}
+
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -416,12 +518,12 @@ main{width:min(100%,1200px);padding-bottom:36px}
 <main>
 <div id="status" class="notice info hidden" role="status" aria-live="polite"></div>
 <div id="app" class="hidden">
-<div id="contribution-layout"><section class="panel">
+<div id="contribution-layout"><section class="panel contribution-main-panel">
 <div class="kpi-row"><div class="stats"><div class="stat outstanding-kpi"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred</div><div class="v deferred-kpi" id="deferred">—</div></div></div><div class="kpi-actions"><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk Payment</button><button class="btn hidden" id="exportDueBtn" type="button">Export</button></div></div>
 
 
 <div class="toolbar"><div class="search-wrap"><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><button id="clearSearch" class="search-clear" type="button" aria-label="Clear search" title="Clear search">×</button></div><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="overpaid">Overpaid</option><option value="deferred">Has deferred charges</option></select></div></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button><button id="contribution-see-more" class="btn ghost mobile-see-more" type="button" hidden>See more</button></div></div>
-</section><aside id="desktop-detail-panel" aria-label="Selected citizen ledger"></aside></div>
+</section></div>
 </div>
 </main>
 <div id="overlay" class="overlay hidden" role="dialog" aria-modal="true"><div class="sheet"><div class="sheet-head"><div class="sheet-heading"><h2 id="sheetTitle">Job card number</h2><div id="sheetSubtitle" class="sheet-subtitle"></div></div><div class="sheet-head-actions"><button class="btn ghost small" id="toggleEditMode" type="button" aria-pressed="false">Edit</button><button class="x" id="closeSheet" aria-label="Close">×</button></div></div><div id="sheetBody" class="sheet-body"></div><div id="sheetFooter" class="sheet-footer hidden"></div></div></div>
@@ -561,7 +663,7 @@ function render(){
  const showMore=isMobile&&shown.length<list.length;$('contribution-see-more').hidden=!showMore;$('contribution-see-more').style.display=showMore?'inline-flex':'none';
  const thead=$('contribution-table').querySelector('thead'),tbody=$('contribution-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
  const head=document.createElement('tr');
- (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Remarks']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Remarks'){th.style.textAlign='right';th.className='balance-heading';}head.appendChild(th)});thead.appendChild(head);
+ (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Last Charges','Outstanding']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Remarks'){th.style.textAlign='right';th.className='balance-heading';}head.appendChild(th)});thead.appendChild(head);
  shown.forEach((c,index)=>{
   const state=c.exempt?'exempt':c.balance<0?'overpaid':c.balance>0?'due':'settled',tr=document.createElement('tr');tr.className='contribution-row '+state;tr.tabIndex=0;tr.dataset.card=c.id;tr.setAttribute('role','button');tr.setAttribute('aria-label','Open contribution history for '+c.name+' job card '+c.id);
   const cell=(value,cls)=>{const td=document.createElement('td');td.textContent=value;if(cls)td.className=cls;tr.appendChild(td);return td};
@@ -590,6 +692,8 @@ function render(){
 
   }else{
    cell(c.id,'jobcard');cell(c.name+(c.exempt?' · EXEMPT':''),'person');
+   const latestCharge=c.ledger.filter(e=>!e.is_voided&&!e.is_deferred&&(e.entry_type==='charge'||e.entry_type==='other_charge'||e.entry_type==='sanitationFee')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return')).slice().sort((a,b)=>String(b.entry_date||b.created_at||'').localeCompare(String(a.entry_date||a.created_at||'')))[0];
+   cell(latestCharge?fmt(latestCharge.amount):'—','last-charge-cell');
    const dueAmount=Number(c.balance)||0;
    const dueCell=cell('','outstanding-cell');
    if(dueAmount<0){const tag=document.createElement('span');tag.className='row-status overpaid';tag.textContent='Overpaid '+fmt(Math.abs(dueAmount));tag.style.display='inline-flex';tag.style.marginLeft='5px';dueCell.appendChild(tag);}
@@ -599,38 +703,10 @@ function render(){
   }
   tr.addEventListener('click',()=>openCitizen(c.id));tr.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();openCitizen(c.id)}});tbody.appendChild(tr);
  });
- if(window.matchMedia('(min-width: 701px)').matches){
-  const selectedCard=shown.find(c=>currentCitizen&&c.id===currentCitizen.id)||shown[0]||null;
-  $('contribution-layout').classList.toggle('no-detail',!selectedCard);
-  if(selectedCard){
-   openCitizen(selectedCard.id);
-  }else{
-   const activeSheet=$('desktop-detail-panel').querySelector('.sheet');
-   if(activeSheet){
-    $('overlay').appendChild(activeSheet);
-    activeSheet.classList.remove('desktop-inline-sheet');
-   }
-   $('desktop-detail-panel').classList.remove('has-selection');
-   currentCitizen=null;
-  }
- }
  $('table-wrap').classList.toggle('hidden',list.length===0);$('empty').classList.toggle('hidden',list.length!==0);
  $('count').textContent=list.length.toLocaleString('en-IN')+' job card'+(list.length===1?'':'s')+' matching filters';
  $('page-label').textContent=list.length?(isMobile?'Showing 1–'+shown.length+' of '+list.length:'Showing '+(start+1)+'–'+Math.min(start+pageSize,list.length)+' of '+list.length):'No matching job cards';
  $('prev-button').disabled=currentPage<=0;$('next-button').disabled=currentPage>=totalPages-1;
- syncDesktopDetailOffset();
-}
-function syncDesktopDetailOffset(){
- const detail=$('desktop-detail-panel'),leftPanel=$('contribution-layout').querySelector(':scope > .panel'),table=$('table-wrap');
- if(!window.matchMedia('(min-width: 701px)').matches||!detail.classList.contains('has-selection')||table.classList.contains('hidden')){
-  detail.style.removeProperty('--detail-top-offset');
-  return;
- }
- const panelRect=leftPanel.getBoundingClientRect(),tableRect=table.getBoundingClientRect();
- const offset=Math.max(0,tableRect.top-panelRect.top);
- const remainingHeight=Math.max(240,panelRect.height-offset);
- detail.style.setProperty('--detail-top-offset',Math.round(offset)+'px');
- detail.style.setProperty('--detail-panel-height',Math.round(remainingHeight)+'px');
 }
 function exportOutstandingDueList(){
  const due=citizens.filter(c=>!c.exempt&&Number(c.balance)>0)
@@ -681,22 +757,12 @@ function buildFifoBreakdown(c){
 function openCitizen(id){
  currentCitizen=citizens.find(c=>c.id===id);if(!currentCitizen)return;
  const c=currentCitizen;
- const sheet=$('desktop-detail-panel').querySelector('.sheet')||$('overlay').querySelector('.sheet');
- const desktop=window.matchMedia('(min-width: 701px)').matches;
- if(desktop){
-  $('desktop-detail-panel').appendChild(sheet);
-  $('desktop-detail-panel').classList.add('has-selection');
-  $('overlay').classList.add('hidden');
-  sheet.classList.add('desktop-inline-sheet');
- }else{
-  $('overlay').appendChild(sheet);
-  $('desktop-detail-panel').classList.remove('has-selection');
-  sheet.classList.remove('desktop-inline-sheet');
- }
+ const sheet=$('overlay').querySelector('.sheet');
+ $('overlay').appendChild(sheet);
  $('sheetTitle').textContent=c.id;
  $('sheetSubtitle').textContent=c.name||'Head of household not recorded';
  $('sheetFooter').classList.remove('hidden');
- const activeSheet=$('desktop-detail-panel').querySelector('.sheet')||$('overlay').querySelector('.sheet');
+ const activeSheet=$('overlay').querySelector('.sheet');
  activeSheet.classList.remove('edit-mode');
  $('toggleEditMode').classList.remove('hidden');
  $('toggleEditMode').textContent='Edit';
@@ -766,7 +832,13 @@ function openCitizen(id){
   const entryClass=e.is_voided?'entry-voided':isPayment?'entry-payment':(type==='refund'||type==='return')?'entry-refund':(type==='charge_waiver'||type==='forgive')?'entry-waiver':(type==='charge'||type==='other_charge'||type==='sanitationFee')?'entry-charge':'entry-other';
   return '<div class="entry '+entryClass+'"'+(e.is_voided?' data-voided-entry="true"':'')+(isPayment?' data-payment-toggle role="button" tabindex="0" aria-expanded="false" title="Tap to view payment allocation details"':'')+'><div class="desc"><b>'+esc(label)+(e.is_voided?' · Removed from current FTO snapshot':(isExtra&&extraReason?' · '+esc(extraReason):type!=='charge'&&displayNote?' · '+esc(displayNote):''))+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+(refundReconciliation?'<div class="payment-allocation-note">Matched to payment · '+fmt(refundReconciliation.amount)+' (not a period allocation)</div>':'')+allocationDetails+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+(appRole==='admin'&&!e.is_voided&&!isExtra&&!c.exempt?'<div class="entry-actions">'+(isPayment?'<button class="btn ghost small" type="button" data-review-allocation="'+esc(e.id)+'">Review allocation</button>':'')+'<button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button></div>':'')+'</div>';
  }).join('');
- $('sheetBody').innerHTML=(c.exempt?'<div class="notice info"><b>Exempt job card.</b> Its contribution records and payment allocations are retained, but excluded from active balances.</div>':'')+'<div class="section-title">Transaction history · oldest first</div>'+(lines||'<div class="empty">No ledger entries.</div>');
+ const summaryCards='<div class="citizen-summary">'+
+  '<div class="citizen-summary-card"><span>Charges</span><b>'+fmt(c.charges)+'</b></div>'+
+  '<div class="citizen-summary-card"><span>Payments</span><b>'+fmt(c.paid)+'</b></div>'+
+  '<div class="citizen-summary-card"><span>Waivers</span><b>'+fmt(c.waived)+'</b></div>'+
+  '<div class="citizen-summary-card"><span>Deferred</span><b>'+fmt(c.deferred)+'</b></div>'+
+ '</div>';
+ $('sheetBody').innerHTML=(c.exempt?'<div class="notice info"><b>Exempt job card.</b> Its contribution records and payment allocations are retained, but excluded from active balances.</div>':'')+summaryCards+'<div class="section-title">Ledger transactions · oldest first</div>'+(lines||'<div class="empty">No ledger entries.</div>');
  document.querySelectorAll('[data-fifo-toggle]').forEach(toggle=>toggle.addEventListener('click',()=>{
   const wasOpen=toggle.getAttribute('aria-expanded')==='true';
   document.querySelectorAll('[data-fifo-toggle]').forEach(other=>{
@@ -781,7 +853,7 @@ function openCitizen(id){
   }
  }));
  $('sheetFooter').innerHTML='<div class="balance"><div class="label">Outstanding</div><div class="amount '+(c.balance<=0?'zero':'owing')+'">'+fmt(Math.max(0,c.balance))+'</div></div>'+(c.exempt?'<div class="muted">This job card is exempt from contribution.</div>':'<div class="transaction-actions"><button class="btn" type="button" id="addPaymentBtn">Record payment</button>'+(c.balance>0?'<button class="btn" type="button" id="payFullBtn">Pay in full</button>':'')+(appRole==='admin'?'<button class="btn ghost" type="button" id="extraChargeBtn">Add / edit extra amount</button><button class="btn ghost" type="button" id="waiveBtn">Waive</button><button class="btn ghost" type="button" id="returnBtn">Return</button>':'')+'</div>');
- if(!desktop)$('overlay').classList.remove('hidden');
+ $('overlay').classList.remove('hidden');
  document.querySelectorAll('#contribution-table tbody tr').forEach(row=>row.classList.toggle('selected',row.dataset.card===c.id));
  const addPayment=$('addPaymentBtn');if(addPayment)addPayment.addEventListener('click',showPaymentForm);
  const payFull=$('payFullBtn');if(payFull)payFull.addEventListener('click',payInFull);
@@ -888,13 +960,7 @@ function showPaymentForm(){
 
 
 function showExemptionsForm(){
- if(window.matchMedia('(min-width: 701px)').matches){
-  const sheet=document.querySelector('.sheet');
-  $('overlay').appendChild(sheet);
-  sheet.classList.remove('desktop-inline-sheet');
-  $('desktop-detail-panel').classList.remove('has-selection');
-  $('overlay').classList.remove('hidden');
- }
+ $('overlay').classList.remove('hidden');
  $('sheetTitle').textContent='Exemptions';
  $('sheetSubtitle').textContent='Manage job cards excluded from Contribution.';
  $('sheetFooter').classList.add('hidden');
@@ -908,13 +974,7 @@ function showExemptionsForm(){
 }
 const parseBulkPayments = window.VBGRAMGPayments.parseBulkPayments;
 function showBulkPaymentForm(){
- if(window.matchMedia('(min-width: 701px)').matches){
-  const sheet=document.querySelector('.sheet');
-  $('overlay').appendChild(sheet);
-  sheet.classList.remove('desktop-inline-sheet');
-  $('desktop-detail-panel').classList.remove('has-selection');
-  $('overlay').classList.remove('hidden');
- }
+ $('overlay').classList.remove('hidden');
  $('sheetFooter').classList.add('hidden');
  if(appRole!=="admin"){status("Only an approved administrator can register bulk bank payments.","err");return;}
  $('sheetTitle').textContent="Bulk bank payments";
@@ -1071,22 +1131,9 @@ $('toggleEditMode').addEventListener('click',()=>{
  $('toggleEditMode').setAttribute('aria-pressed',String(enabled));
 });
 function closeCitizenDetail(){
- const sheet=document.querySelector('.sheet');
- if(window.matchMedia('(min-width: 701px)').matches){
-  if(sheet&&sheet.classList.contains('desktop-inline-sheet')){
-   $('overlay').appendChild(sheet);
-   sheet.classList.remove('desktop-inline-sheet');
-   $('desktop-detail-panel').classList.remove('has-selection');
-   currentCitizen=null;
-   document.querySelectorAll('#contribution-table tbody tr').forEach(row=>row.classList.remove('selected'));
-  }else{
-   $('overlay').classList.add('hidden');
-   if(currentCitizen&&citizens.some(c=>c.id===currentCitizen.id))openCitizen(currentCitizen.id);
-   else $('desktop-detail-panel').classList.remove('has-selection');
-  }
- }else{
-  $('overlay').classList.add('hidden');
- }
+ $('overlay').classList.add('hidden');
+ currentCitizen=null;
+ document.querySelectorAll('#contribution-table tbody tr').forEach(row=>row.classList.remove('selected'));
 }
 $('closeSheet').addEventListener('click',closeCitizenDetail);
 $('overlay').addEventListener('click',e=>{if(e.target===$('overlay'))closeCitizenDetail();});

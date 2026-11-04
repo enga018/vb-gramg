@@ -80,16 +80,15 @@
 }
 
 
-/* Match the real VBGRAMG shell: compact header with a three-dot navigation menu. */
-:root{--bg:#f3f6fb;--blue:#2457c5;--blue-soft:#eaf1ff;--line:#e3e8f0;--sidebar:0px}
-body{background:#f3f6fb;color:#172033}.sidebar{display:none}.main{margin-left:0}
-.topbar{height:58px;padding:0 max(16px,calc((100vw - 1440px)/2));background:#fff;border-bottom:1px solid #e3e8f0}
-.crumb{font-size:12px;font-weight:750;color:#667085}.crumb strong{color:#172033}.top-right{display:none}
-.mobile-menu{display:inline-grid;place-items:center;width:40px;height:40px;border:1px solid #cbd5e1;border-radius:10px;background:#e2e8f0;color:#172033;font-size:22px;line-height:1}
-.overlay.show{display:block;position:fixed;inset:0;background:#17203355;z-index:25}
-.sidebar.open{display:flex;position:fixed;inset:66px 14px auto auto;width:min(260px,calc(100vw - 28px));height:auto;max-height:calc(100dvh - 82px);overflow:auto;padding:12px;border:1px solid #dfe5ee;border-radius:14px;box-shadow:0 16px 40px #17203324;transform:none}
-.sidebar.open .brand,.sidebar.open .nav-label,.sidebar.open .sidebar-bottom{display:none}
-.sidebar.open .nav{gap:3px}.sidebar.open .nav button{min-height:42px;padding:10px 12px}
+/* Modern SaaS styling with a persistent desktop sidebar and mobile drawer. */
+:root{--bg:#f3f6fb;--blue:#2457c5;--blue-soft:#eaf1ff;--line:#e3e8f0;--sidebar:252px}
+body{background:#f3f6fb;color:#172033}
+.sidebar{display:flex;position:fixed;inset:0 auto 0 0;width:var(--sidebar);padding:22px 15px;background:#fff;border-right:1px solid #e3e8f0;box-shadow:2px 0 12px #17203308;z-index:30}
+.main{margin-left:var(--sidebar);min-width:0}
+.topbar{height:58px;padding:0 28px;background:#fff;border-bottom:1px solid #e3e8f0}
+.crumb{font-size:12px;font-weight:750;color:#667085}.crumb strong{color:#172033}
+.top-right{display:flex}.mobile-menu{display:none}
+.overlay{display:none}
 .content{max-width:1440px;padding:22px 24px 42px}.preview-note{margin-bottom:17px}.page-head{margin-bottom:17px}
 .page-head h1{font-size:24px;letter-spacing:-.55px}
 .btn{border-color:#cbd5e1;background:#e2e8f0;color:#172033;border-radius:10px;box-shadow:none}
@@ -97,7 +96,18 @@ body{background:#f3f6fb;color:#172033}.sidebar{display:none}.main{margin-left:0}
 .panel,.stat,.summary-box{border-radius:14px}.panel-head{padding:14px 17px}.panel-body{padding:15px 17px}
 .table-tools{padding:11px 14px}th{background:#f5f7fb;color:#667085}td{padding:11px 13px}.status{border-radius:7px}
 @media(max-width:700px){
- .topbar{height:54px;padding:0 12px}.mobile-menu{display:inline-grid;flex:none}
+ :root{--sidebar:0px}
+ .main{margin-left:0}
+ .sidebar{width:min(280px,84vw);transform:translateX(-105%);transition:transform .22s ease;box-shadow:12px 0 35px #17203324;padding:18px 14px}
+ .sidebar.open{transform:translateX(0)}
+ .sidebar .brand{padding-bottom:20px}
+ .overlay.show{display:block;position:fixed;inset:0;background:#17203366;z-index:25}
+ .topbar{height:54px;padding:0 12px;gap:10px}
+ .mobile-menu{display:inline-grid;place-items:center;flex:none;width:38px;height:38px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#344054;font-size:18px;line-height:1}
+ .top-right{display:none}
+ .crumb{flex:1}
+ .content{padding:14px 10px 28px}
+ .preview-note{padding:8px 10px;margin-bottom:13px}
  .content{padding:14px 10px 28px}.preview-note{padding:8px 10px;margin-bottom:13px}
  .page-head{display:flex;flex-direction:column;gap:10px;margin-bottom:13px}
  .page-head h1{font-size:21px}.page-head p{font-size:12px;margin-top:4px}
@@ -214,7 +224,7 @@ body{background:#f3f6fb;color:#172033}.sidebar{display:none}.main{margin-left:0}
 <div class="overlay" id="overlay"></div>
 <div class="main">
   <header class="topbar">
-    <button class="mobile-menu" id="menu-button" aria-label="Open navigation" aria-expanded="false">⋮</button>
+    <button class="mobile-menu" id="menu-button" aria-label="Open navigation" aria-expanded="false">☰</button>
     <div class="crumb">Workspace <span style="color:#c1c7d1;padding:0 6px">/</span> <strong id="breadcrumb">Overview</strong></div>
     <div class="top-right"><span class="date-label">Design concept · November 2026</span><div class="top-avatar">AD</div></div>
   </header>

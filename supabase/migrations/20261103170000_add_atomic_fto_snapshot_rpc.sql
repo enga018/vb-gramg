@@ -301,8 +301,7 @@ begin
     set ledger_entry_id = x.ledger_entry_id, updated_at = now()
   from jsonb_to_recordset(coalesce(p_plan->'transaction_links', '[]'::jsonb))
     as x(id uuid, ledger_entry_id uuid)
-  where tx.id = x.id
-    and tx.batch_id = v_batch_id;
+  where tx.id = x.id;
 
   update public.vbgramg_charge_ledger
     set is_voided = true

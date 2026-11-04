@@ -16,7 +16,7 @@
   async function request(functionName, options) {
     const settings = options || {};
     const body = settings.body || {};
-    const timeoutMs = Number.isFinite(settings.timeoutMs) ? settings.timeoutMs : 30000;
+    const timeoutMs = settings.timeoutMs === false ? null : (Number.isFinite(settings.timeoutMs) ? settings.timeoutMs : 30000);
     const deduplicate = settings.deduplicate === true;
     const key = deduplicate ? functionName + ":" + JSON.stringify(body) : null;
 
@@ -26,15 +26,18 @@
       const client = await clientReady();
       let timeoutId;
       try {
-        const result = await Promise.race([
-          client.functions.invoke(functionName, { body }),
-          new Promise((_, reject) => {
-            timeoutId = window.setTimeout(
-              () => reject(new Error(functionName + " request timed out after " + Math.round(timeoutMs / 1000) + " seconds.")),
-              timeoutMs
-            );
-          })
-        ]);
+        const invocation = client.functions.invoke(functionName, { body });
+        const result = timeoutMs === null
+          ? await invocation
+          : await Promise.race([
+              invocation,
+              new Promise((_, reject) => {
+                timeoutId = window.setTimeout(
+                  () => reject(new Error(functionName + " request timed out after " + Math.round(timeoutMs / 1000) + " seconds.")),
+                  timeoutMs
+                );
+              })
+            ]);
         if (result.error) throw result.error;
         if (!result.data) throw new Error("The " + functionName + " service returned an empty response.");
         if (result.data.error) throw new Error(String(result.data.error));

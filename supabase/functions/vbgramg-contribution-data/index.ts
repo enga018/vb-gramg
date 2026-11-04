@@ -254,9 +254,11 @@ Deno.serve(async(req:Request)=>{
     // IN filter bounded and execute a small number of independent batches concurrently.
     const chargeIds=[...entryById.keys()];
     const txPages:Record<string,unknown>[]=[];
-    for(let base=0;base<chargeIds.length;base+=2000){
+    // Keep each UUID filter small enough to avoid oversized PostgREST request URLs.
+    // Four 100-ID groups retain bounded concurrency while keeping each URL compact.
+    for(let base=0;base<chargeIds.length;base+=400){
      const idGroups:string[][]=[];
-     for(let offset=base;offset<Math.min(base+2000,chargeIds.length);offset+=500)idGroups.push(chargeIds.slice(offset,offset+500));
+     for(let offset=base;offset<Math.min(base+400,chargeIds.length);offset+=100)idGroups.push(chargeIds.slice(offset,offset+100));
      const results=await Promise.all(idGroups.map(ids=>admin.from("vbgramg_fto_transactions").select("ledger_entry_id,person_name").not("ledger_entry_id","is",null).gt("calculated_charge",0).in("status",["blank","processed"]).in("ledger_entry_id",ids)));
      for(const result of results){if(result.error)throw result.error;txPages.push(...(result.data||[]));}
     }

@@ -407,6 +407,95 @@ main{width:min(100%,1200px);padding-bottom:36px}
   #contribution-table tbody tr.contribution-row.settled{border-left:4px solid #16a34a!important}
   #contribution-table tbody tr.contribution-row.overpaid{border-left:4px solid #d97706!important}
 }
+
+/* Desktop restoration: conventional contribution table and a true two-pane workspace. */
+@media (min-width:1101px){
+ body{padding:20px 24px}
+ body>main{width:min(100%,1600px);max-width:1600px}
+ #contribution-layout{grid-template-columns:minmax(0,1.08fr) minmax(480px,.92fr);gap:18px;align-items:start}
+ #contribution-layout>.panel{padding:20px 22px}
+ #contribution-table{display:table!important;width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0}
+ #contribution-table thead{display:table-header-group!important}
+ #contribution-table thead th{display:table-cell!important;padding:12px 13px;background:#edf2f8;border-bottom:1px solid #dfe5ee}
+ #contribution-table tbody{display:table-row-group!important}
+ #contribution-table tbody tr.contribution-row{display:table-row!important;margin:0;padding:0;border:0;border-radius:0;background:#fff;box-shadow:none!important}
+ #contribution-table tbody tr.contribution-row:hover{background:#f6f9ff}
+ #contribution-table tbody tr.contribution-row td{display:table-cell!important;padding:13px 13px;border-bottom:1px solid #e8edf4;vertical-align:middle;background:transparent}
+ #contribution-table thead th:nth-child(1){width:34%;text-align:left}
+ #contribution-table thead th:nth-child(2){width:27%;text-align:left}
+ #contribution-table thead th:nth-child(3){width:17%;text-align:right}
+ #contribution-table thead th:nth-child(4){width:22%;text-align:right}
+ #contribution-table tbody td.jobcard{white-space:normal;overflow-wrap:anywhere;font-size:.84rem}
+ #contribution-table tbody td.person{font-size:.88rem}
+ #contribution-table tbody td.last-charge-cell,#contribution-table tbody td.outstanding-cell{text-align:right;white-space:nowrap;font-weight:750;font-variant-numeric:tabular-nums}
+ #contribution-table tbody td.outstanding-cell{color:var(--due)}
+ #contribution-table tbody tr.selected{background:#edf5ff!important;box-shadow:inset 4px 0 #3972df!important}
+ #contribution-table tbody tr.due td:first-child{border-left:4px solid var(--due)}
+ #contribution-table tbody tr.settled td:first-child{border-left:4px solid #16a34a}
+ #contribution-table tbody tr.overpaid td:first-child{border-left:4px solid #d97706}
+ #desktop-detail-panel{top:16px;height:calc(100vh - 32px);margin-top:0;border-radius:16px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet{height:100%;border-radius:16px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-head{padding:18px 20px;background:linear-gradient(180deg,#fff,#f8fafc)}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-head h2{font-size:1.08rem}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-subtitle{font-size:.84rem}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-body{padding:16px 20px}
+ #desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer{padding:14px 20px}
+}
+@media (min-width:701px) and (max-width:1100px){
+ #contribution-layout{grid-template-columns:minmax(0,1fr);gap:14px}
+ #desktop-detail-panel{position:relative;top:auto;height:680px;margin-top:0}
+ #desktop-detail-panel .sheet.desktop-inline-sheet{height:100%}
+ #contribution-table{display:table!important;width:100%;table-layout:fixed}
+ #contribution-table thead{display:table-header-group!important}
+ #contribution-table tbody{display:table-row-group!important}
+ #contribution-table tbody tr.contribution-row{display:table-row!important}
+ #contribution-table tbody tr.contribution-row td{display:table-cell!important}
+ #contribution-table thead th:nth-child(1){width:34%}
+ #contribution-table thead th:nth-child(2){width:27%}
+ #contribution-table thead th:nth-child(3){width:17%;text-align:right}
+ #contribution-table thead th:nth-child(4){width:22%;text-align:right}
+ #contribution-table tbody td.last-charge-cell,#contribution-table tbody td.outstanding-cell{text-align:right;white-space:nowrap}
+}
+@media (max-width:700px){
+ #contribution-layout{display:block}
+ #desktop-detail-panel{display:none!important}
+}
+
+/* Citizen View: household summary, readable ledger entries and a distinct action footer. */
+.citizen-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:0 0 18px}
+.citizen-summary-card{display:flex;flex-direction:column;gap:5px;min-width:0;padding:12px 14px;border:1px solid var(--line);border-radius:11px;background:#f8fafc}
+.citizen-summary-card span{font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.045em}
+.citizen-summary-card b{font-size:1.02rem;font-weight:800;font-variant-numeric:tabular-nums}
+.sheet-head{background:#fff}
+.sheet-head h2{font-weight:800;letter-spacing:-.02em}
+.sheet-subtitle{color:#526078}
+.sheet-body>.section-title{margin:18px 0 10px;padding-bottom:8px;border-bottom:1px solid var(--line);font-size:.72rem}
+.sheet-body .entry{padding:13px 13px 13px 15px;margin:0 0 8px;border:1px solid var(--line);border-left:4px solid #94a3b8;border-radius:11px;background:#fff;align-items:center}
+.sheet-body .entry-payment{border-left-color:#16a36a;background:#f7fcf8}
+.sheet-body .entry-refund{border-left-color:#d97706;background:#fffaf3}
+.sheet-body .entry-waiver{border-left-color:#8b5cf6;background:#faf8ff}
+.sheet-body .entry-charge{border-left-color:#64748b}
+.sheet-body .entry .desc b{font-size:.86rem;line-height:1.4}
+.sheet-body .entry .desc small{display:block;margin-top:4px;font-size:.74rem;color:var(--muted)}
+.sheet-body .entry .amt{font-size:.9rem;font-weight:800;font-variant-numeric:tabular-nums}
+.sheet-footer{background:#fff;border-top:1px solid #dfe5ee;box-shadow:0 -5px 18px rgb(23 32 51 / 5%)}
+.sheet-footer .balance{background:#f8fafc;border-color:#dfe5ee}
+.sheet-footer .transaction-actions{display:flex;flex-wrap:wrap}
+.sheet-footer .transaction-actions .btn{min-height:42px}
+@media(min-width:701px){
+ #desktop-detail-panel .citizen-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}
+ #desktop-detail-panel .citizen-summary-card{padding:10px 12px}
+ #desktop-detail-panel .citizen-summary-card b{font-size:.94rem}
+ #desktop-detail-panel .sheet-body .entry{padding:10px 11px;margin-bottom:6px}
+ #desktop-detail-panel .sheet-body .entry .desc b{font-size:.8rem}
+ #desktop-detail-panel .sheet-body .entry .amt{font-size:.82rem}
+}
+@media(max-width:700px){
+ #overlay .citizen-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px}
+ #overlay .citizen-summary-card{padding:10px 11px}
+ #overlay .sheet-body>.section-title{margin-top:15px}
+}
+
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -561,7 +650,7 @@ function render(){
  const showMore=isMobile&&shown.length<list.length;$('contribution-see-more').hidden=!showMore;$('contribution-see-more').style.display=showMore?'inline-flex':'none';
  const thead=$('contribution-table').querySelector('thead'),tbody=$('contribution-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
  const head=document.createElement('tr');
- (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Remarks']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Remarks'){th.style.textAlign='right';th.className='balance-heading';}head.appendChild(th)});thead.appendChild(head);
+ (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Last Charges','Outstanding']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Remarks'){th.style.textAlign='right';th.className='balance-heading';}head.appendChild(th)});thead.appendChild(head);
  shown.forEach((c,index)=>{
   const state=c.exempt?'exempt':c.balance<0?'overpaid':c.balance>0?'due':'settled',tr=document.createElement('tr');tr.className='contribution-row '+state;tr.tabIndex=0;tr.dataset.card=c.id;tr.setAttribute('role','button');tr.setAttribute('aria-label','Open contribution history for '+c.name+' job card '+c.id);
   const cell=(value,cls)=>{const td=document.createElement('td');td.textContent=value;if(cls)td.className=cls;tr.appendChild(td);return td};
@@ -590,6 +679,8 @@ function render(){
 
   }else{
    cell(c.id,'jobcard');cell(c.name+(c.exempt?' · EXEMPT':''),'person');
+   const latestCharge=c.ledger.filter(e=>!e.is_voided&&!e.is_deferred&&(e.entry_type==='charge'||e.entry_type==='other_charge'||e.entry_type==='sanitationFee')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return')).slice().sort((a,b)=>String(b.entry_date||b.created_at||'').localeCompare(String(a.entry_date||a.created_at||'')))[0];
+   cell(latestCharge?fmt(latestCharge.amount):'—','last-charge-cell');
    const dueAmount=Number(c.balance)||0;
    const dueCell=cell('','outstanding-cell');
    if(dueAmount<0){const tag=document.createElement('span');tag.className='row-status overpaid';tag.textContent='Overpaid '+fmt(Math.abs(dueAmount));tag.style.display='inline-flex';tag.style.marginLeft='5px';dueCell.appendChild(tag);}
@@ -766,7 +857,13 @@ function openCitizen(id){
   const entryClass=e.is_voided?'entry-voided':isPayment?'entry-payment':(type==='refund'||type==='return')?'entry-refund':(type==='charge_waiver'||type==='forgive')?'entry-waiver':(type==='charge'||type==='other_charge'||type==='sanitationFee')?'entry-charge':'entry-other';
   return '<div class="entry '+entryClass+'"'+(e.is_voided?' data-voided-entry="true"':'')+(isPayment?' data-payment-toggle role="button" tabindex="0" aria-expanded="false" title="Tap to view payment allocation details"':'')+'><div class="desc"><b>'+esc(label)+(e.is_voided?' · Removed from current FTO snapshot':(isExtra&&extraReason?' · '+esc(extraReason):type!=='charge'&&displayNote?' · '+esc(displayNote):''))+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+(refundReconciliation?'<div class="payment-allocation-note">Matched to payment · '+fmt(refundReconciliation.amount)+' (not a period allocation)</div>':'')+allocationDetails+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+(appRole==='admin'&&!e.is_voided&&!isExtra&&!c.exempt?'<div class="entry-actions">'+(isPayment?'<button class="btn ghost small" type="button" data-review-allocation="'+esc(e.id)+'">Review allocation</button>':'')+'<button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button></div>':'')+'</div>';
  }).join('');
- $('sheetBody').innerHTML=(c.exempt?'<div class="notice info"><b>Exempt job card.</b> Its contribution records and payment allocations are retained, but excluded from active balances.</div>':'')+'<div class="section-title">Transaction history · oldest first</div>'+(lines||'<div class="empty">No ledger entries.</div>');
+ const summaryCards='<div class="citizen-summary">'+
+  '<div class="citizen-summary-card"><span>Charges</span><b>'+fmt(c.charges)+'</b></div>'+
+  '<div class="citizen-summary-card"><span>Payments</span><b>'+fmt(c.paid)+'</b></div>'+
+  '<div class="citizen-summary-card"><span>Waivers</span><b>'+fmt(c.waived)+'</b></div>'+
+  '<div class="citizen-summary-card"><span>Deferred</span><b>'+fmt(c.deferred)+'</b></div>'+
+ '</div>';
+ $('sheetBody').innerHTML=(c.exempt?'<div class="notice info"><b>Exempt job card.</b> Its contribution records and payment allocations are retained, but excluded from active balances.</div>':'')+summaryCards+'<div class="section-title">Ledger transactions · oldest first</div>'+(lines||'<div class="empty">No ledger entries.</div>');
  document.querySelectorAll('[data-fifo-toggle]').forEach(toggle=>toggle.addEventListener('click',()=>{
   const wasOpen=toggle.getAttribute('aria-expanded')==='true';
   document.querySelectorAll('[data-fifo-toggle]').forEach(other=>{

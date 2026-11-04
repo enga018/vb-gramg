@@ -895,7 +895,7 @@ function fitDesktopTableToViewport(){
  const mainBottom=mainStyle?(parseFloat(mainStyle.paddingBottom)||0):0;
  const panelBottom=panelStyle?(parseFloat(panelStyle.paddingBottom)||0):0;
  const footerGap=footStyle?(parseFloat(footStyle.marginTop)||0):0;
- const safetyGap=40;
+ const safetyGap=30;
  const available=Math.max(0,window.innerHeight-top-footerHeight-footerGap-bodyBottom-mainBottom-panelBottom-safetyGap);
 
  // Use every available pixel, but derive pagination from the resulting

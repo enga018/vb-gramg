@@ -158,6 +158,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
           <tbody id="diff-table-body"><tr><td colspan="6">No changes to display.</td></tr></tbody>
         </table>
       </div>
+      <div id="diff-pager" class="mobile-table-pager" hidden><button id="diff-prev" class="secondary" type="button">Previous</button><span id="diff-page-label"></span><button id="diff-next" class="secondary" type="button">Next</button></div>
       <div class="diff-actions">
         <button id="apply-changes-button" type="button">Confirm and apply changes</button>
         <button id="cancel-changes-button" type="button" class="secondary">Cancel upload</button>
@@ -508,6 +509,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
       cell.textContent=value==null||value===''?'—':String(value);
       row.appendChild(cell);
     }
+    let diffPage=0;const diffPageSize=10;
     function renderDiffTable(diff) {
       const body=document.getElementById('diff-table-body');
       body.replaceChildren();
@@ -516,8 +518,9 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
         ...diff.deleted.map(item=>({type:'Deleted',item,previous:null})),
         ...diff.updated.map(change=>({type:'Updated',item:change.after||{},previous:change.before||{}}))
       ];
-      if(!entries.length){const row=document.createElement('tr');const cell=document.createElement('td');cell.colSpan=6;cell.textContent='No applicant changes detected.';row.appendChild(cell);body.appendChild(row);return;}
-      entries.forEach(entry=>{
+      if(!entries.length){document.getElementById('diff-pager').hidden=true;const row=document.createElement('tr');const cell=document.createElement('td');cell.colSpan=6;cell.textContent='No applicant changes detected.';row.appendChild(cell);body.appendChild(row);return;}
+      const isMobile=window.matchMedia('(max-width: 700px)').matches,totalPages=Math.max(1,Math.ceil(entries.length/diffPageSize));diffPage=Math.min(diffPage,totalPages-1);const start=isMobile?diffPage*diffPageSize:0,visibleEntries=isMobile?entries.slice(start,start+diffPageSize):entries;
+      visibleEntries.forEach(entry=>{
         const item=entry.item||{},row=document.createElement('tr');
         addDiffCell(row,entry.type);
         addDiffCell(row,item.jobCardNumber);
@@ -527,8 +530,12 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
         addDiffCell(row,entry.previous?applicantLabel(entry.previous):'—');
         body.appendChild(row);
       });
+      document.getElementById('diff-pager').hidden=!isMobile||entries.length<=diffPageSize;
+      document.getElementById('diff-page-label').textContent='Page '+(diffPage+1)+' of '+totalPages;
+      document.getElementById('diff-prev').disabled=diffPage<=0;document.getElementById('diff-next').disabled=diffPage>=totalPages-1;
     }
     function showComparison(diff) {
+      diffPage=0;
       pendingComparison = diff;
       document.getElementById('diff-added-count').textContent = diff.added.length;
       document.getElementById('diff-deleted-count').textContent = diff.deleted.length;
@@ -571,6 +578,8 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
       }
     });
 
+    document.getElementById('diff-prev').addEventListener('click',()=>{diffPage=Math.max(0,diffPage-1);if(pendingComparison)renderDiffTable(pendingComparison)});
+    document.getElementById('diff-next').addEventListener('click',()=>{diffPage++;if(pendingComparison)renderDiffTable(pendingComparison)});
     document.getElementById('cancel-changes-button').addEventListener('click', async function () {
       const id = pendingImportId;
       document.getElementById('diff-panel').classList.add('hidden');

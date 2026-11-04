@@ -749,6 +749,90 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{padding:18px 
 @media(min-width:701px){
  #contribution-layout .table-foot .actions{transform:translateY(10px)}
 }
+
+/* Final button system: consistent sizing, typography, radius and alignment
+   across Contribution actions on desktop and mobile. */
+.btn,
+.app-header-actions > a,
+.app-header-actions > button,
+.top-actions > a,
+.top-actions > button,
+.page-actions-bar > a,
+.page-actions-bar > button {
+  box-sizing:border-box!important;
+  min-height:40px!important;
+  padding:9px 14px!important;
+  border:1px solid #cbd5e1!important;
+  border-radius:10px!important;
+  font:650 .875rem/1.2 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:7px!important;
+  text-decoration:none!important;
+  box-shadow:none!important;
+  transform:none!important;
+  cursor:pointer;
+  transition:background .15s,border-color .15s,color .15s;
+}
+.btn:not(.ghost),
+.app-header-actions > a:not(.ghost),
+.app-header-actions > button:not(.ghost),
+.top-actions > a:not(.ghost),
+.top-actions > button:not(.ghost),
+.page-actions-bar > a:not(.ghost),
+.page-actions-bar > button:not(.ghost) {
+  background:#172033!important;
+  border-color:#172033!important;
+  color:#fff!important;
+}
+.btn:not(.ghost):hover,
+.app-header-actions > a:not(.ghost):hover,
+.app-header-actions > button:not(.ghost):hover,
+.top-actions > a:not(.ghost):hover,
+.top-actions > button:not(.ghost):hover,
+.page-actions-bar > a:not(.ghost):hover,
+.page-actions-bar > button:not(.ghost):hover {
+  background:#2c3b55!important;border-color:#2c3b55!important;color:#fff!important;
+}
+.btn.ghost,
+.app-header-actions > a.ghost,
+.app-header-actions > button.ghost,
+.top-actions > a.ghost,
+.top-actions > button.ghost,
+.page-actions-bar > a.ghost,
+.page-actions-bar > button.ghost {
+  background:#f0f3f8!important;border-color:#d8e0eb!important;color:#344054!important;
+}
+.btn.ghost:hover,
+.app-header-actions > a.ghost:hover,
+.app-header-actions > button.ghost:hover,
+.top-actions > a.ghost:hover,
+.top-actions > button.ghost:hover,
+.page-actions-bar > a.ghost:hover,
+.page-actions-bar > button.ghost:hover {
+  background:#e6ebf3!important;border-color:#cbd5e1!important;color:#172033!important;
+}
+.btn.small{min-height:36px!important;padding:7px 11px!important;font-size:.82rem!important}
+.btn:focus-visible,
+.app-header-actions > a:focus-visible,
+.app-header-actions > button:focus-visible,
+.top-actions > a:focus-visible,
+.top-actions > button:focus-visible,
+.page-actions-bar > a:focus-visible,
+.page-actions-bar > button:focus-visible {
+  outline:3px solid rgb(36 87 197 / 25%)!important;outline-offset:2px!important;
+}
+.btn:disabled{opacity:.48!important;cursor:not-allowed!important}
+@media(max-width:700px){
+  .app-header-actions > a,.app-header-actions > button,
+  .top-actions > a,.top-actions > button,
+  .page-actions-bar > a,.page-actions-bar > button {
+    min-height:40px!important;padding:8px 10px!important;font-size:.82rem!important;
+  }
+  .kpi-actions .btn{width:100%;min-width:0}
+}
+
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -758,7 +842,7 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{padding:18px 
 <div id="app" class="hidden">
 <div id="contribution-layout"><section class="panel contribution-main-panel">
 <div class="page-panel-actions"><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk Payment</button><button class="btn hidden" id="exportDueBtn" type="button">Export</button></div>
-<div class="contribution-controls"><div class="stat outstanding-kpi"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred</div><div class="v deferred-kpi" id="deferred">—</div></div><div class="search-wrap"><label for="search">Search name or full job card number</label><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><button id="clearSearch" class="search-clear" type="button" aria-label="Clear search" title="Clear search">×</button></div><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="overpaid">Overpaid</option><option value="deferred">Has deferred charges</option></select></div></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button><button id="contribution-see-more" class="btn ghost mobile-see-more" type="button" hidden>See more</button></div></div>
+<div class="contribution-controls"><div class="stat outstanding-kpi"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred</div><div class="v deferred-kpi" id="deferred">—</div></div><div class="search-wrap"><label for="search">Search name or full job card number</label><input id="search" type="search" placeholder="Search name or full job card number" autocomplete="off"><button id="clearSearch" class="search-clear" type="button" aria-label="Clear search" title="Clear search">×</button></div><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="overpaid">Overpaid</option><option value="deferred">Has deferred charges</option></select></div></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button></div></div>
 </section></div>
 </div>
 </main>
@@ -798,7 +882,7 @@ try {
  setStartupError('Could not load the connection library. Check your internet connection and use Reload page to try again.');
  return;
 }
-let entries=[], citizens=[], citizenRegistry=[], applicantsByCard={}, extraCharges=[], exemptions=[], periods=[], paymentAllocations=[], paymentRefundReconciliations=[], currentCitizen=null, busy=false, currentPage=0, pageSize=10, mobileShown=10, appRole="";
+let entries=[], citizens=[], citizenRegistry=[], applicantsByCard={}, extraCharges=[], exemptions=[], periods=[], paymentAllocations=[], paymentRefundReconciliations=[], currentCitizen=null, busy=false, currentPage=0, pageSize=10, appRole="";
 const exemptCardSet=()=>new Set(exemptions.map(x=>String(x.job_card_number||"").trim()));
 const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -912,11 +996,9 @@ function render(){
  }).sort((a,b)=>jobCardSuffixNumber(a.id)-jobCardSuffixNumber(b.id)||a.id.localeCompare(b.id,undefined,{numeric:true})||a.name.localeCompare(b.name));
  $('outstanding').textContent=fmt(citizens.reduce((s,c)=>s+Math.max(0,c.balance),0));
  $('deferred').textContent=fmt(citizens.reduce((s,c)=>s+c.deferred,0));
- const isMobile=window.matchMedia('(max-width: 700px)').matches;const totalPages=Math.max(1,Math.ceil(list.length/pageSize));currentPage=Math.min(currentPage,totalPages-1);
- const start=isMobile?0:currentPage*pageSize,shown=isMobile?list.slice(0,mobileShown):list.slice(start,start+pageSize);
- $('prev-button').classList.toggle('hidden',isMobile);
- $('next-button').classList.toggle('hidden',isMobile);
- const showMore=isMobile&&shown.length<list.length;$('contribution-see-more').hidden=!showMore;$('contribution-see-more').style.display=showMore?'inline-flex':'none';
+ const isMobile=window.matchMedia('(max-width: 700px)').matches;const totalPages=Math.max(1,Math.ceil(list.length/pageSize)),mobileTotalPages=Math.max(1,Math.ceil(list.length/10)),activePageSize=isMobile?10:pageSize,effectiveTotalPages=isMobile?mobileTotalPages:totalPages;currentPage=Math.min(currentPage,effectiveTotalPages-1);
+ const start=currentPage*activePageSize,shown=list.slice(start,start+activePageSize);
+ $('prev-button').classList.remove('hidden');$('next-button').classList.remove('hidden');
  const thead=$('contribution-table').querySelector('thead'),tbody=$('contribution-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
  const head=document.createElement('tr');
  (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Last Charges','Outstanding']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Remarks'){th.style.textAlign='right';th.className='balance-heading';}head.appendChild(th)});thead.appendChild(head);
@@ -965,7 +1047,7 @@ function render(){
  });
  $('table-wrap').classList.toggle('hidden',list.length===0);$('empty').classList.toggle('hidden',list.length!==0);
  $('count').textContent=list.length.toLocaleString('en-IN')+' job card'+(list.length===1?'':'s')+' matching filters';
- $('page-label').textContent=list.length?(isMobile?'Showing 1–'+shown.length+' of '+list.length:'Showing '+(start+1)+'–'+Math.min(start+pageSize,list.length)+' of '+list.length):'No matching job cards';
+ $('page-label').textContent=list.length?('Showing '+(start+1)+'–'+Math.min(start+activePageSize,list.length)+' of '+list.length+' · Page '+(currentPage+1)+' of '+effectiveTotalPages):'No matching job cards';
  $('prev-button').disabled=currentPage<=0;$('next-button').disabled=currentPage>=totalPages-1;
 }
 function exportOutstandingDueList(){
@@ -1364,12 +1446,12 @@ async function load(){
 }
 
 const syncSearchClear=()=>$('clearSearch').classList.toggle('visible',Boolean($('search').value));
-$('search').addEventListener('input',()=>{currentPage=0;mobileShown=10;syncSearchClear();render()});
-$('clearSearch').addEventListener('click',()=>{$('search').value='';syncSearchClear();currentPage=0;mobileShown=10;render();$('search').focus()});
+$('search').addEventListener('input',()=>{currentPage=0;syncSearchClear();render()});
+$('clearSearch').addEventListener('click',()=>{$('search').value='';syncSearchClear();currentPage=0;render();$('search').focus()});
 syncSearchClear();
-$('statusFilter').addEventListener('change',()=>{currentPage=0;mobileShown=10;render()});
+$('statusFilter').addEventListener('change',()=>{currentPage=0;render()});
 
-$('prev-button').addEventListener('click',()=>{currentPage--;render()});$('next-button').addEventListener('click',()=>{currentPage++;render()});$('contribution-see-more').addEventListener('click',()=>{mobileShown+=10;render()});
+$('prev-button').addEventListener('click',()=>{currentPage=Math.max(0,currentPage-1);render()});$('next-button').addEventListener('click',()=>{currentPage++;render()});
 window.addEventListener('resize',()=>render());
 $('exportDueBtn').addEventListener('click',exportOutstandingDueList);
 $('bulkPaymentBtn').addEventListener('click',showBulkPaymentForm);

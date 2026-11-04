@@ -555,7 +555,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  <div id="fto-history-status" class="status" aria-live="polite">Loading imported FTO history…</div>
  <div id="fto-history-list" class="history-list" aria-live="polite"></div>
  <div id="fto-history-empty" class="history-empty hidden">No FTOs match this search or period.</div>
- <div class="history-list-foot"><span id="fto-history-count" class="muted"></span><button id="fto-history-more" type="button" class="secondary hidden mobile-see-more">See more</button></div>
+ <div class="history-list-foot"><span id="fto-history-count" class="muted"></span><div id="fto-history-pager" class="mobile-table-pager" hidden><button id="fto-history-prev" type="button" class="secondary">Previous</button><span id="fto-history-page-label"></span><button id="fto-history-next" type="button" class="secondary">Next</button></div></div>
 </section>
 </div>
 <div id="period-modal-backdrop" class="period-modal-backdrop hidden" role="presentation">
@@ -656,7 +656,7 @@ function ftoStatus(tx){
  const value=getFtoCellValue(tx,"Status");
  return value==="—"||!value.trim()?"Deferred":value;
 }
-let showSensitiveFtoDetails=false;
+let showSensitiveFtoDetails=false,ftoTransactionPage=0;
 function renderHistoryTransactions(batch){
  const transactions=Array.isArray(batch.transactions)?batch.transactions:[];
  const counts=batch.status_counts||{};
@@ -684,7 +684,8 @@ function renderHistoryTransactions(batch){
  if(!transactions.length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=labels.length;td.textContent="No local transaction rows are saved for this FTO.";tr.appendChild(td);tbody.appendChild(tr);}
  table.append(tbody);tableWrap.appendChild(table);wrapper.appendChild(tableWrap);
  const mobile=document.createElement("div");mobile.className="fto-transaction-mobile";
- for(const tx of transactions){
+ const isMobile=window.matchMedia("(max-width: 700px)").matches,txPages=Math.max(1,Math.ceil(transactions.length/10));ftoTransactionPage=Math.min(ftoTransactionPage,txPages-1);const txStart=isMobile?ftoTransactionPage*10:0,visibleTransactions=isMobile?transactions.slice(txStart,txStart+10):transactions;
+ for(const tx of visibleTransactions){
   const card=document.createElement("article");card.className="fto-transaction-mobile-card";
   const top=document.createElement("div");top.className="tx-top";const job=document.createElement("span");job.textContent=getFtoCellValue(tx,"Job Card No. (Panchayat Name)");const status=document.createElement("span");const statusValue=ftoStatus(tx);status.className="fto-tx-status "+(statusValue.toLowerCase().includes("reject")?"rejected":statusValue.toLowerCase().includes("process")?"processed":"deferred");status.textContent=statusValue;top.append(job,status);card.appendChild(top);
   const name=document.createElement("div");name.className="tx-name";name.textContent=getFtoCellValue(tx,"Applicant Name");card.appendChild(name);
@@ -695,6 +696,13 @@ function renderHistoryTransactions(batch){
  }
  if(!transactions.length){const empty=document.createElement("p");empty.className="muted";empty.textContent="No local transaction rows are saved for this FTO.";mobile.appendChild(empty);}
  wrapper.appendChild(mobile);
+ const txPager=document.createElement("div");txPager.className="mobile-table-pager fto-transaction-pager";txPager.hidden=!isMobile||transactions.length<=10;
+ const txPrev=document.createElement("button");txPrev.type="button";txPrev.className="secondary";txPrev.textContent="Previous";txPrev.disabled=ftoTransactionPage<=0;
+ const txLabel=document.createElement("span");txLabel.textContent="Page "+(ftoTransactionPage+1)+" of "+txPages;
+ const txNext=document.createElement("button");txNext.type="button";txNext.className="secondary";txNext.textContent="Next";txNext.disabled=ftoTransactionPage>=txPages-1;
+ txPrev.addEventListener("click",()=>{ftoTransactionPage=Math.max(0,ftoTransactionPage-1);$("fto-view-modal-content").replaceChildren(renderHistoryTransactions(batch))});
+ txNext.addEventListener("click",()=>{ftoTransactionPage++;$("fto-view-modal-content").replaceChildren(renderHistoryTransactions(batch))});
+ txPager.append(txPrev,txLabel,txNext);wrapper.appendChild(txPager);
  const note=document.createElement("p");note.className="fto-view-note";note.textContent="UTR and rejection reason are hidden by default.";wrapper.appendChild(note);
  toggle.addEventListener("click",()=>{showSensitiveFtoDetails=!showSensitiveFtoDetails;const content=$("fto-view-modal-content");content.replaceChildren(renderHistoryTransactions(batch));});
  return wrapper;
@@ -702,14 +710,14 @@ function renderHistoryTransactions(batch){
 let currentViewingFtoBatch=null;
 function openFtoViewModal(batch){
  currentViewingFtoBatch=batch;
- showSensitiveFtoDetails=false;
+ showSensitiveFtoDetails=false;ftoTransactionPage=0;
  $("fto-view-modal-title").textContent="FTO "+String(batch.fto_number||"transactions");
  $("fto-view-modal-subtitle").textContent=String(batch.contribution_period||"No contribution period")+" · "+(batch.transactions||[]).length+" transactions";
  $("fto-view-modal-content").replaceChildren(renderHistoryTransactions(batch));
  $("fto-view-modal-backdrop").classList.remove("hidden");$("fto-view-modal-close").focus();
 }
 function closeFtoViewModal(){$("fto-view-modal-backdrop").classList.add("hidden");$("fto-view-modal-content").replaceChildren();currentViewingFtoBatch=null;}
-let shownFtoHistory=10;
+let ftoHistoryPage=0;const ftoHistoryPageSize=10;
 function updateFtoHistoryKpis(){
  const totals=ftoHistoryRows.reduce((sum,batch)=>{
   const counts=batch.status_counts||{};
@@ -724,12 +732,13 @@ function updateFtoHistoryKpis(){
 }
 function renderFtoHistory(reset=true){
   updateFtoHistoryKpis();
- if(reset)shownFtoHistory=10;
+ if(reset)ftoHistoryPage=0;
  const list=$("fto-history-list");list.replaceChildren();
  const search=$("fto-history-search").value.trim().toLowerCase(),period=$("fto-history-period").value;
  const filtered=ftoHistoryRows.filter(batch=>(!period||batch.contribution_period===period)&&(!search||String(batch.fto_number||"").toLowerCase().includes(search)||String(batch.contribution_period||"").toLowerCase().includes(search)));
  const isMobile=window.matchMedia("(max-width: 700px)").matches;
- const visibleBatches=isMobile?filtered.slice(0,shownFtoHistory):filtered;
+ const totalPages=Math.max(1,Math.ceil(filtered.length/ftoHistoryPageSize));ftoHistoryPage=Math.min(ftoHistoryPage,totalPages-1);const start=isMobile?ftoHistoryPage*ftoHistoryPageSize:0;
+ const visibleBatches=isMobile?filtered.slice(start,start+ftoHistoryPageSize):filtered;
  visibleBatches.forEach(batch=>{
   const card=document.createElement("article");card.className="fto-card";card.setAttribute("tabindex","0");card.setAttribute("role","button");card.setAttribute("aria-label","Open FTO "+String(batch.fto_number||""));
   card.addEventListener("click",()=>openFtoViewModal(batch));
@@ -742,11 +751,14 @@ function renderFtoHistory(reset=true){
   const checked=document.createElement("div");checked.className="last-checked";checked.textContent="Last checked";const checkedValue=document.createElement("strong");checkedValue.textContent=fmtHistoryDate(batch.last_checked_at||batch.first_imported_at);checked.appendChild(checkedValue);
   side.appendChild(checked);card.append(main,side);list.appendChild(card);
  });
- $("fto-history-count").textContent="Showing "+visibleBatches.length+" of "+filtered.length+" matching FTOs · "+ftoHistoryRows.length+" imported";
+ $("fto-history-count").textContent=filtered.length?("Showing "+(start+1)+"–"+(start+visibleBatches.length)+" of "+filtered.length+" matching FTOs · "+ftoHistoryRows.length+" imported"):"No matching FTOs";
  $("fto-history-empty").classList.toggle("hidden",filtered.length!==0);
- $("fto-history-more").classList.toggle("hidden",!isMobile||filtered.length<=shownFtoHistory);
+ $("fto-history-pager").hidden=!isMobile||filtered.length<=ftoHistoryPageSize;
+ $("fto-history-page-label").textContent="Page "+(ftoHistoryPage+1)+" of "+totalPages;
+ $("fto-history-prev").disabled=ftoHistoryPage<=0;$("fto-history-next").disabled=ftoHistoryPage>=totalPages-1;
 }
-$("fto-history-more").addEventListener("click",()=>{shownFtoHistory+=10;renderFtoHistory(false)});
+$("fto-history-prev").addEventListener("click",()=>{ftoHistoryPage=Math.max(0,ftoHistoryPage-1);renderFtoHistory(false)});
+$("fto-history-next").addEventListener("click",()=>{ftoHistoryPage++;renderFtoHistory(false)});
 let lastFtoMobile=window.matchMedia("(max-width: 700px)").matches;window.addEventListener("resize",()=>{const next=window.matchMedia("(max-width: 700px)").matches;if(next!==lastFtoMobile){lastFtoMobile=next;renderFtoHistory(false)}});
 
 let pendingPeriodBatch=null;

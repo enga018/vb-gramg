@@ -39,9 +39,31 @@ function matchActiveMisApplicant(byCard:Map<string,Record<string,string|null>[]>
 const periodFromNote=(note:string):string|null=>{const n=note.trim().toUpperCase();const months:Record<string,string>={JAN:"01",FEB:"02",MAR:"03",APR:"04",MAY:"05",JUN:"06",JUL:"07",AUG:"08",SEP:"09",OCT:"10",NOV:"11",DEC:"12"};const m=n.match(/^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s*26/);return m?`2026-${months[m[1]]}-01`:null;};
 const isoDate=(ms:number):string=>new Date(ms).toISOString().slice(0,10);
 function ftoEntryDate(rows:any[],deferred:boolean):string|null{if(deferred)return null;const dates=rows.filter(tx=>String(tx.status)==="processed"&&/^\d{4}-\d{2}-\d{2}$/.test(String(tx.processed_date||""))).map(tx=>String(tx.processed_date)).sort();return dates[0]||null;}
+async function fetchPagedRows(admin:any,table:string,columns:string,orderBy:string,ascending=true,secondaryOrderBy?:string){
+ const build=(from:number,to:number)=>{
+  let query=admin.from(table).select(columns,{count:"exact"}).order(orderBy,{ascending});
+  if(secondaryOrderBy)query=query.order(secondaryOrderBy,{ascending:true});
+  return query.range(from,to);
+ };
+ const first=await build(0,999);
+ if(first.error)throw first.error;
+ if(first.count===null||first.count===undefined)throw new Error(`Could not determine the complete row count for ${table}.`);
+ const rows:Record<string,unknown>[]=[...(first.data||[])];
+ const total=Number(first.count);
+ // Keep no more than four page requests in flight to avoid overwhelming PostgREST.
+ for(let base=1000;base<total;base+=4000){
+  const offsets:number[]=[];
+  for(let offset=base;offset<Math.min(base+4000,total);offset+=1000)offsets.push(offset);
+  const pages=await Promise.all(offsets.map(offset=>build(offset,Math.min(offset+999,total-1))));
+  for(const page of pages){if(page.error)throw page.error;rows.push(...(page.data||[]));}
+ }
+ if(rows.length!==total)throw new Error(`Incomplete ${table} read: expected ${total} rows, received ${rows.length}.`);
+ return rows;
+}
 Deno.serve(async(req:Request)=>{
  if(req.method==="OPTIONS")return new Response("ok",{headers:corsHeaders});
  if(req.method!=="POST")return reply({error:"Method not allowed"},405);
+ const requestStarted=performance.now();
  const header=req.headers.get("Authorization")||"";const token=header.replace(/^Bearer\s+/i,"");
  if(!token||token===header)return reply({error:"Sign in required."},401);
  const url=Deno.env.get("SUPABASE_URL"),anonKey=Deno.env.get("SUPABASE_ANON_KEY"),serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -162,31 +184,43 @@ Deno.serve(async(req:Request)=>{
   }
 
   if(action==="list"){
+   const listStarted=performance.now();
+   const stageTimes:Record<string,number>={};
    // Independent startup reads run concurrently. The previous sequential requests
    // added each database round-trip to the user's initial loading time.
    const [ledgerResult,exemptionsResult,importsResult,extrasResult,misStateResult]=await Promise.all([
-    admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,applicant_name,applicant_number,applicant_unique_id,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,is_voided,source_created_at_ms,legacy_entry_id").order("job_card_number",{ascending:true}).order("entry_date",{ascending:true}).range(0,999),
+    admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,applicant_name,applicant_number,applicant_unique_id,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,is_voided,source_created_at_ms,legacy_entry_id",{count:"exact"}).order("job_card_number",{ascending:true}).order("entry_date",{ascending:true}).range(0,999),
     admin.from("vbgramg_contribution_exemptions").select("job_card_number,note,created_at,updated_at").order("job_card_number",{ascending:true}),
     admin.from("vbgramg_charge_imports").select("id,source_filename,charge_period,row_count,total_amount,status,completed_at").eq("status","complete").order("charge_period",{ascending:false}).limit(100),
     admin.from("vbgramg_contribution_extras").select("id,job_card_number,person_name,charge_period,period_id,amount,reason,ledger_entry_id,created_at,updated_at").order("charge_period",{ascending:false}),
     admin.from("vbgramg_mis_state").select("active_import_id,row_count,source_filename").eq("singleton",true).maybeSingle()
    ]);
+   stageTimes.initial_reads_ms=Number((performance.now()-listStarted).toFixed(1));
    if(ledgerResult.error)throw ledgerResult.error;
+   if(ledgerResult.count===null||ledgerResult.count===undefined)throw new Error("Could not determine the complete contribution ledger row count.");
    if(exemptionsResult.error)throw exemptionsResult.error;
    if(importsResult.error)throw importsResult.error;
    if(extrasResult.error)throw extrasResult.error;
    if(misStateResult.error)throw misStateResult.error;
+   const ledgerReadStarted=performance.now();
    const all:Record<string,unknown>[]=[...(ledgerResult.data||[])];
-   for(let offset=1000;;offset+=1000){
-    const {data,error}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,applicant_name,applicant_number,applicant_unique_id,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,is_voided,source_created_at_ms,legacy_entry_id").order("job_card_number",{ascending:true}).order("entry_date",{ascending:true}).range(offset,offset+999);
-    if(error)throw error;all.push(...(data||[]));if(!data||data.length<1000||all.length>=20000)break;
+   const ledgerTotal=Number(ledgerResult.count);
+   // Fetch remaining ledger pages concurrently in bounded groups; never truncate financial history.
+   for(let base=1000;base<ledgerTotal;base+=4000){
+    const offsets:number[]=[];
+    for(let offset=base;offset<Math.min(base+4000,ledgerTotal);offset+=1000)offsets.push(offset);
+    const pages=await Promise.all(offsets.map(offset=>admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,applicant_name,applicant_number,applicant_unique_id,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,is_voided,source_created_at_ms,legacy_entry_id").order("job_card_number",{ascending:true}).order("entry_date",{ascending:true}).range(offset,Math.min(offset+999,ledgerTotal-1))));
+    for(const page of pages){if(page.error)throw page.error;all.push(...(page.data||[]));}
    }
+   if(all.length!==ledgerTotal)throw new Error(`Incomplete contribution ledger read: expected ${ledgerTotal} rows, received ${all.length}.`);
+   stageTimes.ledger_read_ms=Number((performance.now()-ledgerReadStarted).toFixed(1));
    const exemptions=exemptionsResult.data||[],imports=importsResult.data||[],extras=extrasResult.data||[];
    const misState=misStateResult.data;
    const activeMisRowCount=Number(misState?.row_count||0);
    if(!misState?.active_import_id)throw new Error("There is no active MIS import. Load the active MIS before using the contribution table.");
    // Reuse a versioned lookup built from this exact active MIS import. The cache is
    // immutable per import ID, so a new MIS automatically gets a fresh lookup.
+   const misLookupStarted=performance.now();
    const {data:lookupCache,error:lookupCacheError}=await admin.from("vbgramg_mis_contribution_lookup")
     .select("payload").eq("import_id",misState.active_import_id).maybeSingle();
    if(lookupCacheError)throw lookupCacheError;
@@ -210,15 +244,23 @@ Deno.serve(async(req:Request)=>{
     const {error:cacheWriteError}=await admin.from("vbgramg_mis_contribution_lookup").upsert({import_id:misState.active_import_id,payload,built_at:new Date().toISOString()},{onConflict:"import_id"});
     if(cacheWriteError)throw cacheWriteError;
    }
+   stageTimes.mis_lookup_ms=Number((performance.now()-misLookupStarted).toFixed(1));
+   const ftoAttributionStarted=performance.now();
    const chargeEntries=all.filter(r=>r.entry_type==="charge"&&!r.is_voided);
    if(chargeEntries.length){
     const entryById=new Map(chargeEntries.map(entry=>[String(entry.id),entry]));
-    // Fetch only linked, charge-bearing FTO transactions in one request. The previous
-    // implementation issued repeated UUID batches even when there were no linked FTO rows.
-    const {data:txRows,error:txError}=await admin.from("vbgramg_fto_transactions").select("ledger_entry_id,person_name").not("ledger_entry_id","is",null).gt("calculated_charge",0).in("status",["blank","processed"]);
-    if(txError)throw txError;
+    // Restrict attribution reads to the ledger entries in this response. Keep each
+    // IN filter bounded and execute a small number of independent batches concurrently.
+    const chargeIds=[...entryById.keys()];
+    const txPages:Record<string,unknown>[]=[];
+    for(let base=0;base<chargeIds.length;base+=2000){
+     const idGroups:string[][]=[];
+     for(let offset=base;offset<Math.min(base+2000,chargeIds.length);offset+=500)idGroups.push(chargeIds.slice(offset,offset+500));
+     const results=await Promise.all(idGroups.map(ids=>admin.from("vbgramg_fto_transactions").select("ledger_entry_id,person_name").not("ledger_entry_id","is",null).gt("calculated_charge",0).in("status",["blank","processed"]).in("ledger_entry_id",ids)));
+     for(const result of results){if(result.error)throw result.error;txPages.push(...(result.data||[]));}
+    }
     const txNames=new Map<string,Set<string>>();
-    for(const tx of txRows||[]){
+    for(const tx of txPages){
      const id=String(tx.ledger_entry_id||""),name=String(tx.person_name||"").trim();
      if(!id||!name||!entryById.has(id))continue;
      if(!txNames.has(id))txNames.set(id,new Set());
@@ -236,16 +278,22 @@ Deno.serve(async(req:Request)=>{
      }
     }
    }
-   const [periodRowsResult,allocationsResult,refundsResult]=await Promise.all([
+   stageTimes.fto_attribution_ms=Number((performance.now()-ftoAttributionStarted).toFixed(1));
+   const supportReadsStarted=performance.now();
+   const [periodRowsResult,paymentAllocations,paymentRefundReconciliations]=await Promise.all([
     admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status,created_at").order("contribution_month",{ascending:false,nullsFirst:false}).order("created_at",{ascending:true}),
-    (async()=>{const rows:Record<string,unknown>[]=[];for(let offset=0;;offset+=1000){const {data,error}=await admin.from("vbgramg_payment_allocations").select("id,transaction_id,period_id,job_card_number,amount,allocation_source,confidence,note,created_at,updated_at").order("created_at",{ascending:true}).range(offset,offset+999);if(error)throw error;rows.push(...(data||[]));if(!data||data.length<1000)break;}return rows;})(),
-    (async()=>{const rows:Record<string,unknown>[]=[];for(let offset=0;;offset+=1000){const {data,error}=await admin.from("vbgramg_payment_refund_reconciliations").select("id,payment_id,refund_id,job_card_number,amount,note,created_at").order("created_at",{ascending:true}).range(offset,offset+999);if(error)throw error;rows.push(...(data||[]));if(!data||data.length<1000)break;}return rows;})()
+    fetchPagedRows(admin,"vbgramg_payment_allocations","id,transaction_id,period_id,job_card_number,amount,allocation_source,confidence,note,created_at,updated_at","created_at",true),
+    fetchPagedRows(admin,"vbgramg_payment_refund_reconciliations","id,payment_id,refund_id,job_card_number,amount,note,created_at","created_at",true)
    ]);
    if(periodRowsResult.error)throw periodRowsResult.error;
+   if(periodRowsResult.error)throw periodRowsResult.error;
    const periodRows=periodRowsResult.data||[];
-   const paymentAllocations=allocationsResult;
-   const paymentRefundReconciliations=refundsResult;
-   return reply({approved:true,role:approved.role,entries:all,imports:imports||[],extras:extras||[],citizens,periods:periodRows||[],payment_allocations:paymentAllocations||[],payment_refund_reconciliations:paymentRefundReconciliations||[],applicants_by_job_card:Object.fromEntries(applicantsByCard),exemptions:exemptions||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:activeMisRowCount});
+   stageTimes.support_reads_ms=Number((performance.now()-supportReadsStarted).toFixed(1));
+   const payload={approved:true,role:approved.role,entries:all,imports:imports||[],extras:extras||[],citizens,periods:periodRows||[],payment_allocations:paymentAllocations||[],payment_refund_reconciliations:paymentRefundReconciliations||[],applicants_by_job_card:Object.fromEntries(applicantsByCard),exemptions:exemptions||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:activeMisRowCount};
+   const responseBytes=new TextEncoder().encode(JSON.stringify(payload)).length;
+   stageTimes.total_list_ms=Number((performance.now()-listStarted).toFixed(1));
+   console.info("[contribution-list-timing]",JSON.stringify({request_ms:Number((performance.now()-requestStarted).toFixed(1)),...stageTimes,ledger_rows:all.length,fto_charge_entries:chargeEntries.length,allocation_rows:paymentAllocations.length,refund_reconciliation_rows:paymentRefundReconciliations.length,response_bytes:responseBytes}));
+   return reply(payload);
   }
   if(action==="check-fto-duplicates"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can import FTO charges."},403);

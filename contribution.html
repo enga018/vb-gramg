@@ -1449,7 +1449,7 @@ const syncSearchClear=()=>$('clearSearch').classList.toggle('visible',Boolean($(
 $('search').addEventListener('input',()=>{currentPage=0;syncSearchClear();render()});
 $('clearSearch').addEventListener('click',()=>{$('search').value='';syncSearchClear();currentPage=0;render();$('search').focus()});
 syncSearchClear();
-$('statusFilter').addEventListener('change',()=>{currentPage=0;mobileShown=10;render()});
+$('statusFilter').addEventListener('change',()=>{currentPage=0;render()});
 
 $('prev-button').addEventListener('click',()=>{currentPage=Math.max(0,currentPage-1);render()});$('next-button').addEventListener('click',()=>{currentPage++;render()});
 window.addEventListener('resize',()=>render());

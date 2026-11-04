@@ -265,6 +265,8 @@ body.mis-import-open{overflow:hidden}
  #mis-table .desktop-applicant-dropdown:disabled{opacity:.65;cursor:wait}
 }
 
+@media(max-width:700px){.jobcard-row{cursor:default}.jobcard-row:hover,.jobcard-row:active{background:#fff}}
+
 @media(min-width:701px){#mis-see-more{display:none!important}}
 </style>
   <link rel="stylesheet" href="./responsive.css">
@@ -530,12 +532,12 @@ function renderTable(){
   const firstLine=document.createElement('div');firstLine.className='mobile-jobcard-line';firstLine.style.display='flex';firstLine.style.alignItems='baseline';firstLine.style.flexWrap='wrap';firstLine.style.gap='3px 6px';
   const cardNumber=document.createElement('span');cardNumber.textContent=group.key;cardNumber.style.fontWeight='800';cardNumber.style.overflowWrap='anywhere';firstLine.appendChild(cardNumber);
   const household=document.createElement('span');household.textContent='• '+(group.household||'—');household.style.fontWeight='600';household.style.color='#475569';household.style.overflowWrap='anywhere';firstLine.appendChild(household);
-  const applicantCount=document.createElement('span');applicantCount.textContent='• '+group.applicants.length+' applicant'+(group.applicants.length===1?'':'s');applicantCount.style.fontWeight='600';applicantCount.style.color='#64748b';firstLine.appendChild(applicantCount);
+  const applicantCount=document.createElement('span');applicantCount.textContent='• No. of Applicants: '+group.applicants.length;applicantCount.style.fontWeight='600';applicantCount.style.color='#64748b';firstLine.appendChild(applicantCount);
   detailCell.appendChild(firstLine);
   const secondLine=document.createElement('div');secondLine.className='mobile-selection-status '+(hasSelection?'is-selected':'is-unselected');secondLine.style.display='block';secondLine.style.marginTop='6px';
   const selectedKey=selectedApplicants.get(group.key)||'';
   const selectedApplicant=group.applicants.find(applicant=>applicant.selectionKey===selectedKey);
-  secondLine.textContent=selectedApplicant?((selectedApplicant.name||'Unnamed applicant')+(selectedApplicant.number?' • '+selectedApplicant.number:'')):'No Applicant Selected';
+  secondLine.textContent=selectedApplicant?((selectedApplicant.name||'Unnamed applicant')+(selectedApplicant.number?' • Applicant No. '+selectedApplicant.number:'')):'No Applicant Selected';
   detailCell.appendChild(secondLine);tr.appendChild(detailCell);tbody.appendChild(tr);
 
  });

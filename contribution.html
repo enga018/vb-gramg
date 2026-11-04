@@ -762,6 +762,7 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{padding:18px 
 </main>
 <div id="overlay" class="overlay hidden" role="dialog" aria-modal="true"><div class="sheet"><div class="sheet-head"><div class="sheet-heading"><h2 id="sheetTitle">Job card number</h2><div id="sheetSubtitle" class="sheet-subtitle"></div></div><div class="sheet-head-actions"><button class="btn ghost small" id="toggleEditMode" type="button" aria-pressed="false">Edit</button><button class="x" id="closeSheet" aria-label="Close">×</button></div></div><div id="sheetBody" class="sheet-body"></div><div id="sheetFooter" class="sheet-footer hidden"></div></div></div>
 
+<script src="./supabase/functions/shared/ledger-calculations.js?v=20261104a"></script>
 <script src="./js/contribution.js?v=20261104a"></script>
 <script src="./js/allocation.js?v=20261104a"></script>
 <script src="./js/charges.js?v=20261104a"></script>
@@ -876,7 +877,7 @@ function deriveCitizens(){
  const map=new Map(),make=(id,name)=>({id,jobCard:id,name:name||'Unnamed',exempt:exemptSet.has(id),charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,ledger:[]});
  for(const r of citizenRegistry){const id=String(r.job_card_number||'').trim();if(id)map.set(id,make(id,r.person_name))}
  for(const e of entries){const id=String(e.job_card_number||'').trim();if(!id||!map.has(id))continue;map.get(id).ledger.push(e)}
- citizens=[...map.values()].map(c=>{const x=calculateLedgerState(c.ledger);let gross=0;for(const e of c.ledger){if(!e.is_voided&&(e.entry_type==='charge'||e.entry_type==='other_charge'||e.entry_type==='sanitationFee')&&!e.is_deferred&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return'))gross+=Math.max(0,Number(e.amount)||0)}return c.exempt?{...c,charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,totalCharged:0,balance:0}:{...c,charges:gross,activeCharges:x.charged,deferred:x.deferred,paid:x.paid,waived:x.waived,returns:x.returned,totalCharged:Math.max(0,gross-Math.min(gross,x.waived)),balance:x.balance}}).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
+ citizens=[...map.values()].map(c=>{const x=calculateLedgerState(c.ledger);return c.exempt?{...c,charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,totalCharged:0,balance:0}:{...c,charges:x.charged,activeCharges:x.charged,deferred:x.deferred,paid:x.paid,waived:x.waived,returns:x.returned,totalCharged:Math.max(0,x.charged-Math.min(x.charged,x.waived)),balance:x.balance}}).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
 }
 const jobCardSuffixNumber=window.VBGRAMGContribution.jobCardSuffixNumber;
 function fitDesktopTableToViewport(){

@@ -1,5 +1,7 @@
 // Payment/refund reconciliation support is deployed through the repository workflow.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import "../shared/ledger-calculations.js";
+const ledgerCalculations = (globalThis as any).VBGRAMGLedgerCalculations;
 const corsHeaders={"Access-Control-Allow-Origin":"https://enga018.github.io","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json"};
 function reply(body:Record<string,unknown>,status=200){return new Response(JSON.stringify(body),{status,headers:corsHeaders});}
 function normalizeApplicantName(value:unknown){return String(value||"").normalize("NFKC").replace(/\s+/g," ").trim().toLocaleLowerCase();}
@@ -130,11 +132,12 @@ Deno.serve(async(req:Request)=>{
    const requested=Array.isArray(body.job_cards)?[...new Set(body.job_cards.map((value:unknown)=>String(value||"").trim()).filter(Boolean))]:[];
    if(requested.length>5000)return reply({error:"Work Demand can request at most 5,000 job cards."},400);
    if(!requested.length)return reply({approved:true,balances:{}});
+   if(!ledgerCalculations?.calculateLedgerState)throw new Error("Shared ledger calculations are unavailable.");
    const ledgerRows:Record<string,unknown>[]=[];
    for(let cardOffset=0;cardOffset<requested.length;cardOffset+=200){
     const cards=requested.slice(cardOffset,cardOffset+200);
     for(let offset=0;;offset+=1000){
-     const {data,error}=await admin.from("vbgramg_charge_ledger").select("job_card_number,entry_type,amount,note,is_deferred").in("job_card_number",cards).order("job_card_number",{ascending:true}).order("entry_date",{ascending:true}).range(offset,offset+999);
+     const {data,error}=await admin.from("vbgramg_charge_ledger").select("job_card_number,entry_type,amount,note,is_deferred,is_voided").in("job_card_number",cards).order("job_card_number",{ascending:true}).order("entry_date",{ascending:true}).range(offset,offset+999);
      if(error)throw error;
      ledgerRows.push(...(data||[]));
      if(!data||data.length<1000)break;
@@ -153,22 +156,7 @@ Deno.serve(async(req:Request)=>{
    const balances:Record<string,number>={};
    for(const id of requested){
     if(exempted.has(id)){balances[id]=0;continue;}
-    let paid=0,returned=0,waived=0;
-    const active:number[]=[];
-    for(const entry of ledgers.get(id)||[]){
-     const amount=Math.max(0,Number(entry.amount)||0),type=entry.entry_type;
-     if(type==="payment"){paid+=amount;continue;}
-     if(type==="return"||(type==="charge"&&String(entry.note||"").trim()==="Return")){returned+=amount;continue;}
-     if(type==="forgive"){waived+=amount;continue;}
-     if(type!=="charge"&&type!=="sanitationFee")continue;
-     if(entry.is_deferred)continue;
-     active.push(amount);
-    }
-    let credit=Math.min(waived,active.reduce((sum,value)=>sum+value,0));
-    for(let index=0;index<active.length&&credit>0;index++){
-     const used=Math.min(credit,active[index]);active[index]-=used;credit-=used;
-    }
-    balances[id]=active.reduce((sum,value)=>sum+value,0)-paid+returned;
+    balances[id]=ledgerCalculations.calculateLedgerState(ledgers.get(id)||[]).balance;
    }
    return reply({approved:true,balances});
   }
@@ -1016,14 +1004,8 @@ Deno.serve(async(req:Request)=>{
    const {data:ledger,error:ledgerError}=await admin.from("vbgramg_charge_ledger").select("id,entry_type,amount,note,is_deferred,is_voided,charge_period,person_name").eq("job_card_number",jobCard);
    if(ledgerError)throw ledgerError;
    if(!ledger||!ledger.length)return reply({error:"Job card not found in the contribution ledger."},404);
-   let charges=0,paid=0,returns=0,waived=0;
-   for(const e of ledger){if(e.is_voided)continue;const n=Math.max(0,Number(e.amount)||0),t=String(e.entry_type||"");
-    if(t==="payment")paid+=n;
-    else if(t==="refund"||t==="return"||(t==="charge"&&String(e.note||"").trim().toLowerCase()==="return"))returns+=n;
-    else if(t==="charge_waiver"||t==="forgive")waived+=n;
-    else if((t==="charge"||t==="other_charge"||t==="sanitationFee")&&!e.is_deferred)charges+=n;
-   }
-   const balance=charges-Math.min(waived,charges)-paid+returns;
+   const ledgerState=ledgerCalculations.calculateLedgerState(ledger);
+   const {paid,returned:returns,balance}=ledgerState;
    let amount=requestedAmount,type="",finalNote=note;
    if(action==="pay-in-full"){amount=Math.max(0,Number(balance.toFixed(2)));type="payment";finalNote="Cash";}
    else if(action==="add-waiver"){type="charge_waiver";if(!Number.isFinite(amount)||amount<=0||amount>Math.max(0,balance)+0.001)return reply({error:"Waiver must be positive and cannot exceed the current outstanding balance."},400);}

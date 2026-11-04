@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'supabase/functions/vbgramg-contribution-data/**'
+      - 'supabase/functions/shared/**'
       - '.github/workflows/deploy-contribution-function.yml'
 
 permissions:

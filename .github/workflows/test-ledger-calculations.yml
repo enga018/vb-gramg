@@ -1,0 +1,53 @@
+name: Test shared ledger calculations
+
+on:
+  pull_request:
+    paths:
+      - "supabase/functions/shared/ledger-calculations.js"
+      - "tests/ledger-calculations.test.cjs"
+      - ".github/workflows/test-ledger-calculations.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/shared/ledger-calculations.js"
+      - "tests/ledger-calculations.test.cjs"
+      - ".github/workflows/test-ledger-calculations.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  ledger-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run shared ledger tests
+        run: node --test tests/ledger-calculations.test.cjs
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Verify shared module in Deno
+        run: |
+          deno eval '
+            import "./supabase/functions/shared/ledger-calculations.js";
+            const api = globalThis.VBGRAMGLedgerCalculations;
+            if (typeof api?.calculateLedgerState !== "function") {
+              throw new Error("Shared ledger calculation API did not load in Deno.");
+            }
+            const result = api.calculateLedgerState([
+              { entry_type: "charge", amount: 100 },
+              { entry_type: "sanitationFee", amount: 25 },
+              { entry_type: "payment", amount: 40 },
+              { entry_type: "refund", amount: 5 }
+            ]);
+            if (result.balance !== 90) {
+              throw new Error(`Unexpected Deno ledger balance: ${result.balance}`);
+            }
+            console.log("Deno shared-module check passed.");
+          '

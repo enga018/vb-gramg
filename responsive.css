@@ -107,7 +107,7 @@ body.has-global-sidebar{padding-right:252px!important;box-sizing:border-box}
  .global-sidebar-desktop-toggle{display:none!important}
  .global-mobile-header{display:flex!important;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:48px;margin:0 auto 12px;padding:5px 10px;background:#fff;border:1px solid #e3e8f0;border-radius:12px;box-shadow:0 3px 12px rgb(23 32 51 / 4%)}
  .global-mobile-header-title{margin-left:auto;text-align:right;font-size:.94rem;font-weight:750;color:#172033;line-height:1.25}
- .global-mobile-header .global-sidebar-toggle{display:inline-flex!important;position:static!important;inset:auto!important;transform:none!important;flex:0 0 40px;width:40px;height:40px;min-height:40px;margin:0!important;padding:0!important;align-items:center;justify-content:center;border:1px solid #e0e6ef!important;border-radius:9px!important;background:#f0f3f8!important;color:#172033!important;font-size:21px!important;line-height:1!important;box-shadow:none!important}
+ .global-mobile-header .global-mobile-menu-button.global-sidebar-toggle{display:inline-flex!important;position:static!important;inset:auto!important;transform:none!important;flex:0 0 40px;width:40px;height:40px;min-height:40px;margin:0!important;padding:0!important;align-items:center;justify-content:center;border:1px solid #e0e6ef!important;border-radius:9px!important;background:#f0f3f8!important;color:#172033!important;font-size:21px!important;line-height:1!important;box-shadow:none!important}
 }
 @media(min-width:768px) and (max-width:1023px){
  body{padding-top:16px;padding-right:16px;padding-bottom:16px}

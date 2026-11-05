@@ -12,8 +12,8 @@
     document.body.classList.add("has-global-sidebar");
     function syncResponsiveMode(){
       var phoneLandscape=window.matchMedia("(max-height:600px) and (pointer:coarse)").matches;
-      var tablet=window.innerWidth>=768&&window.innerWidth<=1023;
-      var mobile=window.innerWidth<=767||phoneLandscape;
+      var tablet=(window.innerWidth>=768&&window.innerWidth<=1023)||phoneLandscape;
+      var mobile=window.innerWidth<=767;
       document.body.classList.toggle("is-mobile-layout",mobile);
       document.body.classList.toggle("is-tablet-layout",tablet&&!phoneLandscape);
     }

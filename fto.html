@@ -539,6 +539,14 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 .jobcard-row.has-selection,
 .jobcard-row.no-selection{box-shadow:none!important}
 
+
+/* FTO import is hosted in one parent modal; the import page remains independently authenticated. */
+.fto-import-modal{width:min(1180px,calc(100% - 32px));height:min(92vh,920px);max-width:none;max-height:none;padding:0;border:1px solid var(--line);border-radius:16px;background:#fff;color:var(--ink);box-shadow:0 20px 70px rgb(15 23 42 / 30%);overflow:hidden}
+.fto-import-modal::backdrop{background:rgb(15 23 42 / 58%)}
+.fto-import-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);background:#fff}
+.fto-import-modal-head h2{margin:0;font-size:1.05rem}
+.fto-import-modal iframe{display:block;width:100%;height:calc(100% - 60px);border:0;background:#f3f6fb}
+@media(max-width:767px){.fto-import-modal{width:100%;height:100dvh;max-height:100dvh;border:0;border-radius:0}.fto-import-modal-head{padding:10px 14px}}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -547,7 +555,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 <div id="app-panel" class="hidden">
 <section class="panel">
 <div id="fto-history" class="history-section">
- <div class="section-head"><div></div><a id="open-fto-import" href="./fto-import.html" class="link-button secondary">Import FTO</a></div>
+ <div class="section-head"><div></div><button id="open-fto-import" type="button" class="secondary">Import FTO</button></div>
  <div class="fto-history-kpis" aria-label="FTO history summary">
   <div class="fto-history-kpi"><span>Imported FTOs</span><strong id="fto-kpi-batches">—</strong></div>
   <div class="fto-history-kpi"><span>Total transactions</span><strong id="fto-kpi-transactions">—</strong></div>
@@ -574,6 +582,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  </section>
 </div>
 
+<dialog id="fto-import-modal" class="fto-import-modal" aria-labelledby="fto-import-modal-title"><div class="fto-import-modal-head"><h2 id="fto-import-modal-title">Import FTO</h2><button id="close-fto-import" type="button" class="secondary" aria-label="Close FTO import">×</button></div><iframe id="fto-import-frame" title="FTO import form" src="about:blank"></iframe></dialog>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./js/supabase-client.js?v=20261104b"></script>
@@ -865,4 +874,16 @@ supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT')
 supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){window.location.replace('./');return}return verifyAccess(data.session.user)});
 
 </script>
-<script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261105-unified-header"></script></body></html>
+<script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261105-unified-header"></script><script>
+(function(){
+ const modal=document.getElementById('fto-import-modal'),frame=document.getElementById('fto-import-frame');
+ const open=document.getElementById('open-fto-import'),close=document.getElementById('close-fto-import');
+ if(!modal||!frame||!open||!close)return;
+ open.addEventListener('click',()=>{if(!frame.src||frame.src==='about:blank')frame.src='./fto-import.html?embedded=1';if(typeof modal.showModal==='function')modal.showModal();else modal.setAttribute('open','');});
+ close.addEventListener('click',()=>modal.close());
+ modal.addEventListener('click',event=>{if(event.target===modal)modal.close()});
+ modal.addEventListener('close',()=>{frame.src='about:blank'});
+ window.addEventListener('message',event=>{if(event.origin!==location.origin||!event.data||event.data.type!=='vbgramg-fto-import-complete')return;modal.close();if(typeof loadFtoHistory==='function')loadFtoHistory();});
+})();
+</script>
+</body></html>

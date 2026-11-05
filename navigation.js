@@ -81,7 +81,7 @@
     var mobileHeaderStyle = document.createElement("style");
     mobileHeaderStyle.textContent = `
       .global-mobile-header{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:48px;margin:0 auto 12px;padding:5px 10px;background:transparent;border:0;border-radius:0;box-shadow:none}
-      .global-mobile-header-title{margin-right:auto;text-align:left;font-size:1rem;font-weight:750;letter-spacing:-.015em;color:#172033;line-height:1.25}
+      .global-mobile-header-title{margin-right:auto!important;margin-left:0!important;text-align:left!important;font-size:1rem;font-weight:750;letter-spacing:-.015em;color:#172033;line-height:1.25}
       .global-sidebar-desktop-toggle{display:inline-grid;place-items:center;flex:none;width:38px;min-width:38px;height:38px;min-height:38px;margin-left:8px;padding:0;border:1px solid #dfe5ee;border-radius:10px;background:#fff;color:#344054;font-size:17px;line-height:1;cursor:pointer}
       .global-mobile-menu-button{display:none!important}
       @media(max-width:1023px), (max-height:600px) and (pointer:coarse){

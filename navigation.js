@@ -92,6 +92,27 @@
     `;
     document.head.appendChild(mobileHeaderStyle);
 
+    /* Give native dialogs one predictable title-left / close-right header. */
+    document.querySelectorAll('dialog[aria-labelledby]').forEach(function(dialog){
+      var titleId=dialog.getAttribute('aria-labelledby');
+      var titleNode=titleId&&dialog.querySelector('#'+CSS.escape(titleId));
+      if(!titleNode||dialog.querySelector('.vbgramg-dialog-header'))return;
+      var content=titleNode.parentElement;
+      if(!content)return;
+      var header=document.createElement('div');
+      header.className='vbgramg-dialog-header';
+      content.insertBefore(header,titleNode);
+      header.appendChild(titleNode);
+      var closeButton=document.createElement('button');
+      closeButton.type='button';closeButton.className='vbgramg-dialog-close';
+      closeButton.setAttribute('aria-label','Close dialog');closeButton.textContent='×';
+      closeButton.addEventListener('click',function(){if(typeof dialog.close==='function')dialog.close();else dialog.removeAttribute('open');});
+      header.appendChild(closeButton);
+    });
+    var dialogHeaderStyle=document.createElement('style');
+    dialogHeaderStyle.textContent='.vbgramg-dialog-header{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;margin:0 0 12px}.vbgramg-dialog-header h2{margin:0!important;text-align:left!important}.vbgramg-dialog-close{display:inline-flex;align-items:center;justify-content:center;flex:0 0 36px;width:36px;min-width:36px;height:36px;min-height:36px;padding:0!important;border:1px solid #e0e6ef!important;border-radius:9px!important;background:#f0f3f8!important;color:#344054!important;font-size:22px!important;line-height:1!important;box-shadow:none!important}.vbgramg-dialog-close:hover{background:#e6ebf3!important}';
+    document.head.appendChild(dialogHeaderStyle);
+
     document.body.insertBefore(sidebar, document.body.firstChild);
     document.body.appendChild(overlay);
     function close() {

@@ -414,7 +414,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 }
 
 /* Shared mobile page-header and layout alignment. Desktop layout remains unchanged. */
-@media(max-width:767px), (max-height:600px) and (pointer:coarse){
+@media(max-width:767px){
  body{padding:10px}
  main{padding-bottom:28px}
  main>.topbar.app-header{display:none!important}
@@ -541,7 +541,7 @@ const draftId = query.get("draftId") || crypto.randomUUID();
 if(query.get("days")) $("days").value = query.get("days");
 const includedKey = id => "vbgramg-demand-included:" + id;
 let allCards=[],selectedApplicants=new Map(),reviewApplicants=[],allReviewCandidates=[],demandApplicants=[],generated=null,pendingSnapshot=null,loading=false,loadSequence=0,saving=false,periods=[];const pageSize=50;const tablePages={review:0,demand:0,unwilling:0};
-function pageSizeFor(kind){if(window.matchMedia('(max-width:767px), (max-height:600px) and (pointer:coarse)').matches)return 5;return pageSize;}
+function pageSizeFor(kind){if(window.matchMedia('(max-width:767px)').matches)return 5;return pageSize;}
 function currentPeriodId(){return query.get("periodId") || draftId;}
 function getIncludedIds(id){try{return new Set(JSON.parse(localStorage.getItem(includedKey(id)) || "[]"));}catch{return new Set();}}
 function saveIncludedIds(id,ids){localStorage.setItem(includedKey(id),JSON.stringify([...ids]));}

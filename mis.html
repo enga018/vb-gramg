@@ -616,4 +616,4 @@ $('prev-button').addEventListener('click',()=>{currentPage=Math.max(0,currentPag
 let lastMisMobile=window.matchMedia('(max-width: 767px), (max-height: 600px) and (pointer: coarse)').matches;window.addEventListener('resize',()=>{const next=window.matchMedia('(max-width: 767px), (max-height: 600px) and (pointer: coarse)').matches;if(next!==lastMisMobile){lastMisMobile=next;renderTable()}});
 supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){loadSequence++;window.location.replace('./')}else if(event==='TOKEN_REFRESHED'&&session)Promise.resolve().then(()=>verifyAccess(session.user))});
 supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){window.location.replace('./');return}return verifyAccess(data.session.user)});
-</script><script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261104-sidebar1"></script></body></html>
+</script><script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261105-unified-header"></script></body></html>

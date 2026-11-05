@@ -266,7 +266,7 @@ tbody tr:last-child td{border-bottom:0}
 
 .period-modal-backdrop{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgb(15 23 42 / 48%);backdrop-filter:blur(3px)}
 .period-modal{width:min(100%,440px);padding:24px;background:#fff;border:1px solid #e3e8f0;border-radius:18px;box-shadow:0 24px 70px rgb(15 23 42 / 24%)}
-.period-modal h2{margin:0 0 7px;font-size:1.2rem}
+.period-modal-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px}.period-modal-header h2{margin:0;font-size:1.2rem}.period-modal-header button{flex:0 0 36px;width:36px;min-width:36px;height:36px;min-height:36px;padding:0;font-size:22px;line-height:1}
 .period-modal .period-modal-description{margin:0 0 22px;color:#667085;font-size:.9rem;line-height:1.5}
 .period-modal .period-modal-field{margin-bottom:22px}
 .period-modal .period-modal-field input{font-size:1rem}
@@ -573,7 +573,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 </div>
 <div id="period-modal-backdrop" class="period-modal-backdrop hidden" role="presentation">
  <section class="period-modal" role="dialog" aria-modal="true" aria-labelledby="period-modal-title" aria-describedby="period-modal-description">
-  <h2 id="period-modal-title">Change contribution period</h2>
+  <div class="period-modal-header"><h2 id="period-modal-title">Change contribution period</h2><button id="period-modal-close" type="button" class="secondary" aria-label="Close dialog">×</button></div>
   <p id="period-modal-description" class="period-modal-description">Edit the contribution period for this FTO. All transactions in the FTO will move to the saved period and contribution charges will be recalculated.</p>
   <form id="period-modal-form">
    <div class="period-modal-field"><label for="period-modal-value">Contribution period</label><select id="period-modal-value" name="contribution-period" required><option value="">Loading periods…</option></select></div>
@@ -594,7 +594,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
    <div class="fto-modal-actions">
     <button id="fto-revise-button" type="button" class="secondary" disabled title="FTO revision workflow will be added later">Revise</button>
     <button id="fto-change-period-button" type="button" class="secondary">Change Period</button>
-    <button id="fto-view-modal-close" type="button" class="secondary" aria-label="Close transaction details">Close</button>
+    <button id="fto-view-modal-close" type="button" class="secondary" aria-label="Close transaction details">×</button>
    </div>
   </header>
   <div id="fto-view-modal-content" class="fto-view-modal-content"></div>
@@ -855,7 +855,7 @@ $("fto-view-modal-backdrop").addEventListener("click",event=>{if(event.target===
 $("fto-history-search").addEventListener("input",()=>renderFtoHistory());
 $("fto-history-period").addEventListener("change",()=>renderFtoHistory());
 $("period-modal-form").addEventListener("submit",saveFtoPeriod);
-$("period-modal-cancel").addEventListener("click",closePeriodModal);
+$("period-modal-cancel").addEventListener("click",closePeriodModal);$("period-modal-close").addEventListener("click",closePeriodModal);
 $("period-modal-backdrop").addEventListener("click",event=>{if(event.target===$("period-modal-backdrop"))closePeriodModal();});
 document.addEventListener("keydown",event=>{if(event.key!=="Escape")return;if(!$("fto-view-modal-backdrop").classList.contains("hidden"))closeFtoViewModal();else if(!$("period-modal-backdrop").classList.contains("hidden"))closePeriodModal();});
 

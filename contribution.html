@@ -1009,6 +1009,14 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{margin:0!impo
  #desktop-detail-panel{position:relative!important;top:auto!important;height:auto!important;min-height:480px}
 }
 
+
+/* Restore visible contribution status markers on mobile cards. */
+@media(max-width:767px), (max-height:600px) and (pointer:coarse){
+  #contribution-table tbody tr.contribution-row.due{border-left:4px solid var(--due)!important}
+  #contribution-table tbody tr.contribution-row.settled{border-left:4px solid #16a34a!important}
+  #contribution-table tbody tr.contribution-row.overpaid{border-left:4px solid #d97706!important}
+  #contribution-table tbody tr.contribution-row.exempt{border-left:4px solid #94a3b8!important}
+}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>

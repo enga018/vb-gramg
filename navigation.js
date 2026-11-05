@@ -1,12 +1,14 @@
 /* Shared sidebar navigation for VBGRAMG module pages. */
 (function () {
   function install() {
+    if (window.self !== window.top) return;
     var path = window.location.pathname || "/";
     var cleanPath = path.replace(/\/+$/, "") || "/";
     if (cleanPath.endsWith("/index.html") || cleanPath === "/" || path.endsWith("/")) return;
-    var header = document.querySelector("header");
     if (document.querySelector(".global-sidebar")) return;
-    if (header) header.querySelectorAll("a.menu-link").forEach(function (a) { a.remove(); });
+    var main = document.querySelector("main");
+    if (!main) return;
+    document.querySelectorAll("main > header.app-header, main > header.topbar").forEach(function (h) { h.remove(); });
     document.body.classList.add("has-global-sidebar");
     function syncResponsiveMode(){
       var phoneLandscape=window.matchMedia("(max-height:600px) and (pointer:coarse)").matches;
@@ -54,43 +56,38 @@
       return toggle;
     }
     var desktopButton = makeToggle("global-sidebar-toggle global-sidebar-desktop-toggle");
-    if (header) header.appendChild(desktopButton);
-    else {
-      var desktopMount = document.querySelector("main .panel, main section, main") || document.body;
-      desktopMount.insertBefore(desktopButton, desktopMount.firstChild);
-    }
     var button = makeToggle("global-sidebar-toggle global-mobile-menu-button");
 
     var pageNames = {
       "/mis.html": "MIS",
       "/fto.html": "FTO",
       "/fto-import.html": "FTO Import",
-      "/demand.html": "Work Demand",
+      "/demand.html": "Demand",
       "/periods.html": "Periods",
       "/contribution.html": "Contribution"
     };
     var pageKey = Object.keys(pageNames).find(function (key) { return cleanPath.endsWith(key); });
     var pageName = (pageKey && pageNames[pageKey]) || document.title.split("—")[0].split("|")[0].trim() || "VBGRAMG";
     var mobileHeader = document.createElement("div");
-    var isContributionPage = cleanPath.endsWith("/contribution.html");
-    mobileHeader.className = "global-mobile-header" + (isContributionPage ? " contribution-mobile-header" : "");
+    mobileHeader.className = "global-mobile-header";
     var title = document.createElement("span");
     title.className = "global-mobile-header-title";
     title.textContent = "VBGRAMG / " + pageName;
     mobileHeader.appendChild(title);
+    mobileHeader.appendChild(desktopButton);
     mobileHeader.appendChild(button);
-    var main = document.querySelector("main");
-    if (main) main.insertBefore(mobileHeader, main.firstChild);
-    else document.body.insertBefore(mobileHeader, document.body.firstChild);
+    main.insertBefore(mobileHeader, main.firstChild);
 
     var mobileHeaderStyle = document.createElement("style");
     mobileHeaderStyle.textContent = `
-      .global-mobile-header{display:none}
+      .global-mobile-header{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:48px;margin:0 auto 12px;padding:5px 10px;background:transparent;border:0;border-radius:0;box-shadow:none}
+      .global-mobile-header-title{margin-right:auto;text-align:left;font-size:1rem;font-weight:750;letter-spacing:-.015em;color:#172033;line-height:1.25}
+      .global-sidebar-desktop-toggle{display:inline-grid;place-items:center;flex:none;width:38px;min-width:38px;height:38px;min-height:38px;margin-left:8px;padding:0;border:1px solid #dfe5ee;border-radius:10px;background:#fff;color:#344054;font-size:17px;line-height:1;cursor:pointer}
+      .global-mobile-menu-button{display:none!important}
       @media(max-width:1023px), (max-height:600px) and (pointer:coarse){
-        .global-mobile-header{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:48px;margin:0 auto 12px;padding:5px 10px;background:#fff;border:1px solid #e3e8f0;border-radius:12px;box-shadow:0 3px 12px rgb(23 32 51 / 4%)}
-        .global-mobile-header-title{margin-right:auto;text-align:left;font-size:.94rem;font-weight:750;letter-spacing:-.015em;color:#172033;line-height:1.25}
+        .global-mobile-header{min-height:48px;margin-bottom:12px;padding:5px 10px;background:#fff;border:1px solid #e3e8f0;border-radius:12px;box-shadow:0 3px 12px rgb(23 32 51 / 4%)}
         .global-sidebar-desktop-toggle{display:none!important}
-        .global-mobile-header .global-sidebar-toggle{display:inline-flex!important;position:static!important;inset:auto!important;transform:none!important;flex:0 0 40px;width:40px;height:40px;min-height:40px;margin:0!important;padding:0!important;align-items:center;justify-content:center;border:1px solid #e0e6ef!important;border-radius:9px!important;background:#f0f3f8!important;color:#172033!important;font-size:21px!important;line-height:1!important;box-shadow:none!important}
+        .global-mobile-header .global-mobile-menu-button{display:inline-flex!important;position:static!important;inset:auto!important;transform:none!important;flex:0 0 40px;width:40px;height:40px;min-height:40px;margin:0!important;padding:0!important;align-items:center;justify-content:center;border:1px solid #e0e6ef!important;border-radius:9px!important;background:#f0f3f8!important;color:#172033!important;font-size:21px!important;line-height:1!important;box-shadow:none!important}
       }
     `;
     document.head.appendChild(mobileHeaderStyle);

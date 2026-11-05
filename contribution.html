@@ -1009,6 +1009,14 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{margin:0!impo
  #desktop-detail-panel{position:relative!important;top:auto!important;height:auto!important;min-height:480px}
 }
 
+
+/* Restore the neutral left edge of mobile contribution cards.
+   Match the existing right/top/bottom card boundary; no status stripe. */
+@media(max-width:767px), (max-height:600px) and (pointer:coarse){
+  #contribution-table tbody tr.contribution-row{
+    border-left:1px solid var(--line)!important;
+  }
+}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>

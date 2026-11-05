@@ -95,6 +95,45 @@ dialog#create-dialog::backdrop{background:rgb(15 23 42 / 48%)}
 
 @media(min-width:701px){#period-more-wrap{display:none!important}}
 .mobile-see-more-wrap{display:flex;justify-content:center;margin-top:14px}.mobile-see-more-wrap[hidden]{display:none!important}
+
+/* Unified button system: consistent dimensions and typography on desktop and mobile. */
+button,.link{
+  box-sizing:border-box;
+  min-height:40px;
+  padding:9px 13px;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  background:#e2e8f0;
+  color:#0f172a;
+  font-family:inherit;
+  font-size:.88rem;
+  font-weight:650;
+  line-height:1.2;
+  box-shadow:none;
+  transition:background-color .15s ease,border-color .15s ease,color .15s ease;
+}
+button:hover{background:#d7e0ec}
+button.primary{background:#172033;border-color:#172033;color:#fff}
+button.primary:hover{background:#2c3b55;border-color:#2c3b55}
+button.secondary{background:#e2e8f0;border-color:#cbd5e1;color:#0f172a}
+button.secondary:hover{background:#d7e0ec}
+button.danger{background:#fff;border-color:#f2c9c4;color:#a12b20}
+button.danger:hover{background:#fff4f2;border-color:#e9aaa2}
+button:focus-visible{outline:3px solid rgb(36 87 197 / 25%);outline-offset:2px}
+button:disabled{opacity:.48;cursor:not-allowed}
+.row-actions{gap:8px}
+.row-actions button{min-width:96px;min-height:40px;padding:9px 12px;font-size:.88rem;white-space:nowrap}
+.dialog-actions button{min-width:112px;min-height:40px;padding:9px 13px;font-size:.88rem}
+@media(max-width:700px){
+  .panel-head>button{min-height:40px;padding:9px 12px;font-size:.88rem}
+  #period-body .row-actions{gap:6px}
+  #period-body .row-actions button{min-width:0;min-height:40px;padding:8px 6px;font-size:.84rem;line-height:1.2;white-space:normal}
+  .dialog-actions button{min-width:0;min-height:42px;padding:9px 10px;font-size:.88rem}
+}
+@media(max-width:360px){
+  #period-body .row-actions button{font-size:.82rem;padding:8px 4px}
+}
+
 </style>
   <link rel="stylesheet" href="./responsive.css"></head><body><main>
 

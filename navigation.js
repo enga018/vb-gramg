@@ -98,7 +98,7 @@
       var titleNode=titleId&&dialog.querySelector('#'+CSS.escape(titleId));
       if(!titleNode||dialog.querySelector('.vbgramg-dialog-header'))return;
       var content=titleNode.parentElement;
-      if(!content)return;
+      if(!content||content.matches('header,.fto-import-modal-head,.fto-view-modal-header'))return;
       var header=document.createElement('div');
       header.className='vbgramg-dialog-header';
       content.insertBefore(header,titleNode);

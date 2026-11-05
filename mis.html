@@ -58,7 +58,7 @@ button:disabled{opacity:.48;cursor:not-allowed}
 .hidden{display:none!important}
 .status{margin:14px 0 0;padding:11px 13px;border:1px solid #e5eaf2;border-radius:10px;background:#f7f9fc;color:#475467;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.88rem;line-height:1.45}
 .status.error{background:#fff4f2;border-color:#ffd8d2;color:#a12b20}
-.status.success{background:#effaf3;border-color:#ccebd7;color:#17663a}
+.status.success{background:#effaf3;border-color:#ccebd7;color:#17663a}.status:empty{display:none!important}
 .toolbar{display:flex;gap:14px;align-items:end;justify-content:space-between;flex-wrap:wrap;margin:22px 0 14px}
 .search{flex:1;min-width:220px;max-width:620px}
 .filter-control{min-width:180px}
@@ -320,7 +320,7 @@ body.mis-import-open{overflow:hidden}
 </section>
 <div id="mis-import-modal" class="mis-import-backdrop hidden" role="presentation">
  <section class="mis-import-dialog" role="dialog" aria-modal="true" aria-labelledby="mis-import-modal-title">
-  <header class="mis-import-dialog-head"><strong id="mis-import-modal-title">Import MIS</strong><button id="close-mis-import" class="secondary" type="button">Close</button></header>
+  <header class="mis-import-dialog-head"><strong id="mis-import-modal-title">Import MIS</strong><button id="close-mis-import" class="secondary" type="button" aria-label="Close MIS import">×</button></header>
   <iframe id="mis-import-frame" class="mis-import-frame" title="MIS import form" src="about:blank"></iframe>
  </section>
 </div>
@@ -336,7 +336,7 @@ const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.vbgramgSupabase;
 const $=id=>document.getElementById(id);
 let currentRole=null,allRows=[],headers=[],jobCards=[],currentPage=0,pageSize=50,loadSequence=0,expandedCards=new Set(),selectedApplicants=new Map(),scrollExpandedCardKey=null;
-function status(el,msg,type){if(type==='error'||type==='success'){if(window.showToast)window.showToast(msg,type);el.textContent='';el.classList.remove('error','success');return}el.textContent=msg;el.classList.remove('error','success')}
+function status(el,msg,type){if(type==='error'||type==='success'){if(window.showToast)window.showToast(msg,type);el.textContent='';el.classList.remove('error','success');el.classList.add('hidden');return}el.textContent=msg;el.classList.remove('error','success');el.classList.toggle('hidden',!msg)}
 async function verifyAccess(user){
  const seq=++loadSequence;
  if(!user){window.location.replace('./');return false}
@@ -344,7 +344,7 @@ async function verifyAccess(user){
  if(seq!==loadSequence)return false;
  if(error||!data||data.approved!==true){await supabaseClient.auth.signOut();window.location.replace('./');return false}
  currentRole=data.role;$('import-link').classList.toggle('hidden',currentRole!=='admin');
- $('desktop-fetch-button').classList.toggle('hidden',currentRole!=='admin' || window.matchMedia('(max-width: 767px), (max-height: 600px) and (pointer: coarse)').matches);
+ $('desktop-fetch-button').classList.toggle('hidden',currentRole!=='admin' || window.matchMedia('(max-width:767px)').matches);
  $('app-panel').classList.remove('hidden');
  await loadData();return true;
 }
@@ -387,7 +387,7 @@ window.addEventListener("message",event=>{
 });
 $('desktop-fetch-button').addEventListener('click',()=>{
  if(currentRole!=='admin'){status($('data-status'),'Administrator access is required to fetch official MIS.','error');return}
- if(window.matchMedia('(max-width: 767px), (max-height: 600px) and (pointer: coarse)').matches){status($('data-status'),'Official MIS fetching is available on desktop only.','error');return}
+ if(window.matchMedia('(max-width:767px)').matches){status($('data-status'),'Official MIS fetching is available on desktop only.','error');return}
  $('desktop-fetch-panel').classList.remove('hidden');
  $('mis-payload-url').focus();
 });
@@ -511,7 +511,7 @@ function getFilteredCards(){
  return window.VBGRAMGMIS.filterJobCards(jobCards,selectedApplicants,$('search-input').value,$('selection-filter').value);
 }
 function renderTable(){
- const filtered=getFilteredCards(),isMobile=window.matchMedia('(max-width: 767px), (max-height: 600px) and (pointer: coarse)').matches||document.body.classList.contains('is-mobile-layout'),activePageSize=isMobile?20:pageSize,totalPages=Math.max(1,Math.ceil(filtered.length/activePageSize)),effectiveTotalPages=totalPages;currentPage=Math.min(currentPage,effectiveTotalPages-1);
+ const filtered=getFilteredCards(),isMobile=window.matchMedia('(max-width:767px)').matches||document.body.classList.contains('is-mobile-layout'),activePageSize=isMobile?20:pageSize,totalPages=Math.max(1,Math.ceil(filtered.length/activePageSize)),effectiveTotalPages=totalPages;currentPage=Math.min(currentPage,effectiveTotalPages-1);
  const start=currentPage*activePageSize,shown=filtered.slice(start,start+activePageSize);
  const thead=$('mis-table').querySelector('thead'),tbody=$('mis-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
  const hr=document.createElement('tr');
@@ -613,7 +613,7 @@ function renderTable(){
 }
 $('search-input').addEventListener('input',()=>{currentPage=0;renderTable()});$('selection-filter').addEventListener('change',()=>{currentPage=0;renderTable()});
 $('prev-button').addEventListener('click',()=>{currentPage=Math.max(0,currentPage-1);renderTable()});$('next-button').addEventListener('click',()=>{currentPage++;renderTable()});
-let lastMisMobile=window.matchMedia('(max-width: 767px), (max-height: 600px) and (pointer: coarse)').matches;window.addEventListener('resize',()=>{const next=window.matchMedia('(max-width: 767px), (max-height: 600px) and (pointer: coarse)').matches;if(next!==lastMisMobile){lastMisMobile=next;renderTable()}});
+let lastMisMobile=window.matchMedia('(max-width:767px)').matches;window.addEventListener('resize',()=>{const next=window.matchMedia('(max-width:767px)').matches;if(next!==lastMisMobile){lastMisMobile=next;renderTable()}});
 supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'){loadSequence++;window.location.replace('./')}else if(event==='TOKEN_REFRESHED'&&session)Promise.resolve().then(()=>verifyAccess(session.user))});
 supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){window.location.replace('./');return}return verifyAccess(data.session.user)});
 </script><script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261105-unified-header"></script></body></html>

@@ -59,7 +59,7 @@ dialog#create-dialog::backdrop{background:rgb(15 23 42 / 48%)}
  .row-actions{display:flex;justify-content:flex-start;gap:8px;flex-wrap:nowrap}
  .row-actions button{min-width:96px;white-space:nowrap}
 }
-@media(max-width:700px){
+@media(max-width:767px){
  body{padding:10px}
  .topbar{padding:15px 16px;align-items:flex-start}
  .panel{padding:15px}
@@ -124,7 +124,7 @@ button:disabled{opacity:.48;cursor:not-allowed}
 .row-actions{gap:8px}
 .row-actions button{min-width:96px;min-height:40px;padding:9px 12px;font-size:.88rem;white-space:nowrap}
 .dialog-actions button{min-width:112px;min-height:40px;padding:9px 13px;font-size:.88rem}
-@media(max-width:700px){
+@media(max-width:767px){
   .panel-head>button{min-height:40px;padding:9px 12px;font-size:.88rem}
   #period-body .row-actions{gap:6px}
   #period-body .row-actions button{min-width:0;min-height:40px;padding:8px 6px;font-size:.84rem;line-height:1.2;white-space:normal}
@@ -136,14 +136,14 @@ button:disabled{opacity:.48;cursor:not-allowed}
 
 
 /* Mobile-only surface spacing alignment with Contribution. */
-@media(max-width:767px), (max-height:600px) and (pointer:coarse){
+@media(max-width:767px){
   body{padding:10px;-webkit-font-smoothing:antialiased}
   main{padding-bottom:44px}
   .panel{padding:14px;border-radius:13px;margin-bottom:12px}
 }
 
 /* Mobile-only visual alignment with Contribution. Desktop styling remains unchanged. */
-@media(max-width:767px), (max-height:600px) and (pointer:coarse){
+@media(max-width:767px){
   html,body,body *{
     font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;
   }
@@ -195,7 +195,7 @@ function setStatus(msg,type=""){if((type==="success"||type==="error")&&window.sh
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 async function verify(){let client;try{client=await window.VBGRAMG_SUPABASE_READY}catch(error){setStatus(error.message||"Could not initialise the database connection.","error");return false}const {data,error}=await client.auth.getSession();if(error||!data.session){location.replace("./");return false}try{const access=await window.VBGRAMGData.request("vbgramg-app-access",{body:{}});if(!access||access.approved!==true)throw new Error("App access was denied.")}catch(error){await client.auth.signOut();location.replace("./");return false}sessionUser=data.session.user;return true}
 async function call(action,extra={},options={}){return window.VBGRAMGData.request("vbgramg-periods",{body:{action,...extra},...options})}
-function render(){const body=$("period-body"),isMobile=window.matchMedia("(max-width: 700px)").matches,totalPages=Math.max(1,Math.ceil(periods.length/periodsPageSize));periodsPage=Math.min(periodsPage,totalPages-1);const start=isMobile?periodsPage*periodsPageSize:0,visiblePeriods=isMobile?periods.slice(start,start+periodsPageSize):periods;body.replaceChildren();if(!periods.length){$("period-pager").hidden=true;const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=4;td.className="empty";td.textContent="No periods yet. Use Create period to add the first period.";tr.appendChild(td);body.appendChild(tr);return}
+function render(){const body=$("period-body"),isMobile=window.matchMedia("(max-width: 767px)").matches,totalPages=Math.max(1,Math.ceil(periods.length/periodsPageSize));periodsPage=Math.min(periodsPage,totalPages-1);const start=isMobile?periodsPage*periodsPageSize:0,visiblePeriods=isMobile?periods.slice(start,start+periodsPageSize):periods;body.replaceChildren();if(!periods.length){$("period-pager").hidden=true;const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=4;td.className="empty";td.textContent="No periods yet. Use Create period to add the first period.";tr.appendChild(td);body.appendChild(tr);return}
 for(const p of visiblePeriods){const tr=document.createElement("tr");const created=p.created_at?new Date(p.created_at).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}):"—";const month=p.contribution_month||p.period_date;const monthText=month?new Date(month+"T00:00:00Z").toLocaleDateString("en-US",{month:"long",year:"numeric",timeZone:"UTC"}):"Legacy month unknown";const periodTd=document.createElement("td");periodTd.dataset.label="Period";periodTd.className="period-name-cell";periodTd.textContent=String(p.period_name??"—");const meta=document.createElement("span");meta.className="period-mobile-meta";meta.textContent=(p.status==="open"?"Open":"Closed")+" · "+created;periodTd.appendChild(meta);tr.appendChild(periodTd);const statusTd=document.createElement("td");statusTd.dataset.label="Status";const badge=document.createElement("span");badge.className="pill"+(p.status==="closed"?" closed":"");badge.textContent=p.status==="open"?"Open":"Closed";statusTd.appendChild(badge);tr.appendChild(statusTd);const createdTd=document.createElement("td");createdTd.dataset.label="Created";createdTd.textContent=created;tr.appendChild(createdTd);
 const td=document.createElement("td");td.dataset.label="Actions";const actions=document.createElement("div");actions.className="row-actions";
 const toggle=document.createElement("button");toggle.type="button";toggle.className=p.status==="open"?"danger":"secondary";toggle.textContent=p.status==="open"?"Close":"Reopen";toggle.addEventListener("click",()=>togglePeriod(p));actions.appendChild(toggle);if(!p.used){const del=document.createElement("button");del.type="button";del.className="danger";del.dataset.action="delete";del.textContent="Delete";del.addEventListener("click",()=>deletePeriod(p));actions.appendChild(del);}td.appendChild(actions);tr.appendChild(td);body.appendChild(tr)}const showPager=isMobile&&periods.length>periodsPageSize;$("period-pager").hidden=!showPager;$("period-page-label").textContent="Page "+(periodsPage+1)+" of "+totalPages;$("period-prev").disabled=periodsPage<=0;$("period-next").disabled=periodsPage>=totalPages-1;}
@@ -205,7 +205,7 @@ async function load(){$("period-pager").hidden=true;try{const result=await call(
 async function togglePeriod(p){const action=p.status==="open"?"close":"reopen";if(!confirm((action==="close"?"Close":"Reopen")+" period “"+p.period_name+"”? "+(action==="close"?"It will no longer appear in normal assignment dropdowns.":"It will become available for new assignments.")))return;try{await call(action,{id:p.id});setStatus("Period "+p.period_name+" "+(action==="close"?"closed.":"reopened."),"success");await load()}catch(e){setStatus(e.message,"error")}}
 
 $("period-prev").addEventListener("click",()=>{periodsPage=Math.max(0,periodsPage-1);render()});$("period-next").addEventListener("click",()=>{periodsPage++;render()});
-let lastPeriodsMobile=window.matchMedia("(max-width: 700px)").matches;window.addEventListener("resize",()=>{const next=window.matchMedia("(max-width: 700px)").matches;if(next!==lastPeriodsMobile){lastPeriodsMobile=next;render()}});
+let lastPeriodsMobile=window.matchMedia("(max-width: 767px)").matches;window.addEventListener("resize",()=>{const next=window.matchMedia("(max-width: 767px)").matches;if(next!==lastPeriodsMobile){lastPeriodsMobile=next;render()}});
 $("create-period").addEventListener("click",createPeriod);$("toggle-create").addEventListener("click",()=>{const dialog=$("create-dialog");if(typeof dialog.showModal==="function")dialog.showModal();else dialog.setAttribute("open","");$("new-month").focus()});$("cancel-create").addEventListener("click",()=>{$("new-month").value="";$("create-dialog").close()});$("create-dialog").addEventListener("close",()=>{$("new-month").value=""});
 (async()=>{if(await verify())await load()})();
 </script><script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261105-unified-header"></script></body></html>

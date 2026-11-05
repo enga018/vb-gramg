@@ -58,7 +58,7 @@ button:disabled{opacity:.48;cursor:not-allowed}
 .hidden{display:none!important}
 .status{margin:14px 0 0;padding:11px 13px;border:1px solid #e5eaf2;border-radius:10px;background:#f7f9fc;color:#475467;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.88rem;line-height:1.45}
 .status.error{background:#fff4f2;border-color:#ffd8d2;color:#a12b20}
-.status.success{background:#effaf3;border-color:#ccebd7;color:#17663a}
+.status.success{background:#effaf3;border-color:#ccebd7;color:#17663a}.status:empty{display:none!important}
 .toolbar{display:flex;gap:14px;align-items:end;justify-content:space-between;flex-wrap:wrap;margin:22px 0 14px}
 .search{flex:1;min-width:220px;max-width:620px}
 .filter-control{min-width:180px}
@@ -336,7 +336,7 @@ const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.vbgramgSupabase;
 const $=id=>document.getElementById(id);
 let currentRole=null,allRows=[],headers=[],jobCards=[],currentPage=0,pageSize=50,loadSequence=0,expandedCards=new Set(),selectedApplicants=new Map(),scrollExpandedCardKey=null;
-function status(el,msg,type){if(type==='error'||type==='success'){if(window.showToast)window.showToast(msg,type);el.textContent='';el.classList.remove('error','success');return}el.textContent=msg;el.classList.remove('error','success')}
+function status(el,msg,type){if(type==='error'||type==='success'){if(window.showToast)window.showToast(msg,type);el.textContent='';el.classList.remove('error','success');el.classList.add('hidden');return}el.textContent=msg;el.classList.remove('error','success');el.classList.toggle('hidden',!msg)}
 async function verifyAccess(user){
  const seq=++loadSequence;
  if(!user){window.location.replace('./');return false}

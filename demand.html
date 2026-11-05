@@ -412,10 +412,23 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
   #demandTable tbody>tr>td.empty:before,
   #unwillingTable tbody>tr>td.empty:before{display:none}
 }
+
+/* Shared mobile page-header and layout alignment. Desktop layout remains unchanged. */
+@media(max-width:767px), (max-height:600px) and (pointer:coarse){
+ body{padding:10px}
+ main{padding-bottom:28px}
+ main>.topbar.app-header{display:none!important}
+ main>.topbar.app-header .brand h1{font-size:1.25rem;line-height:1.25;letter-spacing:-.025em}
+ .panel{padding:14px;margin-bottom:12px;border-radius:13px}
+ .demand-setup-fields{grid-template-columns:minmax(0,1fr)!important}
+ .demand-setup-fields .setup-review-action{grid-column:1}
+ .demand-setup-fields .setup-review-action button{width:100%}
+}
 </style>
 </head>
 <body>
 <main>
+<header class="topbar app-header" aria-label="Work Demand page header"><div class="brand"><h1>Work Demand</h1></div></header>
 
 <section class="panel" aria-labelledby="period-heading">
 <h2 id="period-heading">Demand details</h2>
@@ -529,6 +542,7 @@ const draftId = query.get("draftId") || crypto.randomUUID();
 if(query.get("days")) $("days").value = query.get("days");
 const includedKey = id => "vbgramg-demand-included:" + id;
 let allCards=[],selectedApplicants=new Map(),reviewApplicants=[],allReviewCandidates=[],demandApplicants=[],generated=null,pendingSnapshot=null,loading=false,loadSequence=0,saving=false,periods=[];const pageSize=50;const tablePages={review:0,demand:0,unwilling:0};
+function pageSizeFor(kind){if((kind==='demand'||kind==='unwilling')&&window.matchMedia('(max-width:767px), (max-height:600px) and (pointer:coarse)').matches)return 5;return pageSize;}
 function currentPeriodId(){return query.get("periodId") || draftId;}
 function getIncludedIds(id){try{return new Set(JSON.parse(localStorage.getItem(includedKey(id)) || "[]"));}catch{return new Set();}}
 function saveIncludedIds(id,ids){localStorage.setItem(includedKey(id),JSON.stringify([...ids]));}
@@ -709,7 +723,8 @@ async function load(){
   for(const candidate of allReviewCandidates) if(includedIds.has(candidate.identity) && !demandApplicants.some(a=>a.identity===candidate.identity)) demandApplicants.push(candidate);
   reviewApplicants=allReviewCandidates.map(a=>({...a}));
   renderLists();
-  status('MIS and Contribution data loaded.','success');
+  $('status').textContent='';
+  $('status').className='status hidden';
   
  }catch(error){
   // Never leave the period selector displaying an indefinite loading state.
@@ -724,14 +739,15 @@ async function load(){
  }finally{loading=false;}
 }
 function renderPageControls(kind,total){
- const totalPages=Math.max(1,Math.ceil(total/pageSize));
+ const size=pageSizeFor(kind);
+ const totalPages=Math.max(1,Math.ceil(total/size));
  tablePages[kind]=Math.max(0,Math.min(tablePages[kind],totalPages-1));
- const start=tablePages[kind]*pageSize;
+ const start=tablePages[kind]*size;
  const label=$(kind+'PageLabel');
- label.textContent=total?'Showing '+(start+1)+'–'+Math.min(start+pageSize,total)+' of '+total:'No Job Cards';
+ label.textContent=total?'Showing '+(start+1)+'–'+Math.min(start+size,total)+' of '+total:'No Job Cards';
  $(kind+'Prev').disabled=tablePages[kind]===0;
  $(kind+'Next').disabled=tablePages[kind]>=totalPages-1;
- return {start,itemsEnd:start+pageSize};
+ return {start,itemsEnd:start+size};
 }
 function getUnwillingCards(){
  const demandedCards=new Set(demandApplicants.map(a=>a.jobCard));
@@ -781,7 +797,7 @@ $('reviewBody').addEventListener('click',event=>{
  if(demandFinalised)return;
  if(existing>=0)demandApplicants.splice(existing,1);else demandApplicants.push(applicant);
  const ids=new Set(demandApplicants.filter(a=>allReviewCandidates.some(c=>c.identity===a.identity)).map(a=>a.identity));
- saveIncludedIds(currentPeriodId(),ids);tablePages.demand=Math.max(0,Math.ceil(demandApplicants.length/pageSize)-1);invalidateGenerated();renderLists();
+ saveIncludedIds(currentPeriodId(),ids);tablePages.demand=Math.max(0,Math.ceil(demandApplicants.length/pageSizeFor('demand'))-1);invalidateGenerated();renderLists();
  status(existing>=0?'Applicant removed from Work Demand.':'Applicant included in Work Demand.','success');
 });
 $('periodSelect').addEventListener('change',()=>{const p=selectedPeriod();if(p&&p.days)$('days').value=String(p.days);invalidateGenerated();status(p?'Using existing open period '+(p.period_name||monthLabel(monthOfPeriod(p)))+'.':'Choose an open period to continue.',p?'success':'info');});

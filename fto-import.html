@@ -318,6 +318,8 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 .jobcard-row.has-selection,
 .jobcard-row.no-selection{box-shadow:none!important}
 
+
+body.embedded-mode{padding:12px!important}body.embedded-mode main{width:100%;max-width:none;margin:0}body.embedded-mode .topbar{display:none!important}body.embedded-mode .panel{box-shadow:none;border-radius:12px}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>
@@ -395,6 +397,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 <script src="./js/fto.js?v=20261104a"></script>
 <script src="./toast.js?v=20261103"></script>
 <script>
+if(new URLSearchParams(location.search).get('embedded')==='1')document.body.classList.add('embedded-mode');
 const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.vbgramgSupabase;
@@ -781,7 +784,7 @@ async function executeFtoSync(payload,button){
  }
  
  const syncMessage='FTO '+data.fto_number+' synchronized. Saved period: '+data.contribution_period+'. Rows checked: '+data.rows_seen+'. Local transactions: '+data.local_transactions+'. Outside-active-MIS transactions excluded: '+data.excluded_other_village+'. Charges created: '+data.inserted+', updated: '+data.updated+', reconciled with existing charges: '+Number(data.reconciled||0)+', matching rejected charges removed: '+data.deleted+'. Calculated local total: ₹'+Number(data.total_amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'.';
- syncStatus(syncMessage,'success');button.textContent='Synchronization completed';
+ syncStatus(syncMessage,'success');button.textContent='Synchronization completed';if(new URLSearchParams(location.search).get('embedded')==='1'&&window.parent!==window)window.parent.postMessage({type:'vbgramg-fto-import-complete'},location.origin);
  await lookupFtoBatch();
  // Applicant mapping is confirmed before synchronization.
  return true;

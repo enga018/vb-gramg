@@ -134,6 +134,56 @@ button:disabled{opacity:.48;cursor:not-allowed}
   #period-body .row-actions button{font-size:.82rem;padding:8px 4px}
 }
 
+
+/* Mobile-only surface spacing alignment with Contribution. */
+@media(max-width:767px), (max-height:600px) and (pointer:coarse){
+  body{padding:10px;-webkit-font-smoothing:antialiased}
+  main{padding-bottom:44px}
+  .panel{padding:14px;border-radius:13px;margin-bottom:12px}
+}
+
+/* Mobile-only visual alignment with Contribution. Desktop styling remains unchanged. */
+@media(max-width:767px), (max-height:600px) and (pointer:coarse){
+  html,body,body *{
+    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;
+  }
+  .panel h2{
+    font-size:1.18rem;
+    letter-spacing:-.02em;
+    line-height:1.3;
+  }
+  #toggle-create{
+    min-height:40px;
+    padding:9px 13px;
+    border:1px solid #172033;
+    border-radius:10px;
+    background:#172033;
+    color:#fff;
+    font-size:.88rem;
+    font-weight:650;
+    line-height:1.2;
+  }
+  #toggle-create:hover{background:#2c3b55;border-color:#2c3b55}
+  #period-body tr:not(:has(.empty)){
+    border-color:#dfe5ee;
+    box-shadow:0 2px 8px rgb(23 32 51 / 3%);
+  }
+  #period-body .row-actions button{
+    min-height:40px;
+    border-radius:10px;
+    font-size:.82rem;
+    font-weight:650;
+  }
+  #period-body .row-actions button[data-action="delete"]{
+    background:#f0f3f8;
+    color:#667085;
+    border-color:#e0e6ef;
+  }
+}
+@media(max-width:360px){
+  #toggle-create{font-size:.82rem;padding:8px 10px}
+}
+
 </style>
   <link rel="stylesheet" href="./responsive.css"></head><body><main>
 

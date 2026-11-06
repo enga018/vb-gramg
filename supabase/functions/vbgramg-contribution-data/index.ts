@@ -882,6 +882,15 @@ Deno.serve(async(req:Request)=>{
     const incoming=String(tx.batch_id)===batchId?transactionRows.find(x=>String(x.reference_no)===String(tx.reference_no)):undefined;
     snapshotByIdentity.set(key,incoming||tx);
    }
+   // Include first-import rows in the reconciliation snapshot as well. On a new
+   // FTO batch there are no persisted transaction rows yet, so the tracked-row
+   // query above is empty; without this merge the ledger plan would be empty even
+   // though the incoming FTO rows are valid and in scope.
+   for(const tx of transactionRows){
+    const reference=String(tx.reference_no||"");
+    if(tx.is_in_scope!==true||skippedDuplicateSet.has(reference))continue;
+    snapshotByIdentity.set(batchId+"::"+reference,tx);
+   }
    const txByCard=new Map<string,Record<string,any>[]>();
    for(const tx of snapshotByIdentity.values()){const card=String(tx.job_card_number);if(!txByCard.has(card))txByCard.set(card,[]);txByCard.get(card)!.push(tx);}
    const {data:ledgerRows,error:ledgerError}=affectedCards.length

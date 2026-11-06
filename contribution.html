@@ -1308,6 +1308,9 @@ async function openCitizen(id){
   summaryByCard.set(String(c.id),data.card_summary);
   entries=entries.filter(row=>String(row.job_card_number)!==String(c.id)).concat(data.entries);
   deriveCitizens();
+  // Refresh the table and KPI totals with the database summary fetched above.
+  // Without this render, the detail sheet is current but the list keeps its old balance.
+  render();
   currentCitizen=citizens.find(item=>item.id===c.id)||c;
   currentCitizen.fifo_breakdown=data.fifo_breakdown;
   periods=Array.isArray(data.periods)?data.periods:[];

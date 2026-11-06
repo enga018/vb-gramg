@@ -107,7 +107,6 @@ header .top-actions > button:hover {
   .confirm-summary dd{text-align:left}
 }
 
-  <style>
   /* Work Demand mobile polish — stage 1: keep the existing table layout. */
   @media(max-width:700px){
     body{padding:12px} main{padding-bottom:28px}
@@ -424,6 +423,34 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  .demand-setup-fields .setup-review-action{grid-column:1}
  .demand-setup-fields .setup-review-action button{width:100%}
 }
+
+/* Shared VBGRAMG surface and control styling — aligned with Contribution and Periods. */
+:root{--surface:#fff;--line:#e3e8f0;--muted:#667085;--ink:#172033}
+.topbar,.panel{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 4px 18px rgb(23 32 51 / 4%)}
+.panel{padding:clamp(16px,2.5vw,26px)}
+button,.link-button{
+ box-sizing:border-box;min-height:40px;padding:9px 13px;border:1px solid #cbd5e1;
+ border-radius:10px;background:#e2e8f0;color:#0f172a;font-family:inherit;
+ font-size:.88rem;font-weight:650;line-height:1.2;box-shadow:none;
+ transition:background-color .15s ease,border-color .15s ease,color .15s ease
+}
+button:hover,.link-button:hover{background:#d7e0ec;color:#0f172a}
+button.secondary,.link-button.secondary{background:#e2e8f0;border-color:#cbd5e1;color:#0f172a}
+button:focus-visible,.link-button:focus-visible{outline:3px solid rgb(36 87 197 / 25%);outline-offset:2px}
+#continueReviewBtn,#finaliseDemandBtn,#demandExportBtn,#unwillingExportBtn{
+ background:#172033;border-color:#172033;color:#fff
+}
+#continueReviewBtn:hover,#finaliseDemandBtn:hover,#demandExportBtn:hover,#unwillingExportBtn:hover{
+ background:#2c3b55;border-color:#2c3b55;color:#fff
+}
+.table-wrap{border-color:#dfe5ee;border-radius:12px;background:#fff;box-shadow:0 2px 8px rgb(23 32 51 / 3%)}
+.demand-unwilling-grid th{background:#edf2f8;color:#475467}
+.demand-unwilling-grid td{border-bottom-color:#e8edf4}
+@media(max-width:767px){
+ .panel{padding:14px;border-radius:13px}
+ button,.link-button{min-height:42px}
+}
+
 </style>
 </head>
 <body>

@@ -556,6 +556,7 @@ window.addEventListener('unhandledrejection',function(e){
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./js/supabase-client.js?v=20261104b"></script>
 <script src="./js/data-loader.js?v=20261104b"></script>
+<script src="./js/cache.js?v=20261106c"></script>
 <script>
 const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
@@ -616,13 +617,17 @@ async function loadPeriods(){
  try{
   // Use the same approved server-side period-list endpoint as FTO Import.
   // This avoids relying on direct browser SELECT permissions for the periods table.
-  const {data,error}=await withTimeout(
-   window.VBGRAMGData.invoke("vbgramg-periods",{body:{action:"list"},deduplicate:true}),
+  const data=await withTimeout(
+   window.VBGRAMGCache.getOrLoad("periods:list:v1",async()=>{
+    const {data,error}=await window.VBGRAMGData.invoke("vbgramg-periods",{body:{action:"list"},deduplicate:true});
+    if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||"Could not load shared periods.");
+    if(!Array.isArray(data.periods))throw new Error("The periods service returned an invalid list.");
+    return data;
+   },30000),
    10000,
    "Open periods request"
   );
-  if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||"Could not load shared periods.");
-  if(!Array.isArray(data.periods))throw new Error("The periods service returned an invalid list.");
+  if(!data||data.approved!==true||!Array.isArray(data.periods))throw new Error("The periods service returned an invalid list.");
   periods=data.periods.filter(p=>p&&p.status==="open");
   renderPeriodOptions();
   const existing=selectedPeriod();
@@ -652,21 +657,29 @@ function stableApplicantKey(jobCard,values,nameIndex,numberIndex,uniqueIdIndex){
  return 'fallback:'+JSON.stringify([jobCard,normalize(numberIndex>=0?values[numberIndex]:''),normalize(nameIndex>=0?values[nameIndex]:'')].map(v=>v.toLocaleLowerCase()));
 }
 async function fetchAllMisRows(seq){
- const pageSize=1000,concurrency=4;
- const first=await window.VBGRAMGData.invoke('vbgramg-mis-data',{body:{page:0,pageSize},deduplicate:true});
- if(first.error)throw new Error(first.error.message||'Could not load MIS data.');
- const data=first.data;
- if(!data||data.approved!==true)throw new Error((data&&data.error)||'MIS data access was denied.');
- if(!data.hasData||!data.totalRows)return {headers:[],rows:[]};
- const rows=(data.rows||[]).map(r=>({rowNumber:r.rowNumber,values:Array.isArray(r.values)?r.values:[]}));
- const totalPages=Math.ceil(data.totalRows/pageSize);
- for(let firstPage=1;firstPage<totalPages;firstPage+=concurrency){
-  const pages=Array.from({length:Math.min(concurrency,totalPages-firstPage)},(_,i)=>firstPage+i);
-  const results=await Promise.all(pages.map(page=>window.VBGRAMGData.invoke('vbgramg-mis-data',{body:{page,pageSize},deduplicate:true})));
-  if(seq!==loadSequence)return {headers:[],rows:[]};
-  for(const result of results){if(result.error)throw new Error(result.error.message||'Could not load all MIS rows.');if(!result.data||result.data.approved!==true)throw new Error((result.data&&result.data.error)||'MIS data access was denied.');rows.push(...(result.data.rows||[]).map(r=>({rowNumber:r.rowNumber,values:Array.isArray(r.values)?r.values:[]})));}
- }
- return {headers:(rows[0]?.values||[]).map(v=>String(v??'')),rows:rows.slice(1)};
+ const cached=await window.VBGRAMGCache.getOrLoad('mis:data:v1',async()=>{
+  const pageSize=1000,concurrency=4;
+  const first=await window.VBGRAMGData.invoke('vbgramg-mis-data',{body:{page:0,pageSize},deduplicate:true});
+  if(first.error)throw new Error(first.error.message||'Could not load MIS data.');
+  const data=first.data;
+  if(!data||data.approved!==true)throw new Error((data&&data.error)||'MIS data access was denied.');
+  if(!data.hasData||!data.totalRows)return {data,rows:[]};
+  const rows=(data.rows||[]).map(r=>({rowNumber:r.rowNumber,values:Array.isArray(r.values)?r.values:[]}));
+  const totalPages=Math.ceil(data.totalRows/pageSize);
+  for(let firstPage=1;firstPage<totalPages;firstPage+=concurrency){
+   const pages=Array.from({length:Math.min(concurrency,totalPages-firstPage)},(_,i)=>firstPage+i);
+   const results=await Promise.all(pages.map(page=>window.VBGRAMGData.invoke('vbgramg-mis-data',{body:{page,pageSize},deduplicate:true})));
+   for(const result of results){
+    if(result.error)throw new Error(result.error.message||'Could not load all MIS rows.');
+    if(!result.data||result.data.approved!==true)throw new Error((result.data&&result.data.error)||'MIS data access was denied.');
+    rows.push(...(result.data.rows||[]).map(r=>({rowNumber:r.rowNumber,values:Array.isArray(r.values)?r.values:[]})));
+   }
+  }
+  return {data,rows};
+ },30000);
+ if(seq!==loadSequence)return {headers:[],rows:[]};
+ const rows=cached.rows||[];
+ return {headers:rows.length?(rows[0].values||[]).map(v=>String(v??'')):[],rows:rows.slice(1)};
 }
 function formatRupees(value){return new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(value)||0);}
 function buildCards(headers,rows){
@@ -706,6 +719,7 @@ async function load(){
   );
   if(seq!==loadSequence)return;
   if(accessError||!access||access.approved!==true){await supabaseClient.auth.signOut();window.location.replace('./');return;}
+  if(window.VBGRAMGCache)window.VBGRAMGCache.setUser(sessionData.session.user.id);
 
   // Load shared periods only after the authenticated session and app access
   // have been confirmed, matching the working FTO Import request sequence.
@@ -715,7 +729,11 @@ async function load(){
   status('Loading active MIS data and Contribution balances…','loading');
   const [misData,selectionResult]=await Promise.all([
    fetchAllMisRows(seq),
-   window.VBGRAMGData.invoke('vbgramg-mis-selection',{body:{action:'get'},deduplicate:true}),
+   window.VBGRAMGCache.getOrLoad('mis:selections:v1',async()=>{
+    const {data,error}=await window.VBGRAMGData.invoke('vbgramg-mis-selection',{body:{action:'get'},deduplicate:true});
+    if(error||!data||data.approved!==true||!Array.isArray(data.selections))throw new Error((data&&data.error)||(error&&error.message)||'Could not load saved MIS applicant selections.');
+    return data;
+   },30000).then(data=>({data,error:null})),
    periodsPromise
   ]);
   if(seq!==loadSequence)return;

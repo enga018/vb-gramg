@@ -13,6 +13,8 @@
   const MAX_ENTRIES = 200;
   const entries = new Map();
   const inFlightReads = new Map();
+  const keyVersions = new Map();
+  let userEpoch = 0;
   let activeUserId = null;
   let authSubscription = null;
 
@@ -51,9 +53,15 @@
     const nextUserId = userId == null || userId === "" ? null : String(userId);
     if (nextUserId === activeUserId) return;
     // Never allow one authenticated account to see another account's cache.
+    userEpoch++;
     entries.clear();
     inFlightReads.clear();
+    keyVersions.clear();
     activeUserId = nextUserId;
+  }
+
+  function bumpKeyVersion(fullKey) {
+    keyVersions.set(fullKey, (keyVersions.get(fullKey) || 0) + 1);
   }
 
   function getUserId() {
@@ -86,6 +94,8 @@
       return false;
     }
     const fullKey = namespaceKey(activeUserId, key);
+    bumpKeyVersion(fullKey);
+    inFlightReads.delete(fullKey);
     entries.delete(fullKey);
     entries.set(fullKey, {
       value: cloneValue(value),
@@ -102,12 +112,19 @@
     if (!activeUserId) return loader();
 
     const userAtStart = activeUserId;
+    const epochAtStart = userEpoch;
     const fullKey = namespaceKey(userAtStart, key);
     if (inFlightReads.has(fullKey)) return cloneValue(await inFlightReads.get(fullKey));
+    const versionAtStart = keyVersions.get(fullKey) || 0;
 
     const operation = Promise.resolve().then(loader).then(value => {
       // A request started by one account must not populate another account's cache.
-      if (activeUserId === userAtStart) set(key, value, ttlMs);
+      if (activeUserId === userAtStart &&
+          userEpoch === epochAtStart &&
+          (keyVersions.get(fullKey) || 0) === versionAtStart &&
+          inFlightReads.get(fullKey) === operation) {
+        set(key, value, ttlMs);
+      }
       return value;
     });
     inFlightReads.set(fullKey, operation);
@@ -120,7 +137,10 @@
 
   function invalidate(key) {
     if (!activeUserId || key == null) return;
-    entries.delete(namespaceKey(activeUserId, key));
+    const fullKey = namespaceKey(activeUserId, key);
+    bumpKeyVersion(fullKey);
+    entries.delete(fullKey);
+    inFlightReads.delete(fullKey);
   }
 
   function invalidatePrefix(prefix) {
@@ -128,6 +148,12 @@
     const start = namespaceKey(activeUserId, prefix);
     for (const key of entries.keys()) {
       if (key.startsWith(start)) entries.delete(key);
+    }
+    for (const key of inFlightReads.keys()) {
+      if (key.startsWith(start)) {
+        bumpKeyVersion(key);
+        inFlightReads.delete(key);
+      }
     }
   }
 
@@ -138,13 +164,18 @@
       if (key.startsWith(start)) entries.delete(key);
     }
     for (const key of inFlightReads.keys()) {
-      if (key.startsWith(start)) inFlightReads.delete(key);
+      if (key.startsWith(start)) {
+        bumpKeyVersion(key);
+        inFlightReads.delete(key);
+      }
     }
   }
 
   function clearAll() {
+    userEpoch++;
     entries.clear();
     inFlightReads.clear();
+    keyVersions.clear();
     activeUserId = null;
   }
 

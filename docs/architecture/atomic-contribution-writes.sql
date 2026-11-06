@@ -97,23 +97,23 @@ BEGIN
   -- * legacy charge rows whose trimmed note is exactly "Return" are returns;
   -- * legacy return/forgive/sanitationFee values remain recognized.
   SELECT
-    COALESCE(pg_catalog.sum(pg_catalog.greatest(COALESCE(l.amount, 0), 0))
+    COALESCE(pg_catalog.sum(GREATEST(COALESCE(l.amount, 0), 0))
       FILTER (WHERE l.entry_type IN ('charge', 'other_charge', 'sanitationFee')
         AND NOT COALESCE(l.is_deferred, false)
         AND NOT (l.entry_type = 'charge' AND pg_catalog.btrim(COALESCE(l.note, '')) = 'Return')), 0),
-    COALESCE(pg_catalog.sum(pg_catalog.greatest(COALESCE(l.amount, 0), 0))
+    COALESCE(pg_catalog.sum(GREATEST(COALESCE(l.amount, 0), 0))
       FILTER (WHERE l.entry_type = 'payment'), 0),
-    COALESCE(pg_catalog.sum(pg_catalog.greatest(COALESCE(l.amount, 0), 0))
+    COALESCE(pg_catalog.sum(GREATEST(COALESCE(l.amount, 0), 0))
       FILTER (WHERE l.entry_type IN ('refund', 'return')
         OR (l.entry_type = 'charge' AND pg_catalog.btrim(COALESCE(l.note, '')) = 'Return')), 0),
-    COALESCE(pg_catalog.sum(pg_catalog.greatest(COALESCE(l.amount, 0), 0))
+    COALESCE(pg_catalog.sum(GREATEST(COALESCE(l.amount, 0), 0))
       FILTER (WHERE l.entry_type IN ('charge_waiver', 'forgive')), 0)
   INTO v_charges, v_paid, v_returns, v_waived
   FROM public.vbgramg_charge_ledger AS l
   WHERE l.job_card_number = v_job_card
     AND NOT COALESCE(l.is_voided, false);
 
-  v_balance := pg_catalog.greatest(v_charges - pg_catalog.least(v_charges, v_waived), 0) - v_paid + v_returns;
+  v_balance := GREATEST(v_charges - LEAST(v_charges, v_waived), 0) - v_paid + v_returns;
 
   v_amount := p_amount;
   v_final_note := COALESCE(pg_catalog.left(pg_catalog.btrim(p_note), 200), '');
@@ -132,20 +132,20 @@ BEGIN
       v_audit_action := 'cash-payment';
       v_final_note := 'Cash';
     WHEN 'pay_in_full' THEN
-      v_amount := pg_catalog.greatest(0, pg_catalog.round(v_balance, 2));
+      v_amount := GREATEST(0, pg_catalog.round(v_balance, 2));
       v_entry_type := 'payment';
       v_audit_action := 'pay-in-full';
       v_final_note := 'Cash';
     WHEN 'waiver' THEN
       v_entry_type := 'charge_waiver';
       v_audit_action := 'waiver';
-      IF v_amount > pg_catalog.greatest(0, v_balance) + 0.001 THEN
+      IF v_amount > GREATEST(0, v_balance) + 0.001 THEN
         RETURN pg_catalog.jsonb_build_object('ok', false, 'status', 400, 'error', 'Waiver must be positive and cannot exceed the current outstanding balance.');
       END IF;
     WHEN 'return' THEN
       v_entry_type := 'refund';
       v_audit_action := 'return';
-      IF v_amount > pg_catalog.greatest(0, v_paid - v_returns) + 0.001 THEN
+      IF v_amount > GREATEST(0, v_paid - v_returns) + 0.001 THEN
         RETURN pg_catalog.jsonb_build_object('ok', false, 'status', 400, 'error', 'Return amount must be positive and cannot exceed payments less previous returns.');
       END IF;
   END CASE;

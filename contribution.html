@@ -1308,9 +1308,6 @@ async function openCitizen(id){
   summaryByCard.set(String(c.id),data.card_summary);
   entries=entries.filter(row=>String(row.job_card_number)!==String(c.id)).concat(data.entries);
   deriveCitizens();
-  // Refresh the table and KPI totals with the database summary fetched above.
-  // Without this render, the detail sheet is current but the list keeps its old balance.
-  render();
   currentCitizen=citizens.find(item=>item.id===c.id)||c;
   currentCitizen.fifo_breakdown=data.fifo_breakdown;
   periods=Array.isArray(data.periods)?data.periods:[];
@@ -1623,7 +1620,16 @@ async function payInFull(){
  try{
   const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:"pay-in-full",job_card_number:c.id,entry_date:new Date().toISOString().slice(0,10)},timeoutMs:false});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not record full payment.');
-  updateEntryInMemory(data.entry);openCitizen(c.id);status('Full payment recorded. Ledger recalculated.','success');
+  // Reload the affected job-card summary from PostgreSQL, then refresh the main
+  // contribution table and KPIs. This is deliberately independent of the history modal.
+  const refreshed=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'job-card-details',job_card_number:c.id},timeoutMs:false});
+  if(refreshed.error||!refreshed.data||refreshed.data.error||!refreshed.data.card_summary)throw new Error((refreshed.data&&refreshed.data.error)||(refreshed.error&&refreshed.error.message)||'Payment was recorded, but the contribution table could not be refreshed. Reload the page to verify the latest balance.');
+  summaryByCard.set(String(c.id),refreshed.data.card_summary);
+  entries=entries.filter(row=>String(row.job_card_number)!==String(c.id)).concat(refreshed.data.entries||[]);
+  deriveCitizens();
+  render();
+  currentCitizen=citizens.find(item=>item.id===c.id)||c;
+  status('Full payment recorded. Contribution table updated.','success');
  }catch(err){status(err.message||'Could not record full payment.','err');}
  finally{busy=false;}
 }

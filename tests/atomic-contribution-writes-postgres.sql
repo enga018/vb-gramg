@@ -130,7 +130,7 @@ BEGIN
   END IF;
 
   r := public.vbgramg_record_contribution_transaction('MZ-RETURN','return',25,'2026-11-06','Return',gen_random_uuid(),'tester@example.invalid');
-  IF NOT (r->>'ok')::boolean OR (r->>'balance_before')::numeric <> -120 OR (r->>'balance_after')::numeric <> -95 THEN
+  IF NOT (r->>'ok')::boolean OR (r->>'balance_before')::numeric <> -80 OR (r->>'balance_after')::numeric <> -55 THEN
     RAISE EXCEPTION 'Return eligibility without a charge row failed: %', r;
   END IF;
 

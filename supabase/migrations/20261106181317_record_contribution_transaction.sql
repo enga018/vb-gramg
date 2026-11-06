@@ -1,8 +1,5 @@
 -- Atomic contribution writes. Generated migration filename by Supabase CLI.
--- DESIGN DRAFT ONLY.
--- This file is intentionally outside supabase/migrations and is not applied by Supabase.
 -- Before promotion to a migration, validate it against an isolated PostgreSQL database
--- and review the function grants/role behaviour with the Edge Function integration.
 
 CREATE OR REPLACE FUNCTION public.vbgramg_record_contribution_transaction(
   p_job_card_number text,
@@ -203,7 +200,7 @@ BEGIN
 
   RETURN pg_catalog.jsonb_build_object(
     'ok', true,
-    'entry', pg_catalog.to_jsonb(v_entry),
+    'entry', v_entry_json,
     'balance_before', v_balance,
     'balance_after', CASE p_operation
       WHEN 'cash_payment' THEN v_balance - v_amount

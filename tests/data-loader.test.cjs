@@ -109,3 +109,39 @@ test("request timeout is applied to reads", async () => {
     /slow-read request timed out after 0 seconds/
   );
 });
+
+
+test("request timeout timers are cleared even when the timer ID is zero", async () => {
+  let clearedTimer;
+  const loader = loadDataLoader({
+    functions: { invoke: async () => ({ data: { ok: true }, error: null }) }
+  }, {
+    setTimeout: () => 0,
+    clearTimeout: id => { clearedTimer = id; }
+  });
+
+  assert.deepEqual(await loader.request("fast-read"), { ok: true });
+  assert.equal(clearedTimer, 0);
+});
+
+test("a timed-out opted-in read is removed so a later retry can start", async () => {
+  let calls = 0;
+  const loader = loadDataLoader({
+    functions: {
+      invoke: () => {
+        calls += 1;
+        return new Promise(() => {});
+      }
+    }
+  });
+
+  await assert.rejects(
+    loader.request("slow-read", { timeoutMs: 5, deduplicate: true }),
+    /slow-read request timed out/
+  );
+  await assert.rejects(
+    loader.request("slow-read", { timeoutMs: 5, deduplicate: true }),
+    /slow-read request timed out/
+  );
+  assert.equal(calls, 2);
+});

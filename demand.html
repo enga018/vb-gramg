@@ -617,14 +617,17 @@ async function loadPeriods(){
  try{
   // Use the same approved server-side period-list endpoint as FTO Import.
   // This avoids relying on direct browser SELECT permissions for the periods table.
-  const {data,error}=await withTimeout(
-   window.VBGRAMGData.invoke("vbgramg-periods",{body:{action:"list"},deduplicate:true}),
-   10000,
-   "Open periods request"
-  );
-  if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||"Could not load shared periods.");
-  if(!Array.isArray(data.periods))throw new Error("The periods service returned an invalid list.");
-  periods=data.periods.filter(p=>p&&p.status==="open");
+  const periodRows=await window.VBGRAMGCache.getOrLoad("periods:list",async()=>{
+   const {data,error}=await withTimeout(
+    window.VBGRAMGData.invoke("vbgramg-periods",{body:{action:"list"},deduplicate:true}),
+    10000,
+    "Open periods request"
+   );
+   if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||"Could not load shared periods.");
+   if(!Array.isArray(data.periods))throw new Error("The periods service returned an invalid list.");
+   return data.periods;
+  },30000);
+  periods=periodRows.filter(p=>p&&p.status==="open");
   renderPeriodOptions();
   const existing=selectedPeriod();
   if(existing&&!$("days").value&&existing.days)$("days").value=String(existing.days);

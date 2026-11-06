@@ -40,18 +40,16 @@ const periodFromNote=(note:string):string|null=>{const n=note.trim().toUpperCase
 const isoDate=(ms:number):string=>new Date(ms).toISOString().slice(0,10);
 function ftoEntryDate(rows:any[],deferred:boolean):string|null{if(deferred)return null;const dates=rows.filter(tx=>String(tx.status)==="processed"&&/^\d{4}-\d{2}-\d{2}$/.test(String(tx.processed_date||""))).map(tx=>String(tx.processed_date)).sort();return dates[0]||null;}
 async function fetchPagedRowsForJobCard(admin:any,table:string,columns:string,jobCard:string){
- const build=(from:number,to:number)=>admin.from(table).select(columns,{count:"exact"}).eq("job_card_number",jobCard).order("created_at",{ascending:true}).order("id",{ascending:true}).range(from,to);
- const first=await build(0,999);
- if(first.error)throw first.error;
- if(first.count===null||first.count===undefined)throw new Error(`Could not determine the complete row count for ${table}.`);
- const rows:Record<string,unknown>[]=[...(first.data||[])],total=Number(first.count);
- for(let base=1000;base<total;base+=4000){
-  const offsets:number[]=[];
-  for(let offset=base;offset<Math.min(base+4000,total);offset+=1000)offsets.push(offset);
-  const pages=await Promise.all(offsets.map(offset=>build(offset,Math.min(offset+999,total-1))));
-  for(const page of pages){if(page.error)throw page.error;rows.push(...(page.data||[]));}
+ const pageSize=1000;
+ const build=(from:number)=>admin.from(table).select(columns).eq("job_card_number",jobCard).order("created_at",{ascending:true}).order("id",{ascending:true}).range(from,from+pageSize-1);
+ const rows:Record<string,unknown>[]=[];
+ for(let offset=0;;offset+=pageSize){
+  const page=await build(offset);
+  if(page.error)throw page.error;
+  const pageRows=page.data||[];
+  rows.push(...pageRows);
+  if(pageRows.length<pageSize)break;
  }
- if(rows.length!==total)throw new Error(`Incomplete ${table} read for requested job card.`);
  return rows;
 }
 async function fetchPagedRows(admin:any,table:string,columns:string,orderBy:string,ascending=true,secondaryOrderBy?:string){

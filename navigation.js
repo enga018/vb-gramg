@@ -55,7 +55,6 @@
       toggle.textContent = "☰";
       return toggle;
     }
-    var desktopButton = makeToggle("global-sidebar-toggle global-sidebar-desktop-toggle");
     var button = makeToggle("global-sidebar-toggle global-mobile-menu-button");
 
     var pageNames = {
@@ -74,7 +73,6 @@
     title.className = "global-mobile-header-title";
     title.textContent = "VBGRAMG / " + pageName;
     mobileHeader.appendChild(title);
-    mobileHeader.appendChild(desktopButton);
     mobileHeader.appendChild(button);
     main.insertBefore(mobileHeader, main.firstChild);
 
@@ -117,15 +115,15 @@
     document.body.appendChild(overlay);
     function close() {
       sidebar.classList.remove("is-open"); overlay.classList.remove("is-visible");
-      [button, desktopButton].forEach(function (toggle) { toggle.setAttribute("aria-expanded", "false"); toggle.setAttribute("aria-label", "Open navigation"); });
+      button.setAttribute("aria-expanded", "false");
+      button.setAttribute("aria-label", "Open navigation");
     }
     function open() {
       sidebar.classList.add("is-open"); overlay.classList.add("is-visible");
-      [button, desktopButton].forEach(function (toggle) { toggle.setAttribute("aria-expanded", "true"); toggle.setAttribute("aria-label", "Close navigation"); });
+      button.setAttribute("aria-expanded", "true");
+      button.setAttribute("aria-label", "Close navigation");
     }
-    [button, desktopButton].forEach(function (toggle) {
-      toggle.addEventListener("click", function () { sidebar.classList.contains("is-open") ? close() : open(); });
-    });
+    button.addEventListener("click", function () { sidebar.classList.contains("is-open") ? close() : open(); });
     overlay.addEventListener("click", close);
     nav.addEventListener("click", function (event) { if (event.target.closest("a")) close(); });
     document.addEventListener("keydown", function (event) {

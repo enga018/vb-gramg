@@ -242,8 +242,12 @@ Deno.serve(async(req:Request)=>{
    // Independent startup reads run concurrently. The previous sequential requests
    // added each database round-trip to the user's initial loading time.
    const ledgerReadStarted=performance.now();
+   const ledgerRequest=admin.rpc("vbgramg_contribution_ledger_list").then(result=>{
+    stageTimes.ledger_read_ms=Number((performance.now()-ledgerReadStarted).toFixed(1));
+    return result;
+   });
    const [ledgerResult,exemptionsResult,misStateResult]=await Promise.all([
-    admin.rpc("vbgramg_contribution_ledger_list"),
+    ledgerRequest,
     admin.from("vbgramg_contribution_exemptions").select("job_card_number,note,created_at,updated_at").order("job_card_number",{ascending:true}),
     admin.from("vbgramg_mis_state").select("active_import_id,row_count,source_filename").eq("singleton",true).maybeSingle()
    ]);
@@ -257,7 +261,6 @@ Deno.serve(async(req:Request)=>{
    if(!Number.isInteger(ledgerTotal)||ledgerTotal<0||all.length!==ledgerTotal){
     throw new Error(`Incomplete contribution ledger RPC response: expected ${ledgerTotal} rows, received ${all.length}.`);
    }
-   stageTimes.ledger_read_ms=Number((performance.now()-ledgerReadStarted).toFixed(1));
    const exemptions=exemptionsResult.data||[];
    const misState=misStateResult.data;
    const activeMisRowCount=Number(misState?.row_count||0);

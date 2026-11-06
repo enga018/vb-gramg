@@ -1260,7 +1260,36 @@ function buildFifoBreakdown(c){
  const netRefundExcess=Math.max(0,(Number(c.returns)||0)-(Number(c.paid)||0));
  return '<div class="section-title">Transaction history</div><div class="fifo-period-list">'+(rows||'<div class="empty">No active charges to allocate.</div>')+'</div>'+(netRefundExcess>0?'<div class="notice info">Refunds exceed recorded payments by '+fmt(netRefundExcess)+'. The existing outstanding balance includes this difference.</div>':'');
 }
-function openCitizen(id){
+let citizenDetailRequest=0;
+async function openCitizen(id){
+ const c=citizens.find(item=>item.id===id);if(!c)return;
+ currentCitizen=c;
+ const requestId=++citizenDetailRequest;
+ const sheet=$('overlay').querySelector('.sheet');
+ $('overlay').appendChild(sheet);
+ $('sheetTitle').textContent=c.id;
+ $('sheetSubtitle').textContent=c.name||'Head of household not recorded';
+ $('sheetFooter').classList.add('hidden');
+ $('sheetBody').innerHTML='<div class="notice info">Loading complete transaction details…</div>';
+ $('toggleEditMode').classList.add('hidden');
+ $('overlay').classList.remove('hidden');
+ document.querySelectorAll('#contribution-table tbody tr').forEach(row=>row.classList.toggle('selected',row.dataset.card===c.id));
+ try{
+  const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'job-card-details',job_card_number:c.id},deduplicate:true,timeoutMs:45000});
+  if(requestId!==citizenDetailRequest||currentCitizen?.id!==c.id)return;
+  if(error||!data||data.approved!==true||data.error||String(data.job_card_number)!==String(c.id))throw new Error((data&&data.error)||(error&&error.message)||'Could not load the complete transaction details.');
+  periods=data.periods||[];
+  paymentAllocations=Array.from(new Map((data.payment_allocations||[]).filter(a=>a&&a.id).map(a=>[String(a.id),a])).values());
+  paymentRefundReconciliations=data.payment_refund_reconciliations||[];
+  extraCharges=data.extras||[];
+  renderCitizenDetail(id);
+ }catch(err){
+  if(requestId!==citizenDetailRequest||currentCitizen?.id!==c.id)return;
+  $('sheetBody').innerHTML='<div class="notice err"><b>Transaction details could not be loaded.</b><p>'+esc(err?.message||'Please check your connection and retry.')+'</p><button class="btn" type="button" id="retryCitizenDetails">Retry loading details</button></div>';
+  $('retryCitizenDetails').addEventListener('click',()=>openCitizen(id));
+ }
+}
+function renderCitizenDetail(id){
  currentCitizen=citizens.find(c=>c.id===id);if(!currentCitizen)return;
  const c=currentCitizen;
  const sheet=$('overlay').querySelector('.sheet');
@@ -1590,7 +1619,7 @@ async function load(){
   }finally{if(listTimer)window.clearTimeout(listTimer);}
   const {data,error}=listResult;
   if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
-  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");$("exportDueBtn").classList.remove("hidden");entries=data.entries||[];periods=data.periods||[];paymentAllocations=Array.from(new Map((data.payment_allocations||[]).filter(a=>a&&a.id).map(a=>[String(a.id),a])).values());paymentRefundReconciliations=data.payment_refund_reconciliations||[];extraCharges=data.extras||[];citizenRegistry=data.citizens||[];applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];deriveCitizens();renderExemptions();
+  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");$("exportDueBtn").classList.remove("hidden");entries=data.entries||[];periods=[];paymentAllocations=[];paymentRefundReconciliations=[];extraCharges=[];citizenRegistry=data.citizens||[];applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];deriveCitizens();renderExemptions();
   $('app').classList.remove('hidden');$('status').classList.add('hidden');$('loading-state').classList.add('hidden');
   render();
  }catch(err){
@@ -1632,6 +1661,8 @@ $('toggleEditMode').addEventListener('click',()=>{
  $('toggleEditMode').setAttribute('aria-pressed',String(enabled));
 });
 function closeCitizenDetail(){
+ citizenDetailRequest++;
+
  $('overlay').classList.add('hidden');
  currentCitizen=null;
  document.querySelectorAll('#contribution-table tbody tr').forEach(row=>row.classList.remove('selected'));

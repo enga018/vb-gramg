@@ -43,7 +43,7 @@
         if (result.data.error) throw new Error(String(result.data.error));
         return result.data;
       } finally {
-        if (timeoutId) window.clearTimeout(timeoutId);
+        if (timeoutId !== undefined) window.clearTimeout(timeoutId);
       }
     })();
 

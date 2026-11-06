@@ -85,7 +85,7 @@
     return { hit: true, value: cloneValue(entry.value) };
   }
 
-  function set(key, value, ttlMs) {
+  function set(key, value, ttlMs, fromLoader) {
     if (!activeUserId) return false;
     if (key == null || key === "") throw new Error("A cache key is required.");
     const ttl = Number.isFinite(ttlMs) ? Math.max(0, ttlMs) : DEFAULT_TTL_MS;
@@ -94,8 +94,10 @@
       return false;
     }
     const fullKey = namespaceKey(activeUserId, key);
-    if (inFlightReads.has(fullKey)) bumpKeyVersion(fullKey);
-    inFlightReads.delete(fullKey);
+    if (!fromLoader) {
+      if (inFlightReads.has(fullKey)) bumpKeyVersion(fullKey);
+      inFlightReads.delete(fullKey);
+    }
     entries.delete(fullKey);
     entries.set(fullKey, {
       value: cloneValue(value),
@@ -123,7 +125,7 @@
           userEpoch === epochAtStart &&
           (keyVersions.get(fullKey) || 0) === versionAtStart &&
           inFlightReads.get(fullKey) === operation) {
-        set(key, value, ttlMs);
+        set(key, value, ttlMs, true);
       }
       return value;
     });

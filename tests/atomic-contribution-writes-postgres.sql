@@ -90,7 +90,7 @@ GRANT SELECT, INSERT ON public.vbgramg_contribution_exemptions TO service_role;
 GRANT SELECT, INSERT ON public.vbgramg_charge_ledger TO service_role;
 GRANT SELECT, INSERT ON public.vbgramg_ledger_audit TO service_role;
 
-\ir ../docs/architecture/atomic-contribution-writes.sql
+\ir ../supabase/migrations/20261106181317_record_contribution_transaction.sql
 
 INSERT INTO public.vbgramg_charge_ledger (job_card_number, person_name, entry_type, amount, charge_period, note, is_deferred, is_voided)
 VALUES

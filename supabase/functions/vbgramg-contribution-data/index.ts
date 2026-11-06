@@ -265,7 +265,7 @@ Deno.serve(async(req:Request)=>{
     const latestApplicant=applicants.slice().sort((a,b)=>String(b.applicant_number||"").localeCompare(String(a.applicant_number||""),undefined,{numeric:true})||String(b.applicant_name||b.name||"").localeCompare(String(a.applicant_name||a.name||"")))[0];
     return {job_card_number:id,person_name:c.person_name||"Unnamed",exempt,balance:exempt?0:state.balance,deferred:exempt?0:state.deferred,latest_charge_amount:latestCharge?Number(latestCharge.amount)||0:null,display_applicant:String(latestApplicant?.applicant_name||latestApplicant?.name||"").trim()||c.person_name||"Unnamed"};
    });
-   const payload={approved:true,role:approved.role,citizens:summaries,applicants_by_job_card:applicantsByCard,exemptions,active_mis_import_id:misState.active_import_id,active_mis_row_count:Number(misState.row_count||0),ledger_row_count:ledger.length};
+   const payload={approved:true,role:approved.role,citizens:summaries,exemptions,ledger_row_count:ledger.length};
    const responseBytes=new TextEncoder().encode(JSON.stringify(payload)).length;
    console.info("[contribution-summary-timing]",JSON.stringify({total_ms:Number((performance.now()-summaryStarted).toFixed(1)),ledger_rows:ledger.length,job_cards:summaries.length,response_bytes:responseBytes}));
    return reply(payload);
@@ -299,7 +299,8 @@ Deno.serve(async(req:Request)=>{
     if(misState?.active_import_id){
      const {data:lookup,error:lookupError}=await admin.from("vbgramg_mis_contribution_lookup").select("payload").eq("import_id",misState.active_import_id).maybeSingle();
      if(lookupError)throw lookupError;
-     const applicants=lookup?.payload?.applicants_by_job_card&&typeof lookup.payload.applicants_by_job_card==="object"?new Map(Object.entries(lookup.payload.applicants_by_job_card as Record<string,Record<string,string|null>[]>)):new Map();
+     const cardApplicants=Array.isArray(lookup?.payload?.applicants_by_job_card?.[jobCard])?lookup.payload.applicants_by_job_card[jobCard] as Record<string,string|null>[]:[];
+     const applicants=new Map([[jobCard,cardApplicants]]);
      const namesByLedger=new Map<string,Set<string>>();
      for(let offset=0;offset<chargeIds.length;offset+=100){
       const ids=chargeIds.slice(offset,offset+100);
@@ -311,7 +312,7 @@ Deno.serve(async(req:Request)=>{
      for(const [id,names] of namesByLedger){if(names.size!==1)continue;const row=byId.get(id);if(!row)continue;const match=matchActiveMisApplicant(applicants,jobCard,[...names][0]);if(match){row.applicant_name=match.applicant_name;row.applicant_number=match.applicant_number;row.applicant_unique_id=match.applicant_unique_id;row.applicant_attribution="matched_from_fto";}}
     }
    }
-   const payload={approved:true,job_card_number:jobCard,entries:ledgerEntries,extras:extraResult.data||[],periods:periodResult.data||[],payment_allocations:allocationResult||[],payment_refund_reconciliations:refundResult||[]};
+   const payload={approved:true,job_card_number:jobCard,entries:ledgerEntries,applicants:cardApplicants||[],extras:extraResult.data||[],periods:periodResult.data||[],payment_allocations:allocationResult||[],payment_refund_reconciliations:refundResult||[]};
    console.info("[contribution-detail-timing]",JSON.stringify({job_card_number:jobCard,total_ms:Number((performance.now()-detailStarted).toFixed(1)),query_timings_ms:queryTimings,extras:payload.extras.length,periods:payload.periods.length,allocations:payload.payment_allocations.length,refunds:payload.payment_refund_reconciliations.length,periods_included:includePeriods}));
    return reply(payload);
   }

@@ -1199,7 +1199,7 @@ Deno.serve(async(req:Request)=>{
    if(action!=="pay-in-full"&&approved.role!=="admin")return reply({error:"Only an approved administrator can record waivers or returns."},403);
    const requestedAmount=Number(body.amount),entryDate=String(body.entry_date||new Date().toISOString().slice(0,10));
    const note=String(body.note||(action==="add-waiver"?"Waiver":action==="add-return"?"Return":"Pay in full")).trim().slice(0,200);
-   if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(entryDate)||Number.isNaN(Date.parse(entryDate)))return reply({error:"Enter a valid transaction date."},400);
+   if(!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)||Number.isNaN(Date.parse(entryDate)))return reply({error:"Enter a valid transaction date."},400);
    const operation=action==="pay-in-full"?"pay_in_full":action==="add-waiver"?"waiver":"return";
    const amount=action==="pay-in-full"?null:requestedAmount;
    const result=await recordContributionWrite(admin,jobCard,operation,amount,entryDate,note,authData.user.id,email);
@@ -1261,7 +1261,7 @@ Deno.serve(async(req:Request)=>{
   if(action==="add-payment"){
    const jobCard=String(body.job_card_number||"").trim(),amount=Number(body.amount),entryDate=String(body.entry_date||"");
    if(!jobCard||!Number.isFinite(amount)||amount<=0||amount>10000000)return reply({error:"Enter a valid job card number and positive payment amount."},400);
-   if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(entryDate)||Number.isNaN(Date.parse(entryDate)))return reply({error:"Enter a valid payment date."},400);
+   if(!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)||Number.isNaN(Date.parse(entryDate)))return reply({error:"Enter a valid payment date."},400);
    const result=await recordContributionWrite(admin,jobCard,"cash_payment",amount,entryDate,"Cash",authData.user.id,email);
    if(result.ok!==true)return reply({error:String(result.error||"Could not record the cash payment.")},Number(result.status)||400);
    return reply({approved:true,role:approved.role,entry:result.entry});

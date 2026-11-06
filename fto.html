@@ -829,7 +829,8 @@ async function saveFtoPeriod(event){
   $("period-modal-save").disabled=false;$("period-modal-cancel").disabled=false;$("period-modal-save").textContent="Save";
  }
 }
-async function loadFtoHistory(){
+async function loadFtoHistory(options={}){
+ const afterSync=options.afterSync===true;
  const seq=++historyLoadSequence;
  historyMessage("Loading imported FTO history…","loading");
  try{
@@ -846,7 +847,14 @@ async function loadFtoHistory(){
   const historyStatus=$("fto-history-status");
   if(ftoHistoryRows.length){historyMessage(ftoHistoryRows.length+" imported FTO(s) loaded.","success");}
   else{historyStatus.textContent="";historyStatus.classList.add("hidden");historyStatus.classList.remove("error","success");}
- }catch(err){if(seq!==historyLoadSequence)return;historyMessage(err.message||"Could not load FTO history.","error");}
+ }catch(err){
+  if(seq!==historyLoadSequence)return;
+  if(afterSync){
+   const status=$("fto-history-status");
+   status.textContent="FTO synchronized successfully, but its history could not refresh. Reload this page to view the saved FTO. Details: "+(err.message||"Could not load FTO history.");
+   status.classList.remove("hidden","success");status.classList.add("error");
+  }else historyMessage(err.message||"Could not load FTO history.","error");
+ }
 }
 $("fto-change-period-button").addEventListener("click",()=>{if(currentViewingFtoBatch){const batch=currentViewingFtoBatch;closeFtoViewModal();changeFtoPeriod(batch);}});
 $("fto-view-modal-close").addEventListener("click",closeFtoViewModal);
@@ -883,7 +891,11 @@ supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){
  close.addEventListener('click',()=>modal.close());
  modal.addEventListener('click',event=>{if(event.target===modal)modal.close()});
  modal.addEventListener('close',()=>{frame.src='about:blank'});
- window.addEventListener('message',event=>{if(event.origin!==location.origin||!event.data||event.data.type!=='vbgramg-fto-import-complete')return;modal.close();if(typeof loadFtoHistory==='function')loadFtoHistory();});
+ window.addEventListener('message',event=>{
+  if(event.origin!==location.origin||!event.data||event.data.type!=='vbgramg-fto-import-complete')return;
+  modal.close();
+  if(typeof loadFtoHistory==='function')loadFtoHistory({afterSync:true});
+ });
 })();
 </script>
 </body></html>

@@ -106,3 +106,10 @@ The SQL draft has passed the Node regression suite and an ephemeral PostgreSQL 1
 A non-migration SQL draft is stored at `docs/architecture/atomic-contribution-writes.sql`. It is not in `supabase/migrations`, has not been applied, and is not connected to the Edge Function yet. Static regression checks are in `tests/atomic-contribution-writes.test.cjs`.
 
 The SQL draft was adjusted to preserve a subtle current behaviour: only cash payment requires an existing `charge` row; pay-in-full, waiver, and return require an existing ledger record. It also rejects a null operation explicitly. These checks still require execution against an isolated PostgreSQL database before the SQL can be promoted to a migration.
+
+
+## Edge Function integration draft
+
+The contribution Edge Function now routes `add-payment`, `pay-in-full`, `add-waiver`, and `add-return` through the RPC helper. Authentication, approved-user lookup, admin checks for waiver/return, and verified actor identity remain in the Edge Function. The browser does not supply actor identity or role. The other contribution write paths remain unchanged.
+
+This integration is in the same draft PR as the SQL; it is not deployed. Because the SQL is not yet a production migration, deploying this Edge Function before applying the migration would break these four actions. Keep both changes together for coordinated release after final review and approval.

@@ -26,6 +26,8 @@
 
   function cloneValue(value) {
     if (typeof structuredClone === "function") return structuredClone(value);
+    if (value === undefined) return undefined;
+    if (value === null || typeof value !== "object") return value;
     return JSON.parse(JSON.stringify(value));
   }
 
@@ -184,9 +186,5 @@
     }
   });
 
-  if (window.VBGRAMG_SUPABASE_READY) {
-    connectAuth();
-  } else {
-    window.addEventListener("vbgramg:supabase-ready", connectAuth, { once: true });
-  }
+  if (window.VBGRAMG_SUPABASE_READY) connectAuth();
 })();

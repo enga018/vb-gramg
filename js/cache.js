@@ -94,7 +94,7 @@
       return false;
     }
     const fullKey = namespaceKey(activeUserId, key);
-    bumpKeyVersion(fullKey);
+    if (inFlightReads.has(fullKey)) bumpKeyVersion(fullKey);
     inFlightReads.delete(fullKey);
     entries.delete(fullKey);
     entries.set(fullKey, {
@@ -131,14 +131,17 @@
     try {
       return await operation;
     } finally {
-      if (inFlightReads.get(fullKey) === operation) inFlightReads.delete(fullKey);
+      if (inFlightReads.get(fullKey) === operation) {
+        inFlightReads.delete(fullKey);
+        keyVersions.delete(fullKey);
+      }
     }
   }
 
   function invalidate(key) {
     if (!activeUserId || key == null) return;
     const fullKey = namespaceKey(activeUserId, key);
-    bumpKeyVersion(fullKey);
+    if (inFlightReads.has(fullKey)) bumpKeyVersion(fullKey);
     entries.delete(fullKey);
     inFlightReads.delete(fullKey);
   }

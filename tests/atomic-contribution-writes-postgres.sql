@@ -11,27 +11,34 @@ END
 $$;
 
 CREATE TABLE public.vbgramg_contribution_exemptions (
-  job_card_number text PRIMARY KEY,
-  note text NOT NULL DEFAULT ''
+  job_card_number text PRIMARY KEY CHECK (length(btrim(job_card_number)) > 0),
+  note text NOT NULL DEFAULT '',
+  created_by uuid,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE public.vbgramg_charge_ledger (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   job_card_number text NOT NULL,
   person_name text NOT NULL,
-  entry_type text NOT NULL,
-  amount numeric NOT NULL,
-  entry_date date,
+  entry_type text NOT NULL CHECK (entry_type IN ('charge','payment','refund','other_charge','charge_waiver')),
+  amount numeric NOT NULL CHECK (amount > 0),
+  charge_period date CHECK (charge_period IS NULL OR EXTRACT(day FROM charge_period) = 1),
+  entry_date date DEFAULT CURRENT_DATE,
   note text,
   created_by uuid,
   created_at timestamptz NOT NULL DEFAULT now(),
   is_deferred boolean NOT NULL DEFAULT false,
-  is_voided boolean NOT NULL DEFAULT false
+  is_voided boolean NOT NULL DEFAULT false,
+  CHECK (entry_type <> 'charge' OR charge_period IS NOT NULL),
+  CHECK (length(btrim(job_card_number)) > 0),
+  CHECK (length(btrim(person_name)) > 0)
 );
 
 CREATE TABLE public.vbgramg_ledger_audit (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  ledger_entry_id uuid NOT NULL,
+  ledger_entry_id uuid,
   job_card_number text NOT NULL,
   action text NOT NULL,
   actor_user_id uuid,
@@ -85,20 +92,20 @@ GRANT SELECT, INSERT ON public.vbgramg_ledger_audit TO service_role;
 
 \ir ../docs/architecture/atomic-contribution-writes.sql
 
-INSERT INTO public.vbgramg_charge_ledger (job_card_number, person_name, entry_type, amount, note, is_deferred, is_voided)
+INSERT INTO public.vbgramg_charge_ledger (job_card_number, person_name, entry_type, amount, charge_period, note, is_deferred, is_voided)
 VALUES
-  ('MZ-CASH', 'Cash Card', 'charge', 100, 'Charge', false, false),
-  ('MZ-FULL', 'Full Card', 'charge', 100.005, 'Charge', false, false),
-  ('MZ-WAIVER', 'Waiver Card', 'charge', 100, 'Charge', false, false),
-  ('MZ-RETURN', 'Return Card', 'payment', 100, 'Bank', false, false),
-  ('MZ-DEFERRED', 'Deferred Card', 'charge', 200, 'Deferred', true, false),
-  ('MZ-VOIDED', 'Voided Card', 'charge', 1000, 'Voided charge', false, true),
-  ('MZ-VOIDED', 'Voided Card', 'charge', 50, 'Active charge', false, false),
-  ('MZ-VOIDED', 'Voided Card', 'payment', 40, 'Voided payment', false, true),
-  ('MZ-LEGACY', 'Legacy Card', 'charge', 80, 'Charge', false, false),
-  ('MZ-LEGACY', 'Legacy Card', 'charge', 10, ' Return ', false, false),
-  ('MZ-ROLLBACK', 'Rollback Card', 'charge', 100, 'Charge', false, false),
-  ('MZ-SKIP-TRIGGER', 'Trigger Skip Card', 'charge', 100, 'Charge', false, false);
+  ('MZ-CASH', 'Cash Card', 'charge', 100, '2026-11-01', 'Charge', false, false),
+  ('MZ-FULL', 'Full Card', 'charge', 100.005, '2026-11-01', 'Charge', false, false),
+  ('MZ-WAIVER', 'Waiver Card', 'charge', 100, '2026-11-01', 'Charge', false, false),
+  ('MZ-RETURN', 'Return Card', 'payment', 100, NULL, 'Bank', false, false),
+  ('MZ-DEFERRED', 'Deferred Card', 'charge', 200, '2026-11-01', 'Deferred', true, false),
+  ('MZ-VOIDED', 'Voided Card', 'charge', 1000, '2026-11-01', 'Voided charge', false, true),
+  ('MZ-VOIDED', 'Voided Card', 'charge', 50, '2026-11-01', 'Active charge', false, false),
+  ('MZ-VOIDED', 'Voided Card', 'payment', 40, NULL, 'Voided payment', false, true),
+  ('MZ-LEGACY', 'Legacy Card', 'charge', 80, '2026-11-01', 'Charge', false, false),
+  ('MZ-LEGACY', 'Legacy Card', 'charge', 10, '2026-11-01', ' Return ', false, false),
+  ('MZ-ROLLBACK', 'Rollback Card', 'charge', 100, '2026-11-01', 'Charge', false, false),
+  ('MZ-SKIP-TRIGGER', 'Trigger Skip Card', 'charge', 100, '2026-11-01', 'Charge', false, false);
 
 INSERT INTO public.vbgramg_charge_ledger (job_card_number, person_name, entry_type, amount, note)
 VALUES ('MZ-RETURN', 'Return Card', 'refund', 20, 'Earlier return');

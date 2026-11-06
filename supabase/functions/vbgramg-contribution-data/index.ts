@@ -219,16 +219,22 @@ Deno.serve(async(req:Request)=>{
    if(!jobCard||jobCard.length>100)return reply({error:"A valid full job card number is required."},400);
    const detailStarted=performance.now();
    const includePeriods=body.include_periods!==false;
+   const queryTimings:Record<string,number>={};
+   const timed=async(key:string,request:PromiseLike<any>)=>{
+    const started=performance.now();
+    try{return await request;}
+    finally{queryTimings[key]=Number((performance.now()-started).toFixed(1));}
+   };
    const [extraResult,periodResult,allocationResult,refundResult]=await Promise.all([
-    admin.from("vbgramg_contribution_extras").select("id,job_card_number,person_name,charge_period,period_id,amount,reason,ledger_entry_id,created_at,updated_at").eq("job_card_number",jobCard).order("charge_period",{ascending:false}),
-    includePeriods?admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status,created_at").order("contribution_month",{ascending:false,nullsFirst:false}).order("created_at",{ascending:true}):Promise.resolve({data:[],error:null}),
-    fetchPagedRowsForJobCard(admin,"vbgramg_payment_allocations","id,transaction_id,period_id,job_card_number,amount,allocation_source,confidence,note,created_at,updated_at",jobCard),
-    fetchPagedRowsForJobCard(admin,"vbgramg_payment_refund_reconciliations","id,payment_id,refund_id,job_card_number,amount,note,created_at",jobCard)
+    timed("extras",admin.from("vbgramg_contribution_extras").select("id,job_card_number,person_name,charge_period,period_id,amount,reason,ledger_entry_id,created_at,updated_at").eq("job_card_number",jobCard).order("charge_period",{ascending:false})),
+    timed("periods",includePeriods?admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status,created_at").order("contribution_month",{ascending:false,nullsFirst:false}).order("created_at",{ascending:true}):Promise.resolve({data:[],error:null})),
+    timed("allocations",fetchPagedRowsForJobCard(admin,"vbgramg_payment_allocations","id,transaction_id,period_id,job_card_number,amount,allocation_source,confidence,note,created_at,updated_at",jobCard)),
+    timed("refunds",fetchPagedRowsForJobCard(admin,"vbgramg_payment_refund_reconciliations","id,payment_id,refund_id,job_card_number,amount,note,created_at",jobCard))
    ]);
    if(extraResult.error)throw extraResult.error;
    if(periodResult.error)throw periodResult.error;
    const payload={approved:true,job_card_number:jobCard,extras:extraResult.data||[],periods:periodResult.data||[],payment_allocations:allocationResult||[],payment_refund_reconciliations:refundResult||[]};
-   console.info("[contribution-detail-timing]",JSON.stringify({job_card_number:jobCard,total_ms:Number((performance.now()-detailStarted).toFixed(1)),extras:payload.extras.length,periods:payload.periods.length,allocations:payload.payment_allocations.length,refunds:payload.payment_refund_reconciliations.length,periods_included:includePeriods}));
+   console.info("[contribution-detail-timing]",JSON.stringify({job_card_number:jobCard,total_ms:Number((performance.now()-detailStarted).toFixed(1)),query_timings_ms:queryTimings,extras:payload.extras.length,periods:payload.periods.length,allocations:payload.payment_allocations.length,refunds:payload.payment_refund_reconciliations.length,periods_included:includePeriods}));
    return reply(payload);
   }
 

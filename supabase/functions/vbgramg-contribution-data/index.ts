@@ -21,6 +21,24 @@ async function loadActiveMisApplicants(admin:any){
  for(const record of records.slice(1)){const row=Array.isArray(record.row_data)?record.row_data as unknown[]:[];const jobCard=String(row[jcCol]||"").trim(),name=String(row[nameCol]||"").trim();if(!jobCard||!name)continue;const applicant={applicant_name:name,applicant_number:numberCol>=0?String(row[numberCol]||"").trim()||null:null,applicant_unique_id:uniqueCol>=0?String(row[uniqueCol]||"").trim()||null:null};if(!byCard.has(jobCard))byCard.set(jobCard,[]);byCard.get(jobCard)!.push(applicant);}
  return byCard;
 }
+async function loadMisContributionLookup(admin:any,importId:string){
+ const {data:cached,error:cacheError}=await admin.from("vbgramg_mis_contribution_lookup").select("payload").eq("import_id",importId).maybeSingle();
+ if(cacheError)throw cacheError;
+ if(cached?.payload&&Array.isArray(cached.payload.citizens)&&cached.payload.applicants_by_job_card&&typeof cached.payload.applicants_by_job_card==="object")return {citizens:cached.payload.citizens as Record<string,string>[],applicantsByCard:cached.payload.applicants_by_job_card as Record<string,Record<string,string|null>[]>};
+ const rows:Record<string,unknown>[]=[];
+ for(let offset=0;;offset+=1000){const {data,error}=await admin.from("vbgramg_mis_rows").select("row_number,row_data").eq("import_id",importId).order("row_number",{ascending:true}).range(offset,offset+999);if(error)throw error;rows.push(...(data||[]));if(!data||data.length<1000)break;}
+ if(!rows.length)throw new Error("The active MIS import contains no rows.");
+ const header=Array.isArray(rows[0].row_data)?(rows[0].row_data as unknown[]).map(v=>String(v||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim()):[];
+ const col=(...names:string[])=>header.findIndex(v=>names.includes(v));
+ const jc=col("job card number","jobcard number"),house=col("head of household","head of household name"),name=col("name of applicant","applicant name"),number=col("applicant no","applicant number"),unique=col("unique id","unique applicant id");
+ if(jc<0||name<0)throw new Error("The active MIS is missing Job Card Number or Name of Applicant columns.");
+ const households=new Map<string,string>(),seen=new Set<string>(),applicantsByCard:Record<string,Record<string,string|null>[]>={};
+ for(const record of rows.slice(1)){const row=Array.isArray(record.row_data)?record.row_data as unknown[]:[];const id=String(row[jc]||"").trim(),applicant=String(row[name]||"").trim();if(!id||!applicant)continue;seen.add(id);const householdName=String(house>=0?row[house]||"": "").trim();if(householdName&&!households.has(id))households.set(id,householdName);if(!applicantsByCard[id])applicantsByCard[id]=[];applicantsByCard[id].push({applicant_name:applicant,applicant_number:number>=0?String(row[number]||"").trim()||null:null,applicant_unique_id:unique>=0?String(row[unique]||"").trim()||null:null});}
+ const citizens=[...seen].map(job_card_number=>({job_card_number,person_name:households.get(job_card_number)||"Household name unavailable"}));
+ const payload={citizens,applicants_by_job_card:applicantsByCard};
+ const {error:writeError}=await admin.from("vbgramg_mis_contribution_lookup").upsert({import_id:importId,payload,built_at:new Date().toISOString()},{onConflict:"import_id"});if(writeError)throw writeError;
+ return {citizens,applicantsByCard};
+}
 function applicantNameScore(left:unknown,right:unknown){
  const a=normalizeApplicantName(left).replace(/[^\p{L}\p{N}]+/gu,""),b=normalizeApplicantName(right).replace(/[^\p{L}\p{N}]+/gu,"");
  if(!a||!b)return 0;
@@ -228,11 +246,7 @@ Deno.serve(async(req:Request)=>{
    if(!Number.isInteger(ledgerTotal)||ledger.length!==ledgerTotal)throw new Error("Incomplete contribution ledger summary source.");
    const misState=misStateResult.data;
    if(!misState?.active_import_id)throw new Error("There is no active MIS import. Load the active MIS before using the contribution table.");
-   const {data:lookup,error:lookupError}=await admin.from("vbgramg_mis_contribution_lookup").select("payload").eq("import_id",misState.active_import_id).maybeSingle();
-   if(lookupError)throw lookupError;
-   if(!lookup?.payload||!Array.isArray(lookup.payload.citizens)||!lookup.payload.applicants_by_job_card)throw new Error("The active MIS contribution lookup is not ready. Refresh the MIS lookup and retry.");
-   const citizens=lookup.payload.citizens as Record<string,string>[];
-   const applicantsByCard=lookup.payload.applicants_by_job_card as Record<string,Record<string,string|null>[]>;
+   const {citizens,applicantsByCard}=await loadMisContributionLookup(admin,String(misState.active_import_id));
    const exemptions=exemptionsResult.data||[];
    const exemptSet=new Set(exemptions.map(row=>String(row.job_card_number||"").trim()));
    const byCard=new Map<string,Record<string,any>[]>();

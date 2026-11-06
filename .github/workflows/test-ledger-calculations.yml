@@ -7,7 +7,9 @@ on:
       - "tests/ledger-calculations.test.cjs"
       - "tests/postgres-contribution-balances.test.cjs"
       - "tests/atomic-contribution-writes.test.cjs"
+      - "tests/atomic-contribution-writes-postgres.sql"
       - "docs/architecture/atomic-contribution-writes.sql"
+      - ".github/workflows/test-ledger-calculations.yml"
       - "docs/architecture/atomic-contribution-writes.md"
       - "supabase/functions/vbgramg-contribution-data/index.ts"
       - "contribution.html"
@@ -66,3 +68,34 @@ jobs:
             }
             console.log("Deno shared-module check passed.");
           '
+
+  postgres-integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: vbgramg_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d vbgramg_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: vbgramg_test
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      - name: Run atomic contribution PostgreSQL integration tests
+        run: psql -v ON_ERROR_STOP=1 -f tests/atomic-contribution-writes-postgres.sql

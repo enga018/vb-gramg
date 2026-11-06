@@ -574,8 +574,8 @@ function renderTablePagination(tableId,pagerId,key){
   actions.append(previous,pageLabel,next);pager.appendChild(actions);
  }
 }
-function renderManualTransactionDetails(group){
- const container=$('manual-jobcard-details');container.replaceChildren();
+function renderManualTransactionDetails(group,containerOverride){
+ const container=containerOverride||$('manual-jobcard-details');if(!container)return;container.replaceChildren();
  if(!group)return;
  const heading=document.createElement('div');heading.style.fontWeight='750';heading.style.marginBottom='10px';heading.textContent=group.job_card_number+' · '+group.person_name;container.appendChild(heading);
  const rows=parsedDataRows.filter(row=>jobCardFromRow(row)===group.job_card_number);
@@ -594,7 +594,7 @@ function renderManualTransactionDetails(group){
   const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Choose MIS applicant';select.appendChild(placeholder);
   match.candidates.forEach((c,i)=>{const o=document.createElement('option');o.value=String(i);o.textContent=c.applicant_name+' · '+(c.applicant_number||'No number')+' · '+Number(c.match_percentage||0).toFixed(1)+'%';select.appendChild(o)});
   const chosen=reconciliationApplicantSelections.get(group.job_card_number)||match.suggested_applicant;if(chosen){const idx=match.candidates.findIndex(c=>(c.applicant_unique_id&&chosen.applicant_unique_id&&c.applicant_unique_id===chosen.applicant_unique_id)||(!c.applicant_unique_id&&!chosen.applicant_unique_id&&String(c.applicant_name||'').trim()===String(chosen.applicant_name||'').trim()&&String(c.applicant_number||'').trim()===String(chosen.applicant_number||'').trim()));if(idx>=0)select.value=String(idx)}
-  select.addEventListener('change',()=>{if(select.value==='')reconciliationApplicantSelections.delete(group.job_card_number);else reconciliationApplicantSelections.set(group.job_card_number,match.candidates[Number(select.value)]);renderManualTransactionDetails(group);updateImportButton()});review.appendChild(select);
+  select.addEventListener('change',()=>{if(select.value==='')reconciliationApplicantSelections.delete(group.job_card_number);else reconciliationApplicantSelections.set(group.job_card_number,match.candidates[Number(select.value)]);liveRenderCard('manual');updateImportButton()});review.appendChild(select);
  }
  if(duplicate){
   const note=document.createElement('div');note.className='muted';note.textContent='Existing manual charge: ₹'+Number(duplicate.amount||0).toLocaleString('en-IN')+'. Confirm reconciliation after checking the amount and applicant mapping.';review.appendChild(note);
@@ -604,7 +604,7 @@ function renderManualTransactionDetails(group){
    const keep=document.createElement('option');keep.value='';keep.textContent=duplicate.applicant_name?'Keep attached applicant':'Choose MIS applicant';select.appendChild(keep);
    candidates.forEach((c,i)=>{const o=document.createElement('option');o.value=String(i);o.textContent=c.applicant_name+' · '+(c.applicant_number||'No number')+' · '+Number(c.match_percentage||0).toFixed(1)+'%';select.appendChild(o)});
    const selected=reconciliationApplicantSelections.get(group.job_card_number);if(selected){const i=candidates.findIndex(c=>(c.applicant_unique_id&&selected.applicant_unique_id&&c.applicant_unique_id===selected.applicant_unique_id)||(!c.applicant_unique_id&&!selected.applicant_unique_id&&String(c.applicant_name||'').trim()===String(selected.applicant_name||'').trim()&&String(c.applicant_number||'').trim()===String(selected.applicant_number||'').trim()));if(i>=0)select.value=String(i)}
-   select.addEventListener('change',()=>{if(select.value==='')reconciliationApplicantSelections.delete(group.job_card_number);else reconciliationApplicantSelections.set(group.job_card_number,candidates[Number(select.value)]);reviewedCards.delete(group.job_card_number);renderManualTransactionDetails(group)});
+   select.addEventListener('change',()=>{if(select.value==='')reconciliationApplicantSelections.delete(group.job_card_number);else reconciliationApplicantSelections.set(group.job_card_number,candidates[Number(select.value)]);reviewedCards.delete(group.job_card_number);liveRenderCard('manual');updateImportButton()});
    review.appendChild(select);
   }
   const actionLabel=document.createElement('label');actionLabel.textContent='How should this existing manual charge be handled?';actionLabel.style.display='block';actionLabel.style.marginTop='12px';
@@ -655,10 +655,9 @@ function liveRenderCard(type){
  });
  target.appendChild(txList);
  if(type==='manual'){
-  const selector=$('manual-jobcard-select');selector.value=card;
-  $('manual-jobcard-details').replaceChildren();
-  renderManualTransactionDetails(group);
-  const details=$('manual-jobcard-details');
+  const selector=$('manual-jobcard-select');if(selector)selector.value=card;
+  const details=document.createElement('div');details.className='manual-review-details';
+  renderManualTransactionDetails(group,details);
   if(details.childNodes.length){const heading=document.createElement('div');heading.className='live-tx-title';heading.textContent='Required review and confirmation';target.appendChild(heading);target.appendChild(details)}
  }
 }
@@ -720,8 +719,9 @@ async function refreshDuplicates(){
   applicantMatchSuggestions=new Map((data.applicant_matches||[]).map(row=>[String(row.job_card_number),row]));
   alreadyAllocatedCards=new Map((data.already_allocated||[]).map(row=>[String(row.job_card_number),row.allocations||[]]));
   exemptedCards=new Set((data.exempted_job_cards||[]).map(String));notInActiveMisCards=new Set((data.not_in_active_mis_job_cards||[]).map(String));
-  reconciliationApplicantSelections=new Map();
-  for(const row of data.applicant_matches||[]){if(row.suggested_applicant)reconciliationApplicantSelections.set(String(row.job_card_number),row.suggested_applicant)}
+  const priorApplicantSelections=new Map(reconciliationApplicantSelections);
+  reconciliationApplicantSelections=new Map(priorApplicantSelections);
+  for(const row of data.applicant_matches||[]){const card=String(row.job_card_number);if(!reconciliationApplicantSelections.has(card)&&row.suggested_applicant)reconciliationApplicantSelections.set(card,row.suggested_applicant)}
   duplicateReferences=new Map((data.duplicate_references||[]).map(row=>[String(row.job_card_number),row.reference_numbers||[]]));
   unknownCards=new Set((data.unknown_job_cards||[]).map(String));
   checkingDuplicates=false;duplicateCheckFailed=false;renderImportPreview();

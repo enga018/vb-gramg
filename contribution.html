@@ -1017,6 +1017,19 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{margin:0!impo
     border-left:1px solid var(--line)!important;
   }
 }
+
+/* Desktop controls use their placeholder/value without separate field labels. */
+@media(min-width:768px){
+  .contribution-controls .search-wrap label,
+  .contribution-controls .filter-control label{display:none!important}
+  .contribution-controls .search-wrap input,
+  .contribution-controls .filter-control select{padding-top:10px!important;padding-bottom:10px!important;min-height:56px}
+}
+
+/* Restore the mobile table container's left boundary without adding row markers. */
+@media(max-width:767px){
+  #table-wrap{border-left:1px solid var(--line)!important}
+}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>

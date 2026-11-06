@@ -140,6 +140,10 @@
       for (let attempt = 0; attempt < 3; attempt++) {
         const records = trimPersistent(userId);
         if (!records.length) break;
+        const oldest = records.shift();
+        if (oldest) {
+          try { storage.removeItem(oldest.id); } catch (_) {}
+        }
         try {
           storage.setItem(id, serialized);
           return true;

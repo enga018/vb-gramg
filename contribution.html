@@ -1094,6 +1094,9 @@ try {
  return;
 }
 let entries=[], citizens=[], citizenRegistry=[], applicantsByCard={}, extraCharges=[], exemptions=[], periods=[], paymentAllocations=[], paymentRefundReconciliations=[], currentCitizen=null, busy=false, currentPage=0, pageSize=20, appRole="";
+const startupTiming={startedAt:performance.now(),stages:{},counts:{}};
+const recordStartupStage=(name,started)=>{startupTiming.stages[name]=Number((performance.now()-started).toFixed(1));};
+const publishStartupTiming=()=>{startupTiming.total_ms=Number((performance.now()-startupTiming.startedAt).toFixed(1));startupTiming.counts={ledger_entries:entries.length,citizens:citizenRegistry.length,job_cards:citizens.length};window.__VBGRAMG_CONTRIBUTION_STARTUP_TIMING={...startupTiming,stages:{...startupTiming.stages},counts:{...startupTiming.counts}};console.info('[contribution-browser-startup-timing]',window.__VBGRAMG_CONTRIBUTION_STARTUP_TIMING);};
 const exemptCardSet=()=>new Set(exemptions.map(x=>String(x.job_card_number||"").trim()));
 const fmt=n=>'₹'+(Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1155,14 +1158,19 @@ async function removeExemption(jobCard){
  finally{busy=false;}
 }
 function deriveCitizens(){
+ const groupingStarted=performance.now();
  const exemptSet=exemptCardSet();
  const map=new Map(),make=(id,name)=>({id,jobCard:id,name:name||'Unnamed',exempt:exemptSet.has(id),charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,ledger:[]});
  for(const r of citizenRegistry){const id=String(r.job_card_number||'').trim();if(id)map.set(id,make(id,r.person_name))}
  for(const e of entries){const id=String(e.job_card_number||'').trim();if(!id||!map.has(id))continue;map.get(id).ledger.push(e)}
+ recordStartupStage('group_ledger_by_job_card_ms',groupingStarted);
+ const calculationStarted=performance.now();
  citizens=[...map.values()].map(c=>{const x=calculateLedgerState(c.ledger);return c.exempt?{...c,charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,totalCharged:0,balance:0}:{...c,charges:x.charged,activeCharges:x.charged,deferred:x.deferred,paid:x.paid,waived:x.waived,returns:x.returned,totalCharged:Math.max(0,x.charged-Math.min(x.charged,x.waived)),balance:x.balance}}).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
+ recordStartupStage('calculate_balances_and_name_sort_ms',calculationStarted);
 }
 const jobCardSuffixNumber=window.VBGRAMGContribution.jobCardSuffixNumber;
 function render(){
+ const renderStarted=performance.now();
  const q=$('search').value.trim().toLocaleLowerCase(),filter=$('statusFilter').value;
  const list=citizens.filter(c=>{
   if(c.exempt)return false;
@@ -1171,6 +1179,8 @@ function render(){
   const matchesSearch=c.name.toLocaleLowerCase().includes(q)||c.id.toLocaleLowerCase().includes(q);
   return matchesStatus&&matchesSearch;
  }).sort((a,b)=>jobCardSuffixNumber(a.id)-jobCardSuffixNumber(b.id)||a.id.localeCompare(b.id,undefined,{numeric:true})||a.name.localeCompare(b.name));
+ recordStartupStage('filter_and_sort_visible_list_ms',renderStarted);
+ const domStarted=performance.now();
  $('outstanding').textContent=fmt(citizens.reduce((s,c)=>s+Math.max(0,c.balance),0));
  $('deferred').textContent=fmt(citizens.reduce((s,c)=>s+c.deferred,0));
  const isMobile=window.matchMedia('(max-width:767px)').matches||document.body.classList.contains('is-mobile-layout');const totalPages=Math.max(1,Math.ceil(list.length/pageSize)),activePageSize=pageSize,effectiveTotalPages=totalPages;currentPage=Math.min(currentPage,effectiveTotalPages-1);
@@ -1226,6 +1236,8 @@ function render(){
  $('count').textContent=list.length.toLocaleString('en-IN')+' job card'+(list.length===1?'':'s')+' matching filters';
  $('page-label').textContent=list.length?('Showing '+(start+1)+'–'+Math.min(start+activePageSize,list.length)+' of '+list.length+' · Page '+(currentPage+1)+' of '+effectiveTotalPages):'No matching job cards';
  $('prev-button').disabled=currentPage<=0;$('next-button').disabled=currentPage>=totalPages-1;
+ recordStartupStage('build_table_dom_ms',domStarted);
+ recordStartupStage('render_total_ms',renderStarted);
 }
 function exportOutstandingDueList(){
  const due=citizens.filter(c=>!c.exempt&&Number(c.balance)>0)
@@ -1624,18 +1636,26 @@ async function load(){
   // Bound startup wait so a stalled request cannot leave the page loading indefinitely.
   let listTimer;
   let listResult;
+  const requestStarted=performance.now();
   try{
    listResult=await Promise.race([
     window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'list'},deduplicate:true,timeoutMs:45000}),
     new Promise((_,reject)=>{listTimer=window.setTimeout(()=>reject(new Error('Contribution data request timed out after 45 seconds. Check your connection and retry. If this continues, report the time of the failure so the server request can be investigated.')),45000);})
    ]);
   }finally{if(listTimer)window.clearTimeout(listTimer);}
+  recordStartupStage('list_invoke_network_plus_json_parse_ms',requestStarted);
   const {data,error}=listResult;
   if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
   if(window.VBGRAMGCache)window.VBGRAMGCache.setUser(sessionData.session.user.id);
-  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");$("exportDueBtn").classList.remove("hidden");entries=data.entries||[];periods=[];paymentAllocations=[];paymentRefundReconciliations=[];extraCharges=[];citizenRegistry=data.citizens||[];applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];deriveCitizens();renderExemptions();
+  const assignmentStarted=performance.now();
+  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");$("exportDueBtn").classList.remove("hidden");entries=data.entries||[];periods=[];paymentAllocations=[];paymentRefundReconciliations=[];extraCharges=[];citizenRegistry=data.citizens||[];applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];
+  recordStartupStage("assign_response_data_ms",assignmentStarted);
+  const deriveStarted=performance.now();deriveCitizens();recordStartupStage("derive_citizens_total_ms",deriveStarted);renderExemptions();
   $('app').classList.remove('hidden');$('status').classList.add('hidden');$('loading-state').classList.add('hidden');
+  const firstRenderStarted=performance.now();
   render();
+  recordStartupStage('first_render_call_ms',firstRenderStarted);
+  publishStartupTiming();
  }catch(err){
   $('app').classList.add('hidden');$('loading-state').classList.add('hidden');
   const node=$('status');

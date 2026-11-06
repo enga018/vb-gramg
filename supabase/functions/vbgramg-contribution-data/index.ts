@@ -168,50 +168,21 @@ Deno.serve(async(req:Request)=>{
    const actionStarted=performance.now();
    const requested=Array.isArray(body.job_cards)?[...new Set(body.job_cards.map((value:unknown)=>String(value||"").trim()).filter(Boolean))]:[];
    if(requested.length>5000)return reply({error:"Work Demand can request at most 5,000 job cards."},400);
-   if(!requested.length)return reply({approved:true,balances:{},timings_ms:{total:0,ledger_read:0,exemptions_read:0,calculation:0}});
-   if(body.audit_calculations===true&&!ledgerCalculations?.calculateLedgerState)throw new Error("Shared ledger calculations are unavailable for audit mode.");
-   const ledgerStarted=performance.now();
-   const cardBatches: string[][]=[];
-   for(let cardOffset=0;cardOffset<requested.length;cardOffset+=200)cardBatches.push(requested.slice(cardOffset,cardOffset+200));
-   const ledgerRows:Record<string,unknown>[]=[];
-   // Read at most three job-card batches concurrently. Each batch remains fully paginated
-   // so large histories are never truncated; stable ordering keeps pagination deterministic.
-   for(let batchOffset=0;batchOffset<cardBatches.length;batchOffset+=3){
-    const batchResults=await Promise.all(cardBatches.slice(batchOffset,batchOffset+3).map(async cards=>{
-     const rows:Record<string,unknown>[]=[];
-     for(let offset=0;;offset+=1000){
-      const {data,error}=await admin.from("vbgramg_charge_ledger").select("job_card_number,entry_type,amount,note,is_deferred,is_voided").in("job_card_number",cards).order("job_card_number",{ascending:true}).order("entry_date",{ascending:true}).order("id",{ascending:true}).range(offset,offset+999);
-      if(error)throw error;
-      rows.push(...(data||[]));
-      if(!data||data.length<1000)break;
-     }
-     return rows;
-    }));
-    for(const rows of batchResults)ledgerRows.push(...rows);
-   }
-   const ledgerReadMs=Number((performance.now()-ledgerStarted).toFixed(1));
-   const exemptionStarted=performance.now();
-   const {data:exemptionRows,error:exemptionError}=await admin.from("vbgramg_contribution_exemptions").select("job_card_number").in("job_card_number",requested);
-   if(exemptionError)throw exemptionError;
-   const exemptionsReadMs=Number((performance.now()-exemptionStarted).toFixed(1));
-   const calculationStarted=performance.now();
-   const exempted=new Set((exemptionRows||[]).map(row=>String(row.job_card_number||"").trim()));
-   const ledgers=new Map<string,Record<string,unknown>[]>();
-   for(const entry of ledgerRows){
-    const id=String(entry.job_card_number||"").trim();
-    if(!id)continue;
-    if(!ledgers.has(id))ledgers.set(id,[]);
-    ledgers.get(id)!.push(entry);
-   }
+   if(!requested.length)return reply({approved:true,balances:{},timings_ms:{total:0,database_summary:0,job_cards:0}});
+   const summaryStarted=performance.now();
+   const {data:summaryResult,error:summaryError}=await admin.rpc("vbgramg_contribution_financial_summary");
+   if(summaryError)throw summaryError;
+   if(!summaryResult||!Array.isArray(summaryResult.summaries))throw new Error("The database financial summary returned an invalid response.");
+   const summaryByCard=new Map((summaryResult.summaries as Record<string,any>[]).map(row=>[String(row.job_card_number||"").trim(),row]));
    const balances:Record<string,number>={};
    for(const id of requested){
-    if(exempted.has(id)){balances[id]=0;continue;}
-    balances[id]=ledgerCalculations.calculateLedgerState(ledgers.get(id)||[]).balance;
+    const summary=summaryByCard.get(id);
+    if(!summary)throw new Error(`Database financial summary is missing active MIS job card ${id}.`);
+    balances[id]=Number(summary.balance)||0;
    }
-   const calculationMs=Number((performance.now()-calculationStarted).toFixed(1));
-   return reply({approved:true,balances,timings_ms:{ledger_read:ledgerReadMs,exemptions_read:exemptionsReadMs,calculation:calculationMs,total:Number((performance.now()-actionStarted).toFixed(1)),job_cards:requested.length,ledger_rows:ledgerRows.length,concurrency:3}});
+   const summaryMs=Number((performance.now()-summaryStarted).toFixed(1));
+   return reply({approved:true,balances,timings_ms:{database_summary:summaryMs,total:Number((performance.now()-actionStarted).toFixed(1)),job_cards:requested.length}});
   }
-
   if(action==="job-card-details"){
    const jobCard=String(body.job_card_number||"").trim();
    if(!jobCard||jobCard.length>100)return reply({error:"A valid full job card number is required."},400);
@@ -223,21 +194,27 @@ Deno.serve(async(req:Request)=>{
     try{return await request;}
     finally{queryTimings[key]=Number((performance.now()-started).toFixed(1));}
    };
-   const [ledgerRows,extraResult,periodResult,allocationResult,refundResult]=await Promise.all([
+   const [ledgerRows,extraResult,periodResult,allocationResult,refundResult,financialSummaryResult]=await Promise.all([
     timed("ledger",fetchPagedRowsForJobCard(admin,"vbgramg_charge_ledger","id,job_card_number,applicant_name,applicant_number,applicant_unique_id,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,is_voided",jobCard)),
     timed("extras",admin.from("vbgramg_contribution_extras").select("id,job_card_number,person_name,charge_period,period_id,amount,reason,ledger_entry_id,created_at,updated_at").eq("job_card_number",jobCard).order("charge_period",{ascending:false})),
     timed("periods",includePeriods?admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status,created_at").order("contribution_month",{ascending:false,nullsFirst:false}).order("created_at",{ascending:true}):Promise.resolve({data:[],error:null})),
     timed("allocations",fetchPagedRowsForJobCard(admin,"vbgramg_payment_allocations","id,transaction_id,period_id,job_card_number,amount,allocation_source,confidence,note,created_at,updated_at",jobCard)),
-    timed("refunds",fetchPagedRowsForJobCard(admin,"vbgramg_payment_refund_reconciliations","id,payment_id,refund_id,job_card_number,amount,note,created_at",jobCard))
+    timed("refunds",fetchPagedRowsForJobCard(admin,"vbgramg_payment_refund_reconciliations","id,payment_id,refund_id,job_card_number,amount,note,created_at",jobCard)),
+    timed("financial_summary",admin.rpc("vbgramg_contribution_financial_summary"))
    ]);
    if(extraResult.error)throw extraResult.error;
    if(periodResult.error)throw periodResult.error;
+   if(financialSummaryResult.error)throw financialSummaryResult.error;
+   const financialSummaries=financialSummaryResult.data?.summaries;
+   if(!Array.isArray(financialSummaries))throw new Error("The database financial summary returned an invalid response.");
+   const cardSummary=financialSummaries.find((row:any)=>String(row.job_card_number||"").trim()===jobCard);
+   if(!cardSummary)throw new Error(`Database financial summary is missing active MIS job card ${jobCard}.`);
    const fifoStarted=performance.now();
    const {data:fifoBreakdown,error:fifoError}=await admin.rpc("vbgramg_contribution_fifo_breakdown",{p_job_card_number:jobCard});
    queryTimings.fifo_breakdown=Number((performance.now()-fifoStarted).toFixed(1));
    if(fifoError)throw fifoError;
    if(!fifoBreakdown||!Array.isArray(fifoBreakdown.groups))throw new Error("Database FIFO breakdown returned an invalid result.");
-   const payload={approved:true,job_card_number:jobCard,entries:ledgerRows||[],extras:extraResult.data||[],periods:periodResult.data||[],payment_allocations:allocationResult||[],payment_refund_reconciliations:refundResult||[],fifo_breakdown:fifoBreakdown};
+   const payload={approved:true,job_card_number:jobCard,card_summary:cardSummary,financial_totals:financialSummaryResult.data.totals||{},entries:ledgerRows||[],extras:extraResult.data||[],periods:periodResult.data||[],payment_allocations:allocationResult||[],payment_refund_reconciliations:refundResult||[],fifo_breakdown:fifoBreakdown};
    console.info("[contribution-detail-timing]",JSON.stringify({job_card_number:jobCard,total_ms:Number((performance.now()-detailStarted).toFixed(1)),query_timings_ms:queryTimings,ledger_entries:payload.entries.length,extras:payload.extras.length,periods:payload.periods.length,allocations:payload.payment_allocations.length,refunds:payload.payment_refund_reconciliations.length,periods_included:includePeriods}));
    return reply(payload);
   }
@@ -307,7 +284,7 @@ Deno.serve(async(req:Request)=>{
     const latestApplicant=applicants.slice().sort((a,b)=>String(b.applicant_number||"").localeCompare(String(a.applicant_number||""),undefined,{numeric:true})||String(b.applicant_name||"").localeCompare(String(a.applicant_name||"")))[0];
     return {...sql,job_card_number:id,person_name:String(c.person_name||"Unnamed"),exempt:isExempt,charges:isExempt?0:Number(sql.charges)||0,deferred:isExempt?0:Number(sql.deferred)||0,paid:isExempt?0:Number(sql.paid)||0,waived:isExempt?0:Number(sql.waived)||0,returns:isExempt?0:Number(sql.returns)||0,totalCharged:isExempt?0:Number(sql.totalCharged)||0,balance:isExempt?0:Number(sql.balance)||0,display_applicant:String(latestApplicant?.applicant_name||"").trim()||String(c.person_name||"")};
    });
-   const payload={approved:true,role:approved.role,summaries,applicants_by_job_card:applicantsByCard,exemptions:exemptionsResult.data||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:Number(misState.row_count||0),...(auditCalculations?{calculation_audit:{checked_cards:summaries.length,flagged_cards:auditFlags.length,flags:auditFlags}}:{})};
+   const payload={approved:true,role:approved.role,summaries,financial_totals:sqlSummary.totals||{},applicants_by_job_card:applicantsByCard,exemptions:exemptionsResult.data||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:Number(misState.row_count||0),...(auditCalculations?{calculation_audit:{checked_cards:summaries.length,flagged_cards:auditFlags.length,flags:auditFlags}}:{})};
    console.info("[contribution-summary-timing]",JSON.stringify({request_ms:Number((performance.now()-requestStarted).toFixed(1)),total_ms:Number((performance.now()-summaryStarted).toFixed(1)),calculation_source:"postgresql",audit_enabled:auditCalculations,audit_flagged_cards:auditFlags.length,ledger_rows:auditCalculations?ledger.length:0,job_cards:summaries.length,response_bytes:new TextEncoder().encode(JSON.stringify(payload)).length}));
    return reply(payload);
   }

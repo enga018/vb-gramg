@@ -4,6 +4,21 @@ import "../shared/ledger-calculations.js";
 const ledgerCalculations = (globalThis as any).VBGRAMGLedgerCalculations;
 const corsHeaders={"Access-Control-Allow-Origin":"https://enga018.github.io","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json"};
 function reply(body:Record<string,unknown>,status=200){return new Response(JSON.stringify(body),{status,headers:corsHeaders});}
+async function recordContributionWrite(admin:any,jobCard:string,operation:string,amount:number|null,entryDate:string,note:string,actorUserId:string,actorEmail:string){
+ const {data,error}=await admin.rpc("vbgramg_record_contribution_transaction",{
+  p_job_card_number:jobCard,
+  p_operation:operation,
+  p_amount:amount,
+  p_entry_date:entryDate,
+  p_note:note,
+  p_actor_user_id:actorUserId,
+  p_actor_email:actorEmail
+ });
+ if(error)throw error;
+ if(!data||typeof data!=="object")throw new Error("Contribution transaction RPC returned an invalid response.");
+ return data as Record<string,any>;
+}
+
 function normalizeApplicantName(value:unknown){return String(value||"").normalize("NFKC").replace(/\s+/g," ").trim().toLocaleLowerCase();}
 function normalizeApplicantIdentity(value:unknown){return normalizeApplicantName(value).replace(/[^\p{L}\p{N}]+/gu,"");}
 async function loadActiveMisApplicants(admin:any){
@@ -1185,21 +1200,11 @@ Deno.serve(async(req:Request)=>{
    const requestedAmount=Number(body.amount),entryDate=String(body.entry_date||new Date().toISOString().slice(0,10));
    const note=String(body.note||(action==="add-waiver"?"Waiver":action==="add-return"?"Return":"Pay in full")).trim().slice(0,200);
    if(!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)||Number.isNaN(Date.parse(entryDate)))return reply({error:"Enter a valid transaction date."},400);
-   const {data:ledger,error:ledgerError}=await admin.from("vbgramg_charge_ledger").select("id,entry_type,amount,note,is_deferred,is_voided,charge_period,person_name").eq("job_card_number",jobCard);
-   if(ledgerError)throw ledgerError;
-   if(!ledger||!ledger.length)return reply({error:"Job card not found in the contribution ledger."},404);
-   const ledgerState=ledgerCalculations.calculateLedgerState(ledger);
-   const {paid,returned:returns,balance}=ledgerState;
-   let amount=requestedAmount,type="",finalNote=note;
-   if(action==="pay-in-full"){amount=Math.max(0,Number(balance.toFixed(2)));type="payment";finalNote="Cash";}
-   else if(action==="add-waiver"){type="charge_waiver";if(!Number.isFinite(amount)||amount<=0||amount>Math.max(0,balance)+0.001)return reply({error:"Waiver must be positive and cannot exceed the current outstanding balance."},400);}
-   else {type="refund";if(!Number.isFinite(amount)||amount<=0||amount>Math.max(0,paid-returns)+0.001)return reply({error:"Return amount must be positive and cannot exceed payments less previous returns."},400);}
-   if(!Number.isFinite(amount)||amount<=0)return reply({error:action==="pay-in-full"?"There is no outstanding balance to pay in full.":"Enter a valid positive amount."},400);
-   const {data:inserted,error:insertError}=await admin.from("vbgramg_charge_ledger").insert({job_card_number:jobCard,person_name:ledger[0].person_name,entry_type:type,amount,entry_date:entryDate,note:finalNote,created_by:authData.user.id}).select("id,job_card_number,person_name,entry_type,amount,charge_period,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").single();
-   if(insertError)throw insertError;
-   const {error:auditError}=await admin.from("vbgramg_ledger_audit").insert({ledger_entry_id:inserted.id,job_card_number:jobCard,action:action==="pay-in-full"?"pay-in-full":action==="add-waiver"?"waiver":"return",actor_user_id:authData.user.id,actor_email:email,before_data:{balance},after_data:inserted});
-   if(auditError)throw auditError;
-   return reply({approved:true,entry:inserted,balance_before:balance});
+   const operation=action==="pay-in-full"?"pay_in_full":action==="add-waiver"?"waiver":"return";
+   const amount=action==="pay-in-full"?null:requestedAmount;
+   const result=await recordContributionWrite(admin,jobCard,operation,amount,entryDate,note,authData.user.id,email);
+   if(result.ok!==true)return reply({error:String(result.error||"Could not record the contribution transaction.")},Number(result.status)||400);
+   return reply({approved:true,entry:result.entry,balance_before:result.balance_before});
   }
 
   if(action==="bulk-bank-payment"){
@@ -1254,11 +1259,12 @@ Deno.serve(async(req:Request)=>{
   }
 
   if(action==="add-payment"){
-   const jobCard=String(body.job_card_number||"").trim(),amount=Number(body.amount),entryDate=String(body.entry_date||""),note="Cash";
+   const jobCard=String(body.job_card_number||"").trim(),amount=Number(body.amount),entryDate=String(body.entry_date||"");
    if(!jobCard||!Number.isFinite(amount)||amount<=0||amount>10000000)return reply({error:"Enter a valid job card number and positive payment amount."},400);
    if(!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)||Number.isNaN(Date.parse(entryDate)))return reply({error:"Enter a valid payment date."},400);
-   const {data:charge,error:chargeError}=await admin.from("vbgramg_charge_ledger").select("person_name").eq("job_card_number",jobCard).eq("entry_type","charge").limit(1).maybeSingle();if(chargeError)throw chargeError;if(!charge)return reply({error:"Job card not found in the contribution ledger."},404);
-   const {data:inserted,error:insertError}=await admin.from("vbgramg_charge_ledger").insert({job_card_number:jobCard,person_name:charge.person_name,entry_type:"payment",amount,entry_date:entryDate,note:note||"Cash",created_by:authData.user.id}).select("id,job_card_number,person_name,entry_type,amount,charge_period,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").single();if(insertError)throw insertError;return reply({approved:true,role:approved.role,entry:inserted});
+   const result=await recordContributionWrite(admin,jobCard,"cash_payment",amount,entryDate,"Cash",authData.user.id,email);
+   if(result.ok!==true)return reply({error:String(result.error||"Could not record the cash payment.")},Number(result.status)||400);
+   return reply({approved:true,role:approved.role,entry:result.entry});
   }
   if(action==="validate-backup-batch"||action==="import-backup-batch"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can import a backup."},403);

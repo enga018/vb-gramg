@@ -212,6 +212,51 @@ Deno.serve(async(req:Request)=>{
    return reply({approved:true,balances,timings_ms:{ledger_read:ledgerReadMs,exemptions_read:exemptionsReadMs,calculation:calculationMs,total:Number((performance.now()-actionStarted).toFixed(1)),job_cards:requested.length,ledger_rows:ledgerRows.length,concurrency:3}});
   }
 
+  if(action==="summary"){
+   const summaryStarted=performance.now();
+   const [ledgerResult,exemptionsResult,misStateResult]=await Promise.all([
+    admin.rpc("vbgramg_contribution_ledger_list"),
+    admin.from("vbgramg_contribution_exemptions").select("job_card_number,note,created_at,updated_at").order("job_card_number",{ascending:true}),
+    admin.from("vbgramg_mis_state").select("active_import_id,row_count").eq("singleton",true).maybeSingle()
+   ]);
+   if(ledgerResult.error)throw ledgerResult.error;
+   if(exemptionsResult.error)throw exemptionsResult.error;
+   if(misStateResult.error)throw misStateResult.error;
+   const ledgerPayload=ledgerResult.data as {entries?:unknown;row_count?:unknown}|null;
+   const ledger=Array.isArray(ledgerPayload?.entries)?ledgerPayload.entries as Record<string,any>[]:[];
+   const ledgerTotal=Number(ledgerPayload?.row_count);
+   if(!Number.isInteger(ledgerTotal)||ledger.length!==ledgerTotal)throw new Error("Incomplete contribution ledger summary source.");
+   const misState=misStateResult.data;
+   if(!misState?.active_import_id)throw new Error("There is no active MIS import. Load the active MIS before using the contribution table.");
+   const {data:lookup,error:lookupError}=await admin.from("vbgramg_mis_contribution_lookup").select("payload").eq("import_id",misState.active_import_id).maybeSingle();
+   if(lookupError)throw lookupError;
+   if(!lookup?.payload||!Array.isArray(lookup.payload.citizens)||!lookup.payload.applicants_by_job_card)throw new Error("The active MIS contribution lookup is not ready. Refresh the MIS lookup and retry.");
+   const citizens=lookup.payload.citizens as Record<string,string>[];
+   const applicantsByCard=lookup.payload.applicants_by_job_card as Record<string,Record<string,string|null>[]>;
+   const exemptions=exemptionsResult.data||[];
+   const exemptSet=new Set(exemptions.map(row=>String(row.job_card_number||"").trim()));
+   const byCard=new Map<string,Record<string,any>[]>();
+   for(const entry of ledger){
+    const id=String(entry.job_card_number||"").trim();
+    if(!id)continue;
+    if(!byCard.has(id))byCard.set(id,[]);
+    byCard.get(id)!.push(entry);
+   }
+   const summaries=citizens.map(c=>{
+    const id=String(c.job_card_number||"").trim(),rows=byCard.get(id)||[];
+    const state=ledgerCalculations.calculateLedgerState(rows);
+    const exempt=exemptSet.has(id);
+    const latestCharge=rows.filter(e=>!e.is_voided&&(e.entry_type==="charge"||e.entry_type==="other_charge"||e.entry_type==="sanitationFee")&&!(e.entry_type==="charge"&&String(e.note||"").trim()==="Return")).slice().sort((a,b)=>String(b.entry_date||b.created_at||"").localeCompare(String(a.entry_date||a.created_at||"")))[0];
+    const applicants=Array.isArray(applicantsByCard[id])?applicantsByCard[id]:[];
+    const latestApplicant=applicants.slice().sort((a,b)=>String(b.applicant_number||"").localeCompare(String(a.applicant_number||""),undefined,{numeric:true})||String(b.applicant_name||b.name||"").localeCompare(String(a.applicant_name||a.name||"")))[0];
+    return {job_card_number:id,person_name:c.person_name||"Unnamed",exempt,balance:exempt?0:state.balance,deferred:exempt?0:state.deferred,latest_charge_amount:latestCharge?Number(latestCharge.amount)||0:null,display_applicant:String(latestApplicant?.applicant_name||latestApplicant?.name||"").trim()||c.person_name||"Unnamed"};
+   });
+   const payload={approved:true,role:approved.role,citizens:summaries,applicants_by_job_card:applicantsByCard,exemptions,active_mis_import_id:misState.active_import_id,active_mis_row_count:Number(misState.row_count||0),ledger_row_count:ledger.length};
+   const responseBytes=new TextEncoder().encode(JSON.stringify(payload)).length;
+   console.info("[contribution-summary-timing]",JSON.stringify({total_ms:Number((performance.now()-summaryStarted).toFixed(1)),ledger_rows:ledger.length,job_cards:summaries.length,response_bytes:responseBytes}));
+   return reply(payload);
+  }
+
   if(action==="job-card-details"){
    const jobCard=String(body.job_card_number||"").trim();
    if(!jobCard||jobCard.length>100)return reply({error:"A valid full job card number is required."},400);
@@ -223,7 +268,8 @@ Deno.serve(async(req:Request)=>{
     try{return await request;}
     finally{queryTimings[key]=Number((performance.now()-started).toFixed(1));}
    };
-   const [extraResult,periodResult,allocationResult,refundResult]=await Promise.all([
+   const [ledgerResult,extraResult,periodResult,allocationResult,refundResult]=await Promise.all([
+    timed("ledger",fetchPagedRowsForJobCard(admin,"vbgramg_charge_ledger","id,job_card_number,applicant_name,applicant_number,applicant_unique_id,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,is_voided",jobCard)),
     timed("extras",admin.from("vbgramg_contribution_extras").select("id,job_card_number,person_name,charge_period,period_id,amount,reason,ledger_entry_id,created_at,updated_at").eq("job_card_number",jobCard).order("charge_period",{ascending:false})),
     timed("periods",includePeriods?admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status,created_at").order("contribution_month",{ascending:false,nullsFirst:false}).order("created_at",{ascending:true}):Promise.resolve({data:[],error:null})),
     timed("allocations",fetchPagedRowsForJobCard(admin,"vbgramg_payment_allocations","id,transaction_id,period_id,job_card_number,amount,allocation_source,confidence,note,created_at,updated_at",jobCard)),
@@ -231,7 +277,7 @@ Deno.serve(async(req:Request)=>{
    ]);
    if(extraResult.error)throw extraResult.error;
    if(periodResult.error)throw periodResult.error;
-   const payload={approved:true,job_card_number:jobCard,extras:extraResult.data||[],periods:periodResult.data||[],payment_allocations:allocationResult||[],payment_refund_reconciliations:refundResult||[]};
+   const payload={approved:true,job_card_number:jobCard,entries:ledgerResult||[],extras:extraResult.data||[],periods:periodResult.data||[],payment_allocations:allocationResult||[],payment_refund_reconciliations:refundResult||[]};
    console.info("[contribution-detail-timing]",JSON.stringify({job_card_number:jobCard,total_ms:Number((performance.now()-detailStarted).toFixed(1)),query_timings_ms:queryTimings,extras:payload.extras.length,periods:payload.periods.length,allocations:payload.payment_allocations.length,refunds:payload.payment_refund_reconciliations.length,periods_included:includePeriods}));
    return reply(payload);
   }

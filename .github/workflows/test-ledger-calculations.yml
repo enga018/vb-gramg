@@ -8,6 +8,7 @@ on:
       - "tests/postgres-contribution-balances.test.cjs"
       - "tests/atomic-contribution-writes.test.cjs"
       - "tests/atomic-contribution-writes-postgres.sql"
+      - "tests/atomic-contribution-writes-concurrency.sh"
       - "docs/architecture/atomic-contribution-writes.sql"
       - ".github/workflows/test-ledger-calculations.yml"
       - "docs/architecture/atomic-contribution-writes.md"

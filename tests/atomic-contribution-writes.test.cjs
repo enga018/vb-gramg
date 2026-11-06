@@ -34,6 +34,9 @@ test("Database balance calculation preserves existing ledger classifications", (
 });
 
 test("Operation-specific limits and validation match the current Edge Function rules", () => {
+  assert.match(sql, /p_operation IS NULL OR p_operation NOT IN/);
+  assert.match(sql, /IF p_operation = 'cash_payment' THEN[\\s\\S]*?AND l\\.entry_type = 'charge'/);
+  assert.match(sql, /ELSE[\\s\\S]*?WHERE l\\.job_card_number = v_job_card[\\s\\S]*?ORDER BY l\\.created_at ASC/);
   assert.match(sql, /p_operation = 'cash_payment' AND p_amount > 10000000/);
   assert.match(sql, /pg_catalog\.round\(v_balance, 2\)/);
   assert.match(sql, /Waiver must be positive and cannot exceed the current outstanding balance/);

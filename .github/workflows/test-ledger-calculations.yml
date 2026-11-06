@@ -9,7 +9,7 @@ on:
       - "tests/atomic-contribution-writes.test.cjs"
       - "tests/atomic-contribution-writes-postgres.sql"
       - "tests/atomic-contribution-writes-concurrency.sh"
-      - "docs/architecture/atomic-contribution-writes.sql"
+      - "supabase/migrations/20261106181317_record_contribution_transaction.sql"
       - ".github/workflows/test-ledger-calculations.yml"
       - "docs/architecture/atomic-contribution-writes.md"
       - "supabase/functions/vbgramg-contribution-data/index.ts"

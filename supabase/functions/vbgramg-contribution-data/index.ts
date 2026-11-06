@@ -298,22 +298,20 @@ Deno.serve(async(req:Request)=>{
    const chargeEntries=all.filter(r=>r.entry_type==="charge"&&!r.is_voided);
    if(chargeEntries.length){
     const entryById=new Map(chargeEntries.map(entry=>[String(entry.id),entry]));
-    // Restrict attribution reads to the ledger entries in this response. Keep each
-    // IN filter bounded and execute a small number of independent batches concurrently.
-    const chargeIds=[...entryById.keys()];
+    // The eligible FTO transaction set is currently small enough for one page.
+    // Keep stable, bounded pagination so the lookup remains complete as history grows.
     const txPages:Record<string,unknown>[]=[];
-    // Retry only transient transport failures for this read-only attribution lookup.
-    // Database/API errors and every financial write remain non-retryable.
-    const fetchAttributionGroup=async(ids:string[],groupNumber:number)=>{
+    const pageSize=1000;
+    const fetchAttributionPage=async(from:number,to:number,pageNumber:number)=>{
      for(let attempt=0;attempt<3;attempt++){
       let result:{data:any[]|null,error:any};
       try{
-       result=await admin.from("vbgramg_fto_transactions").select("ledger_entry_id,person_name").not("ledger_entry_id","is",null).gt("calculated_charge",0).in("status",["blank","processed"]).in("ledger_entry_id",ids);
+       result=await admin.from("vbgramg_fto_transactions").select("id,ledger_entry_id,person_name").not("ledger_entry_id","is",null).gt("calculated_charge",0).in("status",["blank","processed"]).order("id",{ascending:true}).range(from,to);
       }catch(error){
        const message=error instanceof Error?error.message:String(error);
        const transient=/error sending request|fetch failed|network error|connection (?:reset|closed|refused)|temporar(?:y|ily).*unavailable|timed? ?out|aborted/i.test(message);
        if(!transient||attempt===2)throw error;
-       console.warn("[contribution-fto-attribution-retry]",{group:groupNumber,attempt:attempt+1,message:message.slice(0,240)});
+       console.warn("[contribution-fto-attribution-retry]",{page:pageNumber,attempt:attempt+1,message:message.slice(0,240)});
        await new Promise(resolve=>setTimeout(resolve,250*(attempt+1)));
        continue;
       }
@@ -321,19 +319,15 @@ Deno.serve(async(req:Request)=>{
       const message=String(result.error.message||result.error);
       const transient=/error sending request|fetch failed|network error|connection (?:reset|closed|refused)|temporar(?:y|ily).*unavailable|timed? ?out|aborted/i.test(message);
       if(!transient||attempt===2)throw result.error;
-      console.warn("[contribution-fto-attribution-retry]",{group:groupNumber,attempt:attempt+1,message:message.slice(0,240)});
+      console.warn("[contribution-fto-attribution-retry]",{page:pageNumber,attempt:attempt+1,message:message.slice(0,240)});
       await new Promise(resolve=>setTimeout(resolve,250*(attempt+1)));
      }
      throw new Error("FTO attribution lookup failed after transient retries.");
     };
-    // Keep each UUID filter small enough to avoid oversized PostgREST request URLs.
-    // Four 100-ID groups retain bounded concurrency while keeping each URL compact.
-    let groupNumber=0;
-    for(let base=0;base<chargeIds.length;base+=400){
-     const idGroups:string[][]=[];
-     for(let offset=base;offset<Math.min(base+400,chargeIds.length);offset+=100)idGroups.push(chargeIds.slice(offset,offset+100));
-     const results=await Promise.all(idGroups.map(ids=>fetchAttributionGroup(ids,++groupNumber)));
-     for(const rows of results)txPages.push(...rows);
+    for(let offset=0,pageNumber=1;;offset+=pageSize,pageNumber++){
+     const rows=await fetchAttributionPage(offset,offset+pageSize-1,pageNumber);
+     txPages.push(...rows);
+     if(rows.length<pageSize)break;
     }
     const txNames=new Map<string,Set<string>>();
     for(const tx of txPages){

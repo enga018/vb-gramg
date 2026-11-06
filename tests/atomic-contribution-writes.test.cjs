@@ -5,6 +5,7 @@ const path = require("node:path");
 
 const read = relative => fs.readFileSync(path.join(__dirname, "..", relative), "utf8");
 const sql = read("docs/architecture/atomic-contribution-writes.sql");
+const edge = read("supabase/functions/vbgramg-contribution-data/index.ts");
 
 test("Atomic contribution function is a service-role-only invoker function", () => {
   assert.match(sql, /SECURITY INVOKER/i);
@@ -50,4 +51,28 @@ test("Ledger insert and audit insert are in the same database function transacti
   assert.ok(insertLedger >= 0 && insertAudit > insertLedger);
   assert.match(sql, /RETURNING \* INTO v_entry/);
   assert.match(sql, /action, actor_user_id, actor_email, before_data, after_data/);
+});
+
+
+test("Edge Function delegates the four supported writes to the atomic RPC", () => {
+  assert.match(edge, /admin\\.rpc\\("vbgramg_record_contribution_transaction"/);
+  assert.match(edge, /p_actor_user_id:actorUserId/);
+  assert.match(edge, /p_actor_email:actorEmail/);
+
+  const cashStart = edge.indexOf('if(action==="add-payment"){');
+  const cashEnd = edge.indexOf('if(action==="validate-backup-batch"', cashStart);
+  const cashBlock = edge.slice(cashStart, cashEnd);
+  assert.match(cashBlock, /"cash_payment"/);
+  assert.match(cashBlock, /recordContributionWrite/);
+  assert.doesNotMatch(cashBlock, /\\.from\\("vbgramg_charge_ledger"\\)\\.insert/);
+
+  const adminStart = edge.indexOf('if(action==="add-waiver"||action==="add-return"||action==="pay-in-full"){');
+  const adminEnd = edge.indexOf('if(action==="bulk-bank-payment"', adminStart);
+  const adminBlock = edge.slice(adminStart, adminEnd);
+  assert.match(adminBlock, /"pay_in_full"/);
+  assert.match(adminBlock, /"waiver"/);
+  assert.match(adminBlock, /"return"/);
+  assert.match(adminBlock, /recordContributionWrite/);
+  assert.doesNotMatch(adminBlock, /calculateLedgerState/);
+  assert.doesNotMatch(adminBlock, /\\.from\\("vbgramg_charge_ledger"\\)\\.insert/);
 });

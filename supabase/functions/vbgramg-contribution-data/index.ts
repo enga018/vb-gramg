@@ -199,6 +199,23 @@ Deno.serve(async(req:Request)=>{
    return reply({approved:true,balances,timings_ms:{ledger_read:ledgerReadMs,exemptions_read:exemptionsReadMs,calculation:calculationMs,total:Number((performance.now()-actionStarted).toFixed(1)),job_cards:requested.length,ledger_rows:ledgerRows.length,concurrency:3}});
   }
 
+  if(action==="job-card-details"){
+   const jobCard=String(body.job_card_number||"").trim();
+   if(!jobCard||jobCard.length>100)return reply({error:"A valid full job card number is required."},400);
+   const detailStarted=performance.now();
+   const [extraResult,periodResult,allocationResult,refundResult]=await Promise.all([
+    admin.from("vbgramg_contribution_extras").select("id,job_card_number,person_name,charge_period,period_id,amount,reason,ledger_entry_id,created_at,updated_at").eq("job_card_number",jobCard).order("charge_period",{ascending:false}),
+    admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status,created_at").order("contribution_month",{ascending:false,nullsFirst:false}).order("created_at",{ascending:true}),
+    fetchPagedRows(admin,"vbgramg_payment_allocations","id,transaction_id,period_id,job_card_number,amount,allocation_source,confidence,note,created_at,updated_at","created_at",true).then(rows=>rows.filter(row=>String(row.job_card_number||"")===jobCard)),
+    fetchPagedRows(admin,"vbgramg_payment_refund_reconciliations","id,payment_id,refund_id,job_card_number,amount,note,created_at","created_at",true).then(rows=>rows.filter(row=>String(row.job_card_number||"")===jobCard))
+   ]);
+   if(extraResult.error)throw extraResult.error;
+   if(periodResult.error)throw periodResult.error;
+   const payload={approved:true,job_card_number:jobCard,extras:extraResult.data||[],periods:periodResult.data||[],payment_allocations:allocationResult||[],payment_refund_reconciliations:refundResult||[]};
+   console.info("[contribution-detail-timing]",JSON.stringify({job_card_number:jobCard,total_ms:Number((performance.now()-detailStarted).toFixed(1)),extras:payload.extras.length,periods:payload.periods.length,allocations:payload.payment_allocations.length,refunds:payload.payment_refund_reconciliations.length}));
+   return reply(payload);
+  }
+
   if(action==="list"){
    const listStarted=performance.now();
    const stageTimes:Record<string,number>={};
@@ -331,7 +348,7 @@ Deno.serve(async(req:Request)=>{
    if(periodRowsResult.error)throw periodRowsResult.error;
    const periodRows=periodRowsResult.data||[];
    stageTimes.support_reads_ms=Number((performance.now()-supportReadsStarted).toFixed(1));
-   const payload={approved:true,role:approved.role,entries:all,imports:imports||[],extras:extras||[],citizens,periods:periodRows||[],payment_allocations:paymentAllocations||[],payment_refund_reconciliations:paymentRefundReconciliations||[],applicants_by_job_card:Object.fromEntries(applicantsByCard),exemptions:exemptions||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:activeMisRowCount};
+   const payload={approved:true,role:approved.role,entries:all,citizens,applicants_by_job_card:Object.fromEntries(applicantsByCard),exemptions:exemptions||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:activeMisRowCount};
    const responseBytes=new TextEncoder().encode(JSON.stringify(payload)).length;
    stageTimes.total_list_ms=Number((performance.now()-listStarted).toFixed(1));
    console.info("[contribution-list-timing]",JSON.stringify({request_ms:Number((performance.now()-requestStarted).toFixed(1)),...stageTimes,ledger_rows:all.length,fto_charge_entries:chargeEntries.length,allocation_rows:paymentAllocations.length,refund_reconciliation_rows:paymentRefundReconciliations.length,response_bytes:responseBytes}));

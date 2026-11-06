@@ -36,7 +36,7 @@ BEGIN
     RETURN pg_catalog.jsonb_build_object('ok', false, 'status', 400, 'error', 'A valid full job card number is required.');
   END IF;
 
-  IF p_operation NOT IN ('cash_payment', 'pay_in_full', 'waiver', 'return') THEN
+  IF p_operation IS NULL OR p_operation NOT IN ('cash_payment', 'pay_in_full', 'waiver', 'return') THEN
     RETURN pg_catalog.jsonb_build_object('ok', false, 'status', 400, 'error', 'Unsupported contribution transaction operation.');
   END IF;
 
@@ -67,13 +67,25 @@ BEGIN
     RETURN pg_catalog.jsonb_build_object('ok', false, 'status', 409, 'error', 'This job card is exempted from contribution charges.');
   END IF;
 
-  SELECT l.person_name
-    INTO v_person_name
-  FROM public.vbgramg_charge_ledger AS l
-  WHERE l.job_card_number = v_job_card
-    AND l.entry_type = 'charge'
-  ORDER BY l.created_at ASC, l.id ASC
-  LIMIT 1;
+  IF p_operation = 'cash_payment' THEN
+    -- Cash payment specifically requires an existing charge row, matching add-payment.
+    SELECT l.person_name
+      INTO v_person_name
+    FROM public.vbgramg_charge_ledger AS l
+    WHERE l.job_card_number = v_job_card
+      AND l.entry_type = 'charge'
+    ORDER BY l.created_at ASC, l.id ASC
+    LIMIT 1;
+  ELSE
+    -- Waiver, return, and pay-in-full historically require a ledger record,
+    -- but only cash payment has the stricter existing-charge requirement.
+    SELECT l.person_name
+      INTO v_person_name
+    FROM public.vbgramg_charge_ledger AS l
+    WHERE l.job_card_number = v_job_card
+    ORDER BY l.created_at ASC, l.id ASC
+    LIMIT 1;
+  END IF;
 
   IF NOT FOUND THEN
     RETURN pg_catalog.jsonb_build_object('ok', false, 'status', 404, 'error', 'Job card not found in the contribution ledger.');

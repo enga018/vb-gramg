@@ -214,7 +214,7 @@ Deno.serve(async(req:Request)=>{
    queryTimings.fifo_breakdown=Number((performance.now()-fifoStarted).toFixed(1));
    if(fifoError)throw fifoError;
    if(!fifoBreakdown||!Array.isArray(fifoBreakdown.groups))throw new Error("Database FIFO breakdown returned an invalid result.");
-   const payload={approved:true,job_card_number:jobCard,card_summary:cardSummary,entries:ledgerRows||[],extras:extraResult.data||[],periods:periodResult.data||[],payment_allocations:allocationResult||[],payment_refund_reconciliations:refundResult||[],fifo_breakdown:fifoBreakdown};
+   const payload={approved:true,job_card_number:jobCard,card_summary:cardSummary,financial_totals:financialSummaryResult.data.totals||{},entries:ledgerRows||[],extras:extraResult.data||[],periods:periodResult.data||[],payment_allocations:allocationResult||[],payment_refund_reconciliations:refundResult||[],fifo_breakdown:fifoBreakdown};
    console.info("[contribution-detail-timing]",JSON.stringify({job_card_number:jobCard,total_ms:Number((performance.now()-detailStarted).toFixed(1)),query_timings_ms:queryTimings,ledger_entries:payload.entries.length,extras:payload.extras.length,periods:payload.periods.length,allocations:payload.payment_allocations.length,refunds:payload.payment_refund_reconciliations.length,periods_included:includePeriods}));
    return reply(payload);
   }
@@ -284,7 +284,7 @@ Deno.serve(async(req:Request)=>{
     const latestApplicant=applicants.slice().sort((a,b)=>String(b.applicant_number||"").localeCompare(String(a.applicant_number||""),undefined,{numeric:true})||String(b.applicant_name||"").localeCompare(String(a.applicant_name||"")))[0];
     return {...sql,job_card_number:id,person_name:String(c.person_name||"Unnamed"),exempt:isExempt,charges:isExempt?0:Number(sql.charges)||0,deferred:isExempt?0:Number(sql.deferred)||0,paid:isExempt?0:Number(sql.paid)||0,waived:isExempt?0:Number(sql.waived)||0,returns:isExempt?0:Number(sql.returns)||0,totalCharged:isExempt?0:Number(sql.totalCharged)||0,balance:isExempt?0:Number(sql.balance)||0,display_applicant:String(latestApplicant?.applicant_name||"").trim()||String(c.person_name||"")};
    });
-   const payload={approved:true,role:approved.role,summaries,applicants_by_job_card:applicantsByCard,exemptions:exemptionsResult.data||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:Number(misState.row_count||0),...(auditCalculations?{calculation_audit:{checked_cards:summaries.length,flagged_cards:auditFlags.length,flags:auditFlags}}:{})};
+   const payload={approved:true,role:approved.role,summaries,financial_totals:sqlSummary.totals||{},applicants_by_job_card:applicantsByCard,exemptions:exemptionsResult.data||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:Number(misState.row_count||0),...(auditCalculations?{calculation_audit:{checked_cards:summaries.length,flagged_cards:auditFlags.length,flags:auditFlags}}:{})};
    console.info("[contribution-summary-timing]",JSON.stringify({request_ms:Number((performance.now()-requestStarted).toFixed(1)),total_ms:Number((performance.now()-summaryStarted).toFixed(1)),calculation_source:"postgresql",audit_enabled:auditCalculations,audit_flagged_cards:auditFlags.length,ledger_rows:auditCalculations?ledger.length:0,job_cards:summaries.length,response_bytes:new TextEncoder().encode(JSON.stringify(payload)).length}));
    return reply(payload);
   }

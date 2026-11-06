@@ -57,7 +57,7 @@ The function should:
 9. Insert the ledger row and audit row in the same transaction. Any failure must roll back both.
 10. Return the inserted entry, balance before, and balance after.
 
-Use SECURITY DEFINER only if required to write through the existing RLS boundary. If used, set an empty search_path, schema-qualify every relation/function, revoke EXECUTE from PUBLIC, anon, and authenticated, and grant EXECUTE only to service_role. The Edge Function must authenticate and authorize before calling the RPC. Never trust browser-supplied actor identity or role.
+The current draft uses SECURITY INVOKER with an empty search_path, schema-qualified references, and EXECUTE granted only to service_role. This avoids adding a SECURITY DEFINER privilege boundary; confirm that the service_role has the required table privileges in the isolated test environment. The Edge Function must authenticate and authorize before calling the RPC. Never trust browser-supplied actor identity or role.
 
 ## Edge Function integration
 
@@ -99,3 +99,10 @@ Add cash-payment audit atomically, using an action label agreed for audit consis
 ## Verification gate
 
 This is a design specification, not a tested migration. The user declined a paid Supabase development branch, so there is no isolated Supabase database available for safe execution testing. Before merging executable SQL or deploying the Edge Function, validate the function against a disposable/isolated database with the regression cases above, inspect privileges and advisors, and verify returned balances. No production migration or Edge Function deployment is authorized by this document.
+
+
+## Current implementation draft
+
+A non-migration SQL draft is stored at `docs/architecture/atomic-contribution-writes.sql`. It is not in `supabase/migrations`, has not been applied, and is not connected to the Edge Function yet. Static regression checks are in `tests/atomic-contribution-writes.test.cjs`.
+
+The SQL draft was adjusted to preserve a subtle current behaviour: only cash payment requires an existing `charge` row; pay-in-full, waiver, and return require an existing ledger record. It also rejects a null operation explicitly. These checks still require execution against an isolated PostgreSQL database before the SQL can be promoted to a migration.

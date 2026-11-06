@@ -98,7 +98,7 @@ Add cash-payment audit atomically, using an action label agreed for audit consis
 
 ## Verification gate
 
-This is a design specification, not a tested migration. The user declined a paid Supabase development branch, so there is no isolated Supabase database available for safe execution testing. Before merging executable SQL or deploying the Edge Function, validate the function against a disposable/isolated database with the regression cases above, inspect privileges and advisors, and verify returned balances. No production migration or Edge Function deployment is authorized by this document.
+The SQL draft has passed the Node regression suite and an ephemeral PostgreSQL 16 integration fixture in GitHub Actions. The fixture validates operation rules, balance classifications, exempt/trigger-suppressed writes, service-role-only execution, and audit rollback. It is a purpose-built schema fixture, not a clone of the live Supabase schema. The user declined a paid Supabase development branch, so do not apply or deploy against production as a substitute. Before promoting this draft into a real Supabase migration or deploying the Edge Function, compare every referenced column, constraint, trigger, and service_role privilege against the live schema; add explicit concurrency tests; run Supabase advisors; and verify the RPC response mapping. No production migration or Edge Function deployment is authorized by this document.
 
 
 ## Current implementation draft

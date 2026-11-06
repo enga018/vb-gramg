@@ -70,6 +70,17 @@ async function fetchPagedRowsForJobCard(admin:any,table:string,columns:string,jo
  }
  return rows;
 }
+async function fetchPagedLedgerForJobCard(admin:any,jobCard:string){
+ const pageSize=1000,columns="id,job_card_number,applicant_name,applicant_number,applicant_unique_id,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,is_voided";
+ const rows:Record<string,unknown>[]=[];
+ for(let offset=0;;offset+=pageSize){
+  const {data,error}=await admin.from("vbgramg_charge_ledger").select(columns).eq("job_card_number",jobCard).order("entry_date",{ascending:true,nullsFirst:true}).order("id",{ascending:true}).range(offset,offset+pageSize-1);
+  if(error)throw error;
+  rows.push(...(data||[]));
+  if(!data||data.length<pageSize)break;
+ }
+ return rows;
+}
 async function fetchPagedRows(admin:any,table:string,columns:string,orderBy:string,ascending=true,secondaryOrderBy?:string){
  const build=(from:number,to:number)=>{
   let query=admin.from(table).select(columns,{count:"exact"}).order(orderBy,{ascending});
@@ -283,7 +294,7 @@ Deno.serve(async(req:Request)=>{
     finally{queryTimings[key]=Number((performance.now()-started).toFixed(1));}
    };
    const [ledgerResult,extraResult,periodResult,allocationResult,refundResult]=await Promise.all([
-    timed("ledger",fetchPagedRowsForJobCard(admin,"vbgramg_charge_ledger","id,job_card_number,applicant_name,applicant_number,applicant_unique_id,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,is_voided",jobCard)),
+    timed("ledger",fetchPagedLedgerForJobCard(admin,jobCard)),
     timed("extras",admin.from("vbgramg_contribution_extras").select("id,job_card_number,person_name,charge_period,period_id,amount,reason,ledger_entry_id,created_at,updated_at").eq("job_card_number",jobCard).order("charge_period",{ascending:false})),
     timed("periods",includePeriods?admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status,created_at").order("contribution_month",{ascending:false,nullsFirst:false}).order("created_at",{ascending:true}):Promise.resolve({data:[],error:null})),
     timed("allocations",fetchPagedRowsForJobCard(admin,"vbgramg_payment_allocations","id,transaction_id,period_id,job_card_number,amount,allocation_source,confidence,note,created_at,updated_at",jobCard)),

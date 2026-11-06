@@ -1211,7 +1211,7 @@ function render(){
 
   }else{
    cell(c.id,'jobcard');cell(c.name+(c.exempt?' · EXEMPT':''),'person');
-   const latestCharge=c.ledger.filter(e=>!e.is_voided&&!e.is_deferred&&(e.entry_type==='charge'||e.entry_type==='other_charge'||e.entry_type==='sanitationFee')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return')).slice().sort((a,b)=>String(b.entry_date||b.created_at||'').localeCompare(String(a.entry_date||a.created_at||'')))[0];
+   const latestCharge=c.ledger.filter(e=>!e.is_voided&&(e.entry_type==='charge'||e.entry_type==='other_charge'||e.entry_type==='sanitationFee')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return')).slice().sort((a,b)=>String(b.entry_date||b.created_at||'').localeCompare(String(a.entry_date||a.created_at||'')))[0];
    cell(latestCharge?fmt(latestCharge.amount):'—','last-charge-cell');
    const dueAmount=Number(c.balance)||0;
    const dueCell=cell('','outstanding-cell');

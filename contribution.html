@@ -1646,10 +1646,10 @@ async function load(){
   ]);
   const {data:sessionData,error:sessionError}=sessionResult;
   if(sessionError||!sessionData.session){status('Sign in from the VBGRAMG home page first.');$('app').classList.add('hidden');return;}
-  // The protected list action independently validates the verified session and approved-user record.
+  // The protected summary action independently validates the verified session and approved-user record.
   // Avoid a redundant access-function network round trip during startup.
-  status('Loading active MIS and contribution ledger…');
-  // The list endpoint reads the active MIS, ledger, allocations and FTO attribution.
+  status('Loading contribution summaries…');
+  // The summary endpoint returns compact balances; full ledger details load when a card is opened.
   // Bound startup wait so a stalled request cannot leave the page loading indefinitely.
   let listTimer;
   let listResult;
@@ -1660,7 +1660,7 @@ async function load(){
     new Promise((_,reject)=>{listTimer=window.setTimeout(()=>reject(new Error('Contribution data request timed out after 45 seconds. Check your connection and retry. If this continues, report the time of the failure so the server request can be investigated.')),45000);})
    ]);
   }finally{if(listTimer)window.clearTimeout(listTimer);}
-  recordStartupStage('list_invoke_network_plus_json_parse_ms',requestStarted);
+  recordStartupStage('summary_invoke_network_plus_json_parse_ms',requestStarted);
   const {data,error}=listResult;
   if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
   if(window.VBGRAMGCache)window.VBGRAMGCache.setUser(sessionData.session.user.id);

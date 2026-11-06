@@ -5,6 +5,16 @@ on:
     paths:
       - "supabase/functions/shared/ledger-calculations.js"
       - "tests/ledger-calculations.test.cjs"
+      - "tests/postgres-contribution-balances.test.cjs"
+      - "supabase/functions/vbgramg-contribution-data/index.ts"
+      - "contribution.html"
+      - "demand.html"
+      - "supabase/migrations/20261106190000_include_active_mis_cards_in_financial_summary.sql"
+      - "tests/postgres-contribution-balances.test.cjs"
+      - "supabase/functions/vbgramg-contribution-data/index.ts"
+      - "contribution.html"
+      - "demand.html"
+      - "supabase/migrations/20261106190000_include_active_mis_cards_in_financial_summary.sql"
       - "tests/data-loader.test.cjs"
       - "js/data-loader.js"
       - ".github/workflows/test-ledger-calculations.yml"
@@ -29,7 +39,7 @@ jobs:
         with:
           node-version: 22
       - name: Run shared ledger tests
-        run: node --test tests/ledger-calculations.test.cjs tests/data-loader.test.cjs
+        run: node --test tests/ledger-calculations.test.cjs tests/data-loader.test.cjs tests/postgres-contribution-balances.test.cjs
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:

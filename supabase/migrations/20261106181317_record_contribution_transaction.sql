@@ -31,6 +31,7 @@ DECLARE
   v_final_note text;
   v_audit_action text;
   v_entry public.vbgramg_charge_ledger%ROWTYPE;
+  v_entry_json jsonb;
   v_rows integer;
 BEGIN
   IF v_job_card IS NULL OR v_job_card = '' OR pg_catalog.length(v_job_card) > 100 THEN
@@ -118,13 +119,8 @@ BEGIN
 
   v_amount := p_amount;
   v_final_note := COALESCE(pg_catalog.left(pg_catalog.btrim(p_note), 200), '');
-  IF v_final_note = '' THEN
-    v_final_note := CASE p_operation
-      WHEN 'cash_payment' THEN 'Cash'
-      WHEN 'pay_in_full' THEN 'Cash'
-      WHEN 'waiver' THEN 'Waiver'
-      ELSE 'Return'
-    END;
+  IF p_operation IN ('cash_payment', 'pay_in_full') THEN
+    v_final_note := 'Cash';
   END IF;
 
   CASE p_operation
@@ -174,6 +170,21 @@ BEGIN
     RETURN pg_catalog.jsonb_build_object('ok', false, 'status', 409, 'error', 'The contribution ledger did not accept this transaction. No transaction was recorded.');
   END IF;
 
+  v_entry_json := pg_catalog.jsonb_build_object(
+    'id', v_entry.id,
+    'job_card_number', v_entry.job_card_number,
+    'person_name', v_entry.person_name,
+    'entry_type', v_entry.entry_type,
+    'amount', v_entry.amount,
+    'charge_period', v_entry.charge_period,
+    'entry_date', v_entry.entry_date,
+    'note', v_entry.note,
+    'created_at', v_entry.created_at,
+    'is_deferred', v_entry.is_deferred,
+    'source_created_at_ms', v_entry.source_created_at_ms,
+    'legacy_entry_id', v_entry.legacy_entry_id
+  );
+
   -- Preserve current behaviour: ordinary cash payments do not create audit rows.
   -- The other three admin/special operations keep their existing audit records.
   IF p_operation <> 'cash_payment' THEN
@@ -186,7 +197,7 @@ BEGIN
       p_actor_user_id,
       pg_catalog.lower(pg_catalog.btrim(COALESCE(p_actor_email, ''))),
       pg_catalog.jsonb_build_object('balance', v_balance),
-      pg_catalog.to_jsonb(v_entry)
+      v_entry_json
     );
   END IF;
 

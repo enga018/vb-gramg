@@ -101,11 +101,11 @@ Preserve the current audit behaviour: do not add an audit row for ordinary cash 
 The SQL migration has passed the Node regression suite and an ephemeral PostgreSQL 16 integration fixture in GitHub Actions. The fixture validates operation rules, balance classifications, exempt/trigger-suppressed writes, service-role-only execution, and audit rollback. A separate concurrent-session test holds the same per-job-card advisory lock and verifies the RPC waits before proceeding. This lock coordinates only the four operations routed through this RPC; bulk bank payments, FTO imports, and ledger edits do not yet participate, so this is not a global ledger-write lock. The fixture is a purpose-built schema, not a clone of the live Supabase schema. The live schema, canonical constraints, exemption trigger, and service_role table privileges have been inspected read-only and match the draft's assumptions. Before promoting this draft into a real Supabase migration or deploying the Edge Function, run Supabase advisors and verify the RPC response mapping. No production migration or Edge Function deployment is authorized by this document.
 
 
-## Current implementation draft
+## Current implementation
 
 The Supabase CLI generated the migration filename `supabase/migrations/20261106181317_record_contribution_transaction.sql`; the reviewed function SQL is now stored in that migration. It is not applied to any Supabase database. Static regression checks target the migration directly.
 
-The SQL draft was adjusted to preserve a subtle current behaviour: only cash payment requires an existing `charge` row; pay-in-full, waiver, and return require an existing ledger record. It also rejects a null operation explicitly. These checks have been executed against an isolated PostgreSQL 16 fixture using the generated migration file.
+The migration preserves a subtle existing behaviour: only cash payment requires an existing `charge` row; pay-in-full, waiver, and return require any existing ledger record. It also rejects a null operation explicitly. A compatibility review against the original Edge Function confirmed that waiver/return notes retain their trimmed value (including blank notes), and RPC/audit payloads retain the exact selected ledger-field projection. These checks are covered by the PostgreSQL 16 fixture.
 
 
 ## Edge Function integration draft

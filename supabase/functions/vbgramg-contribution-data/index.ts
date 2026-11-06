@@ -236,6 +236,60 @@ Deno.serve(async(req:Request)=>{
    return reply(payload);
   }
 
+  if(action==="list-summary"){
+   const summaryStarted=performance.now();
+   if(!ledgerCalculations?.calculateLedgerState)throw new Error("Shared ledger calculations are unavailable.");
+   const [ledgerResult,exemptionsResult,misStateResult]=await Promise.all([
+    admin.rpc("vbgramg_contribution_ledger_list"),
+    admin.from("vbgramg_contribution_exemptions").select("job_card_number,note,created_at,updated_at").order("job_card_number",{ascending:true}),
+    admin.from("vbgramg_mis_state").select("active_import_id,row_count,source_filename").eq("singleton",true).maybeSingle()
+   ]);
+   if(ledgerResult.error)throw ledgerResult.error;
+   if(exemptionsResult.error)throw exemptionsResult.error;
+   if(misStateResult.error)throw misStateResult.error;
+   const ledgerPayload=ledgerResult.data as {entries?:unknown;row_count?:unknown}|null;
+   const ledger=Array.isArray(ledgerPayload?.entries)?ledgerPayload.entries as Record<string,any>[]:[];
+   const ledgerTotal=Number(ledgerPayload?.row_count);
+   if(!Number.isInteger(ledgerTotal)||ledgerTotal<0||ledger.length!==ledgerTotal)throw new Error(`Incomplete contribution ledger RPC response: expected ${ledgerTotal} rows, received ${ledger.length}.`);
+   const misState=misStateResult.data;
+   if(!misState?.active_import_id)throw new Error("There is no active MIS import. Load the active MIS before using the contribution table.");
+   const {data:lookupCache,error:lookupError}=await admin.from("vbgramg_mis_contribution_lookup").select("payload").eq("import_id",misState.active_import_id).maybeSingle();
+   if(lookupError)throw lookupError;
+   let citizens:Record<string,string>[]=[];
+   let applicantsByCard:Record<string,Record<string,string|null>[]>={};
+   if(lookupCache?.payload&&Array.isArray(lookupCache.payload.citizens)&&lookupCache.payload.applicants_by_job_card&&typeof lookupCache.payload.applicants_by_job_card==="object"){
+    citizens=lookupCache.payload.citizens;
+    applicantsByCard=lookupCache.payload.applicants_by_job_card;
+   }else{
+    const misRows:Record<string,unknown>[]=[];
+    for(let offset=0;;offset+=1000){const {data,error}=await admin.from("vbgramg_mis_rows").select("row_number,row_data").eq("import_id",misState.active_import_id).order("row_number",{ascending:true}).range(offset,offset+999);if(error)throw error;misRows.push(...(data||[]));if(!data||data.length<1000)break;}
+    if(!misRows.length)throw new Error("The active MIS import contains no rows.");
+    const header=Array.isArray(misRows[0].row_data)?(misRows[0].row_data as unknown[]).map(v=>String(v||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim()):[];
+    const col=(...names:string[])=>header.findIndex(v=>names.includes(v));
+    const jcCol=col("job card number","jobcard number"),houseCol=col("head of household","head of household name"),nameCol=col("name of applicant","applicant name"),noCol=col("applicant no","applicant number"),uidCol=col("unique id","unique applicant id");
+    if(jcCol<0||nameCol<0)throw new Error("The active MIS is missing Job Card Number or Name of Applicant columns.");
+    const householdByCard=new Map<string,string>(),seen=new Set<string>();
+    for(const record of misRows.slice(1)){const row=Array.isArray(record.row_data)?record.row_data as unknown[]:[];const card=String(row[jcCol]||"").trim(),name=String(row[nameCol]||"").trim();if(!card||!name)continue;seen.add(card);const household=String(houseCol>=0?row[houseCol]||"":"").trim();if(household&&!householdByCard.has(card))householdByCard.set(card,household);if(!applicantsByCard[card])applicantsByCard[card]=[];applicantsByCard[card].push({applicant_name:name,applicant_number:noCol>=0?String(row[noCol]||"").trim()||null:null,applicant_unique_id:uidCol>=0?String(row[uidCol]||"").trim()||null:null});}
+    citizens=[...seen].map(job_card_number=>({job_card_number,person_name:householdByCard.get(job_card_number)||"Household name unavailable"}));
+    const {error}=await admin.from("vbgramg_mis_contribution_lookup").upsert({import_id:misState.active_import_id,payload:{citizens,applicants_by_job_card:applicantsByCard},built_at:new Date().toISOString()},{onConflict:"import_id"});
+    if(error)throw error;
+   }
+   const exempted=new Set((exemptionsResult.data||[]).map(row=>String(row.job_card_number||"").trim()));
+   const byCard=new Map<string,Record<string,any>[]>();
+   for(const row of ledger){const card=String(row.job_card_number||"").trim();if(!card)continue;if(!byCard.has(card))byCard.set(card,[]);byCard.get(card)!.push(row);}
+   const summaries=citizens.map(c=>{
+    const id=String(c.job_card_number||"").trim(),isExempt=exempted.has(id),rows=byCard.get(id)||[];
+    const state=ledgerCalculations.calculateLedgerState(rows);
+    const latest=rows.filter(row=>!row.is_voided&&(row.entry_type==="charge"||row.entry_type==="other_charge"||row.entry_type==="sanitationFee")&&!(row.entry_type==="charge"&&String(row.note||"").trim()==="Return")).slice().sort((a,b)=>String(b.entry_date||b.created_at||"").localeCompare(String(a.entry_date||a.created_at||"")))[0];
+    const applicants=Array.isArray(applicantsByCard[id])?applicantsByCard[id]:[];
+    const latestApplicant=applicants.slice().sort((a,b)=>String(b.applicant_number||"").localeCompare(String(a.applicant_number||""),undefined,{numeric:true})||String(b.applicant_name||"").localeCompare(String(a.applicant_name||"")))[0];
+    return {job_card_number:id,person_name:String(c.person_name||"Unnamed"),exempt:isExempt,charges:isExempt?0:state.charged,deferred:isExempt?0:state.deferred,paid:isExempt?0:state.paid,waived:isExempt?0:state.waived,returns:isExempt?0:state.returned,totalCharged:isExempt?0:Math.max(0,state.charged-Math.min(state.charged,state.waived)),balance:isExempt?0:state.balance,latest_charge_amount:latest?Number(latest.amount)||0:null,display_applicant:String(latestApplicant?.applicant_name||"").trim()||String(c.person_name||"")};
+   });
+   const payload={approved:true,role:approved.role,summaries,applicants_by_job_card:applicantsByCard,exemptions:exemptionsResult.data||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:Number(misState.row_count||0)};
+   console.info("[contribution-summary-timing]",JSON.stringify({request_ms:Number((performance.now()-requestStarted).toFixed(1)),total_ms:Number((performance.now()-summaryStarted).toFixed(1)),ledger_rows:ledger.length,job_cards:summaries.length,response_bytes:new TextEncoder().encode(JSON.stringify(payload)).length}));
+   return reply(payload);
+  }
+
   if(action==="list"){
    const listStarted=performance.now();
    const stageTimes:Record<string,number>={};

@@ -168,50 +168,21 @@ Deno.serve(async(req:Request)=>{
    const actionStarted=performance.now();
    const requested=Array.isArray(body.job_cards)?[...new Set(body.job_cards.map((value:unknown)=>String(value||"").trim()).filter(Boolean))]:[];
    if(requested.length>5000)return reply({error:"Work Demand can request at most 5,000 job cards."},400);
-   if(!requested.length)return reply({approved:true,balances:{},timings_ms:{total:0,ledger_read:0,exemptions_read:0,calculation:0}});
-   if(body.audit_calculations===true&&!ledgerCalculations?.calculateLedgerState)throw new Error("Shared ledger calculations are unavailable for audit mode.");
-   const ledgerStarted=performance.now();
-   const cardBatches: string[][]=[];
-   for(let cardOffset=0;cardOffset<requested.length;cardOffset+=200)cardBatches.push(requested.slice(cardOffset,cardOffset+200));
-   const ledgerRows:Record<string,unknown>[]=[];
-   // Read at most three job-card batches concurrently. Each batch remains fully paginated
-   // so large histories are never truncated; stable ordering keeps pagination deterministic.
-   for(let batchOffset=0;batchOffset<cardBatches.length;batchOffset+=3){
-    const batchResults=await Promise.all(cardBatches.slice(batchOffset,batchOffset+3).map(async cards=>{
-     const rows:Record<string,unknown>[]=[];
-     for(let offset=0;;offset+=1000){
-      const {data,error}=await admin.from("vbgramg_charge_ledger").select("job_card_number,entry_type,amount,note,is_deferred,is_voided").in("job_card_number",cards).order("job_card_number",{ascending:true}).order("entry_date",{ascending:true}).order("id",{ascending:true}).range(offset,offset+999);
-      if(error)throw error;
-      rows.push(...(data||[]));
-      if(!data||data.length<1000)break;
-     }
-     return rows;
-    }));
-    for(const rows of batchResults)ledgerRows.push(...rows);
-   }
-   const ledgerReadMs=Number((performance.now()-ledgerStarted).toFixed(1));
-   const exemptionStarted=performance.now();
-   const {data:exemptionRows,error:exemptionError}=await admin.from("vbgramg_contribution_exemptions").select("job_card_number").in("job_card_number",requested);
-   if(exemptionError)throw exemptionError;
-   const exemptionsReadMs=Number((performance.now()-exemptionStarted).toFixed(1));
-   const calculationStarted=performance.now();
-   const exempted=new Set((exemptionRows||[]).map(row=>String(row.job_card_number||"").trim()));
-   const ledgers=new Map<string,Record<string,unknown>[]>();
-   for(const entry of ledgerRows){
-    const id=String(entry.job_card_number||"").trim();
-    if(!id)continue;
-    if(!ledgers.has(id))ledgers.set(id,[]);
-    ledgers.get(id)!.push(entry);
-   }
+   if(!requested.length)return reply({approved:true,balances:{},timings_ms:{total:0,database_summary:0,job_cards:0}});
+   const summaryStarted=performance.now();
+   const {data:summaryResult,error:summaryError}=await admin.rpc("vbgramg_contribution_financial_summary");
+   if(summaryError)throw summaryError;
+   if(!summaryResult||!Array.isArray(summaryResult.summaries))throw new Error("The database financial summary returned an invalid response.");
+   const summaryByCard=new Map((summaryResult.summaries as Record<string,any>[]).map(row=>[String(row.job_card_number||"").trim(),row]));
    const balances:Record<string,number>={};
    for(const id of requested){
-    if(exempted.has(id)){balances[id]=0;continue;}
-    balances[id]=ledgerCalculations.calculateLedgerState(ledgers.get(id)||[]).balance;
+    const summary=summaryByCard.get(id);
+    if(!summary)throw new Error(`Database financial summary is missing active MIS job card ${id}.`);
+    balances[id]=Number(summary.balance)||0;
    }
-   const calculationMs=Number((performance.now()-calculationStarted).toFixed(1));
-   return reply({approved:true,balances,timings_ms:{ledger_read:ledgerReadMs,exemptions_read:exemptionsReadMs,calculation:calculationMs,total:Number((performance.now()-actionStarted).toFixed(1)),job_cards:requested.length,ledger_rows:ledgerRows.length,concurrency:3}});
+   const summaryMs=Number((performance.now()-summaryStarted).toFixed(1));
+   return reply({approved:true,balances,timings_ms:{database_summary:summaryMs,total:Number((performance.now()-actionStarted).toFixed(1)),job_cards:requested.length}});
   }
-
   if(action==="job-card-details"){
    const jobCard=String(body.job_card_number||"").trim();
    if(!jobCard||jobCard.length>100)return reply({error:"A valid full job card number is required."},400);

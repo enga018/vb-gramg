@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const read = relative => fs.readFileSync(path.join(__dirname, "..", relative), "utf8");
-const sql = read("docs/architecture/atomic-contribution-writes.sql");
+const sql = read("supabase/migrations/20261106181317_record_contribution_transaction.sql");
 const edge = read("supabase/functions/vbgramg-contribution-data/index.ts");
 
 test("Atomic contribution function is a service-role-only invoker function", () => {

@@ -23,7 +23,7 @@ jobs:
       - name: Set up Supabase CLI
         uses: supabase/setup-cli@v3
         with:
-          version: v3.2.0
+          version: v2.stable
 
       - name: Generate timestamped migration with Supabase CLI
         run: |

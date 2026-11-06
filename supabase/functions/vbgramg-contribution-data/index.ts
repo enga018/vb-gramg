@@ -74,7 +74,7 @@ async function fetchPagedLedgerForJobCard(admin:any,jobCard:string){
  const pageSize=1000,columns="id,job_card_number,applicant_name,applicant_number,applicant_unique_id,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,is_voided";
  const rows:Record<string,unknown>[]=[];
  for(let offset=0;;offset+=pageSize){
-  const {data,error}=await admin.from("vbgramg_charge_ledger").select(columns).eq("job_card_number",jobCard).order("entry_date",{ascending:true,nullsFirst:true}).order("id",{ascending:true}).range(offset,offset+pageSize-1);
+  const {data,error}=await admin.from("vbgramg_charge_ledger").select(columns).eq("job_card_number",jobCard).order("entry_date",{ascending:true,nullsFirst:false}).order("id",{ascending:true}).range(offset,offset+pageSize-1);
   if(error)throw error;
   rows.push(...(data||[]));
   if(!data||data.length<pageSize)break;

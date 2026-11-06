@@ -353,7 +353,7 @@ Deno.serve(async(req:Request)=>{
    const payload={approved:true,role:approved.role,entries:all,citizens,applicants_by_job_card:Object.fromEntries(applicantsByCard),exemptions:exemptions||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:activeMisRowCount};
    const responseBytes=new TextEncoder().encode(JSON.stringify(payload)).length;
    stageTimes.total_list_ms=Number((performance.now()-listStarted).toFixed(1));
-   console.info("[contribution-list-timing]",JSON.stringify({request_ms:Number((performance.now()-requestStarted).toFixed(1)),...stageTimes,ledger_rows:all.length,fto_charge_entries:chargeEntries.length,allocation_rows:paymentAllocations.length,refund_reconciliation_rows:paymentRefundReconciliations.length,response_bytes:responseBytes}));
+   console.info("[contribution-list-timing]",JSON.stringify({request_ms:Number((performance.now()-requestStarted).toFixed(1)),...stageTimes,ledger_rows:all.length,fto_charge_entries:chargeEntries.length,response_bytes:responseBytes}));
    return reply(payload);
   }
   if(action==="check-fto-duplicates"){

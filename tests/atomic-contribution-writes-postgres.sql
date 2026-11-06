@@ -30,6 +30,8 @@ CREATE TABLE public.vbgramg_charge_ledger (
   created_by uuid,
   created_at timestamptz NOT NULL DEFAULT now(),
   is_deferred boolean NOT NULL DEFAULT false,
+  source_created_at_ms bigint,
+  legacy_entry_id text,
   is_voided boolean NOT NULL DEFAULT false,
   CHECK (entry_type <> 'charge' OR charge_period IS NOT NULL),
   CHECK (length(btrim(job_card_number)) > 0),

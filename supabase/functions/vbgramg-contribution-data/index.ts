@@ -169,7 +169,7 @@ Deno.serve(async(req:Request)=>{
    const requested=Array.isArray(body.job_cards)?[...new Set(body.job_cards.map((value:unknown)=>String(value||"").trim()).filter(Boolean))]:[];
    if(requested.length>5000)return reply({error:"Work Demand can request at most 5,000 job cards."},400);
    if(!requested.length)return reply({approved:true,balances:{},timings_ms:{total:0,ledger_read:0,exemptions_read:0,calculation:0}});
-   if(!ledgerCalculations?.calculateLedgerState)throw new Error("Shared ledger calculations are unavailable.");
+   if(body.audit_calculations===true&&!ledgerCalculations?.calculateLedgerState)throw new Error("Shared ledger calculations are unavailable for audit mode.");
    const ledgerStarted=performance.now();
    const cardBatches: string[][]=[];
    for(let cardOffset=0;cardOffset<requested.length;cardOffset+=200)cardBatches.push(requested.slice(cardOffset,cardOffset+200));
@@ -239,19 +239,27 @@ Deno.serve(async(req:Request)=>{
 
   if(action==="list-summary"){
    const summaryStarted=performance.now();
-   if(!ledgerCalculations?.calculateLedgerState)throw new Error("Shared ledger calculations are unavailable.");
-   const [ledgerResult,exemptionsResult,misStateResult]=await Promise.all([
-    admin.rpc("vbgramg_contribution_ledger_list"),
+   const auditCalculations=body.audit_calculations===true;
+   if(auditCalculations&&!ledgerCalculations?.calculateLedgerState)throw new Error("Shared ledger calculations are unavailable for audit mode.");
+   const [sqlSummaryResult,ledgerResult,exemptionsResult,misStateResult]=await Promise.all([
+    admin.rpc("vbgramg_contribution_financial_summary"),
+    auditCalculations?admin.rpc("vbgramg_contribution_ledger_list"):Promise.resolve({data:null,error:null}),
     admin.from("vbgramg_contribution_exemptions").select("job_card_number,note,created_at,updated_at").order("job_card_number",{ascending:true}),
     admin.from("vbgramg_mis_state").select("active_import_id,row_count,source_filename").eq("singleton",true).maybeSingle()
    ]);
+   if(sqlSummaryResult.error)throw sqlSummaryResult.error;
    if(ledgerResult.error)throw ledgerResult.error;
    if(exemptionsResult.error)throw exemptionsResult.error;
    if(misStateResult.error)throw misStateResult.error;
+   const sqlSummary=sqlSummaryResult.data as {summaries?:Record<string,any>[];totals?:Record<string,any>}|null;
+   if(!sqlSummary||!Array.isArray(sqlSummary.summaries))throw new Error("The database financial summary returned an invalid response.");
    const ledgerPayload=ledgerResult.data as {entries?:unknown;row_count?:unknown}|null;
    const ledger=Array.isArray(ledgerPayload?.entries)?ledgerPayload.entries as Record<string,any>[]:[];
-   const ledgerTotal=Number(ledgerPayload?.row_count);
-   if(!Number.isInteger(ledgerTotal)||ledgerTotal<0||ledger.length!==ledgerTotal)throw new Error(`Incomplete contribution ledger RPC response: expected ${ledgerTotal} rows, received ${ledger.length}.`);
+   if(auditCalculations){
+    const ledgerTotal=Number(ledgerPayload?.row_count);
+    if(!Number.isInteger(ledgerTotal)||ledgerTotal<0||ledger.length!==ledgerTotal)throw new Error(`Incomplete contribution ledger RPC response: expected ${ledgerTotal} rows, received ${ledger.length}.`);
+   }
+   const sqlByCard=new Map(sqlSummary.summaries.map(row=>[String(row.job_card_number||"").trim(),row]));
    const misState=misStateResult.data;
    if(!misState?.active_import_id)throw new Error("There is no active MIS import. Load the active MIS before using the contribution table.");
    const {data:lookupCache,error:lookupError}=await admin.from("vbgramg_mis_contribution_lookup").select("payload").eq("import_id",misState.active_import_id).maybeSingle();
@@ -277,17 +285,25 @@ Deno.serve(async(req:Request)=>{
    }
    const exempted=new Set((exemptionsResult.data||[]).map(row=>String(row.job_card_number||"").trim()));
    const byCard=new Map<string,Record<string,any>[]>();
-   for(const row of ledger){const card=String(row.job_card_number||"").trim();if(!card)continue;if(!byCard.has(card))byCard.set(card,[]);byCard.get(card)!.push(row);}
+   if(auditCalculations)for(const row of ledger){const card=String(row.job_card_number||"").trim();if(!card)continue;if(!byCard.has(card))byCard.set(card,[]);byCard.get(card)!.push(row);}
+   const auditFlags:Record<string,unknown>[]=[];
    const summaries=citizens.map(c=>{
     const id=String(c.job_card_number||"").trim(),isExempt=exempted.has(id),rows=byCard.get(id)||[];
-    const state=ledgerCalculations.calculateLedgerState(rows);
-    const latest=rows.filter(row=>!row.is_voided&&(row.entry_type==="charge"||row.entry_type==="other_charge"||row.entry_type==="sanitationFee")&&!(row.entry_type==="charge"&&String(row.note||"").trim()==="Return")).slice().sort((a,b)=>String(b.entry_date||b.created_at||"").localeCompare(String(a.entry_date||a.created_at||"")))[0];
+    const sql=sqlByCard.get(id);
+    if(!sql)throw new Error(`Database summary is missing active MIS job card ${id}.`);
+    if(auditCalculations){
+     const state=ledgerCalculations.calculateLedgerState(rows);
+     const jsValues={charges:isExempt?0:state.charged,deferred:isExempt?0:state.deferred,paid:isExempt?0:state.paid,waived:isExempt?0:state.waived,returns:isExempt?0:state.returned,totalCharged:isExempt?0:Math.max(0,state.charged-Math.min(state.charged,state.waived)),balance:isExempt?0:state.balance};
+     const sqlValues={charges:Number(sql.charges)||0,deferred:Number(sql.deferred)||0,paid:Number(sql.paid)||0,waived:Number(sql.waived)||0,returns:Number(sql.returns)||0,totalCharged:Number(sql.totalCharged)||0,balance:Number(sql.balance)||0};
+     const differences=Object.keys(jsValues).filter(key=>Math.abs(jsValues[key as keyof typeof jsValues]-sqlValues[key as keyof typeof sqlValues])>0.005);
+     if(differences.length)auditFlags.push({job_card_number:id,fields:differences,js:jsValues,sql:sqlValues});
+    }
     const applicants=Array.isArray(applicantsByCard[id])?applicantsByCard[id]:[];
     const latestApplicant=applicants.slice().sort((a,b)=>String(b.applicant_number||"").localeCompare(String(a.applicant_number||""),undefined,{numeric:true})||String(b.applicant_name||"").localeCompare(String(a.applicant_name||"")))[0];
-    return {job_card_number:id,person_name:String(c.person_name||"Unnamed"),exempt:isExempt,charges:isExempt?0:state.charged,deferred:isExempt?0:state.deferred,paid:isExempt?0:state.paid,waived:isExempt?0:state.waived,returns:isExempt?0:state.returned,totalCharged:isExempt?0:Math.max(0,state.charged-Math.min(state.charged,state.waived)),balance:isExempt?0:state.balance,latest_charge_amount:latest?Number(latest.amount)||0:null,display_applicant:String(latestApplicant?.applicant_name||"").trim()||String(c.person_name||"")};
+    return {...sql,job_card_number:id,person_name:String(c.person_name||"Unnamed"),exempt:isExempt,charges:isExempt?0:Number(sql.charges)||0,deferred:isExempt?0:Number(sql.deferred)||0,paid:isExempt?0:Number(sql.paid)||0,waived:isExempt?0:Number(sql.waived)||0,returns:isExempt?0:Number(sql.returns)||0,totalCharged:isExempt?0:Number(sql.totalCharged)||0,balance:isExempt?0:Number(sql.balance)||0,display_applicant:String(latestApplicant?.applicant_name||"").trim()||String(c.person_name||"")};
    });
-   const payload={approved:true,role:approved.role,summaries,applicants_by_job_card:applicantsByCard,exemptions:exemptionsResult.data||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:Number(misState.row_count||0)};
-   console.info("[contribution-summary-timing]",JSON.stringify({request_ms:Number((performance.now()-requestStarted).toFixed(1)),total_ms:Number((performance.now()-summaryStarted).toFixed(1)),ledger_rows:ledger.length,job_cards:summaries.length,response_bytes:new TextEncoder().encode(JSON.stringify(payload)).length}));
+   const payload={approved:true,role:approved.role,summaries,applicants_by_job_card:applicantsByCard,exemptions:exemptionsResult.data||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:Number(misState.row_count||0),...(auditCalculations?{calculation_audit:{checked_cards:summaries.length,flagged_cards:auditFlags.length,flags:auditFlags}}:{})};
+   console.info("[contribution-summary-timing]",JSON.stringify({request_ms:Number((performance.now()-requestStarted).toFixed(1)),total_ms:Number((performance.now()-summaryStarted).toFixed(1)),calculation_source:"postgresql",audit_enabled:auditCalculations,audit_flagged_cards:auditFlags.length,ledger_rows:auditCalculations?ledger.length:0,job_cards:summaries.length,response_bytes:new TextEncoder().encode(JSON.stringify(payload)).length}));
    return reply(payload);
   }
 

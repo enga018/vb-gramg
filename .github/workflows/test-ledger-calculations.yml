@@ -99,3 +99,5 @@ jobs:
           sudo apt-get install -y postgresql-client
       - name: Run atomic contribution PostgreSQL integration tests
         run: psql -v ON_ERROR_STOP=1 -f tests/atomic-contribution-writes-postgres.sql
+      - name: Verify per-job-card advisory lock serializes concurrent writes
+        run: bash tests/atomic-contribution-writes-concurrency.sh

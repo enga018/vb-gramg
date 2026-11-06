@@ -1030,6 +1030,27 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{margin:0!impo
 @media(max-width:767px){
   #table-wrap{border-left:1px solid var(--line)!important}
 }
+
+/* Mobile contribution cards: preserve the outer list boundary and give each
+   job card its own evenly inset boundary. Allow long text to wrap naturally. */
+@media(max-width:767px){
+ #table-wrap.table-wrap{padding:8px;border:1px solid #dfe5ee;border-radius:12px;overflow:visible}
+ #table-wrap #contribution-table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed}
+ #table-wrap #contribution-table tbody tr.contribution-row{
+  display:block;width:100%;margin:0 0 8px;border:1px solid #dfe5ee;border-radius:10px;
+  overflow:hidden;box-shadow:none
+ }
+ #table-wrap #contribution-table tbody tr.contribution-row:last-child{margin-bottom:0}
+ #table-wrap #contribution-table tbody tr.contribution-row td{
+  display:block;width:100%;padding:11px 12px;border:0;min-width:0;white-space:normal
+ }
+ #table-wrap #contribution-table tbody tr.contribution-row td:first-child{width:100%}
+ #table-wrap #contribution-table .mobile-jobcard-line{
+  width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere;word-break:normal
+ }
+ #table-wrap #contribution-table .mobile-person-inline{white-space:normal;overflow-wrap:anywhere;word-break:normal}
+ #table-wrap #contribution-table .mobile-status-line{max-width:100%;white-space:normal}
+}
 </style>
   <link rel="stylesheet" href="./responsive.css">
 </head>

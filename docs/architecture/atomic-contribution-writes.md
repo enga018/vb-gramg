@@ -98,14 +98,14 @@ Preserve the current audit behaviour: do not add an audit row for ordinary cash 
 
 ## Verification gate
 
-The SQL draft has passed the Node regression suite and an ephemeral PostgreSQL 16 integration fixture in GitHub Actions. The fixture validates operation rules, balance classifications, exempt/trigger-suppressed writes, service-role-only execution, and audit rollback. A separate concurrent-session test holds the same per-job-card advisory lock and verifies the RPC waits before proceeding. This lock coordinates only the four operations routed through this RPC; bulk bank payments, FTO imports, and ledger edits do not yet participate, so this is not a global ledger-write lock. The fixture is a purpose-built schema, not a clone of the live Supabase schema. The live schema, canonical constraints, exemption trigger, and service_role table privileges have been inspected read-only and match the draft's assumptions. Before promoting this draft into a real Supabase migration or deploying the Edge Function, run Supabase advisors and verify the RPC response mapping. No production migration or Edge Function deployment is authorized by this document.
+The SQL migration has passed the Node regression suite and an ephemeral PostgreSQL 16 integration fixture in GitHub Actions. The fixture validates operation rules, balance classifications, exempt/trigger-suppressed writes, service-role-only execution, and audit rollback. A separate concurrent-session test holds the same per-job-card advisory lock and verifies the RPC waits before proceeding. This lock coordinates only the four operations routed through this RPC; bulk bank payments, FTO imports, and ledger edits do not yet participate, so this is not a global ledger-write lock. The fixture is a purpose-built schema, not a clone of the live Supabase schema. The live schema, canonical constraints, exemption trigger, and service_role table privileges have been inspected read-only and match the draft's assumptions. Before promoting this draft into a real Supabase migration or deploying the Edge Function, run Supabase advisors and verify the RPC response mapping. No production migration or Edge Function deployment is authorized by this document.
 
 
 ## Current implementation draft
 
-A non-migration SQL draft is stored at `docs/architecture/atomic-contribution-writes.sql`. It is not in `supabase/migrations`, has not been applied, and is not connected to the Edge Function yet. Static regression checks are in `tests/atomic-contribution-writes.test.cjs`.
+The Supabase CLI generated the migration filename `supabase/migrations/20261106181317_record_contribution_transaction.sql`; the reviewed function SQL is now stored in that migration. It is not applied to any Supabase database. Static regression checks target the migration directly.
 
-The SQL draft was adjusted to preserve a subtle current behaviour: only cash payment requires an existing `charge` row; pay-in-full, waiver, and return require an existing ledger record. It also rejects a null operation explicitly. These checks still require execution against an isolated PostgreSQL database before the SQL can be promoted to a migration.
+The SQL draft was adjusted to preserve a subtle current behaviour: only cash payment requires an existing `charge` row; pay-in-full, waiver, and return require an existing ledger record. It also rejects a null operation explicitly. These checks have been executed against an isolated PostgreSQL 16 fixture using the generated migration file.
 
 
 ## Edge Function integration draft

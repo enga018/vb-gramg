@@ -30,7 +30,7 @@ test("Database balance calculation preserves existing ledger classifications", (
   assert.match(sql, /entry_type IN \('refund', 'return'\)/);
   assert.match(sql, /entry_type IN \('charge_waiver', 'forgive'\)/);
   assert.match(sql, /btrim\(COALESCE\(l\.note, ''\)\) = 'Return'/);
-  assert.match(sql, /greatest\(v_charges - pg_catalog\.least\(v_charges, v_waived\), 0\) - v_paid \+ v_returns/i);
+  assert.match(sql, /GREATEST\(v_charges - LEAST\(v_charges, v_waived\), 0\) - v_paid \+ v_returns/i);
 });
 
 test("Operation-specific limits and validation match the current Edge Function rules", () => {

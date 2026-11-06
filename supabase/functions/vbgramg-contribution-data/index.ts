@@ -241,27 +241,22 @@ Deno.serve(async(req:Request)=>{
    const stageTimes:Record<string,number>={};
    // Independent startup reads run concurrently. The previous sequential requests
    // added each database round-trip to the user's initial loading time.
+   const ledgerReadStarted=performance.now();
    const [ledgerResult,exemptionsResult,misStateResult]=await Promise.all([
-    admin.from("vbgramg_charge_ledger").select("id,job_card_number,applicant_name,applicant_number,applicant_unique_id,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,is_voided",{count:"exact"}).order("job_card_number",{ascending:true}).order("entry_date",{ascending:true}).order("id",{ascending:true}).range(0,999),
+    admin.rpc("vbgramg_contribution_ledger_list"),
     admin.from("vbgramg_contribution_exemptions").select("job_card_number,note,created_at,updated_at").order("job_card_number",{ascending:true}),
     admin.from("vbgramg_mis_state").select("active_import_id,row_count,source_filename").eq("singleton",true).maybeSingle()
    ]);
    stageTimes.initial_reads_ms=Number((performance.now()-listStarted).toFixed(1));
    if(ledgerResult.error)throw ledgerResult.error;
-   if(ledgerResult.count===null||ledgerResult.count===undefined)throw new Error("Could not determine the complete contribution ledger row count.");
    if(exemptionsResult.error)throw exemptionsResult.error;
    if(misStateResult.error)throw misStateResult.error;
-   const ledgerReadStarted=performance.now();
-   const all:Record<string,unknown>[]=[...(ledgerResult.data||[])];
-   const ledgerTotal=Number(ledgerResult.count);
-   // Fetch remaining ledger pages concurrently in bounded groups; never truncate financial history.
-   for(let base=1000;base<ledgerTotal;base+=4000){
-    const offsets:number[]=[];
-    for(let offset=base;offset<Math.min(base+4000,ledgerTotal);offset+=1000)offsets.push(offset);
-    const pages=await Promise.all(offsets.map(offset=>admin.from("vbgramg_charge_ledger").select("id,job_card_number,applicant_name,applicant_number,applicant_unique_id,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,is_voided").order("job_card_number",{ascending:true}).order("entry_date",{ascending:true}).order("id",{ascending:true}).range(offset,Math.min(offset+999,ledgerTotal-1))));
-    for(const page of pages){if(page.error)throw page.error;all.push(...(page.data||[]));}
+   const ledgerPayload=ledgerResult.data as {entries?:unknown;row_count?:unknown}|null;
+   const all:Record<string,unknown>[]=Array.isArray(ledgerPayload?.entries)?ledgerPayload.entries as Record<string,unknown>[]:[];
+   const ledgerTotal=Number(ledgerPayload?.row_count);
+   if(!Number.isInteger(ledgerTotal)||ledgerTotal<0||all.length!==ledgerTotal){
+    throw new Error(`Incomplete contribution ledger RPC response: expected ${ledgerTotal} rows, received ${all.length}.`);
    }
-   if(all.length!==ledgerTotal)throw new Error(`Incomplete contribution ledger read: expected ${ledgerTotal} rows, received ${all.length}.`);
    stageTimes.ledger_read_ms=Number((performance.now()-ledgerReadStarted).toFixed(1));
    const exemptions=exemptionsResult.data||[];
    const misState=misStateResult.data;

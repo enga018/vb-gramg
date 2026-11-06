@@ -777,9 +777,12 @@ let lastFtoMobile=window.matchMedia("(max-width: 700px)").matches;window.addEven
 
 let pendingPeriodBatch=null;
 async function loadSharedPeriods(selectedId=""){
- const {data,error}=await window.VBGRAMGData.invoke("vbgramg-periods",{body:{action:"list"},deduplicate:true});
- if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||"Could not load shared periods.");
- sharedPeriods=data.periods||[];
+ sharedPeriods=await window.VBGRAMGCache.getOrLoad("periods:list",async()=>{
+  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-periods",{body:{action:"list"},deduplicate:true});
+  if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||"Could not load shared periods.");
+  if(!Array.isArray(data.periods))throw new Error("The periods service returned an invalid list.");
+  return data.periods;
+ },30000);
  const allowed=sharedPeriods.filter(p=>p.contribution_month&&(p.status==="open"||p.id===selectedId));
  const select=$("period-modal-value"),old=selectedId||select.value;select.replaceChildren();
  const placeholder=document.createElement("option");placeholder.value="";placeholder.textContent="Select a contribution month";select.appendChild(placeholder);

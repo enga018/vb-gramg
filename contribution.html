@@ -1010,14 +1010,6 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{margin:0!impo
 }
 
 
-/* Restore the neutral left edge of mobile contribution cards.
-   Match the existing right/top/bottom card boundary; no status stripe. */
-@media(max-width:767px){
-  #contribution-table tbody tr.contribution-row{
-    border-left:1px solid var(--line)!important;
-  }
-}
-
 /* Desktop controls use their placeholder/value without separate field labels. */
 @media(min-width:768px){
   .contribution-controls .search-wrap label,
@@ -1026,30 +1018,25 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{margin:0!impo
   .contribution-controls .filter-control select{padding-top:10px!important;padding-bottom:10px!important;min-height:56px}
 }
 
-/* Restore the mobile table container's left boundary without adding row markers. */
-@media(max-width:767px){
-  #table-wrap{border-left:1px solid var(--line)!important}
-}
-
-/* Mobile contribution cards: preserve the outer list boundary and give each
-   job card its own evenly inset boundary. Allow long text to wrap naturally. */
+/* Mobile contribution cards: draw the card boundary on its single cell.
+   Borders on a block-level table row are inconsistently painted by browsers. */
 @media(max-width:767px){
  #table-wrap.table-wrap{padding:8px;border:1px solid #dfe5ee;border-radius:12px;overflow:visible}
  #table-wrap #contribution-table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed}
  #table-wrap #contribution-table tbody tr.contribution-row{
-  display:block;width:100%;margin:0 0 8px;border:1px solid #dfe5ee;border-radius:10px;
-  overflow:hidden;box-shadow:none
+  display:block;width:100%;margin:0 0 8px;border:0;border-radius:0;
+  overflow:visible;box-shadow:none
  }
  #table-wrap #contribution-table tbody tr.contribution-row:last-child{margin-bottom:0}
  #table-wrap #contribution-table tbody tr.contribution-row td{
-  display:block;width:100%;padding:11px 12px;border:0;min-width:0;white-space:normal
+  display:block;width:100%;padding:11px 12px;min-width:0;white-space:normal;
+  border:1px solid #dfe5ee;border-radius:10px;background:#fff
  }
  #table-wrap #contribution-table tbody tr.contribution-row td:first-child{width:100%}
  #table-wrap #contribution-table .mobile-jobcard-line{
   width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere;word-break:normal
  }
  #table-wrap #contribution-table .mobile-person-inline{white-space:normal;overflow-wrap:anywhere;word-break:normal}
- #table-wrap #contribution-table .mobile-status-line{max-width:100%;white-space:normal}
 }
 </style>
   <link rel="stylesheet" href="./responsive.css">

@@ -141,6 +141,24 @@ BEGIN
     RAISE EXCEPTION 'Waiver calculation failed: %', r;
   END IF;
 
+  r := public.vbgramg_record_contribution_transaction('MZ-WAIVER','waiver',1,'2026-11-06','   ',gen_random_uuid(),'tester@example.invalid');
+  IF NOT (r->>'ok')::boolean OR r->'entry'->>'note' <> '' THEN
+    RAISE EXCEPTION 'Blank waiver note was not preserved: %', r;
+  END IF;
+  IF r->'entry' ? 'is_voided' THEN
+    RAISE EXCEPTION 'RPC response exposed fields outside the legacy ledger projection: %', r->'entry';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.vbgramg_ledger_audit a
+    WHERE a.ledger_entry_id = (r->'entry'->>'id')::uuid
+      AND a.action = 'waiver'
+      AND a.before_data = '{"balance":70}'::jsonb
+      AND a.after_data->>'note' = ''
+      AND NOT (a.after_data ? 'is_voided')
+  ) THEN
+    RAISE EXCEPTION 'Waiver audit record did not preserve the legacy payload shape.';
+  END IF;
+
   r := public.vbgramg_record_contribution_transaction('MZ-RETURN','return',25,'2026-11-06','Return',gen_random_uuid(),'tester@example.invalid');
   IF NOT (r->>'ok')::boolean OR (r->>'balance_before')::numeric <> -80 OR (r->>'balance_after')::numeric <> -55 THEN
     RAISE EXCEPTION 'Return eligibility without a charge row failed: %', r;

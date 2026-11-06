@@ -1261,15 +1261,7 @@ function exportOutstandingDueList(){
 }
 function buildFifoBreakdown(c){
  if(!c||c.exempt)return '';
- const allocation=window.VBGRAMGAllocation.calculateFifoGroups({
-  ledger:c.ledger||[],
-  waived:c.waived,
-  paid:c.paid,
-  returns:c.returns,
-  paymentAllocations,
-  periods
- });
- const groupList=allocation.groups;
+ const groupList=Array.isArray(c.fifo_breakdown?.groups)?c.fifo_breakdown.groups:[];
  const rows=groupList.map((g,index)=>{
   const status=g.due<=0?'Paid':g.paid>0?'Part-paid':'Due';
   const detail=[];
@@ -1317,6 +1309,7 @@ async function openCitizen(id){
   loadedLedgerCards.add(String(c.id));
   deriveCitizens();
   currentCitizen=citizens.find(item=>item.id===c.id)||c;
+  currentCitizen.fifo_breakdown=data.fifo_breakdown;
   periods=Array.isArray(data.periods)?data.periods:[];
   paymentAllocations=Array.from(new Map((data.payment_allocations||[]).filter(a=>a&&a.id).map(a=>[String(a.id),a])).values());
   paymentRefundReconciliations=data.payment_refund_reconciliations||[];

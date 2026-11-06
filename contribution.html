@@ -1273,17 +1273,6 @@ function buildFifoBreakdown(c){
  const netRefundExcess=Math.max(0,(Number(c.returns)||0)-(Number(c.paid)||0));
  return '<div class="section-title">Transaction history</div><div class="fifo-period-list">'+(rows||'<div class="empty">No active charges to allocate.</div>')+'</div>'+(netRefundExcess>0?'<div class="notice info">Refunds exceed recorded payments by '+fmt(netRefundExcess)+'. The existing outstanding balance includes this difference.</div>':'');
 }
-async function loadContributionPeriods(){
- const loader=async()=>{
-  const {data,error}=await window.VBGRAMGData.invoke('vbgramg-periods',{body:{action:'list'},deduplicate:true,timeoutMs:45000});
-  if(error||!data||data.approved!==true||!Array.isArray(data.periods))throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution periods.');
-  return data;
- };
- const data=window.VBGRAMGCache
-  ?await window.VBGRAMGCache.getOrLoad('periods:list:v1',loader,30000)
-  :await loader();
- return data.periods;
-}
 let citizenDetailRequest=0;
 async function openCitizen(id){
  const c=citizens.find(item=>item.id===id);if(!c)return;
@@ -1299,14 +1288,10 @@ async function openCitizen(id){
  $('overlay').classList.remove('hidden');
  document.querySelectorAll('#contribution-table tbody tr').forEach(row=>row.classList.toggle('selected',row.dataset.card===c.id));
  try{
-  const [detailResult,periodList]=await Promise.all([
-   window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'job-card-details',job_card_number:c.id,include_periods:false},deduplicate:true,timeoutMs:45000}),
-   loadContributionPeriods()
-  ]);
-  const {data,error}=detailResult;
+  const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'job-card-details',job_card_number:c.id},deduplicate:true,timeoutMs:45000});
   if(requestId!==citizenDetailRequest||currentCitizen?.id!==c.id)return;
   if(error||!data||data.approved!==true||data.error||String(data.job_card_number)!==String(c.id))throw new Error((data&&data.error)||(error&&error.message)||'Could not load the complete transaction details.');
-  periods=periodList;
+  periods=Array.isArray(data.periods)?data.periods:[];
   paymentAllocations=Array.from(new Map((data.payment_allocations||[]).filter(a=>a&&a.id).map(a=>[String(a.id),a])).values());
   paymentRefundReconciliations=data.payment_refund_reconciliations||[];
   extraCharges=data.extras||[];

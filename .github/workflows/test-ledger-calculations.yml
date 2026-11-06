@@ -50,6 +50,8 @@ jobs:
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+      - name: Type-check contribution Edge Function
+        run: deno check supabase/functions/vbgramg-contribution-data/index.ts
       - name: Verify shared module in Deno
         run: |
           deno eval '

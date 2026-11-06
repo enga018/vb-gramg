@@ -23,13 +23,13 @@ jobs:
       - name: Set up Supabase CLI
         uses: supabase/setup-cli@v3
         with:
-          version: v3.stable
+          version: v3.2.0
 
       - name: Generate timestamped migration with Supabase CLI
         run: |
           supabase --version
           supabase migration --help
-          supabase init
+          mkdir -p supabase/migrations
           supabase migration new record_contribution_transaction
           migration_file="$(find supabase/migrations -maxdepth 1 -type f -name '*_record_contribution_transaction.sql' -print -quit)"
           test -n "$migration_file"

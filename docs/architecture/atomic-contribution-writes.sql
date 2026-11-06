@@ -173,17 +173,21 @@ BEGIN
     RETURN pg_catalog.jsonb_build_object('ok', false, 'status', 409, 'error', 'The contribution ledger did not accept this transaction. No transaction was recorded.');
   END IF;
 
-  INSERT INTO public.vbgramg_ledger_audit (
-    ledger_entry_id, job_card_number, action, actor_user_id, actor_email, before_data, after_data
-  ) VALUES (
-    v_entry.id,
-    v_job_card,
-    v_audit_action,
-    p_actor_user_id,
-    pg_catalog.lower(pg_catalog.btrim(COALESCE(p_actor_email, ''))),
-    CASE WHEN p_operation = 'cash_payment' THEN NULL ELSE pg_catalog.jsonb_build_object('balance', v_balance) END,
-    pg_catalog.to_jsonb(v_entry)
-  );
+  -- Preserve current behaviour: ordinary cash payments do not create audit rows.
+  -- The other three admin/special operations keep their existing audit records.
+  IF p_operation <> 'cash_payment' THEN
+    INSERT INTO public.vbgramg_ledger_audit (
+      ledger_entry_id, job_card_number, action, actor_user_id, actor_email, before_data, after_data
+    ) VALUES (
+      v_entry.id,
+      v_job_card,
+      v_audit_action,
+      p_actor_user_id,
+      pg_catalog.lower(pg_catalog.btrim(COALESCE(p_actor_email, ''))),
+      pg_catalog.jsonb_build_object('balance', v_balance),
+      pg_catalog.to_jsonb(v_entry)
+    );
+  END IF;
 
   RETURN pg_catalog.jsonb_build_object(
     'ok', true,

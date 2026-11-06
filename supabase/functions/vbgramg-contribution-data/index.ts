@@ -277,7 +277,27 @@ Deno.serve(async(req:Request)=>{
    ]);
    if(extraResult.error)throw extraResult.error;
    if(periodResult.error)throw periodResult.error;
-   const payload={approved:true,job_card_number:jobCard,entries:ledgerResult||[],extras:extraResult.data||[],periods:periodResult.data||[],payment_allocations:allocationResult||[],payment_refund_reconciliations:refundResult||[]};
+   const ledgerEntries=ledgerResult||[];
+   const chargeIds=ledgerEntries.filter(row=>row.entry_type==="charge"&&!row.is_voided).map(row=>String(row.id));
+   if(chargeIds.length){
+    const {data:misState,error:misStateError}=await admin.from("vbgramg_mis_state").select("active_import_id").eq("singleton",true).maybeSingle();
+    if(misStateError)throw misStateError;
+    if(misState?.active_import_id){
+     const {data:lookup,error:lookupError}=await admin.from("vbgramg_mis_contribution_lookup").select("payload").eq("import_id",misState.active_import_id).maybeSingle();
+     if(lookupError)throw lookupError;
+     const applicants=lookup?.payload?.applicants_by_job_card&&typeof lookup.payload.applicants_by_job_card==="object"?new Map(Object.entries(lookup.payload.applicants_by_job_card as Record<string,Record<string,string|null>[]>)):new Map();
+     const namesByLedger=new Map<string,Set<string>>();
+     for(let offset=0;offset<chargeIds.length;offset+=100){
+      const ids=chargeIds.slice(offset,offset+100);
+      const {data:txRows,error}=await admin.from("vbgramg_fto_transactions").select("ledger_entry_id,person_name").in("ledger_entry_id",ids).gt("calculated_charge",0).in("status",["blank","processed"]);
+      if(error)throw error;
+      for(const tx of txRows||[]){const id=String(tx.ledger_entry_id||""),name=String(tx.person_name||"").trim();if(!id||!name)continue;if(!namesByLedger.has(id))namesByLedger.set(id,new Set());namesByLedger.get(id)!.add(name);}
+     }
+     const byId=new Map(ledgerEntries.map(row=>[String(row.id),row]));
+     for(const [id,names] of namesByLedger){if(names.size!==1)continue;const row=byId.get(id);if(!row)continue;const match=matchActiveMisApplicant(applicants,jobCard,[...names][0]);if(match){row.applicant_name=match.applicant_name;row.applicant_number=match.applicant_number;row.applicant_unique_id=match.applicant_unique_id;row.applicant_attribution="matched_from_fto";}}
+    }
+   }
+   const payload={approved:true,job_card_number:jobCard,entries:ledgerEntries,extras:extraResult.data||[],periods:periodResult.data||[],payment_allocations:allocationResult||[],payment_refund_reconciliations:refundResult||[]};
    console.info("[contribution-detail-timing]",JSON.stringify({job_card_number:jobCard,total_ms:Number((performance.now()-detailStarted).toFixed(1)),query_timings_ms:queryTimings,extras:payload.extras.length,periods:payload.periods.length,allocations:payload.payment_allocations.length,refunds:payload.payment_refund_reconciliations.length,periods_included:includePeriods}));
    return reply(payload);
   }

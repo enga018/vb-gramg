@@ -63,7 +63,7 @@ The current draft uses SECURITY INVOKER with an empty search_path, schema-qualif
 
 Replace the read-calculate-insert sequence in the four scoped actions with one RPC call. Keep verified-user and approved-role checks in the Edge Function. Preserve existing response status/message behaviour for validation failures. Do not perform a second ledger read to decide whether the write is allowed.
 
-Add cash-payment audit atomically, using an action label agreed for audit consistency (suggested: cash-payment). Preserve existing audit action labels for pay-in-full, waiver, and return.
+Preserve the current audit behaviour: do not add an audit row for ordinary cash payment. Keep pay-in-full, waiver, and return audit rows atomic with their ledger inserts and preserve their existing action labels.
 
 ## Concurrency and rollback requirements
 

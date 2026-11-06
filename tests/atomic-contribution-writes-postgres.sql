@@ -120,11 +120,16 @@ DECLARE
   r jsonb;
   before_count integer;
   after_count integer;
+  audit_before integer;
+  audit_after integer;
 BEGIN
+  SELECT count(*) INTO audit_before FROM public.vbgramg_ledger_audit WHERE job_card_number='MZ-CASH';
   r := public.vbgramg_record_contribution_transaction('MZ-CASH','cash_payment',150,'2026-11-06','Cash',gen_random_uuid(),'tester@example.invalid');
   IF NOT (r->>'ok')::boolean OR (r->'entry'->>'amount')::numeric <> 150 OR (r->>'balance_after')::numeric <> -50 THEN
     RAISE EXCEPTION 'Cash overpayment behaviour failed: %', r;
   END IF;
+  SELECT count(*) INTO audit_after FROM public.vbgramg_ledger_audit WHERE job_card_number='MZ-CASH';
+  IF audit_after <> audit_before THEN RAISE EXCEPTION 'Cash payment unexpectedly created an audit row'; END IF;
 
   r := public.vbgramg_record_contribution_transaction('MZ-FULL','pay_in_full',NULL,'2026-11-06','Pay in full',gen_random_uuid(),'tester@example.invalid');
   IF NOT (r->>'ok')::boolean OR (r->'entry'->>'amount')::numeric <> 100.01 THEN
@@ -174,7 +179,7 @@ BEGIN
   SELECT count(*) INTO before_count FROM public.vbgramg_charge_ledger WHERE job_card_number='MZ-ROLLBACK';
   PERFORM set_config('test.fail_audit','on',true);
   BEGIN
-    PERFORM public.vbgramg_record_contribution_transaction('MZ-ROLLBACK','cash_payment',10,'2026-11-06','Cash',gen_random_uuid(),'tester@example.invalid');
+    PERFORM public.vbgramg_record_contribution_transaction('MZ-ROLLBACK','waiver',10,'2026-11-06','Waiver',gen_random_uuid(),'tester@example.invalid');
     RAISE EXCEPTION 'Expected audit failure did not occur';
   EXCEPTION WHEN OTHERS THEN
     IF SQLERRM = 'Expected audit failure did not occur' THEN RAISE; END IF;

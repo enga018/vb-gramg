@@ -17,6 +17,7 @@
   let userEpoch = 0;
   let activeUserId = null;
   let authSubscription = null;
+  let authReady = Promise.resolve();
 
   function now() {
     return Date.now();
@@ -109,6 +110,7 @@
 
   async function getOrLoad(key, loader, ttlMs) {
     if (typeof loader !== "function") throw new Error("A cache loader function is required.");
+    await authReady;
     const cached = get(key);
     if (cached.hit) return cached.value;
     if (!activeUserId) return loader();
@@ -222,5 +224,5 @@
     }
   });
 
-  if (window.VBGRAMG_SUPABASE_READY) connectAuth();
+  if (window.VBGRAMG_SUPABASE_READY) authReady = connectAuth();
 })();

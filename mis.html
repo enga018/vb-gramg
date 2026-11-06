@@ -329,6 +329,7 @@ body.mis-import-open{overflow:hidden}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./js/supabase-client.js?v=20261104b"></script>
 <script src="./js/data-loader.js?v=20261104b"></script>
+<script src="./js/cache.js?v=20261106a"></script><script src="./js/mis-data-cache.js?v=20261106a"></script>
 <script src="./js/mis.js?v=20261104a"></script>
 <script>
 const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
@@ -383,6 +384,8 @@ $("mis-import-modal").addEventListener("click",event=>{if(event.target===$("mis-
 document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!$("mis-import-modal").classList.contains("hidden"))closeMisImportModal();});
 window.addEventListener("message",event=>{
  if(event.origin!==window.location.origin||!event.data||event.data.type!=="vbgramg-mis-import-complete")return;
+ window.VBGRAMGCache.invalidate("mis:active-register");
+ window.VBGRAMGCache.invalidate("mis:applicant-selections");
  loadData();
 });
 $('desktop-fetch-button').addEventListener('click',()=>{
@@ -425,26 +428,11 @@ async function loadData(){
  const seq=++loadSequence;
  status($('data-status'),'Loading current MIS data…');
  try{
-  const fetchPageSize=1000,concurrentPageRequests=4;
-  const first=await window.VBGRAMGData.invoke('vbgramg-mis-data',{body:{page:0,pageSize:fetchPageSize},deduplicate:true});
-  if(first.error)throw new Error(first.error.message||'Could not load MIS data.');
-  const data=first.data;if(!data||data.approved!==true)throw new Error((data&&data.error)||'MIS data access was denied.');
+  const snapshot=await window.VBGRAMGMISData.loadActiveRegister();
   if(seq!==loadSequence)return;
-  $('updated-at').textContent=data.updatedAt?new Date(data.updatedAt).toLocaleString():'—';
-  if(!data.hasData||!data.totalRows){allRows=[];headers=[];jobCards=[];selectedApplicants=new Map();renderTable();status($('data-status'),'No MIS data has been imported yet. An administrator can import the MIS worksheet.');return}
-  const rows=(data.rows||[]).map(r=>({rowNumber:r.rowNumber,values:Array.isArray(r.values)?r.values:[]}));
-  const totalPages=Math.ceil(data.totalRows/fetchPageSize);
-  for(let firstPage=1;firstPage<totalPages;firstPage+=concurrentPageRequests){
-   const pages=Array.from({length:Math.min(concurrentPageRequests,totalPages-firstPage)},(_,index)=>firstPage+index);
-   const results=await Promise.all(pages.map(page=>window.VBGRAMGData.invoke('vbgramg-mis-data',{body:{page,pageSize:fetchPageSize},deduplicate:true})));
-   if(seq!==loadSequence)return;
-   for(let index=0;index<results.length;index++){
-    const next=results[index];
-    if(next.error)throw new Error(next.error.message||'Could not load all MIS rows.');
-    if(!next.data||next.data.approved!==true)throw new Error((next.data&&next.data.error)||'MIS data access was denied.');
-    rows.push(...(next.data.rows||[]).map(r=>({rowNumber:r.rowNumber,values:Array.isArray(r.values)?r.values:[]})));
-   }
-  }
+  $('updated-at').textContent=snapshot.updatedAt?new Date(snapshot.updatedAt).toLocaleString():'—';
+  if(!snapshot.hasData||!snapshot.totalRows){allRows=[];headers=[];jobCards=[];selectedApplicants=new Map();renderTable();status($('data-status'),'No MIS data has been imported yet. An administrator can import the MIS worksheet.');return}
+  const rows=snapshot.rows||[];
   const sourceHeader=rows.length?rows[0].values:[];
   headers=sourceHeader.map((v,i)=>String(v==null||String(v).trim()===''?'Column '+(i+1):v));
   allRows=rows.slice(1);
@@ -465,10 +453,13 @@ const normalize=window.VBGRAMGMIS.normalize;
 function money(value){return '₹'+(Number(value)||0).toLocaleString('en-IN',{maximumFractionDigits:2})}
 
 async function loadSavedSelections(){
- const result=await invokeSelection({action:'get'});
- if(!result||result.approved!==true||!Array.isArray(result.selections))throw new Error('Could not load shared MIS selections.');
+ const selections=await window.VBGRAMGCache.getOrLoad('mis:applicant-selections',async()=>{
+  const result=await invokeSelection({action:'get'});
+  if(!result||result.approved!==true||!Array.isArray(result.selections))throw new Error('Could not load shared MIS selections.');
+  return result.selections;
+ },15000);
  const saved=new Map();
- result.selections.forEach(item=>{if(item&&typeof item.job_card_number==='string'&&typeof item.applicant_key==='string')saved.set(item.job_card_number,item.applicant_key)});
+ selections.forEach(item=>{if(item&&typeof item.job_card_number==='string'&&typeof item.applicant_key==='string')saved.set(item.job_card_number,item.applicant_key)});
  return saved;
 }
 async function pruneStaleSelections(){
@@ -488,6 +479,7 @@ async function pruneStaleSelections(){
 }
 async function invokeSelection(payload){
  const {data,error}=await window.VBGRAMGData.invoke('vbgramg-mis-selection',{body:payload,timeoutMs:false});
+ if(!error&&payload&&payload.action!=='get')window.VBGRAMGCache.invalidate('mis:applicant-selections');
  if(error){
   let message=error.message||'Selection request failed.';
   try{const response=error.context;if(response&&typeof response.json==='function'){const detail=await response.json();if(detail&&detail.error)message=detail.error}}catch(_){}

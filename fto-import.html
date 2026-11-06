@@ -393,7 +393,7 @@ body.embedded-mode{padding:12px!important}body.embedded-mode main{width:100%;max
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./js/supabase-client.js?v=20261104b"></script>
-<script src="./js/data-loader.js?v=20261104b"></script>
+<script src="./js/data-loader.js?v=20261104b"></script><script src="./js/cache.js?v=20261106a"></script>
 <script src="./js/fto.js?v=20261104a"></script>
 <script src="./toast.js?v=20261103"></script>
 <script>
@@ -515,9 +515,12 @@ function selectedPeriod(){return sharedPeriods.find(p=>p.id===$('charge-period')
 function selectedPeriodDate(){return selectedPeriod()?.contribution_month||'';}
 function selectedPeriodName(){return selectedPeriod()?.period_name||'';}
 async function loadSharedPeriods(selectedId=''){
- const {data,error}=await window.VBGRAMGData.invoke('vbgramg-periods',{body:{action:'list'},deduplicate:true});
- if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||'Could not load shared periods.');
- sharedPeriods=data.periods||[];
+ sharedPeriods=await window.VBGRAMGCache.getOrLoad('periods:list',async()=>{
+  const {data,error}=await window.VBGRAMGData.invoke('vbgramg-periods',{body:{action:'list'},deduplicate:true});
+  if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||'Could not load shared periods.');
+  if(!Array.isArray(data.periods))throw new Error('The periods service returned an invalid list.');
+  return data.periods;
+ },30000);
  const allowed=sharedPeriods.filter(p=>p.status==='open'||p.id===selectedId);
  const select=$('charge-period'),old=selectedId||select.value;select.replaceChildren();
  const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent=allowed.some(p=>p.status==='open')?'Select a contribution month':'No open contribution months — manage periods';select.appendChild(placeholder);

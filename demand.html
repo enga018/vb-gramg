@@ -656,21 +656,10 @@ function stableApplicantKey(jobCard,values,nameIndex,numberIndex,uniqueIdIndex){
  return 'fallback:'+JSON.stringify([jobCard,normalize(numberIndex>=0?values[numberIndex]:''),normalize(nameIndex>=0?values[nameIndex]:'')].map(v=>v.toLocaleLowerCase()));
 }
 async function fetchAllMisRows(seq){
- const pageSize=1000,concurrency=4;
- const first=await window.VBGRAMGData.invoke('vbgramg-mis-data',{body:{page:0,pageSize},deduplicate:true});
- if(first.error)throw new Error(first.error.message||'Could not load MIS data.');
- const data=first.data;
- if(!data||data.approved!==true)throw new Error((data&&data.error)||'MIS data access was denied.');
- if(!data.hasData||!data.totalRows)return {headers:[],rows:[]};
- const rows=(data.rows||[]).map(r=>({rowNumber:r.rowNumber,values:Array.isArray(r.values)?r.values:[]}));
- const totalPages=Math.ceil(data.totalRows/pageSize);
- for(let firstPage=1;firstPage<totalPages;firstPage+=concurrency){
-  const pages=Array.from({length:Math.min(concurrency,totalPages-firstPage)},(_,i)=>firstPage+i);
-  const results=await Promise.all(pages.map(page=>window.VBGRAMGData.invoke('vbgramg-mis-data',{body:{page,pageSize},deduplicate:true})));
-  if(seq!==loadSequence)return {headers:[],rows:[]};
-  for(const result of results){if(result.error)throw new Error(result.error.message||'Could not load all MIS rows.');if(!result.data||result.data.approved!==true)throw new Error((result.data&&result.data.error)||'MIS data access was denied.');rows.push(...(result.data.rows||[]).map(r=>({rowNumber:r.rowNumber,values:Array.isArray(r.values)?r.values:[]})));}
- }
- return {headers:(rows[0]?.values||[]).map(v=>String(v??'')),rows:rows.slice(1)};
+ const snapshot=await window.VBGRAMGMISData.loadActiveRegister();
+ if(seq!==loadSequence)return {headers:[],rows:[]};
+ const rows=snapshot.rows||[];
+ return {headers:rows.length?(rows[0].values||[]).map(v=>String(v??'')):[],rows:snapshot.hasData?rows.slice(1):[]};
 }
 function formatRupees(value){return new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(value)||0);}
 function buildCards(headers,rows){

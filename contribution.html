@@ -1140,13 +1140,13 @@ async function saveExemption(){
     const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'save-exemption',job_card_number:jobCard,exempt:true,note},timeoutMs:false});
     if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save exemption.');
     exemptions=data.exemptions||exemptions;
-    entries=entries.filter(e=>String(e.job_card_number||"").trim()!==jobCard);
+    
     extraCharges=extraCharges.filter(e=>String(e.job_card_number||"").trim()!==jobCard);
     saved++;
    }catch(err){failed.push(jobCard+': '+(err.message||'save failed'));}
    $('saveExemptionBtn').textContent='Saving '+(saved+failed.length)+'/'+jobCards.length+'…';
   }
-  deriveCitizens();renderExemptions();render();
+  await loadSummaryRefresh();renderExemptions();render();
   if(saved===jobCards.length){$('exemptJobCards').value='';$('exemptNote').value='';status(saved+' exemption(s) saved.','success');}
   else{status(saved+' exemption(s) saved; '+failed.length+' failed. '+failed.slice(0,5).join('; ')+(failed.length>5?' and '+(failed.length-5)+' more.':''),'error',9000);}
   if(currentCitizen&&jobCards.includes(currentCitizen.id))$('overlay').classList.add('hidden');
@@ -1168,12 +1168,12 @@ async function removeExemption(jobCard){
 function deriveCitizens(){
  const groupingStarted=performance.now();
  const exemptSet=exemptCardSet();
- const map=new Map(),make=(id,name)=>({id,jobCard:id,name:name||'Unnamed',exempt:exemptSet.has(id),charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,ledger:[]});
- for(const r of citizenRegistry){const id=String(r.job_card_number||'').trim();if(id)map.set(id,make(id,r.person_name))}
+ const map=new Map(),make=(id,name,source)=>({id,jobCard:id,name:name||'Unnamed',exempt:source?.exempt??exemptSet.has(id),charges:Number(source?.charges)||0,activeCharges:Number(source?.charges)||0,deferred:Number(source?.deferred)||0,paid:Number(source?.paid)||0,waived:Number(source?.waived)||0,returns:Number(source?.returns)||0,totalCharged:Number(source?.totalCharged)||0,balance:Number(source?.balance)||0,latestChargeAmount:source?.latest_charge_amount==null?null:Number(source.latest_charge_amount),displayApplicant:source?.display_applicant||name||'Unnamed',summaryLoaded:source&&Object.prototype.hasOwnProperty.call(source,'balance'),ledger:[]});
+ for(const r of citizenRegistry){const id=String(r.job_card_number||'').trim();if(id)map.set(id,make(id,r.person_name,r))}
  for(const e of entries){const id=String(e.job_card_number||'').trim();if(!id||!map.has(id))continue;map.get(id).ledger.push(e)}
  recordStartupStage('group_ledger_by_job_card_ms',groupingStarted);
  const calculationStarted=performance.now();
- citizens=[...map.values()].map(c=>{const x=calculateLedgerState(c.ledger);return c.exempt?{...c,charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,totalCharged:0,balance:0}:{...c,charges:x.charged,activeCharges:x.charged,deferred:x.deferred,paid:x.paid,waived:x.waived,returns:x.returned,totalCharged:Math.max(0,x.charged-Math.min(x.charged,x.waived)),balance:x.balance}}).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
+ citizens=[...map.values()].map(c=>{if(c.summaryLoaded)return c;const x=calculateLedgerState(c.ledger);return c.exempt?{...c,charges:0,activeCharges:0,deferred:0,paid:0,waived:0,returns:0,totalCharged:0,balance:0}:{...c,charges:x.charged,activeCharges:x.charged,deferred:x.deferred,paid:x.paid,waived:x.waived,returns:x.returned,totalCharged:Math.max(0,x.charged-Math.min(x.charged,x.waived)),balance:x.balance}}).sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));
  recordStartupStage('calculate_balances_and_name_sort_ms',calculationStarted);
 }
 const jobCardSuffixNumber=window.VBGRAMGContribution.jobCardSuffixNumber;
@@ -1214,7 +1214,7 @@ function render(){
     String(b.applicant_number||'').localeCompare(String(a.applicant_number||''),undefined,{numeric:true})||
     String(b.applicant_name||b.name||'').localeCompare(String(a.applicant_name||a.name||''))
    )[0];
-   const displayApplicant=String(latestApplicant?.applicant_name||latestApplicant?.name||'').trim()||c.name;
+   const displayApplicant=String(c.displayApplicant||latestApplicant?.applicant_name||latestApplicant?.name||'').trim()||c.name;
    const person=document.createElement('span');person.className='mobile-person-inline';person.textContent=' • '+displayApplicant;topLine.appendChild(person);
    detail.appendChild(topLine);
    const statusLine=document.createElement('div');statusLine.className='mobile-status-line';statusLine.style.display='flex';statusLine.style.flexWrap='wrap';statusLine.style.gap='5px';statusLine.style.alignItems='center';statusLine.style.marginTop='5px';
@@ -1229,8 +1229,8 @@ function render(){
 
   }else{
    cell(c.id,'jobcard');cell(c.name+(c.exempt?' · EXEMPT':''),'person');
-   const latestCharge=c.ledger.filter(e=>!e.is_voided&&(e.entry_type==='charge'||e.entry_type==='other_charge'||e.entry_type==='sanitationFee')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return')).slice().sort((a,b)=>String(b.entry_date||b.created_at||'').localeCompare(String(a.entry_date||a.created_at||'')))[0];
-   cell(latestCharge?fmt(latestCharge.amount):'—','last-charge-cell');
+   const latestCharge=c.ledger.length?c.ledger.filter(e=>!e.is_voided&&(e.entry_type==='charge'||e.entry_type==='other_charge'||e.entry_type==='sanitationFee')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return')).slice().sort((a,b)=>String(b.entry_date||b.created_at||'').localeCompare(String(a.entry_date||a.created_at||'')))[0]:null;
+   cell(latestCharge?fmt(latestCharge.amount):(c.latestChargeAmount==null?'—':fmt(c.latestChargeAmount)),'last-charge-cell');
    const dueAmount=Number(c.balance)||0;
    const dueCell=cell('','outstanding-cell');
    if(dueAmount<0){const tag=document.createElement('span');tag.className='row-status overpaid';tag.textContent='Overpaid '+fmt(Math.abs(dueAmount));tag.style.display='inline-flex';tag.style.marginLeft='5px';dueCell.appendChild(tag);}
@@ -1311,7 +1311,7 @@ async function openCitizen(id){
   const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'job-card-details',job_card_number:c.id},deduplicate:true,timeoutMs:45000});
   if(requestId!==citizenDetailRequest||currentCitizen?.id!==c.id)return;
   if(error||!data||data.approved!==true||data.error||String(data.job_card_number)!==String(c.id))throw new Error((data&&data.error)||(error&&error.message)||'Could not load the complete transaction details.');
-  periods=Array.isArray(data.periods)?data.periods:[];
+  c.ledger=Array.isArray(data.entries)?data.entries:[];c.summaryLoaded=false;const ledgerState=calculateLedgerState(c.ledger);c.charges=ledgerState.charged;c.activeCharges=ledgerState.charged;c.deferred=ledgerState.deferred;c.paid=ledgerState.paid;c.waived=ledgerState.waived;c.returns=ledgerState.returned;c.totalCharged=Math.max(0,ledgerState.charged-Math.min(ledgerState.charged,ledgerState.waived));c.balance=c.exempt?0:ledgerState.balance;periods=Array.isArray(data.periods)?data.periods:[];
   paymentAllocations=Array.from(new Map((data.payment_allocations||[]).filter(a=>a&&a.id).map(a=>[String(a.id),a])).values());
   paymentRefundReconciliations=data.payment_refund_reconciliations||[];
   extraCharges=data.extras||[];
@@ -1513,7 +1513,7 @@ function showPaymentForm(){
   try{
    const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'add-payment',job_card_number:c.id,amount,entry_date:date,note},timeoutMs:false});
    if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save payment.');
-   entries.push(data.entry);deriveCitizens();render();openCitizen(c.id);status('Payment saved. Ledger updated.','info');
+   updateEntryInMemory(data.entry);openCitizen(c.id);status('Payment saved. Ledger updated.','info');
   }catch(err){status(err.message||'Could not save payment.','err');}
   finally{busy=false;if($('savePayment')){$('savePayment').disabled=false;$('savePayment').textContent='Save payment';}}
  });
@@ -1560,7 +1560,7 @@ function showBulkPaymentForm(){
    try{
     const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:"bulk-bank-payment",entry_date:date,entries:parsed.rows},timeoutMs:false});
     if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save bank payment batch.');
-    entries.push(...(data.entries||[]));deriveCitizens();render();$('overlay').classList.add('hidden');
+    $('overlay').classList.add('hidden');await loadSummaryRefresh();
     status('Saved '+data.count+' Bank payments totalling '+fmt(data.total_amount)+'. Ledger updated.','success');
    }catch(err){status(err.message||'Could not save bank payment batch.','error');if($('saveBulkPayments')){$('saveBulkPayments').disabled=false;$('saveBulkPayments').textContent='Save '+parsed.rows.length+' bank payments';}}
    finally{busy=false;}
@@ -1569,9 +1569,18 @@ function showBulkPaymentForm(){
 }
 
 function updateEntryInMemory(entry){
- const index=entries.findIndex(e=>String(e.id)===String(entry.id));
- if(index>=0)entries[index]=entry;else entries.push(entry);
- deriveCitizens();render();
+ const card=citizens.find(item=>item.id===String(entry.job_card_number||currentCitizen?.id||""));
+ if(!card)return;
+ const index=card.ledger.findIndex(e=>String(e.id)===String(entry.id));
+ if(index>=0)card.ledger[index]=entry;else card.ledger.push(entry);
+ const state=calculateLedgerState(card.ledger);
+ card.charges=state.charged;card.activeCharges=state.charged;card.deferred=state.deferred;card.paid=state.paid;card.waived=state.waived;card.returns=state.returned;card.totalCharged=Math.max(0,state.charged-Math.min(state.charged,state.waived));card.balance=card.exempt?0:state.balance;card.summaryLoaded=false;
+ render();
+}
+async function loadSummaryRefresh(){
+ const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'summary'},deduplicate:false,timeoutMs:45000});
+ if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not refresh contribution summary.');
+ citizenRegistry=data.citizens||[];applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];entries=[];deriveCitizens();
 }
 function showEditForm(id){
  $('sheetFooter').classList.add('hidden');
@@ -1647,7 +1656,7 @@ async function load(){
   const requestStarted=performance.now();
   try{
    listResult=await Promise.race([
-    window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'list'},deduplicate:true,timeoutMs:45000}),
+    window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'summary'},deduplicate:true,timeoutMs:45000}),
     new Promise((_,reject)=>{listTimer=window.setTimeout(()=>reject(new Error('Contribution data request timed out after 45 seconds. Check your connection and retry. If this continues, report the time of the failure so the server request can be investigated.')),45000);})
    ]);
   }finally{if(listTimer)window.clearTimeout(listTimer);}
@@ -1656,7 +1665,7 @@ async function load(){
   if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
   if(window.VBGRAMGCache)window.VBGRAMGCache.setUser(sessionData.session.user.id);
   const assignmentStarted=performance.now();
-  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");$("exportDueBtn").classList.remove("hidden");entries=data.entries||[];periods=[];paymentAllocations=[];paymentRefundReconciliations=[];extraCharges=[];citizenRegistry=data.citizens||[];applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];
+  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");$("exportDueBtn").classList.remove("hidden");entries=[];periods=[];paymentAllocations=[];paymentRefundReconciliations=[];extraCharges=[];citizenRegistry=data.citizens||[];applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];
   recordStartupStage("assign_response_data_ms",assignmentStarted);
   const deriveStarted=performance.now();deriveCitizens();recordStartupStage("derive_citizens_total_ms",deriveStarted);renderExemptions();
   $('app').classList.remove('hidden');$('status').classList.add('hidden');$('loading-state').classList.add('hidden');

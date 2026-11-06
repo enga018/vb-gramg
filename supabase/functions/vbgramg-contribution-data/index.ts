@@ -293,7 +293,7 @@ Deno.serve(async(req:Request)=>{
     if(!sql)throw new Error(`Database summary is missing active MIS job card ${id}.`);
     if(auditCalculations){
      const state=ledgerCalculations.calculateLedgerState(rows);
-     const jsValues={charges:state.charged,deferred:state.deferred,paid:state.paid,waived:state.waived,returns:state.returned,totalCharged:Math.max(0,state.charged-Math.min(state.charged,state.waived)),balance:state.balance};
+     const jsValues={charges:isExempt?0:state.charged,deferred:isExempt?0:state.deferred,paid:isExempt?0:state.paid,waived:isExempt?0:state.waived,returns:isExempt?0:state.returned,totalCharged:isExempt?0:Math.max(0,state.charged-Math.min(state.charged,state.waived)),balance:isExempt?0:state.balance};
      const sqlValues={charges:Number(sql.charges)||0,deferred:Number(sql.deferred)||0,paid:Number(sql.paid)||0,waived:Number(sql.waived)||0,returns:Number(sql.returns)||0,totalCharged:Number(sql.totalCharged)||0,balance:Number(sql.balance)||0};
      const differences=Object.keys(jsValues).filter(key=>Math.abs(jsValues[key as keyof typeof jsValues]-sqlValues[key as keyof typeof sqlValues])>0.005);
      if(differences.length)auditFlags.push({job_card_number:id,fields:differences,js:jsValues,sql:sqlValues});

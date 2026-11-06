@@ -232,7 +232,12 @@ Deno.serve(async(req:Request)=>{
    ]);
    if(extraResult.error)throw extraResult.error;
    if(periodResult.error)throw periodResult.error;
-   const payload={approved:true,job_card_number:jobCard,entries:ledgerRows||[],extras:extraResult.data||[],periods:periodResult.data||[],payment_allocations:allocationResult||[],payment_refund_reconciliations:refundResult||[]};
+   const fifoStarted=performance.now();
+   const {data:fifoBreakdown,error:fifoError}=await admin.rpc("vbgramg_contribution_fifo_breakdown",{p_job_card_number:jobCard});
+   queryTimings.fifo_breakdown=Number((performance.now()-fifoStarted).toFixed(1));
+   if(fifoError)throw fifoError;
+   if(!fifoBreakdown||!Array.isArray(fifoBreakdown.groups))throw new Error("Database FIFO breakdown returned an invalid result.");
+   const payload={approved:true,job_card_number:jobCard,entries:ledgerRows||[],extras:extraResult.data||[],periods:periodResult.data||[],payment_allocations:allocationResult||[],payment_refund_reconciliations:refundResult||[],fifo_breakdown:fifoBreakdown};
    console.info("[contribution-detail-timing]",JSON.stringify({job_card_number:jobCard,total_ms:Number((performance.now()-detailStarted).toFixed(1)),query_timings_ms:queryTimings,ledger_entries:payload.entries.length,extras:payload.extras.length,periods:payload.periods.length,allocations:payload.payment_allocations.length,refunds:payload.payment_refund_reconciliations.length,periods_included:includePeriods}));
    return reply(payload);
   }

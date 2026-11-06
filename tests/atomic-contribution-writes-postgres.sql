@@ -51,7 +51,7 @@ BEGIN
   IF EXISTS (
     SELECT 1 FROM public.vbgramg_contribution_exemptions e
     WHERE btrim(e.job_card_number) = btrim(NEW.job_card_number)
-  ) OR NEW.job_card_number = 'MZ-SKIP-TRIGGER' THEN
+  ) OR (NEW.job_card_number = 'MZ-SKIP-TRIGGER' AND NEW.entry_type = 'payment') THEN
     RETURN NULL;
   END IF;
   RETURN NEW;

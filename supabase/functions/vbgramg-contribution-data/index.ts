@@ -239,8 +239,8 @@ Deno.serve(async(req:Request)=>{
 
   if(action==="list-summary"){
    const summaryStarted=performance.now();
-   if(!ledgerCalculations?.calculateLedgerState)throw new Error("Shared ledger calculations are unavailable.");
    const auditCalculations=body.audit_calculations===true;
+   if(auditCalculations&&!ledgerCalculations?.calculateLedgerState)throw new Error("Shared ledger calculations are unavailable for audit mode.");
    const [sqlSummaryResult,ledgerResult,exemptionsResult,misStateResult]=await Promise.all([
     admin.rpc("vbgramg_contribution_financial_summary"),
     auditCalculations?admin.rpc("vbgramg_contribution_ledger_list"):Promise.resolve({data:null,error:null}),

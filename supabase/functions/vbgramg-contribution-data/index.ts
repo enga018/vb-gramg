@@ -194,21 +194,27 @@ Deno.serve(async(req:Request)=>{
     try{return await request;}
     finally{queryTimings[key]=Number((performance.now()-started).toFixed(1));}
    };
-   const [ledgerRows,extraResult,periodResult,allocationResult,refundResult]=await Promise.all([
+   const [ledgerRows,extraResult,periodResult,allocationResult,refundResult,financialSummaryResult]=await Promise.all([
     timed("ledger",fetchPagedRowsForJobCard(admin,"vbgramg_charge_ledger","id,job_card_number,applicant_name,applicant_number,applicant_unique_id,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,is_voided",jobCard)),
     timed("extras",admin.from("vbgramg_contribution_extras").select("id,job_card_number,person_name,charge_period,period_id,amount,reason,ledger_entry_id,created_at,updated_at").eq("job_card_number",jobCard).order("charge_period",{ascending:false})),
     timed("periods",includePeriods?admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status,created_at").order("contribution_month",{ascending:false,nullsFirst:false}).order("created_at",{ascending:true}):Promise.resolve({data:[],error:null})),
     timed("allocations",fetchPagedRowsForJobCard(admin,"vbgramg_payment_allocations","id,transaction_id,period_id,job_card_number,amount,allocation_source,confidence,note,created_at,updated_at",jobCard)),
-    timed("refunds",fetchPagedRowsForJobCard(admin,"vbgramg_payment_refund_reconciliations","id,payment_id,refund_id,job_card_number,amount,note,created_at",jobCard))
+    timed("refunds",fetchPagedRowsForJobCard(admin,"vbgramg_payment_refund_reconciliations","id,payment_id,refund_id,job_card_number,amount,note,created_at",jobCard)),
+    timed("financial_summary",admin.rpc("vbgramg_contribution_financial_summary"))
    ]);
    if(extraResult.error)throw extraResult.error;
    if(periodResult.error)throw periodResult.error;
+   if(financialSummaryResult.error)throw financialSummaryResult.error;
+   const financialSummaries=financialSummaryResult.data?.summaries;
+   if(!Array.isArray(financialSummaries))throw new Error("The database financial summary returned an invalid response.");
+   const cardSummary=financialSummaries.find((row:any)=>String(row.job_card_number||"").trim()===jobCard);
+   if(!cardSummary)throw new Error(`Database financial summary is missing active MIS job card ${jobCard}.`);
    const fifoStarted=performance.now();
    const {data:fifoBreakdown,error:fifoError}=await admin.rpc("vbgramg_contribution_fifo_breakdown",{p_job_card_number:jobCard});
    queryTimings.fifo_breakdown=Number((performance.now()-fifoStarted).toFixed(1));
    if(fifoError)throw fifoError;
    if(!fifoBreakdown||!Array.isArray(fifoBreakdown.groups))throw new Error("Database FIFO breakdown returned an invalid result.");
-   const payload={approved:true,job_card_number:jobCard,entries:ledgerRows||[],extras:extraResult.data||[],periods:periodResult.data||[],payment_allocations:allocationResult||[],payment_refund_reconciliations:refundResult||[],fifo_breakdown:fifoBreakdown};
+   const payload={approved:true,job_card_number:jobCard,card_summary:cardSummary,entries:ledgerRows||[],extras:extraResult.data||[],periods:periodResult.data||[],payment_allocations:allocationResult||[],payment_refund_reconciliations:refundResult||[],fifo_breakdown:fifoBreakdown};
    console.info("[contribution-detail-timing]",JSON.stringify({job_card_number:jobCard,total_ms:Number((performance.now()-detailStarted).toFixed(1)),query_timings_ms:queryTimings,ledger_entries:payload.entries.length,extras:payload.extras.length,periods:payload.periods.length,allocations:payload.payment_allocations.length,refunds:payload.payment_refund_reconciliations.length,periods_included:includePeriods}));
    return reply(payload);
   }

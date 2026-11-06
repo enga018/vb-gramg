@@ -1,16 +1,19 @@
-/* Shared, in-memory data cache for VBGRAMG.
+/* Shared, session-persistent data cache for VBGRAMG.
  *
- * This module stores completed read results only. It does not intercept requests,
- * persist data to browser storage, retry requests, or cache mutations.
+ * Stores completed read results only. It does not intercept requests, retry
+ * requests, or cache mutations. sessionStorage lets opt-in reads survive
+ * same-tab navigation and reloads; closing the tab ends the storage session.
  *
- * Load after js/supabase-client.js. Pages opt in explicitly through
- * window.VBGRAMGCache.get/set/getOrLoad/invalidate.
+ * Load after js/supabase-client.js. Pages must call setUser(user.id) only
+ * after their approved-user access check succeeds.
  */
 (function () {
   "use strict";
 
   const DEFAULT_TTL_MS = 30 * 1000;
   const MAX_ENTRIES = 200;
+  const STORAGE_PREFIX = "vbgramg-cache:v1:";
+  const ACTIVE_USER_KEY = STORAGE_PREFIX + "active-user";
   const entries = new Map();
   const inFlightReads = new Map();
   const keyVersions = new Map();
@@ -26,6 +29,22 @@
     return String(userId) + "::" + String(key);
   }
 
+  function storageKey(userId, key) {
+    return STORAGE_PREFIX + encodeURIComponent(String(userId)) + ":" + encodeURIComponent(String(key));
+  }
+
+  function userStoragePrefix(userId) {
+    return STORAGE_PREFIX + encodeURIComponent(String(userId)) + ":";
+  }
+
+  function getStorage() {
+    try {
+      return window.sessionStorage || null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   function cloneValue(value) {
     if (typeof structuredClone === "function") return structuredClone(value);
     if (value === undefined) return undefined;
@@ -33,15 +52,35 @@
     return JSON.parse(JSON.stringify(value));
   }
 
-  function removeExpired() {
+  function readStored(userId, key) {
+    const storage = getStorage();
+    if (!storage) return null;
+    const id = storageKey(userId, key);
+    try {
+      const raw = storage.getItem(id);
+      if (!raw) return null;
+      const record = JSON.parse(raw);
+      if (!record || record.version !== 1 || !Number.isFinite(record.expiresAt) ||
+          record.expiresAt <= now() || !Object.prototype.hasOwnProperty.call(record, "value")) {
+        storage.removeItem(id);
+        return null;
+      }
+      return record;
+    } catch (_) {
+      try { storage.removeItem(id); } catch (_) {}
+      return null;
+    }
+  }
+
+  function removeExpiredMemory() {
     const timestamp = now();
     for (const [key, entry] of entries) {
       if (!entry || entry.expiresAt <= timestamp) entries.delete(key);
     }
   }
 
-  function trimEntries() {
-    removeExpired();
+  function trimMemory() {
+    removeExpiredMemory();
     while (entries.size > MAX_ENTRIES) {
       const oldestKey = entries.keys().next().value;
       if (oldestKey === undefined) break;
@@ -49,15 +88,114 @@
     }
   }
 
+  function trimPersistent(userId) {
+    const storage = getStorage();
+    if (!storage) return [];
+    const prefix = userStoragePrefix(userId);
+    const records = [];
+    try {
+      for (let i = storage.length - 1; i >= 0; i--) {
+        const id = storage.key(i);
+        if (!id || !id.startsWith(prefix)) continue;
+        let record = null;
+        try { record = JSON.parse(storage.getItem(id)); } catch (_) {}
+        if (!record || record.version !== 1 || !Number.isFinite(record.expiresAt) ||
+            record.expiresAt <= now()) {
+          storage.removeItem(id);
+        } else {
+          records.push({ id, touchedAt: Number(record.touchedAt) || 0 });
+        }
+      }
+      records.sort((a, b) => a.touchedAt - b.touchedAt);
+      while (records.length >= MAX_ENTRIES) {
+        const oldest = records.shift();
+        if (oldest) storage.removeItem(oldest.id);
+      }
+    } catch (_) {}
+    return records;
+  }
+
+  function persist(userId, key, value, expiresAt) {
+    const storage = getStorage();
+    if (!storage) return false;
+    let serialized;
+    try {
+      serialized = JSON.stringify({
+        version: 1,
+        expiresAt,
+        touchedAt: now(),
+        value
+      });
+    } catch (_) {
+      return false;
+    }
+    const id = storageKey(userId, key);
+    trimPersistent(userId);
+    try {
+      storage.setItem(id, serialized);
+      return true;
+    } catch (_) {
+      // A large MIS response or a nearly-full session can exceed browser quota.
+      // Evict older cache entries and retry a small bounded number of times.
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const records = trimPersistent(userId);
+        if (!records.length) break;
+        try {
+          storage.setItem(id, serialized);
+          return true;
+        } catch (_) {}
+      }
+      return false;
+    }
+  }
+
+  function clearPersistentUser(userId) {
+    const storage = getStorage();
+    if (!storage) return;
+    const prefix = userStoragePrefix(userId);
+    try {
+      for (let i = storage.length - 1; i >= 0; i--) {
+        const id = storage.key(i);
+        if (id && id.startsWith(prefix)) storage.removeItem(id);
+      }
+    } catch (_) {}
+  }
+
+  function clearPersistentAll() {
+    const storage = getStorage();
+    if (!storage) return;
+    try {
+      for (let i = storage.length - 1; i >= 0; i--) {
+        const id = storage.key(i);
+        if (id && id.startsWith(STORAGE_PREFIX)) storage.removeItem(id);
+      }
+    } catch (_) {}
+  }
+
   function setUser(userId) {
     const nextUserId = userId == null || userId === "" ? null : String(userId);
     if (nextUserId === activeUserId) return;
-    // Never allow one authenticated account to see another account's cache.
+    const storage = getStorage();
+    let storedUserId = null;
+    try { storedUserId = storage && storage.getItem(ACTIVE_USER_KEY); } catch (_) {}
+    // On reload activeUserId starts empty. Preserve the same user's session
+    // cache, but discard it if a different account was last approved in this tab.
+    if (activeUserId && activeUserId !== nextUserId) {
+      clearAll();
+    } else if (storedUserId && storedUserId !== nextUserId) {
+      clearPersistentAll();
+    }
     userEpoch++;
     entries.clear();
     inFlightReads.clear();
     keyVersions.clear();
     activeUserId = nextUserId;
+    try {
+      if (storage) {
+        if (nextUserId) storage.setItem(ACTIVE_USER_KEY, nextUserId);
+        else storage.removeItem(ACTIVE_USER_KEY);
+      }
+    } catch (_) {}
   }
 
   function bumpKeyVersion(fullKey) {
@@ -74,15 +212,21 @@
     }
     const fullKey = namespaceKey(activeUserId, key);
     const entry = entries.get(fullKey);
-    if (!entry) return { hit: false, value: undefined };
-    if (entry.expiresAt <= now()) {
+    if (entry && entry.expiresAt > now()) {
       entries.delete(fullKey);
-      return { hit: false, value: undefined };
+      entries.set(fullKey, entry);
+      return { hit: true, value: cloneValue(entry.value) };
     }
-    // Refresh insertion order for simple LRU eviction.
-    entries.delete(fullKey);
-    entries.set(fullKey, entry);
-    return { hit: true, value: cloneValue(entry.value) };
+    if (entry) entries.delete(fullKey);
+
+    const stored = readStored(activeUserId, key);
+    if (!stored) return { hit: false, value: undefined };
+    const restored = { value: stored.value, expiresAt: stored.expiresAt };
+    entries.set(fullKey, restored);
+    trimMemory();
+    // Refresh persistent LRU timestamp without extending the original expiry.
+    persist(activeUserId, key, restored.value, restored.expiresAt);
+    return { hit: true, value: cloneValue(restored.value) };
   }
 
   function set(key, value, ttlMs, fromLoader) {
@@ -98,12 +242,11 @@
       if (inFlightReads.has(fullKey)) bumpKeyVersion(fullKey);
       inFlightReads.delete(fullKey);
     }
+    const expiresAt = now() + ttl;
     entries.delete(fullKey);
-    entries.set(fullKey, {
-      value: cloneValue(value),
-      expiresAt: now() + ttl
-    });
-    trimEntries();
+    entries.set(fullKey, { value: cloneValue(value), expiresAt });
+    trimMemory();
+    persist(activeUserId, key, value, expiresAt);
     return true;
   }
 
@@ -120,7 +263,6 @@
     const versionAtStart = keyVersions.get(fullKey) || 0;
 
     const operation = Promise.resolve().then(loader).then(value => {
-      // A request started by one account must not populate another account's cache.
       if (activeUserId === userAtStart &&
           userEpoch === epochAtStart &&
           (keyVersions.get(fullKey) || 0) === versionAtStart &&
@@ -146,6 +288,8 @@
     if (inFlightReads.has(fullKey)) bumpKeyVersion(fullKey);
     entries.delete(fullKey);
     inFlightReads.delete(fullKey);
+    const storage = getStorage();
+    try { if (storage) storage.removeItem(storageKey(activeUserId, key)); } catch (_) {}
   }
 
   function invalidatePrefix(prefix) {
@@ -159,6 +303,16 @@
         bumpKeyVersion(key);
         inFlightReads.delete(key);
       }
+    }
+    const storage = getStorage();
+    const storedPrefix = userStoragePrefix(activeUserId) + encodeURIComponent(String(prefix));
+    if (storage) {
+      try {
+        for (let i = storage.length - 1; i >= 0; i--) {
+          const id = storage.key(i);
+          if (id && id.startsWith(storedPrefix)) storage.removeItem(id);
+        }
+      } catch (_) {}
     }
   }
 
@@ -174,6 +328,7 @@
         inFlightReads.delete(key);
       }
     }
+    clearPersistentUser(activeUserId);
   }
 
   function clearAll() {
@@ -182,26 +337,24 @@
     inFlightReads.clear();
     keyVersions.clear();
     activeUserId = null;
+    clearPersistentAll();
   }
 
   async function connectAuth() {
     try {
       const client = await window.VBGRAMG_SUPABASE_READY;
       if (!client || !client.auth) return;
-      const { data, error } = await client.auth.getSession();
-      if (!error) setUser(data && data.session && data.session.user ? data.session.user.id : null);
       if (authSubscription) authSubscription.unsubscribe();
       const result = client.auth.onAuthStateChange((event, session) => {
-        const nextId = session && session.user ? session.user.id : null;
-        if (event === "SIGNED_OUT" || !nextId) {
+        const nextId = session && session.user ? String(session.user.id) : null;
+        // Pages enable the cache only after vbgramg-app-access approves the user.
+        // Auth changes clear the cache; they never grant cache access by themselves.
+        if (event === "SIGNED_OUT" || !nextId || (activeUserId && nextId !== activeUserId)) {
           clearAll();
-        } else {
-          setUser(nextId);
         }
       });
       authSubscription = result && result.data ? result.data.subscription : null;
     } catch (_) {
-      // Cache is an optional optimization. If auth cannot be resolved, it stays disabled.
       clearAll();
     }
   }
@@ -217,7 +370,7 @@
     setUser,
     getUserId,
     get size() {
-      removeExpired();
+      removeExpiredMemory();
       return entries.size;
     }
   });

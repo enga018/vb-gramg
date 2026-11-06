@@ -1160,7 +1160,7 @@ async function removeExemption(jobCard){
  try{
   const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'save-exemption',job_card_number:jobCard,exempt:false},timeoutMs:false});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not remove exemption.');
-  exemptions=data.exemptions||[];deriveCitizens();renderExemptions();render();
+  exemptions=data.exemptions||[];await loadSummaryRefresh();renderExemptions();render();
   status('Exemption removed. Contribution totals recalculated.','success');
  }catch(err){status(err.message||'Could not remove exemption.','err');}
  finally{busy=false;}

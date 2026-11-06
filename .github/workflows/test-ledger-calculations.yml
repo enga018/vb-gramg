@@ -6,6 +6,9 @@ on:
       - "supabase/functions/shared/ledger-calculations.js"
       - "tests/ledger-calculations.test.cjs"
       - "tests/postgres-contribution-balances.test.cjs"
+      - "tests/atomic-contribution-writes.test.cjs"
+      - "docs/architecture/atomic-contribution-writes.sql"
+      - "docs/architecture/atomic-contribution-writes.md"
       - "supabase/functions/vbgramg-contribution-data/index.ts"
       - "contribution.html"
       - "demand.html"
@@ -39,7 +42,7 @@ jobs:
         with:
           node-version: 22
       - name: Run shared ledger tests
-        run: node --test tests/ledger-calculations.test.cjs tests/data-loader.test.cjs tests/postgres-contribution-balances.test.cjs
+        run: node --test tests/ledger-calculations.test.cjs tests/data-loader.test.cjs tests/postgres-contribution-balances.test.cjs tests/atomic-contribution-writes.test.cjs
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:

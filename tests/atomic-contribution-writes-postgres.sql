@@ -106,6 +106,45 @@ CREATE TABLE public.vbgramg_fto_batches (
   last_source_sha256 text
 );
 
+
+CREATE TABLE public.vbgramg_fto_transactions (
+  id uuid PRIMARY KEY,
+  batch_id uuid NOT NULL,
+  is_current boolean NOT NULL DEFAULT true,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE public.vbgramg_fto_status_history (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  transaction_id uuid,
+  old_status text,
+  new_status text,
+  old_calculated_charge numeric,
+  new_calculated_charge numeric,
+  old_processed_date date,
+  new_processed_date date,
+  changed_by uuid,
+  fto_number text,
+  reference_no text,
+  note text
+);
+CREATE TABLE public.vbgramg_charge_imports (
+  id uuid PRIMARY KEY,
+  source_filename text,
+  source_sha256 text UNIQUE,
+  charge_period date,
+  row_count integer,
+  total_amount numeric,
+  status text,
+  imported_by uuid,
+  notes text,
+  completed_at timestamptz
+);
+CREATE TABLE public.vbgramg_payment_allocations (
+  transaction_id uuid,
+  period_id uuid,
+  amount numeric
+);
+
 \ir ../supabase/migrations/20261107050000_postgres_fto_charge_calculation.sql
 
 INSERT INTO public.vbgramg_charge_ledger (job_card_number, person_name, entry_type, amount, charge_period, note, is_deferred, is_voided)
@@ -167,7 +206,73 @@ BEGIN
 END
 $$;
 
-DO $$
+
+DO $
+DECLARE
+  v_batch_id uuid := gen_random_uuid();
+  v_period_id uuid := gen_random_uuid();
+  v_user_id uuid := gen_random_uuid();
+  v_import_id uuid := gen_random_uuid();
+  v_result jsonb;
+  v_divisor numeric;
+  v_multiplier numeric;
+BEGIN
+  -- Exercise the real atomic snapshot upsert, not just the calculation RPC.
+  -- The same FTO is then re-imported with a different admin-entered multiplier.
+  v_result := public.vbgramg_apply_fto_snapshot(jsonb_build_object(
+    'batch', jsonb_build_object(
+      'id',v_batch_id,'fto_number','TEST-AUDIT-FTO',
+      'contribution_period','NOV26','ledger_charge_period','2026-11-01',
+      'period_id',v_period_id,'created_by',v_user_id,
+      'last_checked_at',now(),'last_source_sha256',repeat('a',64),
+      'calculation_divisor',300,'calculation_multiplier',100
+    ),
+    'charge_import',jsonb_build_object(
+      'id',v_import_id,'source_filename','FTO-TEST-AUDIT-FTO',
+      'source_sha256',repeat('b',64),'charge_period','2026-11-01',
+      'row_count',0,'total_amount',0,'imported_by',v_user_id,
+      'notes','FTO calculation audit test','completed_at',now()
+    )
+  ));
+  IF NOT (v_result->>'committed')::boolean THEN
+    RAISE EXCEPTION 'Initial FTO snapshot did not commit: %',v_result;
+  END IF;
+  SELECT calculation_divisor,calculation_multiplier
+    INTO v_divisor,v_multiplier
+    FROM public.vbgramg_fto_batches WHERE id=v_batch_id;
+  IF v_divisor<>300 OR v_multiplier<>100 THEN
+    RAISE EXCEPTION 'Initial FTO calculation parameters were not persisted exactly: divisor %, multiplier %',v_divisor,v_multiplier;
+  END IF;
+
+  v_result := public.vbgramg_apply_fto_snapshot(jsonb_build_object(
+    'batch', jsonb_build_object(
+      'id',v_batch_id,'fto_number','TEST-AUDIT-FTO',
+      'contribution_period','NOV26','ledger_charge_period','2026-11-01',
+      'period_id',v_period_id,'created_by',v_user_id,
+      'last_checked_at',now(),'last_source_sha256',repeat('c',64),
+      'calculation_divisor',300,'calculation_multiplier',80
+    ),
+    'charge_import',jsonb_build_object(
+      'id',gen_random_uuid(),'source_filename','FTO-TEST-AUDIT-FTO',
+      'source_sha256',repeat('d',64),'charge_period','2026-11-01',
+      'row_count',0,'total_amount',0,'imported_by',v_user_id,
+      'notes','FTO calculation audit re-import test','completed_at',now()
+    )
+  ));
+  IF NOT (v_result->>'committed')::boolean THEN
+    RAISE EXCEPTION 'FTO re-import snapshot did not commit: %',v_result;
+  END IF;
+  SELECT calculation_divisor,calculation_multiplier
+    INTO v_divisor,v_multiplier
+    FROM public.vbgramg_fto_batches WHERE id=v_batch_id;
+  IF v_divisor<>300 OR v_multiplier<>80 THEN
+    RAISE EXCEPTION 'FTO re-import did not update the exact calculation parameters: divisor %, multiplier %',v_divisor,v_multiplier;
+  END IF;
+END
+$;
+
+
+DO $
 DECLARE
   r jsonb;
   before_count integer;

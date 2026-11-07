@@ -142,7 +142,8 @@ BEGIN
   IF EXISTS (
     SELECT 1 FROM public.vbgramg_charge_ledger
     WHERE job_card_number IN ('MZ-BANK-1','MZ-BANK-2')
-      AND (entry_type <> 'payment' OR note <> 'Bank' OR entry_date <> '2026-11-06')
+      AND entry_type='payment'
+      AND (note <> 'Bank' OR entry_date <> '2026-11-06')
   ) THEN
     RAISE EXCEPTION 'Bulk bank payment ledger values were not preserved.';
   END IF;

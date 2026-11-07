@@ -484,7 +484,7 @@ function renderPastedTable(rows){
  FTO_HEADERS.forEach(value=>{const th=document.createElement('th');th.textContent=value;headerRow.appendChild(th)});
  thead.appendChild(headerRow);
  const dataRows=rows.filter(row=>{if(isHeaderOrSeparator(row))return false;const cells=row.map(cell=>String(cell||'').replace(/<br\s*\/?>/gi,' ').replace(/\s+/g,' ').trim());return /^\d+$/.test(cells[0]||'')&&cells.length>=13&&!!jobCardFromRow(cells)&&String(cells[3]||'').trim().length>0&&/^\d{2}\/\d{2}\/\d{4}$/.test(cells[4]||'')});
- if(!dataRows.length){$('table-output').classList.add('hidden');$('import-controls').classList.add('hidden');parsedDataRows=[];return null}
+ if(!dataRows.length){calculationSequence++;calculationPending=false;calculationError='';calculatedCharges=[];importGroups=[];$('table-output').classList.add('hidden');$('import-controls').classList.add('hidden');parsedDataRows=[];return null}
  dataRows.forEach(row=>{
   const tr=document.createElement('tr');tr.dataset.reference=String(row[3]||'').trim();
   FTO_HEADERS.forEach((header,index)=>{const td=document.createElement('td');td.dataset.label=header;td.textContent=(row[index]||'').replace(/<br\s*\/?>/gi,'\n');td.style.whiteSpace='pre-line';tr.appendChild(td)});

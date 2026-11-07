@@ -106,6 +106,8 @@ jobs:
       - name: Run atomic contribution PostgreSQL integration tests
         run: psql -v ON_ERROR_STOP=1 -f tests/atomic-contribution-writes-postgres.sql
       - name: Run atomic extra contribution charge PostgreSQL tests
-        run: psql -v ON_ERROR_STOP=1 -f tests/extra-contribution-charges-postgres.sql
+        run: |
+          createdb vbgramg_extras_test
+          PGDATABASE=vbgramg_extras_test psql -v ON_ERROR_STOP=1 -f tests/extra-contribution-charges-postgres.sql
       - name: Verify per-job-card advisory lock serializes concurrent writes
         run: bash tests/atomic-contribution-writes-concurrency.sh

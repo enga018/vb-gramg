@@ -30,6 +30,12 @@ BEGIN
     RETURN pg_catalog.jsonb_build_object('allocated_amount', 0, 'allocation_count', 0);
   END IF;
 
+  -- Serialize this card with the established contribution write paths. FTO snapshot
+  -- is wrapped below so it acquires this household lock before its period locks.
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('vbgramg-contribution:' || v_card, 0)
+  );
+
   -- Exempt cards must never receive automatic contribution allocations.
   IF EXISTS (
     SELECT 1
@@ -230,6 +236,49 @@ ON public.vbgramg_charge_ledger
 FOR EACH ROW
 EXECUTE FUNCTION public.vbgramg_auto_allocate_after_charge_change();
 
+
+
+-- Serialize FTO snapshot imports with other contribution writes before the
+-- underlying RPC acquires its card+period locks and writes charge rows.
+ALTER FUNCTION public.vbgramg_apply_fto_snapshot(jsonb)
+  RENAME TO vbgramg_apply_fto_snapshot_unlocked;
+
+CREATE OR REPLACE FUNCTION public.vbgramg_apply_fto_snapshot(p_plan jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+DECLARE
+  v_card record;
+BEGIN
+  FOR v_card IN
+    SELECT DISTINCT pg_catalog.btrim(x.job_card_number) AS job_card_number
+    FROM (
+      SELECT g.job_card_number
+      FROM pg_catalog.jsonb_to_recordset(COALESCE(p_plan->'charge_guards','[]'::jsonb))
+        AS g(job_card_number text)
+      UNION
+      SELECT l.job_card_number
+      FROM pg_catalog.jsonb_to_recordset(COALESCE(p_plan->'ledger_rows','[]'::jsonb))
+        AS l(job_card_number text)
+    ) AS x
+    WHERE NULLIF(pg_catalog.btrim(x.job_card_number),'') IS NOT NULL
+    ORDER BY job_card_number
+  LOOP
+    PERFORM pg_catalog.pg_advisory_xact_lock(
+      pg_catalog.hashtextextended('vbgramg-contribution:' || v_card.job_card_number, 0)
+    );
+  END LOOP;
+
+  RETURN public.vbgramg_apply_fto_snapshot_unlocked(p_plan);
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.vbgramg_apply_fto_snapshot_unlocked(jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.vbgramg_apply_fto_snapshot(jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.vbgramg_apply_fto_snapshot_unlocked(jsonb) TO service_role;
+GRANT EXECUTE ON FUNCTION public.vbgramg_apply_fto_snapshot(jsonb) TO service_role;
 
 -- The manual replacement RPC must take the same period-before-payment lock order
 -- as the automatic allocator and FTO reconciliation. The earlier implementation

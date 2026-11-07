@@ -111,7 +111,7 @@ BEGIN
     (job_card_number,person_name,charge_period,period_id,amount,reason,ledger_entry_id,created_by,updated_by,updated_at)
   VALUES
     (v_card,v_name,p_charge_period,p_period_id,p_amount,v_reason,v_entry.id,
-     CASE WHEN v_updated THEN v_old.created_by ELSE p_actor_user_id END,p_actor_user_id,pg_catalog.now())
+     CASE WHEN v_updated THEN COALESCE(v_old.created_by,p_actor_user_id) ELSE p_actor_user_id END,p_actor_user_id,pg_catalog.now())
   ON CONFLICT (job_card_number,period_id) DO UPDATE
   SET person_name=EXCLUDED.person_name,charge_period=EXCLUDED.charge_period,
       amount=EXCLUDED.amount,reason=EXCLUDED.reason,ledger_entry_id=EXCLUDED.ledger_entry_id,

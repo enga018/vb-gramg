@@ -94,6 +94,19 @@ GRANT SELECT, INSERT ON public.vbgramg_ledger_audit TO service_role;
 
 \ir ../supabase/migrations/20261106181317_record_contribution_transaction.sql
 \ir ../supabase/migrations/20261107034818_atomic_bulk_bank_payment.sql
+CREATE TABLE public.vbgramg_fto_batches (
+  id uuid PRIMARY KEY,
+  fto_number text UNIQUE NOT NULL,
+  contribution_period text NOT NULL,
+  ledger_charge_period date NOT NULL,
+  village_scope text,
+  period_id uuid,
+  created_by uuid,
+  last_checked_at timestamptz,
+  last_source_sha256 text
+);
+
+\ir ../supabase/migrations/20261107050000_postgres_fto_charge_calculation.sql
 
 INSERT INTO public.vbgramg_charge_ledger (job_card_number, person_name, entry_type, amount, charge_period, note, is_deferred, is_voided)
 VALUES
@@ -121,7 +134,40 @@ VALUES ('MZ-EXEMPT', 'Test exemption');
 
 SET ROLE service_role;
 
-DO $$
+DO $
+DECLARE
+  fto_calc jsonb;
+BEGIN
+  fto_calc := public.vbgramg_calculate_fto_charges(
+    '[{"row_index":0,"credit_amount":600,"status":"processed"},{"row_index":1,"credit_amount":600,"status":"blank"},{"row_index":2,"credit_amount":600,"status":"rejected"},{"row_index":3,"credit_amount":1,"status":"processed"}]'::jsonb,
+    300, 100
+  );
+  IF (fto_calc->0->>'calculated_charge')::numeric <> 200
+     OR (fto_calc->1->>'calculated_charge')::numeric <> 200
+     OR (fto_calc->2->>'calculated_charge')::numeric <> 0
+     OR (fto_calc->3->>'calculated_charge')::numeric <> 0.33 THEN
+    RAISE EXCEPTION 'FTO charge calculation or two-decimal rounding failed: %', fto_calc;
+  END IF;
+
+  fto_calc := public.vbgramg_calculate_fto_charges(
+    '[{"row_index":0,"credit_amount":600,"status":"processed"}]'::jsonb, 300, 80
+  );
+  IF (fto_calc->0->>'calculated_charge')::numeric <> 160 THEN
+    RAISE EXCEPTION 'Admin-supplied 80 multiplier was not applied: %', fto_calc;
+  END IF;
+
+  BEGIN
+    PERFORM public.vbgramg_calculate_fto_charges(
+      '[{"row_index":0,"credit_amount":600,"status":"processed"}]'::jsonb, 0, 100
+    );
+    RAISE EXCEPTION 'Zero divisor should have been rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM = 'Zero divisor should have been rejected' THEN RAISE; END IF;
+  END;
+END
+$;
+
+DO $
 DECLARE
   r jsonb;
   before_count integer;

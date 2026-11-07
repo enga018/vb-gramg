@@ -1153,7 +1153,7 @@ Deno.serve(async(req:Request)=>{
   if(action==="save-contribution-extra"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can save extra contribution charges."},403);
    const jobCard=String(body.job_card_number||"").trim(),period=String(body.charge_period||"").trim(),periodId=String(body.period_id||"").trim(),amount=Number(body.amount),reason=String(body.reason||"").trim().slice(0,500);
-   const periodMatch=period.match(/^(\\d{4})-(\\d{2})-01$/);
+   const periodMatch=period.match(/^(\d{4})-(\d{2})-01$/);
    if(!jobCard)return reply({error:"Choose a job card."},400);
    if(!periodMatch||Number(periodMatch[2])<1||Number(periodMatch[2])>12)return reply({error:"Choose a valid contribution month."},400);
    if(!periodId)return reply({error:"Select a specific contribution round."},400);

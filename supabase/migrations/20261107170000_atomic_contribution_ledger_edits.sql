@@ -41,6 +41,20 @@ BEGIN
 
   SELECT * INTO v_old
   FROM public.vbgramg_charge_ledger
+  WHERE id=p_id;
+
+  IF NOT FOUND THEN
+    RETURN pg_catalog.jsonb_build_object('ok',false,'status',404,'error','Ledger entry was not found.');
+  END IF;
+
+  -- Acquire the household lock before row locks, matching the contribution/FTO
+  -- write paths and avoiding lock-order inversions.
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('vbgramg-contribution:'||v_old.job_card_number,0)
+  );
+
+  SELECT * INTO v_old
+  FROM public.vbgramg_charge_ledger
   WHERE id=p_id
   FOR UPDATE;
 
@@ -50,10 +64,6 @@ BEGIN
   IF COALESCE(v_old.is_voided,false) THEN
     RETURN pg_catalog.jsonb_build_object('ok',false,'status',409,'error','This charge was removed from the current FTO snapshot and cannot be edited.');
   END IF;
-
-  PERFORM pg_catalog.pg_advisory_xact_lock(
-    pg_catalog.hashtextextended('vbgramg-contribution:'||v_old.job_card_number,0)
-  );
 
   IF EXISTS (
     SELECT 1 FROM public.vbgramg_contribution_exemptions e

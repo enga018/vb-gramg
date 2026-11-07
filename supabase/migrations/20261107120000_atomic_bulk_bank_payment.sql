@@ -59,19 +59,19 @@ BEGIN
   SELECT pg_catalog.count(*)
     INTO v_count
   FROM (
-    SELECT pg_catalog.btrim(x->>'job_card_number') AS job_card
-    FROM pg_catalog.jsonb_array_elements(p_entries) AS x
-    GROUP BY pg_catalog.btrim(x->>'job_card_number')
+    SELECT pg_catalog.btrim(value->>'job_card_number') AS job_card
+    FROM pg_catalog.jsonb_array_elements(p_entries) AS t(value)
+    GROUP BY pg_catalog.btrim(value->>'job_card_number')
     HAVING pg_catalog.count(*) > 1
   ) AS duplicates;
 
   IF v_count > 0 THEN
-    SELECT pg_catalog.btrim(x->>'job_card_number')
+    SELECT pg_catalog.btrim(value->>'job_card_number')
       INTO v_job_card
-    FROM pg_catalog.jsonb_array_elements(p_entries) AS x
-    GROUP BY pg_catalog.btrim(x->>'job_card_number')
+    FROM pg_catalog.jsonb_array_elements(p_entries) AS t(value)
+    GROUP BY pg_catalog.btrim(value->>'job_card_number')
     HAVING pg_catalog.count(*) > 1
-    ORDER BY pg_catalog.btrim(x->>'job_card_number')
+    ORDER BY pg_catalog.btrim(value->>'job_card_number')
     LIMIT 1;
     RETURN pg_catalog.jsonb_build_object('ok', false, 'status', 400,
       'error', 'Duplicate job card in batch: ' || v_job_card);
@@ -80,8 +80,8 @@ BEGIN
   -- Use the same per-card lock key as single contribution transactions.
   -- Sorted acquisition prevents lock-order deadlocks for overlapping batches.
   FOR v_row IN
-    SELECT DISTINCT pg_catalog.btrim(x->>'job_card_number') AS job_card
-    FROM pg_catalog.jsonb_array_elements(p_entries) AS x
+    SELECT DISTINCT pg_catalog.btrim(value->>'job_card_number') AS job_card
+    FROM pg_catalog.jsonb_array_elements(p_entries) AS t(value)
     ORDER BY job_card
   LOOP
     PERFORM pg_catalog.pg_advisory_xact_lock(
@@ -91,10 +91,10 @@ BEGIN
 
   -- Validate every card before inserting any payment.
   FOR v_row IN
-    SELECT pg_catalog.btrim(x->>'job_card_number') AS job_card,
-           (x->>'amount')::numeric AS amount
-    FROM pg_catalog.jsonb_array_elements(p_entries) AS x
-    ORDER BY pg_catalog.btrim(x->>'job_card_number')
+    SELECT pg_catalog.btrim(value->>'job_card_number') AS job_card,
+           (value->>'amount')::numeric AS amount
+    FROM pg_catalog.jsonb_array_elements(p_entries) AS t(value)
+    ORDER BY pg_catalog.btrim(value->>'job_card_number')
   LOOP
     IF EXISTS (
       SELECT 1
@@ -121,10 +121,10 @@ BEGIN
 
   -- Insert each payment and its audit row in this same transaction.
   FOR v_row IN
-    SELECT pg_catalog.btrim(x->>'job_card_number') AS job_card,
-           (x->>'amount')::numeric AS amount
-    FROM pg_catalog.jsonb_array_elements(p_entries) AS x
-    ORDER BY pg_catalog.btrim(x->>'job_card_number')
+    SELECT pg_catalog.btrim(value->>'job_card_number') AS job_card,
+           (value->>'amount')::numeric AS amount
+    FROM pg_catalog.jsonb_array_elements(p_entries) AS t(value)
+    ORDER BY pg_catalog.btrim(value->>'job_card_number')
   LOOP
     SELECT l.person_name
       INTO v_person_name

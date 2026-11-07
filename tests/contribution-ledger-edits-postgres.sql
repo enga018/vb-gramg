@@ -72,13 +72,14 @@ INSERT INTO public.vbgramg_periods VALUES
  ('00000000-0000-0000-0000-000000000001','NOV26','2026-11-01','2026-11-01','open');
 INSERT INTO public.vbgramg_charge_ledger(id,job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
 VALUES
- ('10000000-0000-0000-0000-000000000001','MZ-EDIT','Edit Household','charge',100,'2026-11-01','00000000-0000-0000-0000-000000000001','2026-11-01','FTO: test'),
+ ('10000000-0000-0000-0000-000000000001','MZ-EDIT','Edit Household','charge',100,'2026-11-01','00000000-0000-0000-0000-000000000001','2026-11-01','Charge test'),
  ('20000000-0000-0000-0000-000000000001','MZ-EDIT','Edit Household','payment',100,NULL,NULL,'2026-11-02','Bank'),
  ('30000000-0000-0000-0000-000000000001','MZ-EDIT','Edit Household','refund',20,NULL,NULL,'2026-11-03','Refund'),
  ('40000000-0000-0000-0000-000000000001','MZ-LEGACY','Legacy Household','charge',100,'2026-11-01',NULL,'2026-11-01','Legacy charge'),
  ('50000000-0000-0000-0000-000000000001','MZ-EXTRA','Extra Household','charge',30,'2026-11-01','00000000-0000-0000-0000-000000000001','2026-11-01','FTO EXTRA: Market Fee'),
  ('60000000-0000-0000-0000-000000000001','MZ-EXEMPT','Exempt Household','charge',100,'2026-11-01','00000000-0000-0000-0000-000000000001','2026-11-01','Charge'),
  ('70000000-0000-0000-0000-000000000001','MZ-AUDIT','Audit Household','other_charge',50,NULL,NULL,'2026-11-04','Other charge'),
+ ('80000000-0000-0000-0000-000000000001','MZ-FTO','FTO Household','charge',45,'2026-11-01','00000000-0000-0000-0000-000000000001','2026-11-04','FTO: FTO-TEST'),
  ('21000000-0000-0000-0000-000000000001','MZ-LEGACY','Legacy Household','payment',10,NULL,NULL,'2026-11-02','Cash');
 INSERT INTO public.vbgramg_payment_allocations(transaction_id,period_id,job_card_number,amount)
 VALUES
@@ -117,6 +118,14 @@ BEGIN
      OR (v_after->'refund_reconciliations'->0->>'amount')::numeric<>15 THEN
     RAISE EXCEPTION 'Refund reconciliation audit snapshots are incomplete: before %, after %',v_before,v_after;
   END IF;
+
+  -- FTO-imported charge amount/date cannot be changed through generic ledger editing.
+  r:=public.vbgramg_edit_contribution_ledger_entry(
+    '80000000-0000-0000-0000-000000000001',40,'2026-11-07','FTO: FTO-TEST','2026-11-01',false,v_actor,'admin@test');
+  IF (r->>'ok')::boolean OR (r->>'status')::int<>409 THEN RAISE EXCEPTION 'Generic FTO charge edit was not blocked: %',r; END IF;
+  SELECT amount INTO v_amount FROM public.vbgramg_charge_ledger
+  WHERE id='80000000-0000-0000-0000-000000000001';
+  IF v_amount<>45 THEN RAISE EXCEPTION 'Blocked FTO edit changed the ledger amount: %',v_amount; END IF;
 
   -- Period charge cannot be reduced below the saved period allocations.
   r:=public.vbgramg_edit_contribution_ledger_entry(

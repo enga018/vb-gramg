@@ -27,6 +27,8 @@ DECLARE
   v_refunded numeric(14,2) := 0;
   v_eligible numeric(14,2) := 0;
   v_refund_count integer := 0;
+  v_refund_reconciliations_before jsonb := '[]'::jsonb;
+  v_refund_reconciliations_after jsonb := '[]'::jsonb;
 BEGIN
   IF p_id IS NULL OR p_actor_user_id IS NULL THEN
     RETURN pg_catalog.jsonb_build_object('ok',false,'status',400,'error','Ledger entry and administrator are required.');
@@ -199,7 +201,8 @@ BEGIN
   -- The reconciliation trigger validates against the current refund ledger amount,
   -- so update the ledger first, then synchronize its one-to-one refund match.
   IF v_type IN ('refund','return') THEN
-    SELECT count(*)::integer INTO v_refund_count
+    SELECT count(*)::integer,COALESCE(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(r)),'[]'::jsonb)
+      INTO v_refund_count,v_refund_reconciliations_before
     FROM public.vbgramg_payment_refund_reconciliations r
     WHERE r.refund_id=v_old.id;
 
@@ -210,6 +213,10 @@ BEGIN
       UPDATE public.vbgramg_payment_refund_reconciliations
       SET amount=p_amount
       WHERE refund_id=v_old.id;
+      SELECT COALESCE(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(r)),'[]'::jsonb)
+        INTO v_refund_reconciliations_after
+      FROM public.vbgramg_payment_refund_reconciliations r
+      WHERE r.refund_id=v_old.id;
     END IF;
   END IF;
 
@@ -217,7 +224,8 @@ BEGIN
     (ledger_entry_id,job_card_number,action,actor_user_id,actor_email,before_data,after_data)
   VALUES
     (v_old.id,v_old.job_card_number,'edit',p_actor_user_id,p_actor_email,
-     pg_catalog.to_jsonb(v_old),pg_catalog.to_jsonb(v_updated));
+     pg_catalog.to_jsonb(v_old)||pg_catalog.jsonb_build_object('refund_reconciliations',v_refund_reconciliations_before),
+     pg_catalog.to_jsonb(v_updated)||pg_catalog.jsonb_build_object('refund_reconciliations',v_refund_reconciliations_after));
 
   RETURN pg_catalog.jsonb_build_object('ok',true,'entry',pg_catalog.to_jsonb(v_updated));
 END;

@@ -127,8 +127,8 @@ BEGIN
   FOR v_row IN
     SELECT pg_catalog.btrim(value->>'job_card_number') AS job_card,
            (value->>'amount')::numeric AS amount
-    FROM pg_catalog.jsonb_array_elements(p_entries) AS t(value)
-    ORDER BY pg_catalog.btrim(value->>'job_card_number')
+    FROM pg_catalog.jsonb_array_elements(p_entries) WITH ORDINALITY AS t(value, ord)
+    ORDER BY ord
   LOOP
     SELECT l.person_name
       INTO v_person_name

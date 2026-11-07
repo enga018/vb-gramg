@@ -1,5 +1,5 @@
 -- Automatically consume a job card's existing unallocated payments when a new eligible
--- contribution charge is added or an active charge amount increases.
+-- contribution charge is inserted.
 -- This is period-aware, FIFO, and leaves payment ledger rows unchanged.
 
 CREATE OR REPLACE FUNCTION public.vbgramg_auto_allocate_unallocated_payments(

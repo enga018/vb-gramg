@@ -107,6 +107,11 @@ CREATE TRIGGER test_validate_payment_allocation
 BEFORE INSERT OR UPDATE ON public.vbgramg_payment_allocations
 FOR EACH ROW EXECUTE FUNCTION public.test_validate_payment_allocation();
 
+-- Stand-in for the production FTO snapshot RPC so this fixture can test the
+-- migration's lock-order wrapper without loading the full FTO schema.
+CREATE FUNCTION public.vbgramg_apply_fto_snapshot(p_plan jsonb)
+RETURNS jsonb LANGUAGE sql AS $$ SELECT pg_catalog.jsonb_build_object('committed',true) $$;
+
 \ir ../supabase/migrations/20261107200000_auto_allocate_unallocated_payments_on_new_charge.sql
 
 INSERT INTO public.vbgramg_periods(id,period_name,period_date,contribution_month,created_at) VALUES

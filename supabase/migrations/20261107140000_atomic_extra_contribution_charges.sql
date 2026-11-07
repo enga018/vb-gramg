@@ -66,7 +66,7 @@ BEGIN
 
   SELECT l.person_name INTO v_name FROM public.vbgramg_charge_ledger l
   WHERE l.job_card_number=v_card ORDER BY l.created_at,l.id LIMIT 1;
-  IF v_name IS NULL THEN
+  IF v_name IS NULL OR pg_catalog.btrim(v_name)='' THEN
     SELECT c.person_name INTO v_name FROM public.vbgramg_contribution_citizens c
     WHERE c.job_card_number=v_card LIMIT 1;
   END IF;

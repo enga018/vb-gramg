@@ -93,6 +93,7 @@ GRANT SELECT, INSERT ON public.vbgramg_charge_ledger TO service_role;
 GRANT SELECT, INSERT ON public.vbgramg_ledger_audit TO service_role;
 
 \ir ../supabase/migrations/20261106181317_record_contribution_transaction.sql
+\ir ../supabase/migrations/20261107120000_atomic_bulk_bank_payment.sql
 
 INSERT INTO public.vbgramg_charge_ledger (job_card_number, person_name, entry_type, amount, charge_period, note, is_deferred, is_voided)
 VALUES
@@ -107,7 +108,10 @@ VALUES
   ('MZ-LEGACY', 'Legacy Card', 'charge', 80, '2026-11-01', 'Charge', false, false),
   ('MZ-LEGACY', 'Legacy Card', 'charge', 10, '2026-11-01', ' Return ', false, false),
   ('MZ-ROLLBACK', 'Rollback Card', 'charge', 100, '2026-11-01', 'Charge', false, false),
-  ('MZ-SKIP-TRIGGER', 'Trigger Skip Card', 'charge', 100, '2026-11-01', 'Charge', false, false);
+  ('MZ-SKIP-TRIGGER', 'Trigger Skip Card', 'charge', 100, '2026-11-01', 'Charge', false, false),
+  ('MZ-BANK-1', 'Bank One', 'charge', 100, '2026-11-01', 'Charge', false, false),
+  ('MZ-BANK-2', 'Bank Two', 'charge', 100, '2026-11-01', 'Charge', false, false),
+  ('MZ-BANK-ROLLBACK', 'Bank Rollback', 'charge', 100, '2026-11-01', 'Charge', false, false);
 
 INSERT INTO public.vbgramg_charge_ledger (job_card_number, person_name, entry_type, amount, note)
 VALUES ('MZ-RETURN', 'Return Card', 'refund', 20, 'Earlier return');
@@ -125,6 +129,79 @@ DECLARE
   audit_before integer;
   audit_after integer;
 BEGIN
+  -- Bulk bank payment success preserves the response and audit contract.
+  r := public.vbgramg_record_bulk_bank_payment(
+    '[{"job_card_number":"MZ-BANK-1","amount":50},{"job_card_number":"MZ-BANK-2","amount":25}]'::jsonb,
+    '2026-11-06', gen_random_uuid(), ' TESTER@EXAMPLE.INVALID '
+  );
+  IF NOT (r->>'ok')::boolean OR (r->>'count')::integer <> 2
+     OR (r->>'total_amount')::numeric <> 75 OR r->>'method' <> 'Bank'
+     OR jsonb_array_length(r->'entries') <> 2 THEN
+    RAISE EXCEPTION 'Bulk bank payment response contract failed: %', r;
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.vbgramg_charge_ledger
+    WHERE job_card_number IN ('MZ-BANK-1','MZ-BANK-2')
+      AND entry_type='payment'
+      AND (note <> 'Bank' OR entry_date <> '2026-11-06')
+  ) THEN
+    RAISE EXCEPTION 'Bulk bank payment ledger values were not preserved.';
+  END IF;
+  IF (SELECT count(*) FROM public.vbgramg_ledger_audit
+      WHERE job_card_number IN ('MZ-BANK-1','MZ-BANK-2')
+        AND action='bulk-bank-payment' AND actor_email='tester@example.invalid') <> 2 THEN
+    RAISE EXCEPTION 'Bulk bank payment audit rows were not recorded correctly.';
+  END IF;
+
+  -- Invalid or exempt rows must reject the entire batch before any write.
+  r := public.vbgramg_record_bulk_bank_payment(
+    '[{"job_card_number":"MZ-BANK-1","amount":10},{"job_card_number":"MZ-BANK-1","amount":20}]'::jsonb,
+    '2026-11-06', gen_random_uuid(), 'tester@example.invalid'
+  );
+  IF (r->>'ok')::boolean OR (r->>'status')::integer <> 400 THEN
+    RAISE EXCEPTION 'Duplicate job cards were not rejected: %', r;
+  END IF;
+
+  r := public.vbgramg_record_bulk_bank_payment(
+    '[{"job_card_number":"MZ-BANK-ROLLBACK","amount":10},{"job_card_number":"MZ-EXEMPT","amount":20}]'::jsonb,
+    '2026-11-06', gen_random_uuid(), 'tester@example.invalid'
+  );
+  IF (r->>'ok')::boolean OR (r->>'status')::integer <> 409 THEN
+    RAISE EXCEPTION 'Exempt card did not reject the full batch: %', r;
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.vbgramg_charge_ledger WHERE job_card_number='MZ-BANK-ROLLBACK' AND entry_type='payment') THEN
+    RAISE EXCEPTION 'Batch wrote a payment before validating an exempt card.';
+  END IF;
+
+  -- A trigger-suppressed insert and an audit failure both roll back the whole batch.
+  BEGIN
+    PERFORM public.vbgramg_record_bulk_bank_payment(
+      '[{"job_card_number":"MZ-BANK-ROLLBACK","amount":10},{"job_card_number":"MZ-SKIP-TRIGGER","amount":20}]'::jsonb,
+      '2026-11-06', gen_random_uuid(), 'tester@example.invalid'
+    );
+    RAISE EXCEPTION 'Expected trigger-suppressed payment failure did not occur';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM = 'Expected trigger-suppressed payment failure did not occur' THEN RAISE; END IF;
+  END;
+  IF EXISTS (SELECT 1 FROM public.vbgramg_charge_ledger WHERE job_card_number='MZ-BANK-ROLLBACK' AND entry_type='payment') THEN
+    RAISE EXCEPTION 'Trigger-suppressed row did not roll back the entire batch.';
+  END IF;
+
+  PERFORM set_config('test.fail_audit','on',true);
+  BEGIN
+    PERFORM public.vbgramg_record_bulk_bank_payment(
+      '[{"job_card_number":"MZ-BANK-ROLLBACK","amount":10}]'::jsonb,
+      '2026-11-06', gen_random_uuid(), 'tester@example.invalid'
+    );
+    RAISE EXCEPTION 'Expected bulk audit failure did not occur';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM = 'Expected bulk audit failure did not occur' THEN RAISE; END IF;
+  END;
+  PERFORM set_config('test.fail_audit','off',true);
+  IF EXISTS (SELECT 1 FROM public.vbgramg_charge_ledger WHERE job_card_number='MZ-BANK-ROLLBACK' AND entry_type='payment') THEN
+    RAISE EXCEPTION 'Bulk ledger insert was not rolled back after audit failure.';
+  END IF;
+
   SELECT count(*) INTO audit_before FROM public.vbgramg_ledger_audit WHERE job_card_number='MZ-CASH';
   r := public.vbgramg_record_contribution_transaction('MZ-CASH','cash_payment',150,'2026-11-06','Cash',gen_random_uuid(),'tester@example.invalid');
   IF NOT (r->>'ok')::boolean OR (r->'entry'->>'amount')::numeric <> 150 OR (r->>'balance_after')::numeric <> -50 THEN
@@ -216,6 +293,15 @@ RESET ROLE;
 
 DO $$
 BEGIN
+  IF has_function_privilege('anon', 'public.vbgramg_record_bulk_bank_payment(jsonb,date,uuid,text)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'anon unexpectedly has bulk bank payment execute permission';
+  END IF;
+  IF has_function_privilege('authenticated', 'public.vbgramg_record_bulk_bank_payment(jsonb,date,uuid,text)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'authenticated unexpectedly has bulk bank payment execute permission';
+  END IF;
+  IF NOT has_function_privilege('service_role', 'public.vbgramg_record_bulk_bank_payment(jsonb,date,uuid,text)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'service_role is missing bulk bank payment execute permission';
+  END IF;
   IF has_function_privilege('anon', 'public.vbgramg_record_contribution_transaction(text,text,numeric,date,text,uuid,text)', 'EXECUTE') THEN
     RAISE EXCEPTION 'anon unexpectedly has execute permission';
   END IF;

@@ -1220,21 +1220,15 @@ Deno.serve(async(req:Request)=>{
     if(seen.has(jobCard))return reply({error:"Duplicate job card in batch: "+jobCard},400);
     seen.add(jobCard);normalized.push({job_card_number:jobCard,amount});
    }
-   const jobCards=normalized.map(x=>x.job_card_number);
-   const {data:known,error:knownError}=await admin.from("vbgramg_charge_ledger").select("job_card_number,person_name").eq("entry_type","charge").in("job_card_number",jobCards);
-   if(knownError)throw knownError;
-   const people=new Map<string,string>();
-   for(const row of known||[])if(!people.has(String(row.job_card_number)))people.set(String(row.job_card_number),String(row.person_name||""));
-   const missing=jobCards.filter(card=>!people.has(card));
-   if(missing.length)return reply({error:"No existing contribution charge found for: "+missing.join(", ")},400);
-   const inserts=normalized.map(row=>({job_card_number:row.job_card_number,person_name:people.get(row.job_card_number)||"",entry_type:"payment",amount:row.amount,entry_date:entryDate,note:"Bank",created_by:authData.user.id}));
-   const {data:inserted,error:insertError}=await admin.from("vbgramg_charge_ledger").insert(inserts).select("id,job_card_number,person_name,entry_type,amount,charge_period,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id");
-   if(insertError)throw insertError;
-   const auditRows=(inserted||[]).map((entry:Record<string,unknown>)=>({ledger_entry_id:entry.id,job_card_number:entry.job_card_number,action:"bulk-bank-payment",actor_user_id:authData.user.id,actor_email:email,before_data:null,after_data:entry}));
-   const {error:auditError}=await admin.from("vbgramg_ledger_audit").insert(auditRows);
-   if(auditError)throw auditError;
-   const total=normalized.reduce((sum,row)=>sum+row.amount,0);
-   return reply({approved:true,role:approved.role,entries:inserted||[],count:(inserted||[]).length,total_amount:total,method:"Bank"});
+   const {data:result,error:writeError}=await admin.rpc("vbgramg_record_bulk_bank_payment",{
+    p_entries:normalized,
+    p_entry_date:entryDate,
+    p_actor_user_id:authData.user.id,
+    p_actor_email:email
+   });
+   if(writeError)throw writeError;
+   if(!result||result.ok!==true)return reply({error:String(result?.error||"Could not save bank payment batch.")},Number(result?.status)||400);
+   return reply({approved:true,role:approved.role,entries:result.entries||[],count:Number(result.count)||0,total_amount:Number(result.total_amount)||0,method:"Bank"});
   }
 
   if(action==="set-payment-allocations"){

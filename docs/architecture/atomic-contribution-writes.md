@@ -110,6 +110,26 @@ The migration preserves a subtle existing behaviour: only cash payment requires 
 
 ## Edge Function integration draft
 
-The contribution Edge Function now routes `add-payment`, `pay-in-full`, `add-waiver`, and `add-return` through the RPC helper. Authentication, approved-user lookup, admin checks for waiver/return, and verified actor identity remain in the Edge Function. The browser does not supply actor identity or role. The other contribution write paths remain unchanged.
+The contribution Edge Function routes `add-payment`, `pay-in-full`, `add-waiver`, and `add-return` through the RPC helper. Authentication, approved-user lookup, admin checks for waiver/return, and verified actor identity remain in the Edge Function. The browser does not supply actor identity or role. The matching SQL migration and Edge Function integration were merged and deployed together in PR #168. The bulk Bank Payment RPC described below is a separate change and has not been deployed.
 
-This integration is in the same draft PR as the SQL; it is not deployed. Because the SQL is not yet a production migration, deploying this Edge Function before applying the migration would break these four actions. Keep both changes together for coordinated release after final review and approval.
+
+## Atomic bulk bank payments
+
+The bulk Bank Payment action now delegates the complete batch to
+`public.vbgramg_record_bulk_bank_payment(jsonb, date, uuid, text)`.
+
+- The Edge Function continues to authenticate the caller and require the approved admin role.
+- PostgreSQL validates 1–500 rows, positive amounts up to ₹10,000,000, unique job cards, and a valid payment date.
+- Every job card is locked using the same advisory-lock key as single contribution transactions; locks are acquired in sorted order.
+- Every card is checked for an existing contribution charge and exemption before any insert begins.
+- Payment rows retain `entry_type='payment'`, the `Bank` note, the submitted entry date, and the verified actor.
+- Each `bulk-bank-payment` audit row is inserted in the same database transaction as its payment. Any ledger-trigger or audit failure aborts and rolls back the entire batch.
+- The RPC returns the existing frontend response fields: `entries`, `count`, `total_amount`, and `method='Bank'`.
+- The RPC is SECURITY INVOKER with an empty search_path and execute permission only for service_role. It does not modify FIFO allocations.
+
+The PostgreSQL integration fixture covers successful multi-row writes, duplicate cards,
+exempt-card rejection before writes, trigger-suppressed insert rollback, audit-failure
+rollback, response shape, and execute permissions. These checks run in the existing
+PostgreSQL 16 GitHub Actions job. This migration and Edge Function change must be
+released together; deploying the Edge Function before applying the migration would
+cause bulk Bank Payment requests to fail.

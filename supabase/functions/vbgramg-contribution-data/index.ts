@@ -1212,7 +1212,7 @@ Deno.serve(async(req:Request)=>{
    const rows=body.entries;
    if(!Array.isArray(rows)||rows.length<1||rows.length>500)return reply({error:"A bulk payment batch must contain 1–500 entries."},400);
    const entryDate=String(body.entry_date||"");
-   if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(entryDate)||Number.isNaN(Date.parse(entryDate)))return reply({error:"Choose a valid payment date."},400);
+   if(!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)||Number.isNaN(Date.parse(entryDate)))return reply({error:"Choose a valid payment date."},400);
    const seen=new Set<string>(),normalized:{job_card_number:string;amount:number}[]=[];
    for(const rawRow of rows){
     const jobCard=String(rawRow?.job_card_number||"").trim(),amount=Number(rawRow?.amount);

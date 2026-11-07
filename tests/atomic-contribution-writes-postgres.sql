@@ -134,7 +134,7 @@ VALUES ('MZ-EXEMPT', 'Test exemption');
 
 SET ROLE service_role;
 
-DO $
+DO $$
 DECLARE
   fto_calc jsonb;
 BEGIN
@@ -167,7 +167,7 @@ BEGIN
 END
 $;
 
-DO $
+DO $$
 DECLARE
   r jsonb;
   before_count integer;

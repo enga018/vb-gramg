@@ -1178,9 +1178,9 @@ Deno.serve(async(req:Request)=>{
    const id=String(body.id||"").trim(),amount=Number(body.amount),entryDate=String(body.entry_date||""),note=String(body.note??"").trim().slice(0,200);
    if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))return reply({error:"A valid ledger entry ID is required."},400);
    if(!Number.isFinite(amount)||amount<=0||amount>10000000)return reply({error:"Enter a valid positive amount."},400);
-   if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(entryDate)||Number.isNaN(Date.parse(entryDate)))return reply({error:"Enter a valid transaction date."},400);
+   if(!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)||Number.isNaN(Date.parse(entryDate)))return reply({error:"Enter a valid transaction date."},400);
    const chargePeriod=String(body.charge_period||"").trim();
-   if(chargePeriod&&(!/^\\d{4}-\\d{2}-01$/.test(chargePeriod)||Number(chargePeriod.slice(5,7))<1||Number(chargePeriod.slice(5,7))>12))return reply({error:"Choose a valid charge month."},400);
+   if(chargePeriod&&(!/^\d{4}-\d{2}-01$/.test(chargePeriod)||Number(chargePeriod.slice(5,7))<1||Number(chargePeriod.slice(5,7))>12))return reply({error:"Choose a valid charge month."},400);
    const {data:result,error}=await admin.rpc("vbgramg_edit_contribution_ledger_entry",{
     p_id:id,
     p_amount:amount,

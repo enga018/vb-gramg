@@ -12,7 +12,7 @@ test("Extra charge writes are one service-role-only PostgreSQL transaction", () 
   assert.match(sql,/pg_advisory_xact_lock/);
   assert.match(sql,/vbgramg_contribution_exemptions/);
   assert.match(sql,/vbgramg_periods/);
-  assert.match(sql,/status,'409'/);
+  assert.match(sql,/status',409/);
   assert.match(sql,/INSERT INTO public\.vbgramg_charge_ledger/);
   assert.match(sql,/INSERT INTO public\.vbgramg_contribution_extras/);
   assert.match(sql,/ON CONFLICT \(job_card_number,period_id\) DO UPDATE/);

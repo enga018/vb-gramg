@@ -3,6 +3,12 @@
 --   createdb vbgramg_auto_allocate_test
 --   PGDATABASE=vbgramg_auto_allocate_test psql -v ON_ERROR_STOP=1 -f tests/auto-allocate-unallocated-payments-postgres.sql
 
+DO $roles$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='service_role') THEN CREATE ROLE service_role NOLOGIN BYPASSRLS; END IF;
+END $roles$;
+
 CREATE TABLE public.vbgramg_periods (
   id uuid PRIMARY KEY,
   period_name text NOT NULL,

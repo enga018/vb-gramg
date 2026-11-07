@@ -8,6 +8,9 @@ on:
       - "tests/postgres-contribution-balances.test.cjs"
       - "tests/atomic-contribution-writes.test.cjs"
       - "tests/atomic-contribution-writes-postgres.sql"
+      - "tests/extra-contribution-charges.test.cjs"
+      - "tests/extra-contribution-charges-postgres.sql"
+      - "supabase/migrations/20261107140000_atomic_extra_contribution_charges.sql"
       - "tests/atomic-contribution-writes-concurrency.sh"
       - "supabase/migrations/20261106181317_record_contribution_transaction.sql"
       - "supabase/migrations/20261107120000_atomic_bulk_bank_payment.sql"
@@ -47,7 +50,7 @@ jobs:
         with:
           node-version: 22
       - name: Run shared ledger tests
-        run: node --test tests/ledger-calculations.test.cjs tests/data-loader.test.cjs tests/postgres-contribution-balances.test.cjs tests/atomic-contribution-writes.test.cjs
+        run: node --test tests/ledger-calculations.test.cjs tests/data-loader.test.cjs tests/postgres-contribution-balances.test.cjs tests/atomic-contribution-writes.test.cjs tests/extra-contribution-charges.test.cjs
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
@@ -102,5 +105,9 @@ jobs:
           sudo apt-get install -y postgresql-client
       - name: Run atomic contribution PostgreSQL integration tests
         run: psql -v ON_ERROR_STOP=1 -f tests/atomic-contribution-writes-postgres.sql
+      - name: Run atomic extra contribution charge PostgreSQL tests
+        run: |
+          createdb vbgramg_extras_test
+          PGDATABASE=vbgramg_extras_test psql -v ON_ERROR_STOP=1 -f tests/extra-contribution-charges-postgres.sql
       - name: Verify per-job-card advisory lock serializes concurrent writes
         run: bash tests/atomic-contribution-writes-concurrency.sh

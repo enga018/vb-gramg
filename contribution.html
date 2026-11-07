@@ -1276,7 +1276,13 @@ function buildFifoBreakdown(c){
    const note=String(e.note||'').trim();
    const safeNote=note&&!/^FTO EXTRA:/i.test(note)?'<small>'+esc(note)+'</small>':'';
    const isExtraEntry=window.VBGRAMGCharges.isExtraChargeEntry(e);
-   const editAction=appRole==='admin'&&!isExtraEntry&&!c.exempt?'<div class="fifo-edit"><button class="btn ghost small" type="button" data-fifo-edit-entry="'+esc(e.id)+'">Edit</button></div>':'';
+   const isFtoEntry=e.entry_type==='charge'&&/^FTO(?:\s|:|-|$)/i.test(String(e.note||'').trim());
+   const linkedExtra=extraCharges.find(x=>String(x.ledger_entry_id||'')===String(e.id));
+   const editAction=appRole==='admin'&&!c.exempt
+    ?(isExtraEntry?(linkedExtra&&linkedExtra.period_id?'<div class="fifo-edit"><button class="btn ghost small" type="button" data-fifo-edit-extra="'+esc(linkedExtra.period_id)+'">Edit extra</button></div>':'')
+      :isFtoEntry?'<div class="fifo-edit"><small class="muted">Revise in FTO</small></div>'
+      :'<div class="fifo-edit"><button class="btn ghost small" type="button" data-fifo-edit-entry="'+esc(e.id)+'">Edit</button></div>')
+    :'';
    return '<div class="fifo-detail-row"><div class="fifo-detail-main"><b>Charge entry '+(i+1)+'</b>'+(date?'<small>'+esc(day(date))+'</small>':'')+safeNote+'<small>'+esc(entryDetail.join(' · '))+'</small></div><div class="fifo-side"><b>'+fmt(amount)+'</b><span class="fifo-status '+(e.remaining<=0?'paid':e.allocated>0?'partial':'due')+'">'+entryStatus+'</span></div>'+editAction+'</div>';
   }).join('');
   const summary='<div class="fifo-period-summary"><div class="fifo-summary-row"><span>Total Charges</span><b>'+fmt(g.total)+'</b></div><div class="fifo-summary-row"><span>Total Paid</span><b>'+fmt(g.paid)+'</b></div><div class="fifo-summary-row balance-row"><span>Balance</span><b>'+fmt(g.due)+'</b></div></div>';
@@ -1373,7 +1379,7 @@ function renderCitizenDetail(id){
   const redundantTypeNote=(type==='refund'&&/^return$/i.test(noteText))||(type==='other_charge'&&/^sanitation fee$/i.test(noteText))||(type==='charge_waiver'&&/^forgiven$/i.test(noteText));
   const displayNote=(type==='payment'&&looksLikePeriod)||redundantTypeNote?'':noteText;
   const transactionDate=!e.is_deferred&&String(e.entry_date||'').slice(0,10)?day(String(e.entry_date).slice(0,10)):'';
-  const extraReason=isExtra?(String(extraCharges.find(x=>String(x.job_card_number)===String(c.id)&&String(x.period_id||"")===String(e.period_id||"")&&String(x.charge_period||"")===String(e.charge_period||""))?.reason||String(e.note||"").replace(/^FTO EXTRA:\\s*/i,"").replace(/\\s*\\(legacy(?:;[^)]*)?\\)\\s*$/i,"").trim())):"";
+  const extraReason=isExtra?(String(extraCharges.find(x=>String(x.job_card_number)===String(c.id)&&String(x.period_id||"")===String(e.period_id||"")&&String(x.charge_period||"")===String(e.charge_period||""))?.reason||String(e.note||"").replace(/^FTO EXTRA:\s*/i,"").replace(/\s*\\(legacy(?:;[^)]*)?\\)\s*$/i,"").trim())):"";
   const allocationRows=isPayment?paymentAllocations.filter(a=>String(a.transaction_id)===String(e.id)):[];
   const savedAllocationTotal=allocationRows.reduce((sum,a)=>sum+Math.max(0,Number(a.amount)||0),0);
   const reconciliationRows=isPayment?paymentRefundReconciliations.filter(r=>String(r.payment_id)===String(e.id)):[];
@@ -1397,7 +1403,12 @@ function renderCitizenDetail(id){
     '<div class="payment-allocation-note">Refund reconciliations are separate from contribution-period allocations. Refunds do not settle contribution periods.</div></div></div>'
    :'';
   const entryClass=e.is_voided?'entry-voided':isPayment?'entry-payment':(type==='refund'||type==='return')?'entry-refund':(type==='charge_waiver'||type==='forgive')?'entry-waiver':(type==='charge'||type==='other_charge'||type==='sanitationFee')?'entry-charge':'entry-other';
-  return '<div class="entry '+entryClass+'"'+(e.is_voided?' data-voided-entry="true"':'')+(isPayment?' data-payment-toggle role="button" tabindex="0" aria-expanded="false" title="Tap to view payment allocation details"':'')+'><div class="desc"><b>'+esc(label)+(e.is_voided?' · Removed from current FTO snapshot':(isExtra&&extraReason?' · '+esc(extraReason):type!=='charge'&&displayNote?' · '+esc(displayNote):''))+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+(refundReconciliation?'<div class="payment-allocation-note">Matched to payment · '+fmt(refundReconciliation.amount)+' (not a period allocation)</div>':'')+allocationDetails+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+(appRole==='admin'&&!e.is_voided&&!isExtra&&!c.exempt?'<div class="entry-actions">'+(isPayment?'<button class="btn ghost small" type="button" data-review-allocation="'+esc(e.id)+'">Review allocation</button>':'')+'<button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button></div>':'')+'</div>';
+  const linkedExtra=extraCharges.find(x=>String(x.ledger_entry_id||'')===String(e.id));
+  const isFtoEntry=type==='charge'&&/^FTO(?:\s|:|-|$)/i.test(String(e.note||'').trim());
+  const entryActions=appRole==='admin'&&!e.is_voided&&!c.exempt
+   ?'<div class="entry-actions">'+(isPayment?'<button class="btn ghost small" type="button" data-review-allocation="'+esc(e.id)+'">Review allocation</button>':'')+(isExtra?(linkedExtra&&linkedExtra.period_id?'<button class="btn ghost small" type="button" data-edit-extra="'+esc(linkedExtra.period_id)+'">Edit</button>':''):isFtoEntry?'<span class="muted">Revise in FTO</span>':'<button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button>')+'</div>'
+   :'';
+  return '<div class="entry '+entryClass+'"'+(e.is_voided?' data-voided-entry="true"':'')+(isPayment?' data-payment-toggle role="button" tabindex="0" aria-expanded="false" title="Tap to view payment allocation details"':'')+'><div class="desc"><b>'+esc(label)+(e.is_voided?' · Removed from current FTO snapshot':(isExtra&&extraReason?' · '+esc(extraReason):type!=='charge'&&displayNote?' · '+esc(displayNote):''))+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+(refundReconciliation?'<div class="payment-allocation-note">Matched to payment · '+fmt(refundReconciliation.amount)+' (not a period allocation)</div>':'')+allocationDetails+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+entryActions+'</div>';
  }).join('');
  $('sheetBody').innerHTML=(c.exempt?'<div class="notice info"><b>Exempt job card.</b> Its contribution records and payment allocations are retained, but excluded from active balances.</div>':'')+'<div class="section-title">Ledger transactions · oldest first</div>'+(lines||'<div class="empty">No ledger entries.</div>');
  document.querySelectorAll('[data-fifo-toggle]').forEach(toggle=>toggle.addEventListener('click',()=>{
@@ -1462,7 +1473,7 @@ function showPaymentAllocationForm(transactionId){
  });
 }
 
-function showExtraChargeForm(){
+function showExtraChargeForm(preferredPeriodId){
  $('sheetFooter').classList.add('hidden');
  const c=currentCitizen;if(!c||appRole!=="admin")return;
  const existingForCard=extraCharges.filter(x=>String(x.job_card_number)===String(c.id));
@@ -1470,9 +1481,9 @@ function showExtraChargeForm(){
  const sortedPeriods=[...periods].sort((a,b)=>periodMonth(b).localeCompare(periodMonth(a))||String(a.created_at||'').localeCompare(String(b.created_at||'')));
  const roundLabel=p=>String(p.period_name||'').trim()+(p.status==='closed'?' · Closed':'');
  const currentMonth=new Date().toISOString().slice(0,7);
- const defaultPeriod=sortedPeriods.find(p=>existingForCard.some(x=>String(x.period_id||'')===String(p.id)))||sortedPeriods.find(p=>periodMonth(p)===currentMonth&&p.status!=='closed')||sortedPeriods[0];
+ const defaultPeriod=sortedPeriods.find(p=>preferredPeriodId&&String(p.id)===String(preferredPeriodId))||sortedPeriods.find(p=>existingForCard.some(x=>String(x.period_id||'')===String(p.id)))||sortedPeriods.find(p=>periodMonth(p)===currentMonth&&p.status!=='closed')||sortedPeriods[0];
  const defaultExtra=defaultPeriod?existingForCard.find(x=>String(x.period_id||'')===String(defaultPeriod.id)):null;
- $('sheetBody').innerHTML='<div class="notice info">Add an extra amount to a specific contribution round. Each job card can have a separate extra amount in each round; the formula-generated charge is not changed.</div>'+(existingForCard.some(x=>!x.period_id)?'<div class="notice info">An older extra amount is not linked to a round. It remains in history as a legacy entry; review it before adding a replacement for the same month.</div>':'')+'<form id="extraChargeForm"><div class="field"><label for="extraPeriod">Contribution round</label><select id="extraPeriod" required>'+(sortedPeriods.map(p=>'<option value="'+esc(p.id)+'" '+(defaultPeriod&&String(defaultPeriod.id)===String(p.id)?'selected':'')+'>'+esc(roundLabel(p))+'</option>').join(''))+'</select></div><div class="field"><label for="extraAmount">Extra amount (₹)</label><input id="extraAmount" type="number" min="0.01" max="10000000" step="0.01" required inputmode="decimal" value="'+(defaultExtra?esc(defaultExtra.amount):'')+'" placeholder="Enter additional amount"></div><div class="field"><label for="extraReason">Reason</label><textarea id="extraReason" rows="3" maxlength="500" required placeholder="Why is this extra amount needed?">'+(defaultExtra?esc(defaultExtra.reason):'')+'</textarea></div><button class="btn" id="saveExtraAmount" type="submit">Save extra amount</button> <button class="btn ghost" id="cancelExtraAmount" type="button">Cancel</button></form>';
+ $('sheetBody').innerHTML='<div class="notice info">Add or edit an extra amount for a specific contribution round. Each job card can have a separate extra amount in each round; the formula-generated charge is not changed.</div>'+(existingForCard.some(x=>!x.period_id)?'<div class="notice info">An older extra amount is not linked to a round. It remains in history as a legacy entry; review it before adding a replacement for the same month.</div>':'')+'<form id="extraChargeForm"><div class="field"><label for="extraPeriod">Contribution round</label><select id="extraPeriod" required>'+(sortedPeriods.map(p=>'<option value="'+esc(p.id)+'" '+(defaultPeriod&&String(defaultPeriod.id)===String(p.id)?'selected':'')+'>'+esc(roundLabel(p))+'</option>').join(''))+'</select></div><div class="field"><label for="extraAmount">Extra amount (₹)</label><input id="extraAmount" type="number" min="0.01" max="10000000" step="0.01" required inputmode="decimal" value="'+(defaultExtra?esc(defaultExtra.amount):'')+'" placeholder="Enter additional amount"></div><div class="field"><label for="extraReason">Reason</label><textarea id="extraReason" rows="3" maxlength="500" required placeholder="Why is this extra amount needed?">'+(defaultExtra?esc(defaultExtra.reason):'')+'</textarea></div><button class="btn" id="saveExtraAmount" type="submit">Save extra amount</button> <button class="btn ghost" id="cancelExtraAmount" type="button">Cancel</button></form>';
  const syncFormForPeriod=()=>{
   const periodId=$('extraPeriod').value;
   const old=existingForCard.find(x=>String(x.period_id||'')===periodId);
@@ -1576,6 +1587,7 @@ function showEditForm(id){
  $('sheetFooter').classList.add('hidden');
  const c=currentCitizen;if(!c)return;
  const e=c.ledger.find(row=>String(row.id)===String(id));if(!e)return;
+ if(e.entry_type==="charge"&&/^FTO(?:\s|:|-|$)/i.test(String(e.note||"").trim())){status('FTO-imported charges must be revised through the FTO workflow.','error');return;}
  const isCharge=e.entry_type==="charge"&&String(e.note||"").trim().toLowerCase()!=="return";
  const typeLabel=(e.entry_type==="charge_waiver"||e.entry_type==="forgive")?"Charge Waiver":e.entry_type==="payment"?"Payment":(e.entry_type==="refund"||e.entry_type==="return")?"Refund":(e.entry_type==="other_charge"||e.entry_type==="sanitationFee")?"Other Charge":"Charge";
  $('sheetBody').innerHTML='<div class="notice info">Editing '+esc(typeLabel)+'. Original and revised values will be recorded in the audit log.</div><form id="editEntryForm"><div class="field"><label for="editAmount">Amount (₹)</label><input id="editAmount" type="number" min="0.01" max="10000000" step="0.01" required value="'+esc(e.amount)+'"></div><div class="grid2"><div class="field"><label for="editDate">Transaction date</label><input id="editDate" type="date" required value="'+esc(String(e.entry_date||new Date().toISOString().slice(0,10)).slice(0,10))+'"></div><div class="field"><label for="editNote">Note</label><input id="editNote" maxlength="200" value="'+esc(e.note||"")+'" placeholder="Optional note"></div></div>'+(isCharge?'<div class="field"><label for="editPeriod">Charge month</label><input id="editPeriod" type="month" required value="'+esc(String(e.charge_period||"").slice(0,7))+'"></div><div class="field"><label><input id="editDeferred" type="checkbox" '+(e.is_deferred?'checked':'')+' style="width:auto;min-height:0;margin-right:8px"> Deferred charge</label></div>':'')+'<button class="btn" id="saveEdit" type="submit">Save changes</button> <button class="btn ghost" id="cancelEdit" type="button">Cancel</button></form>';
@@ -1743,6 +1755,8 @@ $('sheetBody').addEventListener('click',ev=>{
   }
   return;
  }
+ const extraEditButton=ev.target.closest('[data-fifo-edit-extra],[data-edit-extra]');
+ if(extraEditButton){ev.preventDefault();ev.stopPropagation();showExtraChargeForm(extraEditButton.dataset.fifoEditExtra||extraEditButton.dataset.editExtra);return;}
  const editButton=ev.target.closest('[data-fifo-edit-entry]');
  if(editButton){ev.preventDefault();ev.stopPropagation();showEditForm(editButton.dataset.fifoEditEntry);return;}
  const toggle=ev.target.closest('[data-fifo-toggle]');

@@ -1276,7 +1276,7 @@ function buildFifoBreakdown(c){
    const note=String(e.note||'').trim();
    const safeNote=note&&!/^FTO EXTRA:/i.test(note)?'<small>'+esc(note)+'</small>':'';
    const isExtraEntry=window.VBGRAMGCharges.isExtraChargeEntry(e);
-   const isFtoEntry=e.entry_type==='charge'&&/^FTO(?:\\s|:|-|$)/i.test(String(e.note||'').trim());
+   const isFtoEntry=e.entry_type==='charge'&&/^FTO(?:\s|:|-|$)/i.test(String(e.note||'').trim());
    const linkedExtra=extraCharges.find(x=>String(x.ledger_entry_id||'')===String(e.id));
    const editAction=appRole==='admin'&&!c.exempt
     ?(isExtraEntry?(linkedExtra&&linkedExtra.period_id?'<div class="fifo-edit"><button class="btn ghost small" type="button" data-fifo-edit-extra="'+esc(linkedExtra.period_id)+'">Edit extra</button></div>':'')
@@ -1379,7 +1379,7 @@ function renderCitizenDetail(id){
   const redundantTypeNote=(type==='refund'&&/^return$/i.test(noteText))||(type==='other_charge'&&/^sanitation fee$/i.test(noteText))||(type==='charge_waiver'&&/^forgiven$/i.test(noteText));
   const displayNote=(type==='payment'&&looksLikePeriod)||redundantTypeNote?'':noteText;
   const transactionDate=!e.is_deferred&&String(e.entry_date||'').slice(0,10)?day(String(e.entry_date).slice(0,10)):'';
-  const extraReason=isExtra?(String(extraCharges.find(x=>String(x.job_card_number)===String(c.id)&&String(x.period_id||"")===String(e.period_id||"")&&String(x.charge_period||"")===String(e.charge_period||""))?.reason||String(e.note||"").replace(/^FTO EXTRA:\\s*/i,"").replace(/\\s*\\(legacy(?:;[^)]*)?\\)\\s*$/i,"").trim())):"";
+  const extraReason=isExtra?(String(extraCharges.find(x=>String(x.job_card_number)===String(c.id)&&String(x.period_id||"")===String(e.period_id||"")&&String(x.charge_period||"")===String(e.charge_period||""))?.reason||String(e.note||"").replace(/^FTO EXTRA:\s*/i,"").replace(/\s*\\(legacy(?:;[^)]*)?\\)\s*$/i,"").trim())):"";
   const allocationRows=isPayment?paymentAllocations.filter(a=>String(a.transaction_id)===String(e.id)):[];
   const savedAllocationTotal=allocationRows.reduce((sum,a)=>sum+Math.max(0,Number(a.amount)||0),0);
   const reconciliationRows=isPayment?paymentRefundReconciliations.filter(r=>String(r.payment_id)===String(e.id)):[];
@@ -1404,7 +1404,7 @@ function renderCitizenDetail(id){
    :'';
   const entryClass=e.is_voided?'entry-voided':isPayment?'entry-payment':(type==='refund'||type==='return')?'entry-refund':(type==='charge_waiver'||type==='forgive')?'entry-waiver':(type==='charge'||type==='other_charge'||type==='sanitationFee')?'entry-charge':'entry-other';
   const linkedExtra=extraCharges.find(x=>String(x.ledger_entry_id||'')===String(e.id));
-  const isFtoEntry=type==='charge'&&/^FTO(?:\\s|:|-|$)/i.test(String(e.note||'').trim());
+  const isFtoEntry=type==='charge'&&/^FTO(?:\s|:|-|$)/i.test(String(e.note||'').trim());
   const entryActions=appRole==='admin'&&!e.is_voided&&!c.exempt
    ?'<div class="entry-actions">'+(isPayment?'<button class="btn ghost small" type="button" data-review-allocation="'+esc(e.id)+'">Review allocation</button>':'')+(isExtra?(linkedExtra&&linkedExtra.period_id?'<button class="btn ghost small" type="button" data-edit-extra="'+esc(linkedExtra.period_id)+'">Edit</button>':''):isFtoEntry?'<span class="muted">Revise in FTO</span>':'<button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button>')+'</div>'
    :'';
@@ -1587,7 +1587,7 @@ function showEditForm(id){
  $('sheetFooter').classList.add('hidden');
  const c=currentCitizen;if(!c)return;
  const e=c.ledger.find(row=>String(row.id)===String(id));if(!e)return;
- if(e.entry_type==="charge"&&/^FTO(?:\\s|:|-|$)/i.test(String(e.note||"").trim())){status('FTO-imported charges must be revised through the FTO workflow.','error');return;}
+ if(e.entry_type==="charge"&&/^FTO(?:\s|:|-|$)/i.test(String(e.note||"").trim())){status('FTO-imported charges must be revised through the FTO workflow.','error');return;}
  const isCharge=e.entry_type==="charge"&&String(e.note||"").trim().toLowerCase()!=="return";
  const typeLabel=(e.entry_type==="charge_waiver"||e.entry_type==="forgive")?"Charge Waiver":e.entry_type==="payment"?"Payment":(e.entry_type==="refund"||e.entry_type==="return")?"Refund":(e.entry_type==="other_charge"||e.entry_type==="sanitationFee")?"Other Charge":"Charge";
  $('sheetBody').innerHTML='<div class="notice info">Editing '+esc(typeLabel)+'. Original and revised values will be recorded in the audit log.</div><form id="editEntryForm"><div class="field"><label for="editAmount">Amount (₹)</label><input id="editAmount" type="number" min="0.01" max="10000000" step="0.01" required value="'+esc(e.amount)+'"></div><div class="grid2"><div class="field"><label for="editDate">Transaction date</label><input id="editDate" type="date" required value="'+esc(String(e.entry_date||new Date().toISOString().slice(0,10)).slice(0,10))+'"></div><div class="field"><label for="editNote">Note</label><input id="editNote" maxlength="200" value="'+esc(e.note||"")+'" placeholder="Optional note"></div></div>'+(isCharge?'<div class="field"><label for="editPeriod">Charge month</label><input id="editPeriod" type="month" required value="'+esc(String(e.charge_period||"").slice(0,7))+'"></div><div class="field"><label><input id="editDeferred" type="checkbox" '+(e.is_deferred?'checked':'')+' style="width:auto;min-height:0;margin-right:8px"> Deferred charge</label></div>':'')+'<button class="btn" id="saveEdit" type="submit">Save changes</button> <button class="btn ghost" id="cancelEdit" type="button">Cancel</button></form>';

@@ -134,6 +134,27 @@ BEGIN
     END IF;
   END IF;
 
+  -- Legacy charges without period_id cannot be attributed safely when a month has
+  -- multiple contribution rounds. If allocations exist in either affected month,
+  -- require the administrator to resolve the period link before changing its balance.
+  IF v_type='charge' AND NOT v_is_legacy_return AND v_old.period_id IS NULL
+     AND (p_amount IS DISTINCT FROM v_old.amount
+       OR COALESCE(p_is_deferred,false) IS DISTINCT FROM COALESCE(v_old.is_deferred,false)
+       OR v_charge_period IS DISTINCT FROM v_old.charge_period)
+     AND EXISTS (
+       SELECT 1
+       FROM public.vbgramg_payment_allocations a
+       JOIN public.vbgramg_periods p ON p.id=a.period_id
+       WHERE a.job_card_number=v_old.job_card_number
+         AND pg_catalog.date_trunc('month',COALESCE(p.contribution_month,p.period_date))::date
+             IN (v_old.charge_period,v_charge_period)
+     ) THEN
+    RETURN pg_catalog.jsonb_build_object(
+      'ok',false,'status',409,
+      'error','This legacy charge is not linked to a specific contribution round, but payments are already allocated in the same month. Resolve its period link before changing its amount, deferred status, or month.'
+    );
+  END IF;
+
   -- A period charge cannot be reduced below amounts already allocated to that round.
   -- Deferred and voided charges do not contribute to the eligible charge ceiling.
   IF v_type='charge' AND NOT v_is_legacy_return AND v_old.period_id IS NOT NULL THEN

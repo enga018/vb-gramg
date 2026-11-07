@@ -115,6 +115,8 @@ CREATE TABLE public.vbgramg_fto_transactions (
   is_current boolean NOT NULL DEFAULT true,
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+GRANT SELECT ON public.vbgramg_fto_batches TO service_role;
+
 CREATE TABLE public.vbgramg_fto_status_history (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   transaction_id uuid,

@@ -152,6 +152,22 @@ BEGIN
     RAISE EXCEPTION 'Core overpayment allocation failed: allocated %, unallocated %',v_alloc,v_unallocated;
   END IF;
 
+  -- Oldest contribution period is settled before a later period.
+  INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,entry_date,note)
+  VALUES ('MZ-PERIOD','Period Household','payment',150,'2026-11-01','Period FIFO payment');
+  INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
+  VALUES ('MZ-PERIOD','Period Household','charge',100,'2026-11-01','00000000-0000-0000-0000-000000000001','2026-11-01','Older period charge');
+  INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
+  VALUES ('MZ-PERIOD','Period Household','charge',100,'2026-12-01','00000000-0000-0000-0000-000000000002','2026-12-01','Newer period charge');
+  IF (SELECT a.amount FROM public.vbgramg_payment_allocations a
+      JOIN public.vbgramg_charge_ledger p ON p.id=a.transaction_id
+      WHERE p.job_card_number='MZ-PERIOD' AND a.period_id='00000000-0000-0000-0000-000000000001')<>100
+     OR (SELECT a.amount FROM public.vbgramg_payment_allocations a
+         JOIN public.vbgramg_charge_ledger p ON p.id=a.transaction_id
+         WHERE p.job_card_number='MZ-PERIOD' AND a.period_id='00000000-0000-0000-0000-000000000002')<>50 THEN
+    RAISE EXCEPTION 'Oldest contribution period was not allocated first';
+  END IF;
+
   -- Oldest available payment is consumed before the newer payment.
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,entry_date,note)
   VALUES

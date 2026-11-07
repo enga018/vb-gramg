@@ -1159,35 +1159,18 @@ Deno.serve(async(req:Request)=>{
    if(!periodId)return reply({error:"Select a specific contribution round."},400);
    if(!Number.isFinite(amount)||amount<=0||amount>10000000)return reply({error:"Enter an extra amount greater than zero."},400);
    if(!reason)return reply({error:"Enter a reason for the extra amount."},400);
-   const {data:selectedRound,error:selectedRoundError}=await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status").eq("id",periodId).maybeSingle();
-   if(selectedRoundError)throw selectedRoundError;
-   if(!selectedRound)return reply({error:"The selected contribution round was not found."},404);
-   if(String(selectedRound.status||"open")!=="open")return reply({error:"This contribution round is closed. Reopen it before changing its extra charge."},409);
-   const selectedMonth=String(selectedRound.contribution_month||selectedRound.period_date||"").slice(0,7);
-   if(selectedMonth!==period.slice(0,7))return reply({error:"The selected contribution round does not match the chosen month."},400);
-   const {data:known,error:knownError}=await admin.from("vbgramg_charge_ledger").select("person_name").eq("job_card_number",jobCard).limit(1).maybeSingle();
-   if(knownError)throw knownError;
-   const {data:citizen,error:citizenError}=await admin.from("vbgramg_contribution_citizens").select("job_card_number,person_name").eq("job_card_number",jobCard).maybeSingle();
-   if(citizenError)throw citizenError;
-   if(!known&&!citizen)return reply({error:"This job card is not present in the contribution records."},404);
-   const personName=String(known?.person_name||citizen?.person_name||"").trim()||jobCard;
-   const note=("FTO EXTRA: "+reason).slice(0,200);
-   const {data:oldExtra,error:oldExtraError}=await admin.from("vbgramg_contribution_extras").select("id,ledger_entry_id,created_by").eq("job_card_number",jobCard).eq("period_id",periodId).maybeSingle();
-   if(oldExtraError)throw oldExtraError;
-   let ledgerEntry:any=null;
-   if(oldExtra?.ledger_entry_id){
-    const {data:updated,error:updateError}=await admin.from("vbgramg_charge_ledger").update({person_name:personName,amount,entry_date:new Date().toISOString().slice(0,10),note,charge_period:period,period_id:periodId,is_deferred:false}).eq("id",oldExtra.ledger_entry_id).select("id,job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").maybeSingle();
-    if(updateError)throw updateError;
-    ledgerEntry=updated;
-   }
-   if(!ledgerEntry){
-    const {data:created,error:createError}=await admin.from("vbgramg_charge_ledger").insert({job_card_number:jobCard,person_name:personName,entry_type:"charge",amount,charge_period:period,period_id:periodId,entry_date:new Date().toISOString().slice(0,10),note,is_deferred:false,created_by:authData.user.id}).select("id,job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").single();
-    if(createError)throw createError;
-    ledgerEntry=created;
-   }
-   const {data:extra,error:extraError}=await admin.from("vbgramg_contribution_extras").upsert({job_card_number:jobCard,person_name:personName,charge_period:period,period_id:periodId,amount,reason,ledger_entry_id:ledgerEntry.id,created_by:oldExtra?.created_by||authData.user.id,updated_by:authData.user.id,updated_at:new Date().toISOString()},{onConflict:"job_card_number,period_id"}).select("id,job_card_number,person_name,charge_period,period_id,amount,reason,ledger_entry_id,created_at,updated_at").single();
-   if(extraError)throw extraError;
-   return reply({approved:true,extra,entry:ledgerEntry,updated:Boolean(oldExtra)});
+   const {data:result,error}=await admin.rpc("vbgramg_save_contribution_extra",{
+    p_job_card_number:jobCard,
+    p_charge_period:period,
+    p_period_id:periodId,
+    p_amount:amount,
+    p_reason:reason,
+    p_entry_date:new Date().toISOString().slice(0,10),
+    p_actor_user_id:authData.user.id
+   });
+   if(error)throw error;
+   if(!result||result.ok!==true)return reply({error:String(result?.error||"Could not save the extra contribution charge.")},Number(result?.status)||400);
+   return reply({approved:true,extra:result.extra,entry:result.entry,updated:Boolean(result.updated)});
   }
 
   if(action==="edit-ledger-entry"){

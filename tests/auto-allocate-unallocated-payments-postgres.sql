@@ -75,7 +75,22 @@ RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE
   v_payment public.vbgramg_charge_ledger%ROWTYPE;
   v_other_allocations numeric(12,2);
+  v_period_card text;
 BEGIN
+  IF TG_OP = 'UPDATE' AND (
+    OLD.job_card_number IS DISTINCT FROM NEW.job_card_number
+    OR OLD.period_id IS DISTINCT FROM NEW.period_id
+  ) THEN
+    RAISE EXCEPTION 'Payment allocation job card and period are immutable';
+  END IF;
+
+  -- Match production lock order: period advisory lock before payment row lock.
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(
+      'contribution:' || NEW.job_card_number || ':' || NEW.period_id::text, 0
+    )
+  );
+
   SELECT * INTO v_payment
   FROM public.vbgramg_charge_ledger
   WHERE id = NEW.transaction_id
@@ -84,6 +99,7 @@ BEGIN
      OR v_payment.job_card_number <> NEW.job_card_number THEN
     RAISE EXCEPTION 'Invalid payment allocation transaction';
   END IF;
+
   SELECT COALESCE(sum(a.amount),0) INTO v_other_allocations
   FROM public.vbgramg_payment_allocations a
   WHERE a.transaction_id = NEW.transaction_id
@@ -91,16 +107,21 @@ BEGIN
   IF v_other_allocations + NEW.amount > v_payment.amount THEN
     RAISE EXCEPTION 'Payment allocation exceeds original payment';
   END IF;
-  IF NOT EXISTS (
-    SELECT 1 FROM public.vbgramg_charge_ledger c
-    WHERE c.job_card_number = NEW.job_card_number
-      AND c.period_id = NEW.period_id
-      AND c.entry_type IN ('charge','other_charge','sanitationFee')
-      AND NOT c.is_deferred AND NOT c.is_voided
-      AND NOT (c.entry_type='charge' AND btrim(COALESCE(c.note,''))='Return')
-  ) THEN
+
+  SELECT c.job_card_number INTO v_period_card
+  FROM public.vbgramg_charge_ledger c
+  WHERE c.job_card_number = NEW.job_card_number
+    AND c.period_id = NEW.period_id
+    AND c.entry_type IN ('charge','other_charge','sanitationFee')
+    AND NOT c.is_deferred
+    AND NOT c.is_voided
+    AND NOT (c.entry_type='charge' AND btrim(COALESCE(c.note,''))='Return')
+  LIMIT 1;
+  IF v_period_card IS NULL THEN
     RAISE EXCEPTION 'No eligible charge for allocation period';
   END IF;
+
+  NEW.updated_at := now();
   RETURN NEW;
 END $$;
 CREATE TRIGGER test_validate_payment_allocation

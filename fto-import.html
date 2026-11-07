@@ -788,7 +788,12 @@ async function executeFtoSync(payload,button){
   if(data&&Array.isArray(data.duplicates)){duplicateCards=new Map(data.duplicates.map(row=>[String(row.job_card_number),row]));reviewedCards=new Set();}
   if(data&&Array.isArray(data.unknown_job_cards)){unknownCards=new Set(data.unknown_job_cards.map(String));reviewedNewCards=new Set();}
   if(data&&(Array.isArray(data.duplicates)||Array.isArray(data.unknown_job_cards)))renderImportPreview();
-  throw new Error((data&&data.error)||await edgeFunctionErrorMessage(error,'FTO synchronization failed.'));
+  const serverMessage=(data&&data.error)||await edgeFunctionErrorMessage(error,'FTO synchronization failed.');
+  const duplicateJobCards=data&&Array.isArray(data.duplicate_job_cards)?data.duplicate_job_cards.filter(Boolean):[];
+  const detailedMessage=duplicateJobCards.length
+   ?serverMessage+' Duplicate job card number(s): '+duplicateJobCards.join(', ')+'.'
+   :serverMessage;
+  throw new Error(detailedMessage);
  }
  
  const syncMessage='FTO '+data.fto_number+' synchronized. Saved period: '+data.contribution_period+'. Rows checked: '+data.rows_seen+'. Local transactions: '+data.local_transactions+'. Outside-active-MIS transactions excluded: '+data.excluded_other_village+'. Charges created: '+data.inserted+', updated: '+data.updated+', reconciled with existing charges: '+Number(data.reconciled||0)+', matching rejected charges removed: '+data.deleted+'. Calculated local total: ₹'+Number(data.total_amount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+'.';

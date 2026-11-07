@@ -131,3 +131,48 @@ test("FTO charge calculation is PostgreSQL-authoritative and preserves admin par
   assert.doesNotMatch(ftoPage, /creditAmount\/divisor/);
   assert.doesNotMatch(ftoPage, /calculated_charge:Number\(/);
 });
+
+const ledgerEditSql = read("supabase/migrations/20261107170000_atomic_contribution_ledger_edits.sql");
+
+test("Generic ledger edits run atomically with audit and linked refund reconciliation", () => {
+  assert.match(ledgerEditSql, /SECURITY DEFINER/i);
+  assert.match(ledgerEditSql, /SET search_path TO ''/i);
+  assert.match(ledgerEditSql, /pg_advisory_xact_lock/);
+  assert.match(ledgerEditSql, /FOR UPDATE/);
+  assert.match(ledgerEditSql, /UPDATE public\.vbgramg_charge_ledger[\s\S]*?RETURNING \* INTO v_updated/);
+  assert.match(ledgerEditSql, /UPDATE public\.vbgramg_payment_refund_reconciliations[\s\S]*?SET amount=p_amount/);
+  assert.match(ledgerEditSql, /refund_reconciliations',v_refund_reconciliations_before/);
+  assert.match(ledgerEditSql, /INSERT INTO public\.vbgramg_ledger_audit/);
+  assert.match(ledgerEditSql, /REVOKE ALL ON FUNCTION[\s\S]+FROM PUBLIC/);
+  assert.match(ledgerEditSql, /FROM anon,authenticated/);
+  assert.match(ledgerEditSql, /TO service_role/);
+});
+
+test("Ledger edits protect payment allocations and period charge ceilings", () => {
+  assert.match(ledgerEditSql, /sum\(a\.amount\)[\s\S]*?WHERE a\.transaction_id=v_old\.id/);
+  assert.match(ledgerEditSql, /sum\(r\.amount\)[\s\S]*?WHERE r\.payment_id=v_old\.id/);
+  assert.match(ledgerEditSql, /v_allocated\+v_refunded>p_amount/);
+  assert.match(ledgerEditSql, /v_allocated>v_eligible/);
+  assert.match(ledgerEditSql, /legacy charge is not linked to a specific contribution round/);
+  assert.match(ledgerEditSql, /FTO-imported charges must be reassigned/);
+  assert.match(ledgerEditSql, /Edit this extra charge through the Extra Contribution form/);
+});
+
+test("Edge Function delegates generic ledger edits to the atomic PostgreSQL RPC", () => {
+  const start = edge.indexOf('if(action==="edit-ledger-entry"){');
+  const end = edge.indexOf('if(action==="add-waiver"', start);
+  const block = edge.slice(start, end);
+  assert.match(block, /admin\.rpc\("vbgramg_edit_contribution_ledger_entry"/);
+  assert.match(block, /p_actor_user_id:authData\.user\.id/);
+  assert.match(block, /p_actor_email:email/);
+  assert.doesNotMatch(block, /\.from\("vbgramg_charge_ledger"\)/);
+  assert.doesNotMatch(block, /\.from\("vbgramg_ledger_audit"\)/);
+});
+
+test("Extra contribution history exposes a direct edit action using its dedicated form", () => {
+  const page = read("contribution.html");
+  assert.match(page, /data-edit-extra=/);
+  assert.match(page, /showExtraChargeForm\(extraEditButton\.dataset\.fifoEditExtra\|\|extraEditButton\.dataset\.editExtra\)/);
+  assert.match(page, /showExtraChargeForm\(preferredPeriodId\)/);
+});
+

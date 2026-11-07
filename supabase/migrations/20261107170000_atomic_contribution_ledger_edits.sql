@@ -91,10 +91,14 @@ BEGIN
     RETURN pg_catalog.jsonb_build_object('ok',false,'status',409,'error','Edit this extra charge through the Extra Contribution form so its linked record stays synchronized.');
   END IF;
 
+  -- FTO-imported charges must be revised through the dedicated FTO workflow.
+  -- Generic ledger edits cannot safely update the source FTO batch and its snapshot.
   IF v_type='charge' AND NOT v_is_legacy_return
-     AND pg_catalog.upper(pg_catalog.left(COALESCE(v_old.note,''),3))='FTO'
-     AND pg_catalog.upper(pg_catalog.left(v_note,3))<>'FTO' THEN
-    RETURN pg_catalog.jsonb_build_object('ok',false,'status',400,'error','FTO-imported charges must keep the FTO marker in their note.');
+     AND pg_catalog.upper(pg_catalog.left(pg_catalog.btrim(COALESCE(v_old.note,'')),3))='FTO' THEN
+    RETURN pg_catalog.jsonb_build_object(
+      'ok',false,'status',409,
+      'error','FTO-imported charges cannot be edited here. Use the dedicated FTO Revise workflow so the FTO batch and contribution ledger stay synchronized.'
+    );
   END IF;
   IF v_is_legacy_return AND pg_catalog.lower(v_note)<>'return' THEN
     RETURN pg_catalog.jsonb_build_object('ok',false,'status',400,'error','Keep the note as Return for this legacy entry.');

@@ -93,7 +93,7 @@ GRANT SELECT, INSERT ON public.vbgramg_charge_ledger TO service_role;
 GRANT SELECT, INSERT ON public.vbgramg_ledger_audit TO service_role;
 
 \ir ../supabase/migrations/20261106181317_record_contribution_transaction.sql
-\ir ../supabase/migrations/20261107120000_atomic_bulk_bank_payment.sql
+\ir ../supabase/migrations/20261107034818_atomic_bulk_bank_payment.sql
 
 INSERT INTO public.vbgramg_charge_ledger (job_card_number, person_name, entry_type, amount, charge_period, note, is_deferred, is_voided)
 VALUES

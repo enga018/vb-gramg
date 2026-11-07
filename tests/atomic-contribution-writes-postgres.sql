@@ -207,7 +207,7 @@ END
 $$;
 
 
-DO $
+DO $$
 DECLARE
   v_batch_id uuid := gen_random_uuid();
   v_period_id uuid := gen_random_uuid();
@@ -269,10 +269,10 @@ BEGIN
     RAISE EXCEPTION 'FTO re-import changed the manually retained calculation parameters: divisor %, multiplier %',v_divisor,v_multiplier;
   END IF;
 END
-$;
+$$;
 
 
-DO $
+DO $$
 DECLARE
   r jsonb;
   before_count integer;

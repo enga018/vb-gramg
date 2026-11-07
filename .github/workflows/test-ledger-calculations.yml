@@ -29,6 +29,9 @@ on:
       - "demand.html"
       - "supabase/migrations/20261106190000_include_active_mis_cards_in_financial_summary.sql"
       - "tests/data-loader.test.cjs"
+      - "tests/auto-allocate-unallocated-payments.test.cjs"
+      - "tests/auto-allocate-unallocated-payments-postgres.sql"
+      - "supabase/migrations/20261107200000_auto_allocate_unallocated_payments_on_new_charge.sql"
       - "js/data-loader.js"
       - ".github/workflows/test-ledger-calculations.yml"
   push:
@@ -53,6 +56,8 @@ jobs:
           node-version: 22
       - name: Run shared ledger tests
         run: node --test tests/ledger-calculations.test.cjs tests/data-loader.test.cjs tests/postgres-contribution-balances.test.cjs tests/atomic-contribution-writes.test.cjs tests/extra-contribution-charges.test.cjs
+      - name: Run automatic unallocated payment FIFO static tests
+        run: node --test tests/auto-allocate-unallocated-payments.test.cjs
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
@@ -115,5 +120,9 @@ jobs:
         run: |
           createdb vbgramg_edits_test
           PGDATABASE=vbgramg_edits_test psql -v ON_ERROR_STOP=1 -f tests/contribution-ledger-edits-postgres.sql
+      - name: Run automatic unallocated payment FIFO PostgreSQL tests
+        run: |
+          createdb vbgramg_auto_allocate_test
+          PGDATABASE=vbgramg_auto_allocate_test psql -v ON_ERROR_STOP=1 -f tests/auto-allocate-unallocated-payments-postgres.sql
       - name: Verify per-job-card advisory lock serializes concurrent writes
         run: bash tests/atomic-contribution-writes-concurrency.sh

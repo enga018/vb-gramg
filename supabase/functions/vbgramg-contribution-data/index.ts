@@ -772,6 +772,19 @@ Deno.serve(async(req:Request)=>{
    }
 
    const rowsSeen=rows.length;
+   // Official FTOs contain exactly one transaction per job card. Validate the
+   // complete pasted snapshot before MIS filtering or ledger reconciliation so
+   // duplicate source rows can never be silently aggregated into one charge.
+   const jobCardOccurrences=new Map<string,number>();
+   for(const raw of rows){
+    const card=String(raw?.job_card_number||"").trim().toUpperCase().slice(0,100);
+    if(card)jobCardOccurrences.set(card,(jobCardOccurrences.get(card)||0)+1);
+   }
+   const duplicateJobCards=[...jobCardOccurrences.entries()].filter(([,count])=>count>1).map(([card])=>card).sort();
+   if(duplicateJobCards.length)return reply({
+    error:"This FTO contains more than one transaction for the same job card. No changes were made. Correct the pasted source and try again.",
+    duplicate_job_cards:duplicateJobCards
+   },400);
    const activeMisApplicants=await loadActiveMisApplicants(admin);
    if(!activeMisApplicants.size)return reply({error:"There is no active MIS import available. Import or activate MIS before synchronizing an FTO."},409);
    const activeJobCards=new Set([...activeMisApplicants.keys()].map(card=>String(card).trim().toUpperCase()));

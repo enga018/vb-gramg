@@ -1176,37 +1176,24 @@ Deno.serve(async(req:Request)=>{
   if(action==="edit-ledger-entry"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can edit ledger entries."},403);
    const id=String(body.id||"").trim(),amount=Number(body.amount),entryDate=String(body.entry_date||""),note=String(body.note??"").trim().slice(0,200);
-   if(!id)return reply({error:"Ledger entry ID is required."},400);
+   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))return reply({error:"A valid ledger entry ID is required."},400);
    if(!Number.isFinite(amount)||amount<=0||amount>10000000)return reply({error:"Enter a valid positive amount."},400);
-   if(!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)||Number.isNaN(Date.parse(entryDate)))return reply({error:"Enter a valid transaction date."},400);
-   const {data:old,error:oldError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note,import_id,created_by,created_at,is_deferred,is_voided,legacy_entry_id,source_created_at_ms").eq("id",id).maybeSingle();
-   if(oldError)throw oldError;if(!old)return reply({error:"Ledger entry was not found."},404);if(old.is_voided)return reply({error:"This charge was removed from the current FTO snapshot and cannot be edited."},409);
-   const type=String(old.entry_type||"");
-   if(type==="payment"){
-    const {data:existingAllocations,error:allocationError}=await admin.from("vbgramg_payment_allocations").select("amount").eq("transaction_id",id);
-    if(allocationError)throw allocationError;
-    const allocatedTotal=(existingAllocations||[]).reduce((sum,row)=>sum+Math.max(0,Number(row.amount)||0),0);
-    if(allocatedTotal>amount+0.001)return reply({error:"This payment has "+allocatedTotal.toFixed(2)+" allocated. Review or reduce its period allocations before lowering the payment amount."},409);
-   }
-   const isLegacyReturn=type==="charge"&&String(old.note||"").trim().toLowerCase()==="return";
-   if(!["charge","payment","refund","charge_waiver","other_charge","return","forgive","sanitationFee"].includes(type))return reply({error:"This transaction type cannot be edited here."},400);
-   if(type==="charge"&&!isLegacyReturn&&/^FTO\b/i.test(String(old.note||""))&&!/^FTO\b/i.test(note))return reply({error:"FTO-imported charges must keep the FTO marker in their note."},400);
-   if(isLegacyReturn&&note.toLowerCase()!=="return")return reply({error:"Keep the note as Return for this legacy entry."},400);
-   let chargePeriod=old.charge_period;
-   if(type==="charge"&&!isLegacyReturn){
-    chargePeriod=String(body.charge_period||"").trim();
-    if(!/^\d{4}-\d{2}-01$/.test(chargePeriod)||Number(chargePeriod.slice(5,7))<1||Number(chargePeriod.slice(5,7))>12)return reply({error:"Choose a valid charge month."},400);
-    if(String(old.period_id||"")&&chargePeriod!==String(old.charge_period||""))return reply({error:"This charge belongs to a specific contribution round. Change its round through the FTO period reassignment workflow, not by editing the month here."},409);
-    if(/^FTO\b/i.test(String(old.note||""))&&chargePeriod!==String(old.charge_period||""))return reply({error:"FTO-imported charges must be reassigned through the FTO period workflow so the batch and ledger remain synchronized."},409);
-   }
-   const isDeferred=type==="charge"&&!isLegacyReturn?Boolean(body.is_deferred):Boolean(old.is_deferred);
-   const patch:Record<string,unknown>={amount,entry_date:entryDate,note:note||null};
-   if(type==="charge"&&!isLegacyReturn){patch.charge_period=chargePeriod;patch.is_deferred=isDeferred;}
-   const {data:updated,error:updateError}=await admin.from("vbgramg_charge_ledger").update(patch).eq("id",id).select("id,job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note,created_at,is_deferred,source_created_at_ms,legacy_entry_id").single();
-   if(updateError)throw updateError;
-   const {error:auditError}=await admin.from("vbgramg_ledger_audit").insert({ledger_entry_id:id,job_card_number:old.job_card_number,action:"edit",actor_user_id:authData.user.id,actor_email:email,before_data:old,after_data:updated});
-   if(auditError)throw auditError;
-   return reply({approved:true,entry:updated});
+   if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(entryDate)||Number.isNaN(Date.parse(entryDate)))return reply({error:"Enter a valid transaction date."},400);
+   const chargePeriod=String(body.charge_period||"").trim();
+   if(chargePeriod&&(!/^\\d{4}-\\d{2}-01$/.test(chargePeriod)||Number(chargePeriod.slice(5,7))<1||Number(chargePeriod.slice(5,7))>12))return reply({error:"Choose a valid charge month."},400);
+   const {data:result,error}=await admin.rpc("vbgramg_edit_contribution_ledger_entry",{
+    p_id:id,
+    p_amount:amount,
+    p_entry_date:entryDate,
+    p_note:note,
+    p_charge_period:chargePeriod||null,
+    p_is_deferred:typeof body.is_deferred==="boolean"?body.is_deferred:false,
+    p_actor_user_id:authData.user.id,
+    p_actor_email:email
+   });
+   if(error)throw error;
+   if(!result||result.ok!==true)return reply({error:String(result?.error||"Could not edit the ledger entry.")},Number(result?.status)||400);
+   return reply({approved:true,entry:result.entry});
   }
   if(action==="add-waiver"||action==="add-return"||action==="pay-in-full"){
    const jobCard=String(body.job_card_number||"").trim();

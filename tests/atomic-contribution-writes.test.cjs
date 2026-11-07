@@ -5,6 +5,7 @@ const path = require("node:path");
 
 const read = relative => fs.readFileSync(path.join(__dirname, "..", relative), "utf8");
 const sql = read("supabase/migrations/20261106181317_record_contribution_transaction.sql");
+const bulkSql = read("supabase/migrations/20261107120000_atomic_bulk_bank_payment.sql");
 const edge = read("supabase/functions/vbgramg-contribution-data/index.ts");
 
 test("Atomic contribution function is a service-role-only invoker function", () => {
@@ -75,4 +76,35 @@ test("Edge Function delegates the four supported writes to the atomic RPC", () =
   assert.match(adminBlock, /recordContributionWrite/);
   assert.doesNotMatch(adminBlock, /calculateLedgerState/);
   assert.doesNotMatch(adminBlock, /\.from\("vbgramg_charge_ledger"\)\.insert/);
+});
+
+
+test("Bulk bank payments are validated, locked, and written atomically in PostgreSQL", () => {
+  assert.match(bulkSql, /RETURNS jsonb/i);
+  assert.match(bulkSql, /SET search_path TO ''/i);
+  assert.match(bulkSql, /jsonb_array_length\(p_entries\) > 500/);
+  assert.match(bulkSql, /pg_advisory_xact_lock/);
+  assert.match(bulkSql, /ORDER BY job_card/);
+  assert.match(bulkSql, /vbgramg_contribution_exemptions/);
+  assert.match(bulkSql, /No payments were recorded/);
+  assert.match(bulkSql, /entry_type, amount, entry_date, note, created_by/);
+  assert.match(bulkSql, /'payment', v_row\.amount, p_entry_date, 'Bank'/);
+  assert.match(bulkSql, /'bulk-bank-payment'/);
+  assert.match(bulkSql, /INSERT INTO public\.vbgramg_ledger_audit/);
+  assert.match(bulkSql, /REVOKE ALL ON FUNCTION[\s\S]+FROM PUBLIC/);
+  assert.match(bulkSql, /FROM anon, authenticated/);
+  assert.match(bulkSql, /TO service_role/);
+  assert.doesNotMatch(bulkSql, /SECURITY DEFINER/i);
+});
+
+test("Bulk bank payment Edge Function delegates writes to the PostgreSQL RPC", () => {
+  const start = edge.indexOf('if(action==="bulk-bank-payment"){');
+  const end = edge.indexOf('if(action==="set-payment-allocations"', start);
+  const block = edge.slice(start, end);
+  assert.match(block, /admin\.rpc\("vbgramg_record_bulk_bank_payment"/);
+  assert.match(block, /p_entries:normalized/);
+  assert.match(block, /p_actor_user_id:authData\.user\.id/);
+  assert.match(block, /p_actor_email:email/);
+  assert.doesNotMatch(block, /\.from\("vbgramg_charge_ledger"\)/);
+  assert.doesNotMatch(block, /\.from\("vbgramg_ledger_audit"\)/);
 });

@@ -111,6 +111,7 @@ CREATE TABLE public.vbgramg_fto_batches (
 CREATE TABLE public.vbgramg_fto_transactions (
   id uuid PRIMARY KEY,
   batch_id uuid NOT NULL,
+  ledger_entry_id uuid,
   is_current boolean NOT NULL DEFAULT true,
   updated_at timestamptz NOT NULL DEFAULT now()
 );

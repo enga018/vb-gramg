@@ -198,7 +198,7 @@ BEGIN
   JOIN public.vbgramg_charge_ledger r ON r.job_card_number=p.job_card_number AND r.entry_type='refund'
   WHERE p.job_card_number='MZ-REFUND' AND p.entry_type='payment';
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
-  VALUES ('MZ-REFUND','Refund Household','charge',100,'2026-12-01','00000000-0000-0000-0000-000000000002','2026-12-01','Refund balance test');
+  VALUES ('MZ-REFUND','Refund Household','charge',200,'2026-12-01','00000000-0000-0000-0000-000000000002','2026-12-01','Refund balance test');
   SELECT a.amount INTO v_alloc
   FROM public.vbgramg_payment_allocations a
   JOIN public.vbgramg_charge_ledger p ON p.id=a.transaction_id

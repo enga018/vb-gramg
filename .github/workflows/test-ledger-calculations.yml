@@ -11,6 +11,8 @@ on:
       - "tests/extra-contribution-charges.test.cjs"
       - "tests/extra-contribution-charges-postgres.sql"
       - "supabase/migrations/20261107140000_atomic_extra_contribution_charges.sql"
+      - "supabase/migrations/20261107170000_atomic_contribution_ledger_edits.sql"
+      - "tests/contribution-ledger-edits-postgres.sql"
       - "tests/atomic-contribution-writes-concurrency.sh"
       - "supabase/migrations/20261106181317_record_contribution_transaction.sql"
       - "supabase/migrations/20261107120000_atomic_bulk_bank_payment.sql"
@@ -109,5 +111,9 @@ jobs:
         run: |
           createdb vbgramg_extras_test
           PGDATABASE=vbgramg_extras_test psql -v ON_ERROR_STOP=1 -f tests/extra-contribution-charges-postgres.sql
+      - name: Run atomic contribution ledger edit PostgreSQL tests
+        run: |
+          createdb vbgramg_edits_test
+          PGDATABASE=vbgramg_edits_test psql -v ON_ERROR_STOP=1 -f tests/contribution-ledger-edits-postgres.sql
       - name: Verify per-job-card advisory lock serializes concurrent writes
         run: bash tests/atomic-contribution-writes-concurrency.sh

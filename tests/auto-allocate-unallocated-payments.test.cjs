@@ -14,7 +14,7 @@ const postgresTest = fs.readFileSync(
 
 test("new eligible charges trigger automatic FIFO allocation", () => {
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.vbgramg_auto_allocate_unallocated_payments/);
-  assert.match(migration, /AFTER INSERT\\s+ON public\\.vbgramg_charge_ledger/);
+  assert.match(migration, /AFTER INSERT\s+ON public\.vbgramg_charge_ledger/);
   assert.match(migration, /EXECUTE FUNCTION public\.vbgramg_auto_allocate_after_charge_change/);
 });
 
@@ -34,7 +34,12 @@ test("deferred, voided, legacy Return, and exempted cards are excluded", () => {
   assert.match(migration, /COALESCE\(NEW\.is_deferred, false\)/);
   assert.match(migration, /COALESCE\(NEW\.is_voided, false\)/);
   assert.match(migration, /btrim\(COALESCE\(NEW\.note, ''\)\) = 'Return'/);
-  assert.match(migration, /COALESCE\(OLD\.is_deferred, false\)/);
+  assert.match(migration, /AFTER INSERT\s+ON public\.vbgramg_charge_ledger/);
+});
+
+test("manual replacement locks periods before payment rows", () => {
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.vbgramg_replace_payment_allocations/);
+  assert.match(migration, /FROM public\.vbgramg_payment_allocations a[\s\S]*?WHERE a\.transaction_id = p_transaction_id[\s\S]*?ORDER BY x\.period_id[\s\S]*?FOR UPDATE/);
 });
 
 test("automatic allocations retain the original payment and write an audit entry", () => {

@@ -25,6 +25,7 @@ CREATE TABLE public.vbgramg_charge_ledger (
   entry_type text NOT NULL CHECK (entry_type IN ('charge','payment','refund','other_charge','charge_waiver')),
   amount numeric NOT NULL CHECK (amount > 0),
   charge_period date CHECK (charge_period IS NULL OR EXTRACT(day FROM charge_period) = 1),
+  period_id uuid,
   entry_date date DEFAULT CURRENT_DATE,
   note text,
   created_by uuid,

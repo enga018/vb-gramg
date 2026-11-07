@@ -76,7 +76,7 @@ BEGIN
     pg_catalog.upper(pg_catalog.left(COALESCE(v_old.note,''),9))='FTO EXTRA'
     OR EXISTS (SELECT 1 FROM public.vbgramg_contribution_extras x WHERE x.ledger_entry_id=v_old.id)
   ) THEN
-    RETURN pg_catalog.jsonb_build_object('ok',409,'status',409,'error','Edit this extra charge through the Extra Contribution form so its linked record stays synchronized.');
+    RETURN pg_catalog.jsonb_build_object('ok',false,'status',409,'error','Edit this extra charge through the Extra Contribution form so its linked record stays synchronized.');
   END IF;
 
   IF v_type='charge' AND NOT v_is_legacy_return
@@ -133,22 +133,18 @@ BEGIN
     WHERE a.job_card_number=v_old.job_card_number
       AND a.period_id=v_old.period_id;
 
-    SELECT COALESCE(sum(
-      CASE WHEN l.id=v_old.id THEN
-        CASE WHEN COALESCE(p_is_deferred,false)=false THEN p_amount ELSE 0 END
-      ELSE l.amount END
-    ),0)::numeric(14,2)
+    SELECT (
+      COALESCE(sum(l.amount),0)
+      + CASE WHEN COALESCE(p_is_deferred,false)=false THEN p_amount ELSE 0 END
+    )::numeric(14,2)
       INTO v_eligible
     FROM public.vbgramg_charge_ledger l
     WHERE l.job_card_number=v_old.job_card_number
       AND l.period_id=v_old.period_id
+      AND l.id<>v_old.id
       AND l.entry_type IN ('charge','other_charge')
       AND COALESCE(l.is_deferred,false)=false
       AND COALESCE(l.is_voided,false)=false;
-
-    IF COALESCE(p_is_deferred,false) THEN
-      v_eligible := v_eligible - CASE WHEN COALESCE(v_old.is_deferred,false)=false THEN v_old.amount ELSE 0 END;
-    END IF;
 
     IF v_allocated>v_eligible+0.001 THEN
       RETURN pg_catalog.jsonb_build_object(

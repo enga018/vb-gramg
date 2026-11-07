@@ -14,7 +14,7 @@ const postgresTest = fs.readFileSync(
 
 test("new eligible charges trigger automatic FIFO allocation", () => {
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.vbgramg_auto_allocate_unallocated_payments/);
-  assert.match(migration, /AFTER INSERT OR UPDATE OF amount, is_deferred/);
+  assert.match(migration, /AFTER INSERT\\s+ON public\\.vbgramg_charge_ledger/);
   assert.match(migration, /EXECUTE FUNCTION public\.vbgramg_auto_allocate_after_charge_change/);
 });
 

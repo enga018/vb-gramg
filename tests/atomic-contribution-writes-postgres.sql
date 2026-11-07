@@ -165,7 +165,7 @@ BEGIN
     IF SQLERRM = 'Zero divisor should have been rejected' THEN RAISE; END IF;
   END;
 END
-$;
+$$;
 
 DO $$
 DECLARE

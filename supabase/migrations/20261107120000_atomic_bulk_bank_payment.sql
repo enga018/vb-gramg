@@ -24,8 +24,12 @@ DECLARE
   v_count integer;
   v_inserted integer := 0;
 BEGIN
-  IF p_entries IS NULL OR pg_catalog.jsonb_typeof(p_entries) <> 'array'
-     OR pg_catalog.jsonb_array_length(p_entries) < 1
+  IF p_entries IS NULL OR pg_catalog.jsonb_typeof(p_entries) IS DISTINCT FROM 'array' THEN
+    RETURN pg_catalog.jsonb_build_object('ok', false, 'status', 400,
+      'error', 'A bulk payment batch must contain 1–500 entries.');
+  END IF;
+
+  IF pg_catalog.jsonb_array_length(p_entries) < 1
      OR pg_catalog.jsonb_array_length(p_entries) > 500 THEN
     RETURN pg_catalog.jsonb_build_object('ok', false, 'status', 400,
       'error', 'A bulk payment batch must contain 1–500 entries.');
@@ -39,17 +43,17 @@ BEGIN
   -- Validate the complete payload before taking locks or writing anything.
   FOR v_item IN SELECT value FROM pg_catalog.jsonb_array_elements(p_entries)
   LOOP
-    IF pg_catalog.jsonb_typeof(v_item) <> 'object'
-       OR pg_catalog.jsonb_typeof(v_item->'job_card_number') <> 'string'
+    IF pg_catalog.jsonb_typeof(v_item) IS DISTINCT FROM 'object'
+       OR pg_catalog.jsonb_typeof(v_item->'job_card_number') IS DISTINCT FROM 'string'
        OR pg_catalog.btrim(v_item->>'job_card_number') = ''
        OR pg_catalog.length(pg_catalog.btrim(v_item->>'job_card_number')) > 100
-       OR pg_catalog.jsonb_typeof(v_item->'amount') <> 'number' THEN
+       OR pg_catalog.jsonb_typeof(v_item->'amount') IS DISTINCT FROM 'number' THEN
       RETURN pg_catalog.jsonb_build_object('ok', false, 'status', 400,
         'error', 'Every row must have a valid job card number and positive amount.');
     END IF;
 
     v_amount := (v_item->>'amount')::numeric;
-    IF v_amount <= 0 OR v_amount > 10000000
+    IF v_amount IS NULL OR v_amount <= 0 OR v_amount > 10000000
        OR v_amount::text IN ('NaN', 'Infinity', '-Infinity') THEN
       RETURN pg_catalog.jsonb_build_object('ok', false, 'status', 400,
         'error', 'Every row must have a valid job card number and positive amount.');

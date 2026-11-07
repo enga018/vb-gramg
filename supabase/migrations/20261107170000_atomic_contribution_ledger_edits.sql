@@ -159,7 +159,7 @@ BEGIN
 
   -- A period charge cannot be reduced below amounts already allocated to that round.
   -- Deferred and voided charges do not contribute to the eligible charge ceiling.
-  IF v_type='charge' AND NOT v_is_legacy_return AND v_old.period_id IS NOT NULL THEN
+  IF v_type IN ('charge','other_charge') AND NOT v_is_legacy_return AND v_old.period_id IS NOT NULL THEN
     SELECT COALESCE(sum(a.amount),0)::numeric(14,2)
       INTO v_allocated
     FROM public.vbgramg_payment_allocations a
@@ -168,7 +168,7 @@ BEGIN
 
     SELECT (
       COALESCE(sum(l.amount),0)
-      + CASE WHEN COALESCE(p_is_deferred,false)=false THEN p_amount ELSE 0 END
+      + CASE WHEN (CASE WHEN v_type='charge' THEN COALESCE(p_is_deferred,false) ELSE COALESCE(v_old.is_deferred,false) END)=false THEN p_amount ELSE 0 END
     )::numeric(14,2)
       INTO v_eligible
     FROM public.vbgramg_charge_ledger l

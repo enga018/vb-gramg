@@ -218,7 +218,7 @@ DECLARE
   v_multiplier numeric;
 BEGIN
   -- Exercise the real atomic snapshot upsert, not just the calculation RPC.
-  -- The same FTO is then re-imported with a different admin-entered multiplier.
+  -- The same FTO is re-imported with unchanged admin-entered values.
   v_result := public.vbgramg_apply_fto_snapshot(jsonb_build_object(
     'batch', jsonb_build_object(
       'id',v_batch_id,'fto_number','TEST-AUDIT-FTO',
@@ -250,7 +250,7 @@ BEGIN
       'contribution_period','NOV26','ledger_charge_period','2026-11-01',
       'period_id',v_period_id,'created_by',v_user_id,
       'last_checked_at',now(),'last_source_sha256',repeat('c',64),
-      'calculation_divisor',300,'calculation_multiplier',80
+      'calculation_divisor',300,'calculation_multiplier',100
     ),
     'charge_import',jsonb_build_object(
       'id',gen_random_uuid(),'source_filename','FTO-TEST-AUDIT-FTO',
@@ -265,8 +265,8 @@ BEGIN
   SELECT calculation_divisor,calculation_multiplier
     INTO v_divisor,v_multiplier
     FROM public.vbgramg_fto_batches WHERE id=v_batch_id;
-  IF v_divisor<>300 OR v_multiplier<>80 THEN
-    RAISE EXCEPTION 'FTO re-import did not update the exact calculation parameters: divisor %, multiplier %',v_divisor,v_multiplier;
+  IF v_divisor<>300 OR v_multiplier<>100 THEN
+    RAISE EXCEPTION 'FTO re-import changed the manually retained calculation parameters: divisor %, multiplier %',v_divisor,v_multiplier;
   END IF;
 END
 $;

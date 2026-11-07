@@ -37,6 +37,11 @@ test("deferred, voided, legacy Return, and exempted cards are excluded", () => {
   assert.match(migration, /AFTER INSERT\s+ON public\.vbgramg_charge_ledger/);
 });
 
+test("FTO snapshot acquires the household lock before invoking the existing RPC", () => {
+  assert.match(migration, /ALTER FUNCTION public\\.vbgramg_apply_fto_snapshot\\(jsonb\\)\\s+RENAME TO vbgramg_apply_fto_snapshot_unlocked/);
+  assert.match(migration, /vbgramg-contribution:' \\| v_card\\.job_card_number[\\s\\S]*?vbgramg_apply_fto_snapshot_unlocked\\(p_plan\\)/);
+});
+
 test("manual replacement locks periods before payment rows", () => {
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.vbgramg_replace_payment_allocations/);
   assert.match(migration, /FROM public\.vbgramg_payment_allocations a[\s\S]*?WHERE a\.transaction_id = p_transaction_id[\s\S]*?ORDER BY x\.period_id[\s\S]*?FOR UPDATE/);

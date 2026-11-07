@@ -110,9 +110,7 @@ The migration preserves a subtle existing behaviour: only cash payment requires 
 
 ## Edge Function integration draft
 
-The contribution Edge Function now routes `add-payment`, `pay-in-full`, `add-waiver`, and `add-return` through the RPC helper. Authentication, approved-user lookup, admin checks for waiver/return, and verified actor identity remain in the Edge Function. The browser does not supply actor identity or role. The other contribution write paths remain unchanged.
-
-This integration is in the same draft PR as the SQL; it is not deployed. Because the SQL is not yet a production migration, deploying this Edge Function before applying the migration would break these four actions. Keep both changes together for coordinated release after final review and approval.
+The contribution Edge Function routes `add-payment`, `pay-in-full`, `add-waiver`, and `add-return` through the RPC helper. Authentication, approved-user lookup, admin checks for waiver/return, and verified actor identity remain in the Edge Function. The browser does not supply actor identity or role. The matching SQL migration and Edge Function integration were merged and deployed together in PR #168. The bulk Bank Payment RPC described below is a separate change and has not been deployed.
 
 
 ## Atomic bulk bank payments

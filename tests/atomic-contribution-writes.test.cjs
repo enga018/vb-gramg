@@ -108,3 +108,26 @@ test("Bulk bank payment Edge Function delegates writes to the PostgreSQL RPC", (
   assert.doesNotMatch(block, /\.from\("vbgramg_charge_ledger"\)/);
   assert.doesNotMatch(block, /\.from\("vbgramg_ledger_audit"\)/);
 });
+
+const ftoMigration = read("supabase/migrations/20261107050000_postgres_fto_charge_calculation.sql");
+const ftoPage = read("fto-import.html");
+
+test("FTO charge calculation is PostgreSQL-authoritative and preserves admin parameters", () => {
+  assert.match(ftoMigration, /round\(\(\(item->>'credit_amount'\)::numeric\/p_divisor\)\*p_multiplier,2\)/i);
+  assert.match(ftoMigration, /calculation_divisor numeric/i);
+  assert.match(ftoMigration, /calculation_multiplier numeric/i);
+  assert.match(ftoMigration, /calculation_divisor = excluded\.calculation_divisor/i);
+  assert.match(ftoMigration, /calculation_multiplier = excluded\.calculation_multiplier/i);
+  assert.match(ftoMigration, /TO service_role/i);
+  assert.match(edge, /admin\.rpc\("vbgramg_calculate_fto_charges"/);
+  const syncStart = edge.indexOf('if(action==="sync-fto-batch"){');
+  const syncEnd = edge.indexOf('if(action==="sync-fto-status"){', syncStart);
+  const syncBlock = edge.slice(syncStart, syncEnd);
+  assert.match(syncBlock, /calculatedByIndex\.get\(rowIndex\)/);
+  assert.doesNotMatch(syncBlock, /raw\.calculated_charge/);
+  assert.match(syncBlock, /calculation_divisor:divisor,calculation_multiplier:multiplier/);
+  assert.match(ftoPage, /action:'calculate-fto-charges'/);
+  assert.match(ftoPage, /calculatedChargeForRow\(row\)/);
+  assert.doesNotMatch(ftoPage, /creditAmount\/divisor/);
+  assert.doesNotMatch(ftoPage, /calculated_charge:Number\(/);
+});

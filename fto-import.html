@@ -406,7 +406,7 @@ const {
  parsePastedTable,isHeaderOrSeparator,jobCardFromRow,villageFromRow,normalizeVillage,
  parseAmount,periodToDate,rawStatus,bytesToHex,sha256
 }=window.VBGRAMGFTO;
-let authSequence=0,notInActiveMisCards=new Set(),sharedPeriods=[],previewPages={reconciliation:1,imports:1,applicants:1},parsedDataRows=[],importGroups=[],duplicateCards=new Map(),duplicateReferences=new Map(),alreadyAllocatedCards=new Map(),exemptedCards=new Set(),reviewedCards=new Set(),unknownCards=new Set(),reviewedNewCards=new Set(),reconciliationApplicantSelections=new Map(),manualChargeActions=new Map(),manualAmountConfirmations=new Set(),applicantMatchSuggestions=new Map(),alreadyImportedReferences=new Set(),deferredCards=new Map(),duplicateCheckSequence=0,checkingDuplicates=false,duplicateCheckFailed=false,existingFtoUnchanged=false,existingFtoKnown=false,ftoIdentityMismatch=false;
+let authSequence=0,notInActiveMisCards=new Set(),sharedPeriods=[],previewPages={reconciliation:1,imports:1,applicants:1},parsedDataRows=[],calculatedCharges=[],calculationSequence=0,calculationPending=false,calculationError='',importGroups=[],duplicateCards=new Map(),duplicateReferences=new Map(),alreadyAllocatedCards=new Map(),exemptedCards=new Set(),reviewedCards=new Set(),unknownCards=new Set(),reviewedNewCards=new Set(),reconciliationApplicantSelections=new Map(),manualChargeActions=new Map(),manualAmountConfirmations=new Set(),applicantMatchSuggestions=new Map(),alreadyImportedReferences=new Set(),deferredCards=new Map(),duplicateCheckSequence=0,checkingDuplicates=false,duplicateCheckFailed=false,existingFtoUnchanged=false,existingFtoKnown=false,ftoIdentityMismatch=false;
 function status(msg,type,duration){if(window.showToast){window.showToast(msg,type==='error'?'error':type==='success'?'success':'info',duration);$('data-status').textContent='';$('data-status').classList.remove('error','success');$('data-status').classList.add('hidden');return}$('data-status').textContent=msg;$('data-status').classList.remove('error','success')}
 function syncStatus(msg,type){if(window.showToast){window.showToast(msg,type||'info');const el=$('sync-status');el.textContent='';el.classList.add('hidden');el.classList.remove('error','success');return}const el=$('sync-status');el.textContent=msg;el.classList.remove('hidden');el.classList.toggle('error',type==='error');el.classList.toggle('success',type==='success')}
 async function edgeFunctionErrorMessage(error,fallback){if(error&&error.context){try{const response=error.context.clone?error.context.clone():error.context;let body=null;if(response&&typeof response.json==='function')body=await response.json();else if(response&&typeof response.text==='function'){const raw=await response.text();try{body=JSON.parse(raw)}catch{body={message:raw}}}if(body&&typeof body==='object'&&(body.error||body.message||body.msg))return String(body.error||body.message||body.msg);if(typeof body==='string'&&body.trim())return body.trim()}catch(_){}}return (error&&error.message)||fallback}
@@ -484,7 +484,7 @@ function renderPastedTable(rows){
  FTO_HEADERS.forEach(value=>{const th=document.createElement('th');th.textContent=value;headerRow.appendChild(th)});
  thead.appendChild(headerRow);
  const dataRows=rows.filter(row=>{if(isHeaderOrSeparator(row))return false;const cells=row.map(cell=>String(cell||'').replace(/<br\s*\/?>/gi,' ').replace(/\s+/g,' ').trim());return /^\d+$/.test(cells[0]||'')&&cells.length>=13&&!!jobCardFromRow(cells)&&String(cells[3]||'').trim().length>0&&/^\d{2}\/\d{2}\/\d{4}$/.test(cells[4]||'')});
- if(!dataRows.length){$('table-output').classList.add('hidden');$('import-controls').classList.add('hidden');parsedDataRows=[];return null}
+ if(!dataRows.length){calculationSequence++;calculationPending=false;calculationError='';calculatedCharges=[];importGroups=[];$('table-output').classList.add('hidden');$('import-controls').classList.add('hidden');parsedDataRows=[];return null}
  dataRows.forEach(row=>{
   const tr=document.createElement('tr');tr.dataset.reference=String(row[3]||'').trim();
   FTO_HEADERS.forEach((header,index)=>{const td=document.createElement('td');td.dataset.label=header;td.textContent=(row[index]||'').replace(/<br\s*\/?>/gi,'\n');td.style.whiteSpace='pre-line';tr.appendChild(td)});
@@ -526,24 +526,32 @@ async function loadSharedPeriods(selectedId=''){
 }
 function currentStatusAction(){return 'all'}
 function actionGroups(){return importGroups}
-function buildImportGroups(){
+function calculatedChargeForRow(row){const index=parsedDataRows.indexOf(row);return index>=0?Number(calculatedCharges[index]||0):0;}
+async function buildImportGroups(){
+ const seq=++calculationSequence;calculationPending=true;calculationError='';updateImportButton();
  const divisor=Number($('amount-divisor').value),multiplier=Number($('amount-multiplier').value);
- const validFormula=Number.isFinite(divisor)&&divisor>0&&Number.isFinite(multiplier)&&multiplier>0;
+ if(!Number.isFinite(divisor)||divisor<=0||!Number.isFinite(multiplier)||multiplier<=0){calculationPending=false;calculationError='Enter a positive divisor and multiplier.';importGroups=[];renderImportPreview();return;}
+ try{
+  const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'calculate-fto-charges',divisor,multiplier,rows:parsedDataRows.map((row,row_index)=>({row_index,credit_amount:parseAmount(row[11]),status:rawStatus(row)}))},deduplicate:false});
+  if(seq!==calculationSequence)return;
+  if(error||!data||data.approved!==true||!Array.isArray(data.calculations))throw new Error((data&&data.error)||(error&&error.message)||'PostgreSQL could not calculate the FTO charges.');
+  if(data.calculations.length!==parsedDataRows.length)throw new Error('PostgreSQL returned an incomplete FTO calculation preview.');
+  calculatedCharges=data.calculations.map((item,index)=>{if(Number(item.row_index)!==index||!Number.isFinite(Number(item.calculated_charge)))throw new Error('PostgreSQL returned an invalid calculation row.');return Number(item.calculated_charge);});
+ }catch(err){if(seq!==calculationSequence)return;calculationPending=false;calculationError=err.message||'FTO charge calculation failed.';importGroups=[];renderImportPreview();status(calculationError,'error',9000);return;}
+ if(seq!==calculationSequence)return;calculationPending=false;
  const map=new Map();
- for(const row of parsedDataRows){
-  const jobCard=jobCardFromRow(row);if(!jobCard)continue;
-  const village=villageFromRow(row);
-  const creditAmount=parseAmount(row[11]),amount=validFormula&&creditAmount>0?(creditAmount/divisor)*multiplier:0;
+ parsedDataRows.forEach((row,index)=>{
+  const jobCard=jobCardFromRow(row);if(!jobCard)return;
+  const village=villageFromRow(row),amount=Number(calculatedCharges[index]||0);
   const personName=String(row[5]||row[7]||'').replace(/<br\s*\/?>/gi,' ').replace(/\s+/g,' ').trim();
   const rowState=rawStatus(row),reference=String(row[3]||'').replace(/<br\s*\/?>/gi,' ').replace(/\s+/g,' ').trim();
   if(!map.has(jobCard))map.set(jobCard,{job_card_number:jobCard,person_name:personName||'Name needs review',amount:0,row_count:0,invalid_amount_rows:0,statuses:new Set(),villages:new Set(),references:[]});
-  const group=map.get(jobCard);
-  if(!group.person_name||group.person_name==='Name needs review')group.person_name=personName||group.person_name;
+  const group=map.get(jobCard);if(!group.person_name||group.person_name==='Name needs review')group.person_name=personName||group.person_name;
   group.row_count++;group.statuses.add(rowState);group.villages.add(village||'Village unknown');
   if(reference&&!group.references.includes(reference))group.references.push(reference);
-  if((rowState==='blank'||rowState==='processed')&&amount>0)group.amount+=amount;
+  if((rowState==='blank'||rowState==='processed')&&amount>0)group.amount=Number((group.amount+amount).toFixed(2));
   if((rowState==='blank'||rowState==='processed')&&amount<=0)group.invalid_amount_rows++;
- }
+ });
  importGroups=[...map.values()].map(g=>({...g,status:g.statuses.size===1?[...g.statuses][0]:'mixed',village:[...g.villages].join(' / '),inScope:true,reference_numbers:g.references})).sort((a,b)=>a.job_card_number.localeCompare(b.job_card_number));
  duplicateCards=new Map();duplicateReferences=new Map();alreadyAllocatedCards=new Map();exemptedCards=new Set();reviewedCards=new Set();unknownCards=new Set();reviewedNewCards=new Set();reconciliationApplicantSelections=new Map();manualChargeActions=new Map();manualAmountConfirmations=new Set();applicantMatchSuggestions=new Map();alreadyImportedReferences=new Set();existingFtoUnchanged=false;
  renderImportPreview();refreshDuplicates();
@@ -583,7 +591,7 @@ function renderManualTransactionDetails(group,containerOverride){
   const card=document.createElement('article');card.className='parsed-transaction-card';card.style.marginBottom='8px';
   const title=document.createElement('strong');title.textContent='Transaction '+(index+1)+' · '+(rawStatus(row)==='blank'?'Deferred':rawStatus(row));card.appendChild(title);
   const grid=document.createElement('div');grid.className='parsed-transaction-fields';grid.style.marginTop='8px';
-  [['Applicant',row[5]||row[7]||'—'],['Reference',row[3]||'—'],['Date',row[4]||'—'],['Credit amount','₹'+parseAmount(row[11]).toLocaleString('en-IN',{maximumFractionDigits:2})],['Calculated charge','₹'+(((parseAmount(row[11])/(Number($('amount-divisor').value)||300))*(Number($('amount-multiplier').value)||100))||0).toLocaleString('en-IN',{maximumFractionDigits:2})],['Processed date',row[13]||'—']].forEach(([label,value])=>{const item=document.createElement('div');item.className='parsed-transaction-field';const l=document.createElement('span');l.textContent=label;const v=document.createElement('strong');v.textContent=String(value);item.append(l,v);grid.appendChild(item)});
+  [['Applicant',row[5]||row[7]||'—'],['Reference',row[3]||'—'],['Date',row[4]||'—'],['Credit amount','₹'+parseAmount(row[11]).toLocaleString('en-IN',{maximumFractionDigits:2})],['Calculated charge','₹'+calculatedChargeForRow(row).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})],['Processed date',row[13]||'—']].forEach(([label,value])=>{const item=document.createElement('div');item.className='parsed-transaction-field';const l=document.createElement('span');l.textContent=label;const v=document.createElement('strong');v.textContent=String(value);item.append(l,v);grid.appendChild(item)});
   card.appendChild(grid);container.appendChild(card);
  });
  const review=document.createElement('div');review.style.marginTop='12px';
@@ -650,7 +658,7 @@ function liveRenderCard(type){
  const txList=document.createElement('div');txList.className='live-tx-list';
  parsedDataRows.filter(row=>jobCardFromRow(row)===card).forEach(row=>{
   const tx=document.createElement('div');tx.className='live-tx-item';
-  liveAddField(tx,'Reference',row[3]||'—');liveAddField(tx,'Processed date',row[13]||'—');liveAddField(tx,'Credit amount',liveMoney(parseAmount(row[11])));liveAddField(tx,'Calculated charge',liveMoney((parseAmount(row[11])/(Number($('amount-divisor').value)||300))*(Number($('amount-multiplier').value)||100)));
+  liveAddField(tx,'Reference',row[3]||'—');liveAddField(tx,'Processed date',row[13]||'—');liveAddField(tx,'Credit amount',liveMoney(parseAmount(row[11])));liveAddField(tx,'Calculated charge',liveMoney(calculatedChargeForRow(row)));
   txList.appendChild(tx);
  });
  target.appendChild(txList);
@@ -742,7 +750,7 @@ function updateImportButton(){
  const unresolvedApplicants=[...applicantMatchSuggestions.entries()].some(([card,match])=>!exemptedCards.has(card)&&match.requires_manual&&!reconciliationApplicantSelections.has(card));
  const hasDuplicateReferences=[...duplicateReferences.entries()].some(([card,refs])=>refs.length>0&&!notInActiveMisCards.has(card)&&!exemptedCards.has(card));
  $('fto-import-button').textContent=duplicateCards.size?'Confirm review & synchronize FTO':'Synchronize FTO';
- $('fto-import-button').disabled=!ftoNumber||!period||!parsedDataRows.length||!selected.length||invalid||checkingDuplicates||duplicateCheckFailed||ftoIdentityMismatch||unreviewed||unverifiedNew||unresolvedApplicants||hasDuplicateReferences;
+ $('fto-import-button').disabled=!ftoNumber||!period||!parsedDataRows.length||!selected.length||invalid||checkingDuplicates||duplicateCheckFailed||calculationPending||Boolean(calculationError)||ftoIdentityMismatch||unreviewed||unverifiedNew||unresolvedApplicants||hasDuplicateReferences;
 }
 async function lookupFtoBatch(){
  const ftoNumber=$('fto-number').value.trim();if(!ftoNumber)return;
@@ -770,8 +778,8 @@ async function lookupFtoBatch(){
 $('fto-number').addEventListener('change',lookupFtoBatch);
 liveBindNavigation();
 $('charge-period').addEventListener('change',()=>{reviewedCards=new Set();reviewedNewCards=new Set();manualChargeActions=new Map();manualAmountConfirmations=new Set();refreshDuplicates()});
-$('amount-divisor').addEventListener('input',()=>buildImportGroups());
-$('amount-multiplier').addEventListener('input',()=>buildImportGroups());
+$('amount-divisor').addEventListener('change',()=>buildImportGroups());
+$('amount-multiplier').addEventListener('change',()=>buildImportGroups());
 
 
 async function executeFtoSync(payload,button){
@@ -806,13 +814,12 @@ $('fto-import-button').addEventListener('click',async()=>{
   const divisor=Number($('amount-divisor').value),multiplier=Number($('amount-multiplier').value);
   const payloadRows=parsedDataRows.map(row=>{
    const creditAmount=parseAmount(row[11]),amountToCredit=parseAmount(row[10]),statusValue=rawStatus(row);
-   const calculatedCharge=creditAmount>0&&Number.isFinite(divisor)&&divisor>0&&Number.isFinite(multiplier)&&multiplier>0&&(statusValue==='blank'||statusValue==='processed')?(creditAmount/divisor)*multiplier:0;
    const dateMatch=String(row[4]||'').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
    const processedDateMatch=String(row[13]||'').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-   return {reference_no:String(row[3]||'').replace(/\s+/g,' ').trim(),job_card_number:jobCardFromRow(row),village_name:villageFromRow(row),person_name:String(row[5]||row[7]||'').replace(/\s+/g,' ').trim(),transaction_date:dateMatch?dateMatch[3]+'-'+dateMatch[2]+'-'+dateMatch[1]:'',processed_date:processedDateMatch?processedDateMatch[3]+'-'+processedDateMatch[2]+'-'+processedDateMatch[1]:'',amount_to_be_credited:amountToCredit,credit_amount:creditAmount,status:statusValue,calculated_charge:Number(calculatedCharge.toFixed(2)),rejection_reason:String(row[16]||'').trim(),source_row:row};
+   return {reference_no:String(row[3]||'').replace(/\s+/g,' ').trim(),job_card_number:jobCardFromRow(row),village_name:villageFromRow(row),person_name:String(row[5]||row[7]||'').replace(/\s+/g,' ').trim(),transaction_date:dateMatch?dateMatch[3]+'-'+dateMatch[2]+'-'+dateMatch[1]:'',processed_date:processedDateMatch?processedDateMatch[3]+'-'+processedDateMatch[2]+'-'+processedDateMatch[1]:'',amount_to_be_credited:amountToCredit,credit_amount:creditAmount,status:statusValue,rejection_reason:String(row[16]||'').trim(),source_row:row};
   });
   const sourceSha=await sha256(JSON.stringify({raw:$('table-input').value,ftoNumber,periodLabel,period,divisor,multiplier,rows:payloadRows}));
-  const payload={action:'sync-fto-batch',fto_number:ftoNumber,period_id:periodId,contribution_period:periodLabel,charge_period:period,rows:payloadRows,source_sha256:sourceSha,reviewed_duplicates:[...reviewedCards],reviewed_new_job_cards:[...reviewedNewCards],manual_charge_actions:Object.fromEntries([...manualChargeActions.entries()]),manual_charge_amount_confirmations:[...manualAmountConfirmations],reconciliation_applicants:Object.fromEntries([...reconciliationApplicantSelections.entries()])};
+  const payload={action:'sync-fto-batch',fto_number:ftoNumber,period_id:periodId,contribution_period:periodLabel,charge_period:period,divisor,multiplier,rows:payloadRows,source_sha256:sourceSha,reviewed_duplicates:[...reviewedCards],reviewed_new_job_cards:[...reviewedNewCards],manual_charge_actions:Object.fromEntries([...manualChargeActions.entries()]),manual_charge_amount_confirmations:[...manualAmountConfirmations],reconciliation_applicants:Object.fromEntries([...reconciliationApplicantSelections.entries()])};
   await executeFtoSync(payload,button);
  }catch(err){const message=err.message||'FTO synchronization failed. Review the preview and try again.';syncStatus(message,'error');button.textContent='Synchronize FTO statuses';checkingDuplicates=false;updateImportButton()}
  finally{if(button.textContent!=='Synchronization completed')button.disabled=false}

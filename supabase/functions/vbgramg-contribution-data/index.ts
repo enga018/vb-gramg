@@ -730,6 +730,16 @@ Deno.serve(async(req:Request)=>{
    if(updateError)throw updateError;
    return reply({approved:true,saved:true,applicant:chosen});
   }
+  if(action==="calculate-fto-charges"){
+   if(approved.role!=="admin")return reply({error:"Only an approved administrator can calculate FTO charges."},403);
+   const divisor=Number(body.divisor),multiplier=Number(body.multiplier),rows=body.rows;
+   if(!Number.isFinite(divisor)||divisor<=0||divisor>1000000000||!Number.isFinite(multiplier)||multiplier<=0||multiplier>1000000)return reply({error:"Divisor and multiplier must be finite positive numbers within the allowed range."},400);
+   if(!Array.isArray(rows)||rows.length<1||rows.length>5000)return reply({error:"The FTO calculation must contain 1–5,000 rows."},400);
+   const {data:calculations,error}=await admin.rpc("vbgramg_calculate_fto_charges",{p_rows:rows,p_divisor:divisor,p_multiplier:multiplier});
+   if(error)throw error;
+   if(!Array.isArray(calculations)||calculations.length!==rows.length)return reply({error:"PostgreSQL returned an incomplete FTO calculation."},500);
+   return reply({approved:true,calculations});
+  }
   if(action==="sync-fto-batch"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can synchronize FTO transactions."},403);
    const ftoNumber=String(body.fto_number||"").trim().toUpperCase().slice(0,100);
@@ -739,6 +749,8 @@ Deno.serve(async(req:Request)=>{
    const periodMatch=chargePeriod.match(/^(\d{4})-(\d{2})-01$/);
    const villageScope="ACTIVE MIS JOB CARDS";
    const rows=body.rows;
+   const divisor=Number(body.divisor),multiplier=Number(body.multiplier);
+   if(!Number.isFinite(divisor)||divisor<=0||divisor>1000000000||!Number.isFinite(multiplier)||multiplier<=0||multiplier>1000000)return reply({error:"Divisor and multiplier must be finite positive numbers within the allowed range."},400);
    if(!ftoNumber)return reply({error:"Enter the FTO number shown on the government page."},400);
    if(!contributionPeriod)return reply({error:"Select a contribution period from the shared list."},400);
    if(!periodMatch||Number(periodMatch[2])<1||Number(periodMatch[2])>12)return reply({error:"Enter a recognizable month and year, such as August 2026."},400);
@@ -775,10 +787,17 @@ Deno.serve(async(req:Request)=>{
     reconciliationApplicants.set(card,chosen);
    }
    const localInputRows=rows;
+   const {data:chargeCalculations,error:calculationError}=await admin.rpc("vbgramg_calculate_fto_charges",{p_rows:localInputRows.map((raw:Record<string,any>,row_index:number)=>({row_index,credit_amount:raw.credit_amount,status:raw.status})),p_divisor:divisor,p_multiplier:multiplier});
+   if(calculationError)throw calculationError;
+   if(!Array.isArray(chargeCalculations)||chargeCalculations.length!==localInputRows.length)return reply({error:"PostgreSQL returned an incomplete FTO calculation. Nothing was synchronized."},500);
+   const calculatedByIndex=new Map<number,number>();
+   for(const item of chargeCalculations){const index=Number(item.row_index),amount=Number(item.calculated_charge);if(!Number.isInteger(index)||index<0||index>=localInputRows.length||!Number.isFinite(amount)||amount<0)return reply({error:"PostgreSQL returned an invalid FTO charge calculation."},500);calculatedByIndex.set(index,amount);}
+   if(calculatedByIndex.size!==localInputRows.length)return reply({error:"PostgreSQL returned an incomplete FTO calculation. Nothing was synchronized."},500);
    const excludedOutsideActiveMis=rowsSeen-localInputRows.filter((raw:Record<string,any>)=>activeJobCards.has(String(raw?.job_card_number||"").trim().toUpperCase())).length;
    const normalized:Record<string,any>[]=[];
    const seenReferences=new Map<string,string>();
-   for(const raw of localInputRows){
+   for(let rowIndex=0;rowIndex<localInputRows.length;rowIndex++){
+    const raw=localInputRows[rowIndex];
     const referenceNo=String(raw.reference_no||"").trim().slice(0,200);
     const jobCard=String(raw.job_card_number||"").trim().toUpperCase().slice(0,100);
     const villageName=String(raw.village_name||"").trim().slice(0,150);
@@ -786,7 +805,7 @@ Deno.serve(async(req:Request)=>{
     const status=String(raw.status||"").trim().toLowerCase();
     const creditAmount=Number(raw.credit_amount);
     const amountToCredit=Number(raw.amount_to_be_credited);
-    const calculatedCharge=Number(raw.calculated_charge);
+    const calculatedCharge=Number(calculatedByIndex.get(rowIndex));
     const transactionDate=String(raw.transaction_date||"").trim();
     const processedDate=String(raw.processed_date||"").trim();
     const rejectionReason=String(raw.rejection_reason||"").trim().slice(0,500);
@@ -1027,7 +1046,7 @@ Deno.serve(async(req:Request)=>{
    const {data:priorImport,error:priorImportError}=await admin.from("vbgramg_charge_imports").select("id").eq("source_sha256",sourceSha).maybeSingle();
    if(priorImportError)throw priorImportError;
    const importId=String(priorImport?.id||crypto.randomUUID());
-   const plan={batch:{id:batchId,fto_number:ftoNumber,contribution_period:contributionPeriod,ledger_charge_period:chargePeriod,village_scope:villageScope,period_id:periodId,created_by:authData.user.id,last_checked_at:nowIso,last_source_sha256:sourceSha},
+   const plan={batch:{id:batchId,fto_number:ftoNumber,contribution_period:contributionPeriod,ledger_charge_period:chargePeriod,village_scope:villageScope,period_id:periodId,created_by:authData.user.id,last_checked_at:nowIso,last_source_sha256:sourceSha,calculation_divisor:divisor,calculation_multiplier:multiplier},
     charge_import:{id:importId,source_filename:sourceFilename,source_sha256:sourceSha,charge_period:chargePeriod,row_count:incomingCards.length,total_amount:totalAmount,imported_by:authData.user.id,notes:("FTO sync "+ftoNumber+"; period label: "+contributionPeriod).slice(0,500),completed_at:nowIso},
     transactions:transactionRows,status_history:statusHistory,omitted_transaction_ids:omittedIds,
     ledger_rows:ledgerPlan,transaction_links:transactionLinks,void_ledger_ids:voidLedgerIds,

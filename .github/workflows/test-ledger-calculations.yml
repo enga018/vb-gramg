@@ -11,6 +11,7 @@ on:
       - "tests/atomic-contribution-writes-concurrency.sh"
       - "supabase/migrations/20261106181317_record_contribution_transaction.sql"
       - "supabase/migrations/20261107120000_atomic_bulk_bank_payment.sql"
+      - "supabase/migrations/20261107050000_postgres_fto_charge_calculation.sql"
       - ".github/workflows/test-ledger-calculations.yml"
       - "docs/architecture/atomic-contribution-writes.md"
       - "supabase/functions/vbgramg-contribution-data/index.ts"

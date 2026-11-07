@@ -25,6 +25,7 @@ CREATE TABLE public.vbgramg_charge_ledger (
   entry_type text NOT NULL CHECK (entry_type IN ('charge','payment','refund','other_charge','charge_waiver')),
   amount numeric NOT NULL CHECK (amount > 0),
   charge_period date CHECK (charge_period IS NULL OR EXTRACT(day FROM charge_period) = 1),
+  period_id uuid,
   entry_date date DEFAULT CURRENT_DATE,
   note text,
   created_by uuid,
@@ -94,6 +95,61 @@ GRANT SELECT, INSERT ON public.vbgramg_ledger_audit TO service_role;
 
 \ir ../supabase/migrations/20261106181317_record_contribution_transaction.sql
 \ir ../supabase/migrations/20261107034818_atomic_bulk_bank_payment.sql
+CREATE TABLE public.vbgramg_fto_batches (
+  id uuid PRIMARY KEY,
+  fto_number text UNIQUE NOT NULL,
+  contribution_period text NOT NULL,
+  ledger_charge_period date NOT NULL,
+  village_scope text,
+  period_id uuid,
+  created_by uuid,
+  last_checked_at timestamptz,
+  last_source_sha256 text
+);
+
+
+CREATE TABLE public.vbgramg_fto_transactions (
+  id uuid PRIMARY KEY,
+  batch_id uuid NOT NULL,
+  ledger_entry_id uuid,
+  is_current boolean NOT NULL DEFAULT true,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT ON public.vbgramg_fto_batches TO service_role;
+
+CREATE TABLE public.vbgramg_fto_status_history (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  transaction_id uuid,
+  old_status text,
+  new_status text,
+  old_calculated_charge numeric,
+  new_calculated_charge numeric,
+  old_processed_date date,
+  new_processed_date date,
+  changed_by uuid,
+  fto_number text,
+  reference_no text,
+  note text
+);
+CREATE TABLE public.vbgramg_charge_imports (
+  id uuid PRIMARY KEY,
+  source_filename text,
+  source_sha256 text UNIQUE,
+  charge_period date,
+  row_count integer,
+  total_amount numeric,
+  status text,
+  imported_by uuid,
+  notes text,
+  completed_at timestamptz
+);
+CREATE TABLE public.vbgramg_payment_allocations (
+  transaction_id uuid,
+  period_id uuid,
+  amount numeric
+);
+
+\ir ../supabase/migrations/20261107050000_postgres_fto_charge_calculation.sql
 
 INSERT INTO public.vbgramg_charge_ledger (job_card_number, person_name, entry_type, amount, charge_period, note, is_deferred, is_voided)
 VALUES
@@ -120,6 +176,105 @@ INSERT INTO public.vbgramg_contribution_exemptions (job_card_number, note)
 VALUES ('MZ-EXEMPT', 'Test exemption');
 
 SET ROLE service_role;
+
+DO $$
+DECLARE
+  fto_calc jsonb;
+BEGIN
+  fto_calc := public.vbgramg_calculate_fto_charges(
+    '[{"row_index":0,"credit_amount":600,"status":"processed"},{"row_index":1,"credit_amount":600,"status":"blank"},{"row_index":2,"credit_amount":600,"status":"rejected"},{"row_index":3,"credit_amount":1,"status":"processed"}]'::jsonb,
+    300, 100
+  );
+  IF (fto_calc->0->>'calculated_charge')::numeric <> 200
+     OR (fto_calc->1->>'calculated_charge')::numeric <> 200
+     OR (fto_calc->2->>'calculated_charge')::numeric <> 0
+     OR (fto_calc->3->>'calculated_charge')::numeric <> 0.33 THEN
+    RAISE EXCEPTION 'FTO charge calculation or two-decimal rounding failed: %', fto_calc;
+  END IF;
+
+  fto_calc := public.vbgramg_calculate_fto_charges(
+    '[{"row_index":0,"credit_amount":600,"status":"processed"}]'::jsonb, 300, 80
+  );
+  IF (fto_calc->0->>'calculated_charge')::numeric <> 160 THEN
+    RAISE EXCEPTION 'Admin-supplied 80 multiplier was not applied: %', fto_calc;
+  END IF;
+
+  BEGIN
+    PERFORM public.vbgramg_calculate_fto_charges(
+      '[{"row_index":0,"credit_amount":600,"status":"processed"}]'::jsonb, 0, 100
+    );
+    RAISE EXCEPTION 'Zero divisor should have been rejected';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM = 'Zero divisor should have been rejected' THEN RAISE; END IF;
+  END;
+END
+$$;
+
+
+DO $$
+DECLARE
+  v_batch_id uuid := gen_random_uuid();
+  v_period_id uuid := gen_random_uuid();
+  v_user_id uuid := gen_random_uuid();
+  v_import_id uuid := gen_random_uuid();
+  v_result jsonb;
+  v_divisor numeric;
+  v_multiplier numeric;
+BEGIN
+  -- Exercise the real atomic snapshot upsert, not just the calculation RPC.
+  -- The same FTO is re-imported with unchanged admin-entered values.
+  v_result := public.vbgramg_apply_fto_snapshot(jsonb_build_object(
+    'batch', jsonb_build_object(
+      'id',v_batch_id,'fto_number','TEST-AUDIT-FTO',
+      'contribution_period','NOV26','ledger_charge_period','2026-11-01',
+      'period_id',v_period_id,'created_by',v_user_id,
+      'last_checked_at',now(),'last_source_sha256',repeat('a',64),
+      'calculation_divisor',300,'calculation_multiplier',100
+    ),
+    'charge_import',jsonb_build_object(
+      'id',v_import_id,'source_filename','FTO-TEST-AUDIT-FTO',
+      'source_sha256',repeat('b',64),'charge_period','2026-11-01',
+      'row_count',0,'total_amount',0,'imported_by',v_user_id,
+      'notes','FTO calculation audit test','completed_at',now()
+    )
+  ));
+  IF NOT (v_result->>'committed')::boolean THEN
+    RAISE EXCEPTION 'Initial FTO snapshot did not commit: %',v_result;
+  END IF;
+  SELECT calculation_divisor,calculation_multiplier
+    INTO v_divisor,v_multiplier
+    FROM public.vbgramg_fto_batches WHERE id=v_batch_id;
+  IF v_divisor<>300 OR v_multiplier<>100 THEN
+    RAISE EXCEPTION 'Initial FTO calculation parameters were not persisted exactly: divisor %, multiplier %',v_divisor,v_multiplier;
+  END IF;
+
+  v_result := public.vbgramg_apply_fto_snapshot(jsonb_build_object(
+    'batch', jsonb_build_object(
+      'id',v_batch_id,'fto_number','TEST-AUDIT-FTO',
+      'contribution_period','NOV26','ledger_charge_period','2026-11-01',
+      'period_id',v_period_id,'created_by',v_user_id,
+      'last_checked_at',now(),'last_source_sha256',repeat('c',64),
+      'calculation_divisor',300,'calculation_multiplier',100
+    ),
+    'charge_import',jsonb_build_object(
+      'id',gen_random_uuid(),'source_filename','FTO-TEST-AUDIT-FTO',
+      'source_sha256',repeat('d',64),'charge_period','2026-11-01',
+      'row_count',0,'total_amount',0,'imported_by',v_user_id,
+      'notes','FTO calculation audit re-import test','completed_at',now()
+    )
+  ));
+  IF NOT (v_result->>'committed')::boolean THEN
+    RAISE EXCEPTION 'FTO re-import snapshot did not commit: %',v_result;
+  END IF;
+  SELECT calculation_divisor,calculation_multiplier
+    INTO v_divisor,v_multiplier
+    FROM public.vbgramg_fto_batches WHERE id=v_batch_id;
+  IF v_divisor<>300 OR v_multiplier<>100 THEN
+    RAISE EXCEPTION 'FTO re-import changed the manually retained calculation parameters: divisor %, multiplier %',v_divisor,v_multiplier;
+  END IF;
+END
+$$;
+
 
 DO $$
 DECLARE

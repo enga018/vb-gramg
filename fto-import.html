@@ -785,11 +785,20 @@ $('amount-multiplier').addEventListener('change',()=>buildImportGroups());
 async function executeFtoSync(payload,button){
  const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:payload,timeoutMs:false});
  if(error||!data||data.error){
-  if(data&&Array.isArray(data.duplicates)){duplicateCards=new Map(data.duplicates.map(row=>[String(row.job_card_number),row]));reviewedCards=new Set();}
-  if(data&&Array.isArray(data.unknown_job_cards)){unknownCards=new Set(data.unknown_job_cards.map(String));reviewedNewCards=new Set();}
-  if(data&&(Array.isArray(data.duplicates)||Array.isArray(data.unknown_job_cards)))renderImportPreview();
-  const serverMessage=(data&&data.error)||await edgeFunctionErrorMessage(error,'FTO synchronization failed.');
-  const duplicateJobCards=data&&Array.isArray(data.duplicate_job_cards)?data.duplicate_job_cards.filter(Boolean):[];
+  let responseBody=data||null;
+  if(error&&error.context){
+   try{const response=error.context.clone?error.context.clone():error.context;if(response&&typeof response.json==='function')responseBody=await response.json()}catch(_){}
+  }
+  if(responseBody&&Array.isArray(responseBody.duplicates)){duplicateCards=new Map(responseBody.duplicates.map(row=>[String(row.job_card_number),row]));reviewedCards=new Set();}
+  if(responseBody&&Array.isArray(responseBody.unknown_job_cards)){unknownCards=new Set(responseBody.unknown_job_cards.map(String));reviewedNewCards=new Set();}
+  if(responseBody&&(Array.isArray(responseBody.duplicates)||Array.isArray(responseBody.unknown_job_cards)))renderImportPreview();
+  const committed=Boolean((responseBody&&responseBody.snapshot_committed)||(data&&data.snapshot_committed));
+  const serverMessage=(responseBody&&responseBody.error)||(data&&data.error)||await edgeFunctionErrorMessage(error,'FTO synchronization failed.');
+  if(committed){
+   button.textContent='Import committed — review required';button.disabled=true;
+   throw new Error('IMPORTANT: The FTO snapshot was committed, but link verification did not finish. DO NOT import this FTO again. Check FTO history and transaction-to-ledger links, or ask an administrator to review them. '+serverMessage);
+  }
+  const duplicateJobCards=responseBody&&Array.isArray(responseBody.duplicate_job_cards)?responseBody.duplicate_job_cards.filter(Boolean):[];
   const detailedMessage=duplicateJobCards.length
    ?serverMessage+' Duplicate job card number(s): '+duplicateJobCards.join(', ')+'.'
    :serverMessage;
@@ -827,7 +836,7 @@ $('fto-import-button').addEventListener('click',async()=>{
   const payload={action:'sync-fto-batch',fto_number:ftoNumber,period_id:periodId,contribution_period:periodLabel,charge_period:period,divisor,multiplier,rows:payloadRows,source_sha256:sourceSha,reviewed_duplicates:[...reviewedCards],reviewed_new_job_cards:[...reviewedNewCards],manual_charge_actions:Object.fromEntries([...manualChargeActions.entries()]),manual_charge_amount_confirmations:[...manualAmountConfirmations],reconciliation_applicants:Object.fromEntries([...reconciliationApplicantSelections.entries()])};
   await executeFtoSync(payload,button);
  }catch(err){const message=err.message||'FTO synchronization failed. Review the preview and try again.';syncStatus(message,'error');button.textContent='Synchronize FTO statuses';checkingDuplicates=false;updateImportButton()}
- finally{if(button.textContent!=='Synchronization completed')button.disabled=false}
+ finally{if(button.textContent!=='Synchronization completed'&&button.textContent!=='Import committed — review required')button.disabled=false}
 });
 $('table-input').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')$('load-table-button').click()});
 

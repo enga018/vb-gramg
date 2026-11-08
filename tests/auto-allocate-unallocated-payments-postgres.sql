@@ -266,7 +266,7 @@ END $$;
 
 -- New payments immediately consume existing outstanding charges using the
 -- same global period FIFO allocator. Excess remains genuinely unallocated.
-DO $
+DO $new_payment_test$
 DECLARE
   v_old_period numeric(12,2);
   v_new_period numeric(12,2);
@@ -322,6 +322,6 @@ BEGIN
     RAISE EXCEPTION 'Insufficient new payment was not fully allocated: allocated %, unallocated %',
       v_allocated,v_unallocated;
   END IF;
-END $;
+END $new_payment_test$;
 
 SELECT 'automatic unallocated payment FIFO tests passed' AS result;

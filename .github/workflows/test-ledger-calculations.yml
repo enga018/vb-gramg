@@ -22,6 +22,8 @@ on:
       - "supabase/functions/vbgramg-contribution-data/index.ts"
       - "contribution.html"
       - "demand.html"
+      - "supabase/functions/vbgramg-demand-runs/index.ts"
+      - "tests/work-demand-requires-existing-period.test.cjs"
       - "supabase/migrations/20261106190000_include_active_mis_cards_in_financial_summary.sql"
       - "tests/postgres-contribution-balances.test.cjs"
       - "supabase/functions/vbgramg-contribution-data/index.ts"
@@ -60,6 +62,8 @@ jobs:
         run: node --test tests/charge-level-payment-allocations.test.cjs
       - name: Run automatic unallocated payment FIFO static tests
         run: node --test tests/auto-allocate-unallocated-payments.test.cjs
+      - name: Run Work Demand period requirement tests
+        run: node --test tests/work-demand-requires-existing-period.test.cjs
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:

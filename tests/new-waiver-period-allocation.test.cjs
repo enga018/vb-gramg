@@ -28,9 +28,9 @@ test("new waiver trigger allocates after automatic payment FIFO and preserves ol
   assert.match(migration, /Historical waiver entries are not backfilled/);
 });
 
-test("payment FIFO subtracts period-linked new waivers", () => {
-  assert.match(migration, /FROM public\.vbgramg_waiver_period_allocations w/);
+test("payment FIFO and manual allocations subtract period-linked new waivers", () => {
   assert.match(migration, /v_period_due := GREATEST\(v_period_charges - v_period_allocated - v_period_waived, 0\)/);
+  assert.match(migration, /Payment allocations cannot exceed the period balance remaining after waivers/);
 });
 
 test("unsafe edits to period-linked new waivers are rejected", () => {
@@ -41,6 +41,7 @@ test("unsafe edits to period-linked new waivers are rejected", () => {
 test("isolated PostgreSQL tests cover FIFO, partial allocation, legacy compatibility and rollback", () => {
   assert.match(postgresTests, /MZ-WAIVER-FIFO/);
   assert.match(postgresTests, /MZ-WAIVER-THEN-PAYMENT/);
-  assert.match(postgresTests, /MZ-WAIVER-LEGACY/);\n  assert.match(postgresTests, /Expected manual allocation beyond the post-waiver balance to be rejected/);
+  assert.match(postgresTests, /MZ-WAIVER-LEGACY/);
+  assert.match(postgresTests, /Expected manual allocation beyond the post-waiver balance to be rejected/);
   assert.match(postgresTests, /Expected the new waiver to be rejected/);
 });

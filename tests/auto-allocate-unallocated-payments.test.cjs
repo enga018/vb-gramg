@@ -12,7 +12,8 @@ const paymentMigration = fs.readFileSync(
   path.join(__dirname, "../supabase/migrations/20261108150000_auto_allocate_on_new_payment.sql"),
   "utf8"
 );
-\nconst postgresTest = fs.readFileSync(
+
+const postgresTest = fs.readFileSync(
   path.join(__dirname, "auto-allocate-unallocated-payments-postgres.sql"),
   "utf8"
 );
@@ -25,12 +26,12 @@ test("new eligible charges trigger automatic FIFO allocation", () => {
 
 
 test("new non-voided payments immediately invoke the shared FIFO allocator", () => {
-  assert.match(paymentMigration, /CREATE OR REPLACE FUNCTION public\\.vbgramg_auto_allocate_after_payment_insert/);
-  assert.match(paymentMigration, /AFTER INSERT[\\s\\S]*?ON public\\.vbgramg_charge_ledger/);
-  assert.match(paymentMigration, /NEW\\.entry_type <> 'payment'/);
-  assert.match(paymentMigration, /vbgramg_auto_allocate_unallocated_payments\\(NEW\\.job_card_number\\)/);
+  assert.match(paymentMigration, /CREATE OR REPLACE FUNCTION public\.vbgramg_auto_allocate_after_payment_insert/);
+  assert.match(paymentMigration, /AFTER INSERT[\s\S]*?ON public\.vbgramg_charge_ledger/);
+  assert.match(paymentMigration, /NEW\.entry_type <> 'payment'/);
+  assert.match(paymentMigration, /vbgramg_auto_allocate_unallocated_payments\(NEW\.job_card_number\)/);
   assert.match(paymentMigration, /SECURITY DEFINER/);
-  assert.match(paymentMigration, /REVOKE ALL ON FUNCTION public\\.vbgramg_auto_allocate_after_payment_insert\\(\\)/);
+  assert.match(paymentMigration, /REVOKE ALL ON FUNCTION public\.vbgramg_auto_allocate_after_payment_insert\(\)/);
 });
 
 test("isolated PostgreSQL tests cover new-payment FIFO and retained excess credit", () => {
@@ -39,7 +40,8 @@ test("isolated PostgreSQL tests cover new-payment FIFO and retained excess credi
   assert.match(postgresTest, /MZ-NEW-PAYMENT-SHORT/);
   assert.match(postgresTest, /New-payment FIFO failed/);
 });
-\ntest("allocation uses oldest periods and oldest available payments first", () => {
+
+test("allocation uses oldest periods and oldest available payments first", () => {
   assert.match(migration, /ORDER BY\s+COALESCE\(p\.contribution_month, p\.period_date\) ASC NULLS LAST,\s+p\.created_at ASC/);
   assert.match(migration, /ORDER BY payment\.entry_date ASC NULLS LAST, payment\.created_at ASC, payment\.id ASC/);
   assert.match(migration, /LEAST\(v_payment_available, v_period_due\)/);

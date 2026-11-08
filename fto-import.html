@@ -835,7 +835,7 @@ $('fto-import-button').addEventListener('click',async()=>{
   const sourceSha=await sha256(JSON.stringify({raw:$('table-input').value,ftoNumber,periodLabel,period,divisor,multiplier,rows:payloadRows}));
   const payload={action:'sync-fto-batch',fto_number:ftoNumber,period_id:periodId,contribution_period:periodLabel,charge_period:period,divisor,multiplier,rows:payloadRows,source_sha256:sourceSha,reviewed_duplicates:[...reviewedCards],reviewed_new_job_cards:[...reviewedNewCards],manual_charge_actions:Object.fromEntries([...manualChargeActions.entries()]),manual_charge_amount_confirmations:[...manualAmountConfirmations],reconciliation_applicants:Object.fromEntries([...reconciliationApplicantSelections.entries()])};
   await executeFtoSync(payload,button);
- }catch(err){const message=err.message||'FTO synchronization failed. Review the preview and try again.';syncStatus(message,'error');button.textContent='Synchronize FTO statuses';checkingDuplicates=false;updateImportButton()}
+ }catch(err){const message=err.message||'FTO synchronization failed. Review the preview and try again.';syncStatus(message,'error');if(button.textContent!=='Import committed — review required'){button.textContent='Synchronize FTO statuses';checkingDuplicates=false;updateImportButton()}}
  finally{if(button.textContent!=='Synchronization completed'&&button.textContent!=='Import committed — review required')button.disabled=false}
 });
 $('table-input').addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter')$('load-table-button').click()});

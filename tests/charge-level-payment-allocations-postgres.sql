@@ -35,7 +35,7 @@ CREATE TABLE public.vbgramg_payment_refund_reconciliations (
 
 DO $$
 DECLARE
-  p1 uuid; p2 uuid; c1 uuid; c2 uuid; c3 uuid;
+  p1 uuid; p2 uuid; p3 uuid; c1 uuid; c2 uuid; c3 uuid; c4 uuid;
   v_count integer;
 BEGIN
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount)
@@ -56,17 +56,21 @@ BEGIN
 
   -- two payments can fund one charge
   INSERT INTO public.vbgramg_charge_payment_allocations(payment_id,charge_id,amount)
-  VALUES (p2,c3,100);
+  VALUES (p2,c3,50);
+  INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount)
+  VALUES ('JC-ONE','Household One','payment',50) RETURNING id INTO p3;
+  INSERT INTO public.vbgramg_charge_payment_allocations(payment_id,charge_id,amount)
+  VALUES (p3,c3,50);
   SELECT count(*) INTO v_count FROM public.vbgramg_charge_payment_allocations
   WHERE charge_id=c3;
   IF v_count<>1 THEN RAISE EXCEPTION 'Expected payment-to-charge row'; END IF;
 
   -- cross-job-card allocation is rejected
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount)
-  VALUES ('JC-TWO','Household Two','charge',50) RETURNING id INTO c3;
+  VALUES ('JC-TWO','Household Two','charge',50) RETURNING id INTO c4;
   BEGIN
     INSERT INTO public.vbgramg_charge_payment_allocations(payment_id,charge_id,amount)
-    VALUES (p2,c3,10);
+    VALUES (p2,c4,10);
     RAISE EXCEPTION 'cross-job-card allocation is rejected: insert unexpectedly succeeded';
   EXCEPTION WHEN OTHERS THEN
     IF SQLERRM LIKE 'cross-job-card allocation is rejected:%' THEN RAISE; END IF;
@@ -85,7 +89,7 @@ BEGIN
   -- payment over-allocation is rejected
   BEGIN
     INSERT INTO public.vbgramg_charge_payment_allocations(payment_id,charge_id,amount)
-    VALUES (p1,c3,1);
+    VALUES (p1,c4,1);
     RAISE EXCEPTION 'payment over-allocation is rejected: insert unexpectedly succeeded';
   EXCEPTION WHEN OTHERS THEN
     IF SQLERRM LIKE 'payment over-allocation is rejected:%' THEN RAISE; END IF;

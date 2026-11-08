@@ -1,4 +1,4 @@
--- Isolated PostgreSQL integration tests for automatic FIFO allocation on new charges.
+-- Isolated PostgreSQL integration tests for automatic FIFO allocation on new charges and payments.
 -- Run against a disposable database only:
 --   createdb vbgramg_auto_allocate_test
 --   PGDATABASE=vbgramg_auto_allocate_test psql -v ON_ERROR_STOP=1 -f tests/auto-allocate-unallocated-payments-postgres.sql
@@ -153,10 +153,6 @@ BEGIN
   VALUES ('MZ-EXAMPLE','Example Household','charge',400,'2026-11-01','00000000-0000-0000-0000-000000000001','2026-11-01','Base charge');
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,entry_date,note)
   VALUES ('MZ-EXAMPLE','Example Household','payment',500,'2026-11-02','Bank');
-  INSERT INTO public.vbgramg_payment_allocations(transaction_id,period_id,job_card_number,amount)
-  SELECT p.id,'00000000-0000-0000-0000-000000000001','MZ-EXAMPLE',400
-  FROM public.vbgramg_charge_ledger p
-  WHERE p.job_card_number='MZ-EXAMPLE' AND p.entry_type='payment';
 
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
   VALUES ('MZ-EXAMPLE','Example Household','charge',150,'2026-12-01','00000000-0000-0000-0000-000000000002','2026-12-01','Next period charge');

@@ -135,6 +135,7 @@ RETURNS jsonb LANGUAGE sql AS $$ SELECT pg_catalog.jsonb_build_object('committed
 
 \ir ../supabase/migrations/20261107200000_auto_allocate_unallocated_payments_on_new_charge.sql
 \ir ../supabase/migrations/20261108150000_auto_allocate_on_new_payment.sql
+\ir ../supabase/migrations/20261108190000_period_linked_new_waivers.sql
 
 INSERT INTO public.vbgramg_periods(id,period_name,period_date,contribution_month,created_at) VALUES
  ('00000000-0000-0000-0000-000000000001','NOV26','2026-11-01','2026-11-01','2026-10-01'),
@@ -319,5 +320,122 @@ BEGIN
       v_allocated,v_unallocated;
   END IF;
 END $new_payment_test$;
+
+
+-- New waiver FIFO tests. These rows exist only in this disposable PostgreSQL fixture.
+DO $new_waiver_fifo$
+DECLARE
+  v_first numeric(12,2);
+  v_second numeric(12,2);
+  v_payment_allocated numeric(12,2);
+  v_waiver_count integer;
+BEGIN
+  INSERT INTO public.vbgramg_charge_ledger(
+    job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note
+  ) VALUES
+    ('MZ-WAIVER-FIFO','Waiver Household','charge',100,'2026-11-01','00000000-0000-0000-0000-000000000001','2026-11-01','First period'),
+    ('MZ-WAIVER-FIFO','Waiver Household','charge',200,'2026-12-01','00000000-0000-0000-0000-000000000002','2026-12-01','Second period');
+
+  INSERT INTO public.vbgramg_charge_ledger(
+    job_card_number,person_name,entry_type,amount,entry_date,note
+  ) VALUES ('MZ-WAIVER-FIFO','Waiver Household','charge_waiver',150,'2026-11-08','New FIFO waiver');
+
+  SELECT COALESCE(sum(amount) FILTER (WHERE period_id='00000000-0000-0000-0000-000000000001'),0),
+         COALESCE(sum(amount) FILTER (WHERE period_id='00000000-0000-0000-0000-000000000002'),0)
+    INTO v_first,v_second
+  FROM public.vbgramg_waiver_period_allocations
+  WHERE job_card_number='MZ-WAIVER-FIFO';
+
+  IF v_first<>100 OR v_second<>50 THEN
+    RAISE EXCEPTION 'New waiver FIFO distribution failed: first %, second %',v_first,v_second;
+  END IF;
+
+  -- A later payment must not be allocated to the amount already waived.
+  INSERT INTO public.vbgramg_charge_ledger(
+    job_card_number,person_name,entry_type,amount,entry_date,note
+  ) VALUES ('MZ-WAIVER-FIFO','Waiver Household','payment',200,'2026-11-09','After waiver');
+
+  SELECT COALESCE(sum(a.amount),0) INTO v_payment_allocated
+  FROM public.vbgramg_payment_allocations a
+  JOIN public.vbgramg_charge_ledger p ON p.id=a.transaction_id
+  WHERE p.job_card_number='MZ-WAIVER-FIFO' AND p.entry_type='payment';
+
+  -- Remaining eligible balance is 150 (second period), so only 150 may be allocated.
+  IF v_payment_allocated<>150 THEN
+    RAISE EXCEPTION 'Payment allocator ignored new waiver: allocated % instead of 150',v_payment_allocated;
+  END IF;
+
+  SELECT count(*) INTO v_waiver_count
+  FROM public.vbgramg_waiver_period_allocations w
+  JOIN public.vbgramg_charge_ledger l ON l.id=w.waiver_id
+  WHERE l.job_card_number='MZ-WAIVER-FIFO' AND l.entry_type='charge_waiver';
+  IF v_waiver_count<>2 THEN
+    RAISE EXCEPTION 'Expected one period allocation per FIFO period, found %',v_waiver_count;
+  END IF;
+END
+$new_waiver_fifo$;
+
+DO $partial_waiver$
+DECLARE
+  v_payment_allocated numeric(12,2);
+  v_before_count integer;
+  v_after_count integer;
+BEGIN
+  INSERT INTO public.vbgramg_charge_ledger(
+    job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note
+  ) VALUES ('MZ-WAIVER-PARTIAL','Partial Waiver Household','charge',500,
+    '2026-11-01','00000000-0000-0000-0000-000000000001','2026-11-01','Partially paid charge');
+
+  INSERT INTO public.vbgramg_charge_ledger(
+    job_card_number,person_name,entry_type,amount,entry_date,note
+  ) VALUES ('MZ-WAIVER-PARTIAL','Partial Waiver Household','payment',300,'2026-11-02','Payment');
+
+  SELECT COALESCE(sum(a.amount),0) INTO v_payment_allocated
+  FROM public.vbgramg_payment_allocations a
+  JOIN public.vbgramg_charge_ledger p ON p.id=a.transaction_id
+  WHERE p.job_card_number='MZ-WAIVER-PARTIAL' AND p.entry_type='payment';
+  IF v_payment_allocated<>300 THEN
+    RAISE EXCEPTION 'Payment should allocate 300 before waiver, got %',v_payment_allocated;
+  END IF;
+
+  INSERT INTO public.vbgramg_charge_ledger(
+    job_card_number,person_name,entry_type,amount,entry_date,note
+  ) VALUES ('MZ-WAIVER-PARTIAL','Partial Waiver Household','charge_waiver',200,'2026-11-03','Waive unpaid remainder');
+
+  IF (SELECT sum(amount) FROM public.vbgramg_waiver_period_allocations w
+      JOIN public.vbgramg_charge_ledger l ON l.id=w.waiver_id
+      WHERE l.job_card_number='MZ-WAIVER-PARTIAL')<>200 THEN
+    RAISE EXCEPTION 'Partial waiver should cover only the unpaid 200';
+  END IF;
+
+  SELECT count(*) INTO v_before_count
+  FROM public.vbgramg_charge_ledger
+  WHERE job_card_number='MZ-WAIVER-PARTIAL' AND entry_type='charge_waiver';
+
+  BEGIN
+    INSERT INTO public.vbgramg_charge_ledger(
+      job_card_number,person_name,entry_type,amount,entry_date,note
+    ) VALUES ('MZ-WAIVER-PARTIAL','Partial Waiver Household','charge_waiver',0.01,'2026-11-04','Must be rejected');
+    RAISE EXCEPTION 'Expected excessive waiver to be rejected';
+  EXCEPTION WHEN check_violation THEN
+    NULL;
+  END;
+
+  SELECT count(*) INTO v_after_count
+  FROM public.vbgramg_charge_ledger
+  WHERE job_card_number='MZ-WAIVER-PARTIAL' AND entry_type='charge_waiver';
+  IF v_after_count<>v_before_count THEN
+    RAISE EXCEPTION 'Rejected waiver was unexpectedly persisted';
+  END IF;
+
+  SELECT COALESCE(sum(a.amount),0) INTO v_payment_allocated
+  FROM public.vbgramg_payment_allocations a
+  JOIN public.vbgramg_charge_ledger p ON p.id=a.transaction_id
+  WHERE p.job_card_number='MZ-WAIVER-PARTIAL' AND p.entry_type='payment';
+  IF v_payment_allocated<>300 THEN
+    RAISE EXCEPTION 'Waiver changed existing payment allocations: %',v_payment_allocated;
+  END IF;
+END
+$partial_waiver$;
 
 SELECT 'automatic unallocated payment FIFO tests passed' AS result;

@@ -34,6 +34,7 @@ on:
       - "tests/auto-allocate-unallocated-payments.test.cjs"
       - "tests/auto-allocate-unallocated-payments-postgres.sql"
       - "supabase/migrations/20261107200000_auto_allocate_unallocated_payments_on_new_charge.sql"
+      - "supabase/migrations/20261108150000_auto_allocate_on_new_payment.sql"
       - "js/data-loader.js"
       - ".github/workflows/test-ledger-calculations.yml"
   push:

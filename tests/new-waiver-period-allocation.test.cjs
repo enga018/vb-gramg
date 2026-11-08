@@ -41,6 +41,6 @@ test("unsafe edits to period-linked new waivers are rejected", () => {
 test("isolated PostgreSQL tests cover FIFO, partial allocation, legacy compatibility and rollback", () => {
   assert.match(postgresTests, /MZ-WAIVER-FIFO/);
   assert.match(postgresTests, /MZ-WAIVER-THEN-PAYMENT/);
-  assert.match(postgresTests, /MZ-WAIVER-LEGACY/);
+  assert.match(postgresTests, /MZ-WAIVER-LEGACY/);\n  assert.match(postgresTests, /Expected manual allocation beyond the post-waiver balance to be rejected/);
   assert.match(postgresTests, /Expected the new waiver to be rejected/);
 });

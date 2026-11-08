@@ -1045,7 +1045,7 @@ Deno.serve(async(req:Request)=>{
       applicant_number:applicantChoice?.applicant_number||manualKeeper?.applicant_number||keeper?.applicant_number||null,
       applicant_unique_id:applicantChoice?.applicant_unique_id||manualKeeper?.applicant_unique_id||keeper?.applicant_unique_id||null,
       period_id:periodId,fto_applicant_name:activeApplicantName||manualKeeper?.fto_applicant_name||keeper?.fto_applicant_name||null,is_voided:false});
-     for(const tx of txs){if(!skippedDuplicateSet.has(String(tx.reference_no)))transactionLinks.push({id:String(tx.id),ledger_entry_id:ledgerId});}
+     for(const tx of active){transactionLinks.push({id:String(tx.id),ledger_entry_id:ledgerId});}
      if(manualKeeper)reconciledCount++;else if(keeper)updatedCount++;else insertedCount++;
      chargeGuards.push({job_card_number:card,period_id:periodId,prospective_fto_amount:isDeferred?0:amount});
     }else{
@@ -1067,6 +1067,37 @@ Deno.serve(async(req:Request)=>{
    const {data:rpcResult,error:rpcError}=await admin.rpc("vbgramg_apply_fto_snapshot",{p_plan:plan});
    if(rpcError)throw rpcError;
    if(!rpcResult?.committed)return reply({error:"The atomic FTO snapshot did not confirm a commit. No success was reported."},500);
+   // The atomic snapshot has committed. Any verification/repair failure below must
+   // explicitly tell the caller not to retry the import as a fresh snapshot.
+   try{
+   // Verify every active transaction-to-ledger link after the snapshot RPC. This
+   // guards against a committed snapshot whose link payload was not fully applied.
+   if(transactionLinks.length){
+    const expectedById=new Map(transactionLinks.map(link=>[String(link.id),String(link.ledger_entry_id)]));
+    const ids=[...expectedById.keys()];
+    const {data:linkedRows,error:linkedRowsError}=await admin.from("vbgramg_fto_transactions").select("id,ledger_entry_id").in("id",ids);
+    if(linkedRowsError)throw linkedRowsError;
+    const found=new Map((linkedRows||[]).map(row=>[String(row.id),row.ledger_entry_id?String(row.ledger_entry_id):null]));
+    const conflicts=ids.filter(id=>found.has(id)&&found.get(id)!==null&&found.get(id)!==expectedById.get(id));
+    if(conflicts.length)return reply({error:"FTO snapshot committed, but some active transactions have conflicting ledger links. Do not re-import this FTO. Administrator review is required.",snapshot_committed:true,link_conflicts:conflicts.length},500);
+    const missing=ids.filter(id=>!found.has(id)||found.get(id)===null);
+    if(missing.length){
+     const repairsByLedger=new Map<string,string[]>();
+     for(const id of missing){if(!found.has(id))continue;const ledgerId=expectedById.get(id)!;if(!repairsByLedger.has(ledgerId))repairsByLedger.set(ledgerId,[]);repairsByLedger.get(ledgerId)!.push(id);}
+     for(const [ledgerId,repairIds] of repairsByLedger){const {error:repairError}=await admin.from("vbgramg_fto_transactions").update({ledger_entry_id:ledgerId}).in("id",repairIds).is("ledger_entry_id",null);if(repairError)throw repairError;}
+     // A missing row is not silently accepted: it is reported for administrator review.
+     const {data:verifiedRows,error:verifyError}=await admin.from("vbgramg_fto_transactions").select("id,ledger_entry_id").in("id",ids);
+     if(verifyError)throw verifyError;
+     const verified=new Map((verifiedRows||[]).map(row=>[String(row.id),row.ledger_entry_id?String(row.ledger_entry_id):null]));
+     const unresolved=ids.filter(id=>verified.get(id)!==expectedById.get(id));
+     if(unresolved.length)return reply({error:"FTO snapshot committed, but transaction links could not be fully verified. Do not re-import this FTO. Administrator review is required.",snapshot_committed:true,unlinked_transactions:unresolved.length},500);
+    }
+   }
+   }catch(verificationError){
+    const detail=verificationError instanceof Error?verificationError.message:String(verificationError);
+    console.error("FTO snapshot committed; transaction-link verification failed:",verificationError);
+    return reply({error:"FTO snapshot committed, but transaction-link verification failed. Do not re-import this FTO. Administrator review is required. Details: "+detail,snapshot_committed:true},500);
+   }
    return reply({approved:true,fto_number:ftoNumber,contribution_period:contributionPeriod,charge_period:chargePeriod,rows_seen:rowsSeen,local_transactions:normalized.length,excluded_not_in_active_mis:excludedOutsideActiveMis,excluded_other_village:excludedOutsideActiveMis,skipped_duplicate_references:skippedDuplicateReferences,skipped_duplicate_reference_count:skippedDuplicateReferences.length,inserted:insertedCount,updated:updatedCount,reconciled:reconciledCount,deleted:deletedCount,total_amount:totalAmount,batch_id:rpcResult.batch_id,import_id:rpcResult.import_id,atomic:true});
 
   }

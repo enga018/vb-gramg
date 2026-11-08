@@ -62,11 +62,6 @@ BEGIN
     RETURN pg_catalog.jsonb_build_object('allocated_amount', 0, 'allocation_count', 0);
   END IF;
 
-  IF v_card = '' OR NEW.amount IS NULL OR NEW.amount <= 0 THEN
-    RAISE EXCEPTION 'A new waiver requires a valid job card and positive amount'
-      USING ERRCODE = '23514';
-  END IF;
-
   PERFORM pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended('vbgramg-contribution:' || v_card, 0)
   );
@@ -250,6 +245,11 @@ BEGIN
   IF NEW.entry_type NOT IN ('charge_waiver', 'forgive')
      OR COALESCE(NEW.is_voided, false) THEN
     RETURN NEW;
+  END IF;
+
+  IF v_card = '' OR NEW.amount IS NULL OR NEW.amount <= 0 THEN
+    RAISE EXCEPTION 'A new waiver requires a valid job card and positive amount'
+      USING ERRCODE = '23514';
   END IF;
 
   PERFORM pg_catalog.pg_advisory_xact_lock(

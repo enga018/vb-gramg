@@ -156,4 +156,158 @@ BEGIN
 END
 $new_waiver_tests$;
 
+
+-- Combined regression: waiver -> payment -> unallocated balance -> later charge.
+-- A 500 charge with a 200 waiver leaves 300 payable. A 500 payment allocates
+-- 300 and retains 200 as unallocated credit. The next eligible charge consumes
+-- that 200 automatically, unless the admin has refunded it first.
+DO $waiver_payment_future_charge$
+DECLARE
+  v_payment_id uuid;
+  v_refund_id uuid;
+  v_first_period numeric(12,2);
+  v_second_period numeric(12,2);
+  v_unallocated numeric(12,2);
+BEGIN
+  INSERT INTO public.vbgramg_charge_ledger
+    (job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
+  VALUES
+    ('MZ-WAIVER-FUTURE','Future Charge Household','charge',500,'2026-11-01',
+     '00000000-0000-0000-0000-000000000001','2026-11-01','Charge before waiver');
+
+  INSERT INTO public.vbgramg_charge_ledger
+    (job_card_number,person_name,entry_type,amount,entry_date,note)
+  VALUES
+    ('MZ-WAIVER-FUTURE','Future Charge Household','charge_waiver',200,
+     '2026-11-02','Waiver reduces this charge only');
+
+  INSERT INTO public.vbgramg_charge_ledger
+    (job_card_number,person_name,entry_type,amount,entry_date,note)
+  VALUES
+    ('MZ-WAIVER-FUTURE','Future Charge Household','payment',500,
+     '2026-11-03','Payment after waiver')
+  RETURNING id INTO v_payment_id;
+
+  SELECT
+    COALESCE(sum(a.amount) FILTER (
+      WHERE a.period_id='00000000-0000-0000-0000-000000000001'),0),
+    COALESCE(v_payment_amount.amount - sum(a.amount),v_payment_amount.amount)
+  INTO v_first_period,v_unallocated
+  FROM public.vbgramg_charge_ledger v_payment_amount
+  LEFT JOIN public.vbgramg_payment_allocations a ON a.transaction_id=v_payment_amount.id
+  WHERE v_payment_amount.id=v_payment_id
+  GROUP BY v_payment_amount.amount;
+
+  IF v_first_period<>300 OR v_unallocated<>200 THEN
+    RAISE EXCEPTION 'Expected 300 allocated and 200 unallocated after waiver/payment; got allocated %, unallocated %',
+      v_first_period,v_unallocated;
+  END IF;
+
+  INSERT INTO public.vbgramg_charge_ledger
+    (job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
+  VALUES
+    ('MZ-WAIVER-FUTURE','Future Charge Household','charge',300,'2026-12-01',
+     '00000000-0000-0000-0000-000000000002','2026-12-01','Later eligible charge');
+
+  SELECT
+    COALESCE(sum(a.amount) FILTER (
+      WHERE a.period_id='00000000-0000-0000-0000-000000000001'),0),
+    COALESCE(sum(a.amount) FILTER (
+      WHERE a.period_id='00000000-0000-0000-0000-000000000002'),0)
+  INTO v_first_period,v_second_period
+  FROM public.vbgramg_payment_allocations a
+  WHERE a.transaction_id=v_payment_id;
+
+  SELECT v_payment_amount.amount - COALESCE(sum(a.amount),0)
+    INTO v_unallocated
+  FROM public.vbgramg_charge_ledger v_payment_amount
+  LEFT JOIN public.vbgramg_payment_allocations a ON a.transaction_id=v_payment_amount.id
+  WHERE v_payment_amount.id=v_payment_id
+  GROUP BY v_payment_amount.amount;
+
+  IF v_first_period<>300 OR v_second_period<>200 OR v_unallocated<>0 THEN
+    RAISE EXCEPTION 'Later charge should receive the retained 200: first %, later %, unallocated %',
+      v_first_period,v_second_period,v_unallocated;
+  END IF;
+END
+$waiver_payment_future_charge$;
+
+-- Same starting balance, but the admin refunds the 200 before the later charge.
+-- Refund reconciliation must reduce available payment credit to zero.
+DO $waiver_payment_refunded_before_charge$
+DECLARE
+  v_payment_id uuid;
+  v_refund_id uuid;
+  v_first_period numeric(12,2);
+  v_second_period numeric(12,2);
+  v_unallocated numeric(12,2);
+BEGIN
+  INSERT INTO public.vbgramg_charge_ledger
+    (job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
+  VALUES
+    ('MZ-WAIVER-REFUNDED','Refunded Future Household','charge',500,'2026-11-01',
+     '00000000-0000-0000-0000-000000000001','2026-11-01','Charge before waiver');
+
+  INSERT INTO public.vbgramg_charge_ledger
+    (job_card_number,person_name,entry_type,amount,entry_date,note)
+  VALUES
+    ('MZ-WAIVER-REFUNDED','Refunded Future Household','charge_waiver',200,
+     '2026-11-02','Waiver reduces this charge only');
+
+  INSERT INTO public.vbgramg_charge_ledger
+    (job_card_number,person_name,entry_type,amount,entry_date,note)
+  VALUES
+    ('MZ-WAIVER-REFUNDED','Refunded Future Household','payment',500,
+     '2026-11-03','Payment after waiver')
+  RETURNING id INTO v_payment_id;
+
+  SELECT COALESCE(sum(a.amount),0)
+    INTO v_first_period
+  FROM public.vbgramg_payment_allocations a
+  WHERE a.transaction_id=v_payment_id
+    AND a.period_id='00000000-0000-0000-0000-000000000001';
+  IF v_first_period<>300 THEN
+    RAISE EXCEPTION 'Expected only 300 allocated before refund, got %',v_first_period;
+  END IF;
+
+  INSERT INTO public.vbgramg_charge_ledger
+    (job_card_number,person_name,entry_type,amount,entry_date,note)
+  VALUES
+    ('MZ-WAIVER-REFUNDED','Refunded Future Household','refund',200,
+     '2026-11-04','Admin refunded unallocated balance')
+  RETURNING id INTO v_refund_id;
+
+  INSERT INTO public.vbgramg_payment_refund_reconciliations
+    (payment_id,refund_id,job_card_number,amount,note)
+  VALUES
+    (v_payment_id,v_refund_id,'MZ-WAIVER-REFUNDED',200,'Refunded before later charge');
+
+  INSERT INTO public.vbgramg_charge_ledger
+    (job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
+  VALUES
+    ('MZ-WAIVER-REFUNDED','Refunded Future Household','charge',300,'2026-12-01',
+     '00000000-0000-0000-0000-000000000002','2026-12-01','Later eligible charge');
+
+  SELECT COALESCE(sum(a.amount) FILTER (
+      WHERE a.period_id='00000000-0000-0000-0000-000000000002'),0)
+    INTO v_second_period
+  FROM public.vbgramg_payment_allocations a
+  WHERE a.transaction_id=v_payment_id;
+
+  SELECT v_payment_amount.amount
+       - COALESCE((SELECT sum(a.amount) FROM public.vbgramg_payment_allocations a
+                   WHERE a.transaction_id=v_payment_amount.id),0)
+       - COALESCE((SELECT sum(r.amount) FROM public.vbgramg_payment_refund_reconciliations r
+                   WHERE r.payment_id=v_payment_amount.id),0)
+    INTO v_unallocated
+  FROM public.vbgramg_charge_ledger v_payment_amount
+  WHERE v_payment_amount.id=v_payment_id;
+
+  IF v_second_period<>0 OR v_unallocated<>0 THEN
+    RAISE EXCEPTION 'Refunded 200 was incorrectly allocated to later charge: later allocation %, remaining available %',
+      v_second_period,v_unallocated;
+  END IF;
+END
+$waiver_payment_refunded_before_charge$;
+
 SELECT 'new period-linked waiver tests passed' AS result;

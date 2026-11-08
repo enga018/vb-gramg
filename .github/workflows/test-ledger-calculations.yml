@@ -35,6 +35,9 @@ on:
       - "tests/auto-allocate-unallocated-payments-postgres.sql"
       - "supabase/migrations/20261107200000_auto_allocate_unallocated_payments_on_new_charge.sql"
       - "supabase/migrations/20261108150000_auto_allocate_on_new_payment.sql"
+      - "supabase/migrations/20261108190000_period_linked_new_waivers.sql"
+      - "tests/new-waiver-period-allocation-postgres.sql"
+      - "tests/new-waiver-period-allocation.test.cjs"
       - "js/data-loader.js"
       - ".github/workflows/test-ledger-calculations.yml"
   push:
@@ -63,6 +66,8 @@ jobs:
         run: node --test tests/charge-level-payment-allocations.test.cjs
       - name: Run automatic unallocated payment FIFO static tests
         run: node --test tests/auto-allocate-unallocated-payments.test.cjs
+      - name: Run new waiver allocation static tests
+        run: node --test tests/new-waiver-period-allocation.test.cjs
       - name: Run Work Demand period requirement tests
         run: node --test tests/work-demand-requires-existing-period.test.cjs
       - name: Set up Deno
@@ -131,5 +136,9 @@ jobs:
         run: |
           createdb vbgramg_auto_allocate_test
           PGDATABASE=vbgramg_auto_allocate_test psql -v ON_ERROR_STOP=1 -f tests/auto-allocate-unallocated-payments-postgres.sql
+      - name: Run new period-linked waiver PostgreSQL tests
+        run: |
+          createdb vbgramg_new_waiver_test
+          PGDATABASE=vbgramg_new_waiver_test psql -v ON_ERROR_STOP=1 -f tests/new-waiver-period-allocation-postgres.sql
       - name: Verify per-job-card advisory lock serializes concurrent writes
         run: bash tests/atomic-contribution-writes-concurrency.sh

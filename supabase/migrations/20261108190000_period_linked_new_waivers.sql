@@ -540,7 +540,8 @@ BEGIN
     AND COALESCE(waiver.is_voided, false) = false;
 
   IF v_period_allocated + NEW.amount > GREATEST(v_period_charges - v_period_waived, 0) + 0.001 THEN
-    RAISE EXCEPTION 'Payment allocations cannot exceed the period balance remaining after waivers';
+    RAISE EXCEPTION 'Payment allocations cannot exceed the period balance remaining after waivers'
+      USING ERRCODE = '23514';
   END IF;
 
   IF v_period_charges <= 0 THEN

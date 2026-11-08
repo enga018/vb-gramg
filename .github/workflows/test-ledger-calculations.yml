@@ -24,6 +24,10 @@ on:
       - "demand.html"
       - "supabase/functions/vbgramg-demand-runs/index.ts"
       - "tests/work-demand-requires-existing-period.test.cjs"
+      - "supabase/migrations/20261108120000_allow_distinct_charge_round_dates.sql"
+      - "tests/charge-round-period-dates.test.cjs"
+      - "tests/charge-round-period-dates-postgres.sql"
+      - "periods.html"
       - "supabase/migrations/20261106190000_include_active_mis_cards_in_financial_summary.sql"
       - "tests/postgres-contribution-balances.test.cjs"
       - "supabase/functions/vbgramg-contribution-data/index.ts"
@@ -64,6 +68,8 @@ jobs:
         run: node --test tests/auto-allocate-unallocated-payments.test.cjs
       - name: Run Work Demand period requirement tests
         run: node --test tests/work-demand-requires-existing-period.test.cjs
+      - name: Run charge-round date tests
+        run: node --test tests/charge-round-period-dates.test.cjs
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
@@ -130,5 +136,9 @@ jobs:
         run: |
           createdb vbgramg_auto_allocate_test
           PGDATABASE=vbgramg_auto_allocate_test psql -v ON_ERROR_STOP=1 -f tests/auto-allocate-unallocated-payments-postgres.sql
+      - name: Verify distinct charge-round dates in PostgreSQL
+        run: |
+          createdb vbgramg_charge_round_dates_test
+          PGDATABASE=vbgramg_charge_round_dates_test psql -v ON_ERROR_STOP=1 -f tests/charge-round-period-dates-postgres.sql
       - name: Verify per-job-card advisory lock serializes concurrent writes
         run: bash tests/atomic-contribution-writes-concurrency.sh

@@ -554,3 +554,11 @@ END;
 $function$;
 
 REVOKE ALL ON FUNCTION public.vbgramg_validate_payment_allocation() FROM PUBLIC, anon, authenticated;
+
+
+DROP TRIGGER IF EXISTS trg_vbgramg_validate_payment_allocation
+  ON public.vbgramg_payment_allocations;
+CREATE TRIGGER trg_vbgramg_validate_payment_allocation
+BEFORE INSERT OR UPDATE ON public.vbgramg_payment_allocations
+FOR EACH ROW
+EXECUTE FUNCTION public.vbgramg_validate_payment_allocation();

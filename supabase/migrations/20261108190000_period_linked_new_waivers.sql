@@ -24,7 +24,8 @@ CREATE INDEX IF NOT EXISTS idx_vbgramg_waiver_period_allocations_job_card
 
 ALTER TABLE public.vbgramg_waiver_period_allocations ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.vbgramg_waiver_period_allocations FROM PUBLIC, anon, authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.vbgramg_waiver_period_allocations TO service_role;
+REVOKE ALL ON public.vbgramg_waiver_period_allocations FROM service_role;
+GRANT SELECT ON public.vbgramg_waiver_period_allocations TO service_role;
 
 COMMENT ON TABLE public.vbgramg_waiver_period_allocations IS
   'Period-level FIFO distribution for new waiver ledger entries. Historical waiver entries are not backfilled.';
@@ -59,6 +60,11 @@ DECLARE
 BEGIN
   IF v_card = '' THEN
     RETURN pg_catalog.jsonb_build_object('allocated_amount', 0, 'allocation_count', 0);
+  END IF;
+
+  IF v_card = '' OR NEW.amount IS NULL OR NEW.amount <= 0 THEN
+    RAISE EXCEPTION 'A new waiver requires a valid job card and positive amount'
+      USING ERRCODE = '23514';
   END IF;
 
   PERFORM pg_catalog.pg_advisory_xact_lock(

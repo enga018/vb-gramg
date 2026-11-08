@@ -68,7 +68,6 @@ jobs:
         run: node --test tests/auto-allocate-unallocated-payments.test.cjs
       - name: Run new waiver allocation static tests
         run: node --test tests/new-waiver-period-allocation.test.cjs
-        run: node --test tests/new-waiver-period-allocation.test.cjs
       - name: Run Work Demand period requirement tests
         run: node --test tests/work-demand-requires-existing-period.test.cjs
       - name: Set up Deno
@@ -141,8 +140,5 @@ jobs:
         run: |
           createdb vbgramg_new_waiver_test
           PGDATABASE=vbgramg_new_waiver_test psql -v ON_ERROR_STOP=1 -f tests/new-waiver-period-allocation-postgres.sql
-        run: |
-          createdb vbgramg_waiver_test
-          PGDATABASE=vbgramg_waiver_test psql -v ON_ERROR_STOP=1 -f tests/new-waiver-period-allocation-postgres.sql
       - name: Verify per-job-card advisory lock serializes concurrent writes
         run: bash tests/atomic-contribution-writes-concurrency.sh

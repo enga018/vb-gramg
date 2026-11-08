@@ -7,6 +7,7 @@ on:
       - "tests/ledger-calculations.test.cjs"
       - "tests/postgres-contribution-balances.test.cjs"
       - "tests/atomic-contribution-writes.test.cjs"
+      - "tests/fto-transaction-link-safeguards.test.cjs"
       - "tests/atomic-contribution-writes-postgres.sql"
       - "tests/extra-contribution-charges.test.cjs"
       - "tests/extra-contribution-charges-postgres.sql"
@@ -61,7 +62,7 @@ jobs:
         with:
           node-version: 22
       - name: Run shared ledger tests
-        run: node --test tests/ledger-calculations.test.cjs tests/data-loader.test.cjs tests/postgres-contribution-balances.test.cjs tests/atomic-contribution-writes.test.cjs tests/extra-contribution-charges.test.cjs
+        run: node --test tests/ledger-calculations.test.cjs tests/data-loader.test.cjs tests/postgres-contribution-balances.test.cjs tests/atomic-contribution-writes.test.cjs tests/fto-transaction-link-safeguards.test.cjs tests/extra-contribution-charges.test.cjs
       - name: Run charge-level allocation schema static tests
         run: node --test tests/charge-level-payment-allocations.test.cjs
       - name: Run automatic unallocated payment FIFO static tests

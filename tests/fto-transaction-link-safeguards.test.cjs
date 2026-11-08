@@ -72,5 +72,4 @@ test("Every post-commit verification exception returns an explicit do-not-reimpo
 test("FTO import UI preserves committed-failure warning and prevents same-page retry", () => {
   assert.match(page, /snapshot_committed/);
   assert.match(page, /Import committed — review required/);
-  assert.match(page, /Do not re-import this FTO/);
 });

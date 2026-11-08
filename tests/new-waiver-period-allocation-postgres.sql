@@ -9,6 +9,7 @@ DECLARE
   v_payment_allocated numeric(12,2);
   v_due numeric(12,2);
   v_waiver_id uuid;
+  v_payment_id uuid;
   v_before_count integer;
 BEGIN
   INSERT INTO public.vbgramg_charge_ledger
@@ -85,6 +86,22 @@ BEGIN
   IF v_payment_allocated <> 300 THEN
     RAISE EXCEPTION 'Later payment must allocate only 300 after a 200 waiver, got %',v_payment_allocated;
   END IF;
+
+  -- A manual allocation must not be able to consume the waived 200 balance.
+  INSERT INTO public.vbgramg_charge_ledger
+    (job_card_number,person_name,entry_type,amount,entry_date,note)
+  VALUES ('MZ-WAIVER-THEN-PAYMENT','Waiver Household','payment',100,'2027-01-04','Second payment')
+  RETURNING id INTO v_payment_id;
+
+  BEGIN
+    INSERT INTO public.vbgramg_payment_allocations
+      (transaction_id,period_id,job_card_number,amount,allocation_source,confidence)
+    VALUES
+      (v_payment_id,'00000000-0000-0000-0000-000000000003','MZ-WAIVER-THEN-PAYMENT',1,'manual','confirmed');
+    RAISE EXCEPTION 'Expected manual allocation beyond the post-waiver balance to be rejected';
+  EXCEPTION WHEN SQLSTATE '23514' THEN
+    NULL;
+  END;
 
   -- Historical waiver rows are not backfilled. Their unrepresented amount
   -- reduces the available balance for a new waiver without changing the old row.

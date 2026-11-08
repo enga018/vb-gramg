@@ -417,3 +417,39 @@ WHEN (NEW.entry_type IN ('charge_waiver', 'forgive'))
 EXECUTE FUNCTION public.vbgramg_allocate_new_waiver_fifo();
 
 REVOKE ALL ON FUNCTION public.vbgramg_allocate_new_waiver_fifo() FROM PUBLIC, anon, authenticated;
+
+
+-- Until a dedicated waiver-revision workflow exists, prevent changes that would
+-- invalidate an already distributed new waiver. Historical waiver rows remain editable.
+CREATE OR REPLACE FUNCTION public.vbgramg_guard_allocated_waiver_edit()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+BEGIN
+  IF OLD.entry_type IN ('charge_waiver', 'forgive')
+     AND EXISTS (
+       SELECT 1 FROM public.vbgramg_waiver_period_allocations w
+       WHERE w.waiver_id = OLD.id
+     )
+     AND (
+       NEW.amount IS DISTINCT FROM OLD.amount
+       OR NEW.entry_type IS DISTINCT FROM OLD.entry_type
+       OR NEW.job_card_number IS DISTINCT FROM OLD.job_card_number
+       OR COALESCE(NEW.is_voided, false) IS DISTINCT FROM COALESCE(OLD.is_voided, false)
+     ) THEN
+    RAISE EXCEPTION 'This new waiver has period allocations and cannot be edited or voided until waiver revision is implemented.'
+      USING ERRCODE = '23514';
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS trg_vbgramg_guard_allocated_waiver_edit ON public.vbgramg_charge_ledger;
+CREATE TRIGGER trg_vbgramg_guard_allocated_waiver_edit
+BEFORE UPDATE ON public.vbgramg_charge_ledger
+FOR EACH ROW
+EXECUTE FUNCTION public.vbgramg_guard_allocated_waiver_edit();
+
+REVOKE ALL ON FUNCTION public.vbgramg_guard_allocated_waiver_edit() FROM PUBLIC, anon, authenticated;

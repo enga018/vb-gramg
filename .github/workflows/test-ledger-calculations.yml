@@ -36,6 +36,7 @@ on:
       - "supabase/migrations/20261107200000_auto_allocate_unallocated_payments_on_new_charge.sql"
       - "supabase/migrations/20261108150000_auto_allocate_on_new_payment.sql"
       - "supabase/migrations/20261108190000_period_linked_new_waivers.sql"
+      - "supabase/migrations/20261108190000_period_linked_new_waivers.sql"
       - "tests/new-waiver-period-allocation.test.cjs"
       - "tests/new-waiver-period-allocation-postgres.sql"
       - "js/data-loader.js"

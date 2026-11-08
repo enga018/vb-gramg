@@ -35,7 +35,7 @@ CREATE TABLE public.vbgramg_payment_refund_reconciliations (
 
 DO $$
 DECLARE
-  p1 uuid; p2 uuid; p3 uuid; c1 uuid; c2 uuid; c3 uuid; c4 uuid;
+  p1 uuid; p2 uuid; p3 uuid; c1 uuid; c2 uuid; c3 uuid; c4 uuid; c5 uuid;
   v_count integer;
 BEGIN
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount)
@@ -86,10 +86,13 @@ BEGIN
     IF SQLERRM LIKE 'deferred charge is rejected:%' THEN RAISE; END IF;
   END;
 
+  INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount)
+  VALUES ('JC-ONE','Household One','charge',25) RETURNING id INTO c5;
+
   -- payment over-allocation is rejected
   BEGIN
     INSERT INTO public.vbgramg_charge_payment_allocations(payment_id,charge_id,amount)
-    VALUES (p1,c4,1);
+    VALUES (p1,c5,1);
     RAISE EXCEPTION 'payment over-allocation is rejected: insert unexpectedly succeeded';
   EXCEPTION WHEN OTHERS THEN
     IF SQLERRM LIKE 'payment over-allocation is rejected:%' THEN RAISE; END IF;

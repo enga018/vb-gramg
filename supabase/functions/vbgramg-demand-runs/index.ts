@@ -17,12 +17,6 @@ function reply(req: Request, body: Record<string, unknown>, status = 200) {
 }
 const textValue = (value: unknown, max = 300) =>
   typeof value === "string" ? value.trim().slice(0, max) : "";
-function compactMonthName(month: string) {
-  const [year, monthNumber] = month.split("-").map(Number);
-  const shortMonth = new Date(Date.UTC(year, monthNumber - 1, 1)).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }).toUpperCase();
-  return shortMonth + String(year).slice(-2);
-}
-
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors(req) });
   if (req.method !== "POST") return reply(req, { error: "Method not allowed" }, 405);
@@ -56,26 +50,31 @@ Deno.serve(async (req: Request) => {
     catch { return reply(req, { error: "Invalid JSON request." }, 400); }
     if (body.action !== "save") return reply(req, { error: "Unsupported action." }, 400);
 
-    let periodId = textValue(body.periodId, 64);
+    const periodId = textValue(body.periodId, 64);
     const contributionMonth = textValue(body.contributionMonth, 10);
     const requestedPeriodName = textValue(body.periodName, 120);
+    if (!periodId) {
+      return reply(req, { error: "Select an existing open period. Create or open a period on the Periods page first." }, 400);
+    }
     const days = Number(body.days);
     if (!Number.isInteger(days) || days < 1 || days > 365) {
       return reply(req, { error: "Choose a contribution month and enter a valid number of days." }, 400);
     }
     let period: { id: string; period_name: string; status: string; contribution_month?: string | null } | null = null;
-    if (periodId) {
-      const { data, error } = await admin.from("vbgramg_periods").select("id,period_name,status,contribution_month").eq("id", periodId).maybeSingle();
-      if (error) throw error;
-      period = data;
-      if (!period || period.status !== "open") return reply(req, { error: "That period is no longer open. Refresh and try again." }, 409);
-      if (requestedPeriodName && requestedPeriodName !== period.period_name) return reply(req, { error: "The selected period does not match this demand." }, 409);
-      if (contributionMonth && period.contribution_month && contributionMonth !== period.contribution_month) return reply(req, { error: "The contribution month does not match the selected period." }, 409);
-    } else {
-      if (!/^\d{4}-\d{2}-01$/.test(contributionMonth) || Number.isNaN(Date.parse(contributionMonth)) ||
-          new Date(contributionMonth + "T00:00:00Z").toISOString().slice(0, 10) !== contributionMonth) {
-        return reply(req, { error: "Choose a valid contribution month." }, 400);
-      }
+    const { data, error } = await admin.from("vbgramg_periods")
+      .select("id,period_name,status,contribution_month")
+      .eq("id", periodId)
+      .maybeSingle();
+    if (error) throw error;
+    period = data;
+    if (!period || period.status !== "open") {
+      return reply(req, { error: "That period is no longer open. Refresh and choose an existing open period." }, 409);
+    }
+    if (requestedPeriodName && requestedPeriodName !== period.period_name) {
+      return reply(req, { error: "The selected period does not match this demand." }, 409);
+    }
+    if (contributionMonth && period.contribution_month && contributionMonth !== period.contribution_month) {
+      return reply(req, { error: "The contribution month does not match the selected period." }, 409);
     }
     if (!Array.isArray(body.workDemand) || !Array.isArray(body.unwillingToWork) ||
         body.workDemand.length > 5000 || body.unwillingToWork.length > 5000) {
@@ -95,28 +94,9 @@ Deno.serve(async (req: Request) => {
       return { jobCard, household: textValue(item.household, 200) };
     });
 
-    let createdPeriodId: string | null = null;
-    if (!periodId) {
-      const { data: monthPeriods, error: monthPeriodsError } = await admin.from("vbgramg_periods")
-        .select("id").eq("contribution_month", contributionMonth);
-      if (monthPeriodsError) throw monthPeriodsError;
-      const roundNumber = (monthPeriods || []).length + 1;
-      const basePeriodName = compactMonthName(contributionMonth);
-      const periodName = roundNumber === 1 ? basePeriodName : `${basePeriodName} (${roundNumber})`;
-      const { data: createdPeriod, error: createPeriodError } = await admin.from("vbgramg_periods").insert({
-        period_name: periodName, period_date: contributionMonth, contribution_month: contributionMonth,
-        days, status: "open", created_by: user.id,
-      }).select("id,period_name,status,contribution_month").single();
-      if (createPeriodError || !createdPeriod) {
-        console.error("Demand period creation failed:", createPeriodError);
-        return reply(req, { error: "Could not create the period for this demand. No demand was saved." }, 500);
-      }
-      period = createdPeriod;
-      periodId = createdPeriod.id;
-      createdPeriodId = createdPeriod.id;
+    if (!period || !periodId) {
+      return reply(req, { error: "Select an existing open period before saving Work Demand." }, 400);
     }
-
-    if (!period || !periodId) return reply(req, { error: "The period could not be resolved for this demand." }, 500);
 
     const { data: saved, error: saveError } = await admin.from("vbgramg_demand_runs").insert({
       period_id: periodId, period_name: period.period_name, days, village_scope: "New Serchhip North",
@@ -126,10 +106,6 @@ Deno.serve(async (req: Request) => {
     }).select("id,created_at").single();
     if (saveError || !saved) {
       console.error("Demand snapshot save failed:", saveError);
-      if (createdPeriodId) {
-        const { error: cleanupError } = await admin.from("vbgramg_periods").delete().eq("id", createdPeriodId);
-        if (cleanupError) console.error("Could not remove unused period after failed demand save:", cleanupError);
-      }
       return reply(req, { error: "Could not save the demand snapshot. Please try again." }, 500);
     }
     return reply(req, { saved: true, id: saved.id, createdAt: saved.created_at,

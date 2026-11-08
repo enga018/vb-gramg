@@ -1079,8 +1079,9 @@ Deno.serve(async(req:Request)=>{
     if(conflicts.length)return reply({error:"FTO snapshot committed, but some active transactions have conflicting ledger links. Administrator review is required.",link_conflicts:conflicts.length},500);
     const missing=ids.filter(id=>!found.has(id)||found.get(id)===null);
     if(missing.length){
-     const repairs=missing.filter(id=>found.has(id));
-     if(repairs.length){const {error:repairError}=await admin.from("vbgramg_fto_transactions").update({ledger_entry_id:expectedById.get(repairs[0])}).in("id",repairs).is("ledger_entry_id",null);if(repairError)throw repairError;}
+     const repairsByLedger=new Map<string,string[]>();
+     for(const id of missing){if(!found.has(id))continue;const ledgerId=expectedById.get(id)!;if(!repairsByLedger.has(ledgerId))repairsByLedger.set(ledgerId,[]);repairsByLedger.get(ledgerId)!.push(id);}
+     for(const [ledgerId,repairIds] of repairsByLedger){const {error:repairError}=await admin.from("vbgramg_fto_transactions").update({ledger_entry_id:ledgerId}).in("id",repairIds).is("ledger_entry_id",null);if(repairError)throw repairError;}
      // A missing row is not silently accepted: it is reported for administrator review.
      const {data:verifiedRows,error:verifyError}=await admin.from("vbgramg_fto_transactions").select("id,ledger_entry_id").in("id",ids);
      if(verifyError)throw verifyError;

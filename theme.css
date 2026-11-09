@@ -622,8 +622,6 @@
   /* Common page-level surfaces used across the app. */
   .panel, .topbar, .module, .sidebar, .stat, .paste-box,
   .status:not(.error):not(.success), .notice:not(.err):not(.warn),
-  .panel, .topbar, .module, .sidebar, .stat, .paste-box,
-  .status:not(.error):not(.success), .notice:not(.err):not(.warn),
   .card, .content-card, .section, .section-card, .form-card,
   .summary-card, .kpi-card, .info-card, .list-card, .row-card,
   .filter-card, .toolbar-card, .table-card, .data-card,

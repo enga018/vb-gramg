@@ -1,0 +1,185 @@
+/* VBGRAMG automatic device theme.
+   Light remains the default. Dark styles apply only when the OS/browser requests dark mode. */
+@media screen and (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --ink: #f3f5f7;
+    --muted: #9aa4b2;
+    --line: rgba(255,255,255,.10);
+    --surface: #101419;
+    --surface-soft: #151b22;
+    --soft: #151b22;
+    --accent: #8baeff;
+    --paid: #45d6ad;
+    --partial: #e8bd62;
+    --due: #ff8585;
+    --overpaid: #8baeff;
+    --green: #45d6ad;
+    --green-bg: rgba(69,214,173,.13);
+    --red: #ff9999;
+    --red-bg: rgba(255,112,112,.14);
+    --amber: #f0ca78;
+    --amber-bg: rgba(232,189,98,.14);
+    --blue: #a6bdff;
+    --blue-bg: rgba(111,151,255,.14);
+  }
+
+  html, body {
+    color: var(--ink) !important;
+    background: #0b0d10 !important;
+  }
+
+  body { color-scheme: dark; }
+  main, .app, .page { color: var(--ink); }
+  .topbar, .panel, .stat, .metric, .login-card, .table-wrap,
+  .history-section, .fto-history-kpi, .applicant-review,
+  .applicant-review-table-wrap, .import-grid .field,
+  .demand-unwilling-grid > .panel, .confirm-content {
+    color: var(--ink);
+    background: var(--surface) !important;
+    border-color: var(--line) !important;
+    box-shadow: none !important;
+  }
+
+  h1, h2, h3, h4, strong, b, label, th, td,
+  .brand h1, .panel h2, .section-heading h2,
+  .jobcard-row, .contribution-row, .jobcard,
+  .mobile-jobcard-number, .mobile-jobcard-household {
+    color: var(--ink);
+  }
+
+  p, small, .brand p, .sub, .muted, .meta, .count,
+  .section-head p, .small-muted, .applicant, .person,
+  .mobile-person-inline, .mobile-subline, .table-foot,
+  .table-action-note, .import-help, .history-toolbar,
+  .fto-history-kpi span, #updated-at {
+    color: var(--muted) !important;
+  }
+
+  a, .brand a { color: #a6bdff; }
+  a:hover, .brand a:hover { color: #c6d5ff; }
+
+  input, select, textarea,
+  .search input, .search-wrap input, .toolbar input,
+  .filter-control select, .field input, .applicant-review-table select {
+    color: var(--ink) !important;
+    background: #0d1217 !important;
+    border-color: var(--line) !important;
+  }
+  input::placeholder, textarea::placeholder { color: #748091 !important; }
+  input:focus, select:focus, textarea:focus {
+    outline-color: #789cff;
+    border-color: #789cff !important;
+  }
+
+  button, .btn, .link-button {
+    color: var(--ink);
+    background: #171e25;
+    border-color: var(--line);
+  }
+  button:hover, .btn:hover, .link-button:hover {
+    background: #202a34;
+    border-color: rgba(255,255,255,.22);
+  }
+  button.secondary, .btn.ghost {
+    color: var(--ink);
+    background: #151b22;
+    border-color: var(--line);
+  }
+  button.primary, .btn.primary, button:not(.secondary):not(.ghost):not(:disabled) {
+    border-color: var(--line);
+  }
+  button:disabled { opacity: .48; }
+
+  table { color: var(--ink); }
+  th, thead th {
+    color: #dce3eb !important;
+    background: #171e25 !important;
+    border-color: var(--line) !important;
+  }
+  td, th { border-color: var(--line) !important; }
+  tbody tr, .jobcard-row, .contribution-row {
+    background: #101419;
+  }
+  tbody tr:nth-child(even), .applicant-detail tbody tr:nth-child(even) {
+    background: #131a20 !important;
+  }
+  tbody tr:hover, .jobcard-row:hover, .contribution-row:hover,
+  .applicant-detail tbody tr:hover {
+    background: #1a232c !important;
+  }
+  .jobcard-row.has-selection { background: rgba(69,214,173,.09) !important; }
+  .jobcard-row.no-selection { background: #101419; }
+
+  .status, .notice, .demo, .status.success, .status.error,
+  .empty, .badge, .tag, .row-status, .mobile-applicant-count-badge {
+    border-color: var(--line);
+  }
+  .status, .notice.info, .demo {
+    color: #b8caff !important;
+    background: rgba(111,151,255,.10) !important;
+  }
+  .status.success, .notice.success {
+    color: #65e0bb !important;
+    background: rgba(69,214,173,.10) !important;
+  }
+  .status.error, .notice.err, .notice.error {
+    color: #ff9999 !important;
+    background: rgba(255,112,112,.10) !important;
+  }
+
+  .badge.paid, .row-status.settled, .tag.settled {
+    color: #65e0bb !important;
+    background: rgba(69,214,173,.13) !important;
+  }
+  .badge.partial, .row-status.deferred, .tag.deferred {
+    color: #f0ca78 !important;
+    background: rgba(232,189,98,.13) !important;
+  }
+  .badge.due, .row-status.due, .tag.due {
+    color: #ff9999 !important;
+    background: rgba(255,112,112,.14) !important;
+  }
+  .row-status.overpaid, .tag.overpaid {
+    color: #a6bdff !important;
+    background: rgba(111,151,255,.14) !important;
+  }
+  .row-status.exempt { color: #c5cbd3 !important; background: #252d36 !important; }
+
+  .overlay { background: rgba(0,0,0,.72) !important; }
+  .sheet, .modal, dialog, .fto-import-modal {
+    color: var(--ink) !important;
+    background: #0f1419 !important;
+    border-color: var(--line) !important;
+    box-shadow: none;
+  }
+  .sheet-head, .sheet-footer, .fto-import-modal-head {
+    background: #11171d !important;
+    border-color: var(--line) !important;
+  }
+  dialog::backdrop, dialog#confirmDialog::backdrop {
+    background: rgba(0,0,0,.72) !important;
+  }
+  .balance, .confirm-summary, .metric, .stat {
+    background: #141b21 !important;
+    border-color: var(--line) !important;
+  }
+  .entry, .citizen, .record {
+    color: var(--ink);
+    background: #11171d !important;
+    border-color: var(--line) !important;
+  }
+  .entry.payment { background: rgba(69,214,173,.06) !important; }
+  .entry.payment .amount, .amount.paid, .stat .v.paid { color: #65e0bb !important; }
+  .entry.charge, .entry .amount { color: var(--ink); }
+  .outstanding, .amount.due, .stat .v.due { color: #ff9999 !important; }
+  .mobile-applicant-count-badge {
+    color: #c5cbd3 !important;
+    background: #202832 !important;
+  }
+  .table-foot, .table-action-bar, .finalise-action-bar, .export-action-bar {
+    border-color: var(--line) !important;
+  }
+  .fto-import-modal iframe { background: #0b0d10; }
+  .hidden { color: inherit; }
+}

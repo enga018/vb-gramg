@@ -596,3 +596,102 @@
     border-color: #3a4652 !important;
   }
 }
+
+
+/* App-wide dark surface normalization.
+   Catch page-specific cards and inline light backgrounds without changing
+   semantic status badges, payment colors, or light mode. */
+@media screen and (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page-bg: #0b0f13;
+    --card-bg: #171e25;
+    --card-bg-alt: #1d252e;
+    --card-border: #303b46;
+    --text-primary: #e7edf3;
+    --text-secondary: #aab5c2;
+  }
+
+  html, body {
+    color: var(--text-primary) !important;
+    background: var(--page-bg) !important;
+  }
+
+  /* Common page-level surfaces used across the app. */
+  .card, .content-card, .section, .section-card, .form-card,
+  .summary-card, .kpi-card, .info-card, .list-card, .row-card,
+  .filter-card, .toolbar-card, .table-card, .data-card,
+  .container-card, .white-card, .bg-white,
+  .content-panel, .form-panel, .filter-panel,
+  .page-content, .main-content, .workspace,
+  .toolbar, .filters, .filter-bar, .search-panel,
+  .summary, .summary-box, .details-panel,
+  .empty-state, .empty-message,
+  .modal-content, .dialog-content, .drawer-content,
+  .accordion, .accordion-item, .accordion-content,
+  .tab-content, .tab-panel {
+    color: var(--text-primary) !important;
+    background-color: var(--card-bg) !important;
+    border-color: var(--card-border) !important;
+    box-shadow: none !important;
+  }
+
+  /* Explicit white/light inline surfaces left by page-specific markup. */
+  [style*="background:#fff"], [style*="background: #fff"],
+  [style*="background-color:#fff"], [style*="background-color: #fff"],
+  [style*="background:white"], [style*="background: white"],
+  [style*="background-color:white"], [style*="background-color: white"],
+  [style*="background: rgb(255, 255, 255)"],
+  [style*="background-color: rgb(255, 255, 255)"],
+  [style*="background:#ffffff"], [style*="background: #ffffff"],
+  [style*="background-color:#ffffff"], [style*="background-color: #ffffff"] {
+    color: var(--text-primary) !important;
+    background-color: var(--card-bg) !important;
+    border-color: var(--card-border) !important;
+  }
+
+  /* Nested content and alternating data rows. */
+  .card > *, .content-card > *, .section-card > *,
+  .form-card > *, .summary-card > *, .details-panel > * {
+    border-color: var(--card-border);
+  }
+  .table-wrap, table, tbody, .table-responsive {
+    background-color: var(--card-bg) !important;
+  }
+  tbody tr, tbody td {
+    color: var(--text-primary);
+    border-color: var(--card-border) !important;
+  }
+  tbody tr:nth-child(even), tbody tr:nth-child(even) td {
+    background-color: var(--card-bg-alt) !important;
+  }
+
+  /* Text inside formerly white surfaces. */
+  .card, .content-card, .section, .section-card, .form-card,
+  .summary-card, .kpi-card, .info-card, .list-card, .row-card,
+  .filter-card, .toolbar-card, .table-card, .data-card,
+  .white-card, .bg-white, .content-panel, .form-panel,
+  .modal-content, .dialog-content, .drawer-content,
+  .tab-content, .tab-panel {
+    color: var(--text-primary) !important;
+  }
+  .card p, .content-card p, .section-card p,
+  .form-card label, .summary-card small,
+  .info-card small, .list-card small, .row-card small {
+    color: var(--text-secondary) !important;
+  }
+
+  /* Keep semantic colors and controls legible. */
+  input, select, textarea {
+    color: var(--text-primary) !important;
+    background-color: #10161c !important;
+    border-color: var(--card-border) !important;
+  }
+  select option { color: var(--text-primary); background: var(--card-bg); }
+  button.secondary, .btn.secondary, .btn.ghost,
+  .button-secondary {
+    color: var(--text-primary) !important;
+    background-color: #252f39 !important;
+    border-color: #3a4652 !important;
+  }
+}

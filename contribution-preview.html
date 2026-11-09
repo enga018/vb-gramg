@@ -9,6 +9,60 @@
 .overlay{display:none;position:fixed;inset:0;z-index:5;background:rgb(15 23 42 / 58%);align-items:center;justify-content:center;padding:16px}.overlay.open{display:flex}.sheet{width:min(100%,850px);height:min(92vh,900px);background:#fff;border-radius:16px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 18px 55px rgb(15 23 42 / 25%)}.sheet-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 18px;border-bottom:1px solid var(--line)}.sheet-head h2{font-size:1rem;margin:0;overflow-wrap:anywhere}.sheet-head p{margin:3px 0 0;color:var(--muted);font-size:.82rem}.sheet-head button{min-width:40px}.sheet-head-actions{display:flex;align-items:center;gap:7px;flex:none}.sheet-head-actions #toggleEdit{min-width:62px}.sheet-body{flex:1;min-height:0;overflow:auto;padding:16px}.balance{padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--soft);text-align:center;margin-bottom:12px}.balance small{display:block;color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.07em}.balance strong{display:block;font-size:1.8rem;margin-top:2px}.ledger-title{font-size:.74rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:750;margin:16px 0 8px}.entry{display:flex;justify-content:space-between;gap:12px;padding:12px 10px;border:1px solid var(--line);border-left:3px solid #94a3b8;border-radius:10px;margin-bottom:7px}.entry.payment{border-left-color:#16a36a;background:#f7fcf8}.entry.charge{border-left-color:#64748b}.entry b{display:block;font-size:.85rem}.entry small{display:block;color:var(--muted);font-size:.75rem;margin-top:3px}.entry .amount{font-weight:800;white-space:nowrap}.entry.payment .amount{color:var(--green)}.entry-actions{display:none;gap:5px;align-items:center}.sheet.edit-mode .entry-actions{display:flex}.entry-actions button{min-height:32px;padding:5px 8px;font-size:.75rem}.sheet-footer{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap}.sheet-footer button{flex:1}
 @media(max-width:700px){body{padding:9px}.topbar{padding:14px 15px;padding-right:58px;margin-bottom:10px}.panel{padding:13px;margin-bottom:10px}.kpi-row{flex-direction:column;gap:8px;margin-bottom:12px}.stats{gap:7px}.stat{padding:10px 11px}.stat small{font-size:.72rem}.stat strong{font-size:1rem}.kpi-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.kpi-actions button{width:100%;padding:7px 4px;font-size:.76rem;min-height:39px}.toolbar{grid-template-columns:minmax(0,1fr);gap:8px}.field input,.field select{min-height:45px}.records{border:0;border-radius:0;overflow:visible}.record{grid-template-columns:minmax(0,5fr) minmax(0,1fr);gap:7px;padding:12px 10px;margin-bottom:7px;border:1px solid var(--line);border-radius:11px}.job{font-size:.83rem;line-height:1.35}.person{font-size:.76rem}.remark{justify-content:flex-end;align-content:center}.tag{font-size:.65rem;padding:4px 6px}.foot{align-items:flex-start;flex-direction:column}.foot-actions{width:100%}.foot-actions button{flex:1}.overlay{padding:0}.sheet{width:100%;height:100dvh;max-height:100dvh;border-radius:0}.sheet-head{padding:13px 14px}.sheet-body{padding:12px}.sheet-footer{padding:10px 12px max(10px,env(safe-area-inset-bottom))}.sheet-footer button{min-height:48px}}
 @media(max-width:360px){.record{padding:10px 8px;gap:5px}.job{font-size:.78rem}.person{font-size:.72rem}.tag{font-size:.6rem;padding:3px 5px}.kpi-actions button{font-size:.7rem}}
+
+/* Experimental dark theme: borders, not shadows. Preview page only. */
+:root{
+ color-scheme:dark;
+ color:#f3f5f7;background:#0b0d10;
+ --ink:#f3f5f7;--muted:#929ba7;--line:rgba(255,255,255,.08);
+ --surface:#101419;--soft:#141a20;
+ --green:#45d6ad;--green-bg:rgba(69,214,173,.12);
+ --red:#ff8585;--red-bg:rgba(255,112,112,.12);
+ --amber:#e8bd62;--amber-bg:rgba(232,189,98,.12);
+ --blue:#8baeff;--blue-bg:rgba(111,151,255,.13);
+}
+html,body{background-color:#0b0d10;color:var(--ink)}
+body{
+ background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
+ background-size:46px 46px;
+}
+.topbar,.panel,.stat,.records,.sheet,.balance,.entry,.demo{
+ background:var(--surface);border:1px solid var(--line);box-shadow:none;
+}
+.topbar,.panel{border-radius:15px}
+.topbar p,.person,.count,.foot,.sheet-head p,.entry small,.balance small,.ledger-title{color:var(--muted)}
+.nav-dot{background:var(--surface);color:var(--ink);border-color:var(--line)}
+button{background:#171e25;color:var(--ink);border-color:var(--line)}
+button.primary{background:#176b59;border-color:#176b59;color:#effff9}
+button:hover{border-color:rgba(255,255,255,.2);background:#1c252d}
+button:disabled{opacity:.45}
+.field label{color:#c5cbd3}
+.field input,.field select{background:#0d1217;color:var(--ink);border-color:var(--line)}
+.field input::placeholder{color:#687380}
+.records{overflow:hidden}
+.record{background:#101419;border-color:var(--line)}
+.record:hover{background:#151d24}
+.record:last-child{border-bottom:0}
+.tag.due{background:var(--red-bg);color:var(--red)}
+.tag.settled{background:var(--green-bg);color:var(--green)}
+.tag.deferred{background:var(--amber-bg);color:var(--amber)}
+.tag.overpaid{background:var(--blue-bg);color:var(--blue)}
+.demo{background:rgba(69,214,173,.07);color:#9be7d1;border-color:rgba(69,214,173,.2)}
+.overlay{background:rgba(0,0,0,.72)}
+.sheet{background:#0f1419;border-color:var(--line)}
+.sheet-head,.sheet-footer{border-color:var(--line)}
+.balance{background:#141b21}
+.entry{background:#11171d;border-left-color:#66717d}
+.entry.payment{background:rgba(69,214,173,.06);border-left-color:#45d6ad}
+.entry.charge{border-left-color:#788492}
+.entry.payment .amount{color:var(--green)}
+.entry .amount{color:var(--ink)}
+@media(max-width:700px){
+ .records{background:transparent}
+ .record{background:#101419}
+ .record:hover{background:#151d24}
+}
+
 </style></head>
 <body><main>
 <header class="topbar"><h1>Contribution</h1><p>Track contribution charges, payments and outstanding balances.</p><button class="nav-dot" aria-label="Navigation">⋮</button></header>

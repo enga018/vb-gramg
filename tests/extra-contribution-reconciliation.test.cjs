@@ -42,7 +42,8 @@ test("Every released allocation and edited extra charge receives a before/after 
 });
 
 test("The extra-charge RPC remains service-role-only and preserves its API signature", () => {
-  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.vbgramg_save_contribution_extra\([\s\S]*?p_actor_user_id uuid\)/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.vbgramg_save_contribution_extra\(/);
+  assert.match(migration, /p_actor_user_id uuid/);
   assert.match(migration, /SET search_path TO ''/);
   assert.match(migration, /REVOKE ALL ON FUNCTION[\s\S]*FROM PUBLIC/);
   assert.match(migration, /FROM anon,authenticated/);

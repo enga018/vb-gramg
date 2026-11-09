@@ -8,12 +8,15 @@ const migration = fs.readFileSync(
   "utf8"
 );
 
-test("FIFO breakdown excludes allocations belonging to voided payments", () => {
-  assert.match(migration, /payment_ids AS \([\s\S]*?WHERE entry_type = 'payment'[\s\S]*?AND NOT COALESCE\(is_voided, false\)/);
+test("FIFO migration adds a voided-payment predicate to the payment_ids CTE", () => {
+  assert.match(migration, /v_fifo_pattern text := 'payment_ids AS/);
+  assert.match(migration, /v_fifo_replacement text := '[\s\S]*?WHERE entry_type = ''payment''[\s\S]*?AND NOT COALESCE\(is_voided, false\)/);
 });
 
-test("allocation replacement rejects voided payments before replacing rows", () => {
-  assert.match(migration, /tx\.entry_type <> 'payment'[\s\S]*?OR tx\.job_card_number IS DISTINCT FROM v_card[\s\S]*?OR COALESCE\(tx\.is_voided, false\)/);
+test("allocation replacement migration rejects voided payments", () => {
+  assert.match(migration, /v_replace_pattern text := '[\s\S]*?tx\\\.entry_type <> ''payment''[\s\S]*?tx\\\.job_card_number IS DISTINCT FROM v_card/);
+  assert.match(migration, /v_replace_replacement text := '[\s\S]*?OR COALESCE\(tx\.is_voided, false\)/);
+  assert.match(migration, /Valid active payment transaction required/);
 });
 
 test("migration guards against unexpected upstream function definitions", () => {

@@ -1051,7 +1051,7 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{margin:0!impo
 <div id="loading-state" class="contribution-loading" role="status" aria-live="polite"><span class="loading-spinner" aria-hidden="true"></span><span>Preparing Contribution data…</span></div>
 <div id="app" class="hidden">
 <div id="contribution-layout"><section class="panel contribution-main-panel">
-<div class="contribution-top-row"><div class="contribution-kpis"><div class="stat outstanding-kpi"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred</div><div class="v deferred-kpi" id="deferred">—</div></div></div><div class="page-panel-actions"><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk Payment</button><button class="btn hidden" id="exportDueBtn" type="button">Export</button></div></div>
+<div class="contribution-top-row"><div class="contribution-kpis"><div class="stat outstanding-kpi"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred</div><div class="v deferred-kpi" id="deferred">—</div></div></div><div class="page-panel-actions"><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn ghost small hidden" id="auditHistoryBtn" type="button">Audit history</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk Payment</button><button class="btn hidden" id="exportDueBtn" type="button">Export</button></div></div>
 <div class="contribution-controls"><div class="search-wrap"><label for="search">Search name or full job card number</label><input id="search" type="search" aria-label="Search name or full job card number" placeholder="Search name or full job card number" autocomplete="off"><button id="clearSearch" class="search-clear" type="button" aria-label="Clear search" title="Clear search">×</button></div><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter" aria-label="Filter by contribution status"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="overpaid">Overpaid</option><option value="deferred">Has deferred charges</option></select></div></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button></div></div>
 </section></div>
 </div>
@@ -1094,7 +1094,7 @@ try {
  return;
 }
 let entries=[], citizens=[], citizenRegistry=[], applicantsByCard={}, extraCharges=[], exemptions=[], periods=[], paymentAllocations=[], paymentRefundReconciliations=[], currentCitizen=null, busy=false, currentPage=0, pageSize=20, appRole="";
-let summaryByCard=new Map();
+let summaryByCard=new Map(),auditRows=[];
 const startupTiming={startedAt:performance.now(),stages:{},counts:{}};
 const recordStartupStage=(name,started)=>{startupTiming.stages[name]=Number((performance.now()-started).toFixed(1));};
 const publishStartupTiming=()=>{startupTiming.total_ms=Number((performance.now()-startupTiming.startedAt).toFixed(1));startupTiming.counts={ledger_entries:entries.length,citizens:citizenRegistry.length,job_cards:citizens.length};window.__VBGRAMG_CONTRIBUTION_STARTUP_TIMING={...startupTiming,stages:{...startupTiming.stages},counts:{...startupTiming.counts}};console.info('[contribution-browser-startup-timing]',window.__VBGRAMG_CONTRIBUTION_STARTUP_TIMING);
@@ -1121,6 +1121,45 @@ function status(message,type='info',duration){
  el.className=type==='err'||type==='error'?'notice err':'notice info';
  el.textContent=message;el.classList.remove('hidden');
 }
+
+async function showExtraChargeAudit(append=false){
+ if(appRole!=="admin")return;
+ const offset=append?auditRows.length:0;
+ if(!append){
+  auditRows=[];
+  $("sheetTitle").textContent="Contribution audit history";
+  $("sheetSubtitle").textContent="Extra charge edits and payment allocation releases";
+  $("sheetFooter").classList.add("hidden");
+  $("toggleEditMode").classList.add("hidden");
+  $("sheetBody").innerHTML='<div class="notice info">Loading audit history…</div>';
+  $("overlay").classList.remove("hidden");
+ }
+ const moreButton=$("loadMoreAudit");
+ if(moreButton){moreButton.disabled=true;moreButton.textContent="Loading…";}
+ try{
+  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"list-extra-charge-audit",offset},timeoutMs:false});
+  if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||"Could not load audit history.");
+  auditRows=append?auditRows.concat(data.audit_entries||[]):(data.audit_entries||[]);
+  const money=value=>fmt(Number(value)||0);
+  const dateLabel=value=>value?new Date(value).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}):"Date not recorded";
+  const rows=auditRows.map(row=>{
+   const before=row.before_data||{},after=row.after_data||{},beforeExtra=before.extra||{},afterExtra=after.extra||{};
+   const isEdit=row.action==="extra_contribution_charge_edit";
+   const heading=isEdit?"Extra contribution edited":"Payment allocation released";
+   const detail=isEdit
+    ?'<div><b>Charge:</b> '+money(beforeExtra.amount)+' → '+money(afterExtra.amount)+'</div>'+(Number(after.released_total||0)>0?'<div><b>Payment allocation released:</b> '+money(after.released_total)+'</div>':'')+'<div><b>Reason:</b> '+esc(afterExtra.reason||beforeExtra.reason||"Not recorded")+'</div>'
+    :'<div><b>Previous allocation:</b> '+money(after.previous_amount)+'</div><div><b>Released:</b> '+money(after.released_amount)+'</div><div><b>Remaining allocation:</b> '+money(after.remaining_amount)+'</div>';
+   return '<div class="entry"><div class="desc"><b>'+esc(heading)+'</b><small>'+esc(row.job_card_number||"Unknown job card")+' · '+esc(row.period_name||"Contribution period")+' · '+esc(dateLabel(row.created_at))+'</small>'+detail+'<small>Recorded by: '+esc(row.actor_email||"Administrator")+'</small></div></div>';
+  }).join("");
+  const more=data.has_more?'<div style="padding:12px 0"><button class="btn ghost small" id="loadMoreAudit" type="button">Load older entries</button></div>':"";
+  $("sheetBody").innerHTML=(rows||'<div class="empty">No extra-charge edits or allocation releases have been recorded yet.</div>')+more+'<div class="muted" style="padding:8px 0">Showing '+auditRows.length+' of '+Number(data.total_count||0)+' audit records.</div>';
+  const next=$("loadMoreAudit");if(next)next.addEventListener("click",()=>showExtraChargeAudit(true));
+ }catch(err){
+  if(!append)$("sheetBody").innerHTML='<div class="notice err">'+esc(err.message||"Could not load audit history.")+'</div>';
+  else{const button=$("loadMoreAudit");if(button){button.disabled=false;button.textContent="Retry loading older entries";}status(err.message||"Could not load older audit records.","error");}
+ }
+}
+
 function renderExemptions(){
  const host=$('exemptionList');if(!host)return;
  if(!exemptions.length){host.innerHTML='<div class="empty">No exempt job cards added.</div>';return;}
@@ -1676,7 +1715,7 @@ async function load(){
   if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
   if(window.VBGRAMGCache)window.VBGRAMGCache.setUser(sessionData.session.user.id);
   const assignmentStarted=performance.now();
-  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");$("exportDueBtn").classList.remove("hidden");entries=[];summaryByCard=new Map((data.summaries||[]).map(row=>[String(row.job_card_number||'').trim(),row]));periods=[];paymentAllocations=[];paymentRefundReconciliations=[];extraCharges=[];citizenRegistry=(data.summaries||[]).map(row=>({job_card_number:row.job_card_number,person_name:row.person_name}));applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];
+  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");$("auditHistoryBtn").classList.toggle("hidden",appRole!=="admin");$("exportDueBtn").classList.remove("hidden");entries=[];summaryByCard=new Map((data.summaries||[]).map(row=>[String(row.job_card_number||'').trim(),row]));periods=[];paymentAllocations=[];paymentRefundReconciliations=[];extraCharges=[];citizenRegistry=(data.summaries||[]).map(row=>({job_card_number:row.job_card_number,person_name:row.person_name}));applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];
   recordStartupStage("assign_response_data_ms",assignmentStarted);
   const deriveStarted=performance.now();deriveCitizens();recordStartupStage("derive_citizens_total_ms",deriveStarted);renderExemptions();
   $('app').classList.remove('hidden');$('status').classList.add('hidden');$('loading-state').classList.add('hidden');
@@ -1714,6 +1753,7 @@ $('bulkPaymentBtn').addEventListener('click',showBulkPaymentForm);
 
 
 $('manageExemptionsBtn').addEventListener('click',showExemptionsForm);
+$('auditHistoryBtn').addEventListener('click',()=>showExtraChargeAudit(false));
 $('toggleEditMode').addEventListener('click',()=>{
  const sheet=document.querySelector('.sheet');
  if(!sheet)return;

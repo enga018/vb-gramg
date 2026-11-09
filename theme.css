@@ -342,3 +342,66 @@
     color: #aab5c2 !important;
   }
 }
+
+
+/* Contribution detail sheet: this page intentionally keeps the sheet opaque,
+   but its opaque surface must follow the active device theme. */
+@media screen and (prefers-color-scheme: dark) {
+  #overlay .sheet,
+  #overlay .sheet-head,
+  #overlay .sheet-body,
+  #overlay .sheet-footer {
+    color: #edf2f7 !important;
+    background: #171d24 !important;
+    border-color: #303a45 !important;
+  }
+  #overlay .sheet-head,
+  #overlay .sheet-footer {
+    background: #1d252e !important;
+  }
+  #overlay .sheet-body .entry,
+  #overlay .sheet-body .fifo-period,
+  #overlay .sheet-body .fifo-detail-row,
+  #overlay .sheet-body .split,
+  #overlay .sheet-body .balance,
+  #overlay .sheet-body .confirm-summary {
+    color: #edf2f7 !important;
+    background-color: #1d252e !important;
+    border-color: #303a45 !important;
+  }
+  #overlay .sheet-body .fifo-period-toggle,
+  #overlay .sheet-body .fifo-period-toggle b,
+  #overlay .sheet-body .fifo-detail-main b,
+  #overlay .sheet-body .fifo-summary-row b,
+  #overlay .sheet-body .sheet-heading,
+  #overlay .sheet-body h2,
+  #overlay .sheet-body strong {
+    color: #edf2f7 !important;
+  }
+  #overlay .sheet-body .fifo-main small,
+  #overlay .sheet-body .fifo-summary-row span,
+  #overlay .sheet-body .sheet-subtitle,
+  #overlay .sheet-body .balance .label,
+  #overlay .sheet-body .muted {
+    color: #aab5c2 !important;
+  }
+  #overlay .sheet-body input,
+  #overlay .sheet-body select,
+  #overlay .sheet-body textarea {
+    color: #edf2f7 !important;
+    background: #10161c !important;
+    border-color: #394653 !important;
+  }
+  #overlay .sheet-body .fifo-status.paid {
+    color: #75e0b7 !important;
+    background: #15372d !important;
+  }
+  #overlay .sheet-body .fifo-status.partial {
+    color: #f2cd7d !important;
+    background: #3a3020 !important;
+  }
+  #overlay .sheet-body .fifo-status.due {
+    color: #ffaaa5 !important;
+    background: #3b2223 !important;
+  }
+}

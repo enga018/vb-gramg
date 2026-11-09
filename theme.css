@@ -773,3 +773,43 @@
     border-color: #66502a !important;
   }
 }
+
+
+/* Shared header containers: keep every page header charcoal in automatic dark mode. */
+@media screen and (prefers-color-scheme: dark) {
+  .global-mobile-header,
+  header.app-header,
+  header.topbar,
+  .app-header,
+  .topbar,
+  .global-sidebar-header,
+  .sidebar-header,
+  .page-header,
+  .section-header,
+  .section-heading,
+  .mobile-page-header {
+    color: #edf2f7 !important;
+    background: #171e25 !important;
+    border-color: #303b46 !important;
+    box-shadow: none !important;
+  }
+
+  .global-mobile-header-title,
+  .app-header h1, .app-header h2,
+  .topbar h1, .topbar h2,
+  .page-header h1, .page-header h2,
+  .section-header h1, .section-header h2,
+  .section-heading h1, .section-heading h2,
+  .mobile-page-header h1, .mobile-page-header h2 {
+    color: #edf2f7 !important;
+  }
+
+  .global-mobile-menu-button,
+  .app-header button, .topbar button,
+  .page-header button, .section-header button,
+  .mobile-page-header button {
+    color: #edf2f7 !important;
+    background: #252f39 !important;
+    border-color: #3a4652 !important;
+  }
+}

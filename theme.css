@@ -847,3 +847,136 @@
     background: transparent !important;
   }
 }
+
+
+/* Focused dark-mode coverage for FTO Import, MIS Import and generated Demand tables. */
+@media screen and (prefers-color-scheme: dark) {
+  /* FTO Import: page shell, paste/preview/settings panels and both table views. */
+  body:has(#parsed-table) main,
+  body:has(#parsed-table) #app-panel,
+  body:has(#parsed-table) #app-panel > .panel,
+  body:has(#parsed-table) #table-output,
+  body:has(#parsed-table) #settings-panel,
+  body:has(#parsed-table) #reconciliation-panel,
+  body:has(#parsed-table) .live-category-panel,
+  body:has(#parsed-table) .live-automatic-panel,
+  body:has(#parsed-table) .live-manual-panel,
+  body:has(#parsed-table) .live-already-panel,
+  body:has(#parsed-table) .live-cannot-panel,
+  body:has(#parsed-table) .manual-review-panel,
+  body:has(#parsed-table) .settings-panel,
+  body:has(#parsed-table) .table-wrap,
+  body:has(#parsed-table) .parsed-mobile-groups,
+  body:has(#parsed-table) .live-jobcard-view {
+    color: #e7edf3 !important;
+    background: #171e25 !important;
+    border-color: #303b46 !important;
+    box-shadow: none !important;
+  }
+  body:has(#parsed-table) #parsed-table,
+  body:has(#parsed-table) #parsed-table thead,
+  body:has(#parsed-table) #parsed-table tbody,
+  body:has(#parsed-table) #parsed-table th,
+  body:has(#parsed-table) #parsed-table td,
+  body:has(#parsed-table) .parsed-mobile-groups > *,
+  body:has(#parsed-table) .live-jobcard-view > * {
+    color: #e7edf3 !important;
+    background: #1d252e !important;
+    border-color: #35414d !important;
+  }
+  body:has(#parsed-table) input,
+  body:has(#parsed-table) select,
+  body:has(#parsed-table) textarea {
+    color: #e7edf3 !important;
+    background: #10171d !important;
+    border-color: #3a4652 !important;
+  }
+  body:has(#parsed-table) .status:not(.error):not(.success) {
+    color: #c5d6ee !important;
+    background: #202b36 !important;
+    border-color: #405064 !important;
+  }
+
+  /* MIS Import: outer shell, paste area, comparison cards and change table. */
+  body:has(#diff-panel) main,
+  body:has(#diff-panel) .paste-box,
+  body:has(#diff-panel) #diff-panel,
+  body:has(#diff-panel) .diff-count,
+  body:has(#diff-panel) .table-wrap,
+  body:has(#diff-panel) .diff-table-wrap,
+  body:has(#diff-panel) .diff-actions {
+    color: #e7edf3 !important;
+    background: #171e25 !important;
+    border-color: #303b46 !important;
+    box-shadow: none !important;
+  }
+  body:has(#diff-panel) .diff-table,
+  body:has(#diff-panel) .diff-table thead,
+  body:has(#diff-panel) .diff-table tbody,
+  body:has(#diff-panel) .diff-table th,
+  body:has(#diff-panel) .diff-table td {
+    color: #e7edf3 !important;
+    background: #1d252e !important;
+    border-color: #35414d !important;
+  }
+  body:has(#diff-panel) .diff-table tbody tr:nth-child(even),
+  body:has(#diff-panel) .diff-table tbody tr:nth-child(even) td {
+    background: #202a34 !important;
+  }
+  body:has(#diff-panel) input,
+  body:has(#diff-panel) textarea,
+  body:has(#diff-panel) select {
+    color: #e7edf3 !important;
+    background: #10171d !important;
+    border-color: #3a4652 !important;
+  }
+
+  /* Demand: explicitly style all three generated tables and their parent panels.
+     The :has() selectors outrank page-local .table-wrap:has(#tableId) rules. */
+  body:has(#reviewTable) #reviewPanel,
+  body:has(#demandTable) #demandPanel,
+  body:has(#unwillingTable) #unwillingPanel,
+  body:has(#reviewTable) .table-wrap:has(#reviewTable),
+  body:has(#demandTable) .table-wrap:has(#demandTable),
+  body:has(#unwillingTable) .table-wrap:has(#unwillingTable) {
+    color: #e7edf3 !important;
+    background: #171e25 !important;
+    border-color: #303b46 !important;
+    box-shadow: none !important;
+  }
+  body:has(#reviewTable) #reviewTable,
+  body:has(#demandTable) #demandTable,
+  body:has(#unwillingTable) #unwillingTable,
+  body:has(#reviewTable) #reviewTable thead,
+  body:has(#demandTable) #demandTable thead,
+  body:has(#unwillingTable) #unwillingTable thead,
+  body:has(#reviewTable) #reviewTable th,
+  body:has(#demandTable) #demandTable th,
+  body:has(#unwillingTable) #unwillingTable th {
+    color: #e7edf3 !important;
+    background: #202a34 !important;
+    border-color: #35414d !important;
+  }
+  body:has(#reviewTable) #reviewTable td,
+  body:has(#demandTable) #demandTable td,
+  body:has(#unwillingTable) #unwillingTable td {
+    color: #e7edf3 !important;
+    background: #1a232c !important;
+    border-color: #35414d !important;
+  }
+  body:has(#reviewTable) #reviewTable tbody tr:nth-child(even) td,
+  body:has(#demandTable) #demandTable tbody tr:nth-child(even) td,
+  body:has(#unwillingTable) #unwillingTable tbody tr:nth-child(even) td {
+    background: #202a34 !important;
+  }
+  body:has(#reviewTable) .table-foot,
+  body:has(#demandTable) .table-foot,
+  body:has(#unwillingTable) .table-foot,
+  body:has(#reviewTable) .table-action-bar,
+  body:has(#demandTable) .table-action-bar,
+  body:has(#unwillingTable) .table-action-bar {
+    color: #aab5c2 !important;
+    background: transparent !important;
+    border-color: #303b46 !important;
+  }
+}

@@ -51,3 +51,23 @@ test("The extra-charge RPC remains service-role-only and preserves its API signa
   assert.match(migration, /TO service_role/);
   assert.doesNotMatch(migration, /SECURITY DEFINER/i);
 });
+
+
+const contributionEdge = read("supabase/functions/vbgramg-contribution-data/index.ts");
+const contributionPage = read("contribution.html");
+
+test("Contribution audit history endpoint is admin-only and returns only extra-charge reconciliation events", () => {
+  assert.match(contributionEdge, /if\(action==="list-extra-charge-audit"\)[\s\S]*?approved\.role!=="admin"/);
+  assert.match(contributionEdge, /"extra_contribution_charge_edit","payment_allocation_released_due_to_extra_charge_edit"/);
+  assert.match(contributionEdge, /from\("vbgramg_ledger_audit"\)[\s\S]*?\.range\(offset,offset\+pageSize-1\)/);
+  assert.match(contributionEdge, /from\("vbgramg_periods"\)[\s\S]*?period_name/);
+});
+
+test("Contribution audit history is visible only to admins and displays charge and allocation changes", () => {
+  assert.match(contributionPage, /id="auditHistoryBtn"/);
+  assert.match(contributionPage, /auditHistoryBtn"\)\.classList\.toggle\("hidden",appRole!=="admin"\)/);
+  assert.match(contributionPage, /action:"list-extra-charge-audit"/);
+  assert.match(contributionPage, /beforeExtra\.amount/);
+  assert.match(contributionPage, /after\.released_amount/);
+  assert.match(contributionPage, /Load older entries/);
+});

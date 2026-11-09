@@ -980,3 +980,33 @@
     border-color: #303b46 !important;
   }
 }
+
+
+/* MIS mobile applicant expansion: the picker row and its label have
+   page-local light backgrounds, so override them explicitly in dark mode. */
+@media screen and (prefers-color-scheme: dark) and (max-width: 767px) {
+  body:has(#mis-table) #mis-table .mobile-applicant-picker-row,
+  body:has(#mis-table) #mis-table .mobile-applicant-picker-row td {
+    color: #e7edf3 !important;
+    background: #171e25 !important;
+    border-color: #303b46 !important;
+  }
+
+  body:has(#mis-table) #mis-table .mobile-applicant-picker,
+  body:has(#mis-table) #mis-table .mobile-applicant-picker label {
+    color: #dce5ee !important;
+    background: transparent !important;
+  }
+
+  body:has(#mis-table) #mis-table .mobile-applicant-picker select {
+    color: #e7edf3 !important;
+    background-color: #10171d !important;
+    border-color: #3a4652 !important;
+    color-scheme: dark;
+  }
+
+  body:has(#mis-table) #mis-table .mobile-applicant-picker select option {
+    color: #e7edf3 !important;
+    background: #171e25 !important;
+  }
+}

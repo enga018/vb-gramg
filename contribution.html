@@ -1393,12 +1393,17 @@ function renderCitizenDetail(id){
   const periodRow=e.period_id?periods.find(p=>String(p.id)===String(e.period_id)):null;
   const periodValue=String(periodRow?.contribution_month||periodRow?.period_date||e.charge_period||'').slice(0,10);
   const periodParts=periodValue.match(/^(\d{4})-(\d{2})/);
-  const monthTags=['January','February','March','April','May','June','July','August','September','October','November','December'];
-  let periodLabel=String(periodRow?.period_name||'').trim()||(periodParts&&Number(periodParts[2])>=1&&Number(periodParts[2])<=12
-   ?monthTags[Number(periodParts[2])-1]+' '+periodParts[1]
-   :String(e.charge_period||'').trim()||'Monthly charge');
-  const compactPeriod=periodLabel.match(/^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d{2,4})(?:\((\d+)\))?$/i);
-  if(compactPeriod){const monthIndex=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'].indexOf(compactPeriod[1].toUpperCase());const year=compactPeriod[2].length===2?'20'+compactPeriod[2]:compactPeriod[2];periodLabel=monthTags[monthIndex]+' '+year+(compactPeriod[3]?' ('+compactPeriod[3]+')':'');}
+   const monthTags=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+   let periodLabel=String(periodRow?.period_name||'').trim()||(periodParts&&Number(periodParts[2])>=1&&Number(periodParts[2])<=12
+    ?monthTags[Number(periodParts[2])-1]+periodParts[1].slice(-2)
+    :String(e.charge_period||'').trim()||'Monthly charge');
+   // Display contribution periods consistently as JAN26, MAY26 (2), etc.
+   const readablePeriod=periodLabel.match(/^(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER|JAN|FEB|MAR|APR|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s*[-/]?\s*(\d{2}|\d{4})(?:\s*\((\d+)\))?$/i);
+   if(readablePeriod){
+    const monthIndex=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'].indexOf(readablePeriod[1].slice(0,3).toUpperCase());
+    const year=readablePeriod[2].slice(-2);
+    periodLabel=monthTags[monthIndex]+year+(readablePeriod[3]?' ('+readablePeriod[3]+')':'');
+   }
   let chargeApplicantName='';
   if(type==='charge'&&!isExtra){
    let matchedApplicant=null;

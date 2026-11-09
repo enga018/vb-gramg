@@ -119,7 +119,8 @@ dialog#create-dialog::backdrop{background:rgb(15 23 42 / 48%)}
   #toggle-create{font-size:.82rem;padding:8px 10px}
 }
 </style>
-  <link rel="stylesheet" href="./responsive.css"></head><body><main>
+  <link rel="stylesheet" href="./responsive.css">
+<link rel="stylesheet" href="./theme.css?v=20261109-contribution-periods-fix"></head><body><main>
 
 <section class="panel"><div class="panel-head"><h2>All periods</h2><button id="toggle-create" class="secondary" type="button">+ Create period</button></div><dialog id="create-dialog" aria-labelledby="create-heading"><div class="dialog-content"><h2 id="create-heading">Create period</h2><p class="sub">Period names are generated automatically, such as MAY26 and MAY26 (2).</p><div class="grid" id="create-form"><div class="field"><label for="new-month">Charge month</label><input id="new-month" type="month" required></div></div><p class="muted">The first period is dated on the 1st of the charge month; the second on the 2nd, and so on.</p><div class="actions dialog-actions"><button id="create-period" type="button">Save period</button><button id="cancel-create" class="secondary" type="button">Cancel</button></div></div></dialog><div id="status" class="status hidden" aria-live="polite"></div>
 <div class="table-wrap"><table><thead><tr><th>Period</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody id="period-body"><tr><td colspan="4" class="empty">Loading periods…</td></tr></tbody></table></div><div id="period-pager" class="mobile-table-pager" hidden><button id="period-prev" class="secondary" type="button">Previous</button><span id="period-page-label"></span><button id="period-next" class="secondary" type="button">Next</button></div></section>

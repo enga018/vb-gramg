@@ -6,15 +6,12 @@ DECLARE
   v_replace text;
   v_old_fifo text := $old$
 payment_ids AS (
-  SELECT id
-  FROM card_ledger
-  WHERE entry_type = 'payment'
+  SELECT id FROM card_ledger WHERE entry_type = 'payment'
 ),
 $old$;
   v_new_fifo text := $new$
 payment_ids AS (
-  SELECT id
-  FROM card_ledger
+  SELECT id FROM card_ledger
   WHERE entry_type = 'payment'
     AND NOT COALESCE(is_voided, false)
 ),

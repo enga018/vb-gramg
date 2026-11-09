@@ -207,8 +207,9 @@ BEGIN
   IF v_total<>100 THEN RAISE EXCEPTION 'Waiver-adjusted allocation should be 100, got %',v_total; END IF;
 
   -- Scenario 4: historical waiver ledger rows have no period-allocation rows.
-  -- The older period is fully paid, so its 80 legacy waiver remainder must flow
-  -- FIFO into November and reduce the November allocation ceiling from 150 to 70.
+  -- The older period is fully paid, so its 80 legacy waiver remainder flows FIFO
+  -- into November's unpaid balance only. It must not reduce the ceiling for the
+  -- 150 already allocated in payments when the edited charge total is also 150.
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
   VALUES ('MZ-LEGACY','Legacy Waiver Household','charge',100,'2026-10-01','00000000-0000-0000-0000-000000000003','2026-10-01','Older period charge');
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,entry_date,note)
@@ -236,12 +237,12 @@ BEGIN
   v_result:=public.vbgramg_save_contribution_extra(
     'MZ-LEGACY','2026-11-01','00000000-0000-0000-0000-000000000001',50,
     'Reduced extra charge with historical waiver','2026-11-08',gen_random_uuid());
-  IF NOT (v_result->>'ok')::boolean OR (v_result->>'released_allocation_amount')::numeric<>80 THEN
-    RAISE EXCEPTION 'Historical FIFO waiver should release 80 from November allocation: %',v_result;
+  IF NOT (v_result->>'ok')::boolean OR (v_result->>'released_allocation_amount')::numeric<>0 THEN
+    RAISE EXCEPTION 'Historical waiver must not release already allocated payment: %',v_result;
   END IF;
   SELECT sum(amount) INTO v_total FROM public.vbgramg_payment_allocations
   WHERE job_card_number='MZ-LEGACY' AND period_id='00000000-0000-0000-0000-000000000001';
-  IF v_total<>70 THEN RAISE EXCEPTION 'Historical waiver-adjusted allocation should be 70, got %',v_total; END IF;
+  IF v_total<>150 THEN RAISE EXCEPTION 'Historical waiver must leave paid allocation at 150, got %',v_total; END IF;
 END $;
 
 SELECT 'extra contribution allocation reconciliation tests passed' AS result;

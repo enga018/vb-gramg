@@ -8,7 +8,7 @@ END $$;
 
 CREATE TABLE public.vbgramg_periods (
   id uuid PRIMARY KEY, period_name text NOT NULL, period_date date,
-  contribution_month date, status text DEFAULT 'open', created_at timestamptz DEFAULT now()
+  contribution_month date, status text DEFAULT 'open'
 );
 CREATE TABLE public.vbgramg_contribution_exemptions (job_card_number text PRIMARY KEY,note text);
 CREATE TABLE public.vbgramg_contribution_citizens (job_card_number text PRIMARY KEY,person_name text NOT NULL);
@@ -38,7 +38,7 @@ GRANT USAGE ON SCHEMA public TO service_role;
 GRANT SELECT,INSERT,UPDATE ON ALL TABLES IN SCHEMA public TO service_role;
 \ir ../supabase/migrations/20261107140000_atomic_extra_contribution_charges.sql
 
-INSERT INTO public.vbgramg_periods (id,period_name,period_date,contribution_month,status) VALUES
+INSERT INTO public.vbgramg_periods VALUES
  ('00000000-0000-0000-0000-000000000001','NOV26','2026-11-01','2026-11-01','open'),
  ('00000000-0000-0000-0000-000000000002','NOV26(2)','2026-11-01','2026-11-01','closed'),
  ('00000000-0000-0000-0000-000000000003','OCT26','2026-10-01','2026-10-01','open');

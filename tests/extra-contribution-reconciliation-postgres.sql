@@ -91,7 +91,7 @@ BEFORE INSERT OR UPDATE ON public.vbgramg_payment_allocations
 FOR EACH ROW EXECUTE FUNCTION public.test_validate_extra_edit_allocation();
 
 INSERT INTO public.vbgramg_contribution_citizens(job_card_number,person_name)
-VALUES ('MZ-ALLOC','Allocation Household'),('MZ-NO-EXCESS','No Excess Household');
+VALUES ('MZ-ALLOC','Allocation Household'),('MZ-NO-EXCESS','No Excess Household'),('MZ-WAIVER','Waiver Household');
 
 DO $$
 DECLARE
@@ -100,6 +100,7 @@ DECLARE
   v_newest_allocation uuid;
   v_oldest_allocation uuid;
   v_payment_id uuid;
+  v_waiver_id uuid;
   v_amount numeric(14,2);
   v_total numeric(14,2);
   v_audit_count integer;
@@ -174,6 +175,36 @@ BEGIN
   SELECT sum(amount) INTO v_total FROM public.vbgramg_payment_allocations
   WHERE job_card_number='MZ-NO-EXCESS' AND period_id='00000000-0000-0000-0000-000000000001';
   IF v_total<>150 THEN RAISE EXCEPTION 'Allocation changed despite sufficient other charges'; END IF;
-END $$;
+
+  -- Scenario 3: period-linked waivers reduce the payment allocation ceiling.
+  INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
+  VALUES ('MZ-WAIVER','Waiver Household','charge',100,'2026-11-01','00000000-0000-0000-0000-000000000001','2026-11-01','Base charge');
+  v_result:=public.vbgramg_save_contribution_extra(
+    'MZ-WAIVER','2026-11-01','00000000-0000-0000-0000-000000000001',100,
+    'Extra charge before waiver test','2026-11-07',gen_random_uuid());
+  IF NOT (v_result->>'ok')::boolean THEN RAISE EXCEPTION 'Could not create waiver test extra: %',v_result; END IF;
+
+  INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
+  VALUES ('MZ-WAIVER','Waiver Household','charge_waiver',50,'2026-11-01','00000000-0000-0000-0000-000000000001','2026-11-04','Period waiver')
+  RETURNING id INTO v_waiver_id;
+  INSERT INTO public.vbgramg_waiver_period_allocations(waiver_id,period_id,job_card_number,amount)
+  VALUES (v_waiver_id,'00000000-0000-0000-0000-000000000001','MZ-WAIVER',50);
+
+  INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,entry_date,note)
+  VALUES ('MZ-WAIVER','Waiver Household','payment',150,'2026-11-05','Payment after waiver')
+  RETURNING id INTO v_payment_id;
+  INSERT INTO public.vbgramg_payment_allocations(transaction_id,period_id,job_card_number,amount)
+  VALUES (v_payment_id,'00000000-0000-0000-0000-000000000001','MZ-WAIVER',150);
+
+  v_result:=public.vbgramg_save_contribution_extra(
+    'MZ-WAIVER','2026-11-01','00000000-0000-0000-0000-000000000001',50,
+    'Reduced extra charge after waiver','2026-11-08',gen_random_uuid());
+  IF NOT (v_result->>'ok')::boolean OR (v_result->>'released_allocation_amount')::numeric<>50 THEN
+    RAISE EXCEPTION 'Waiver-adjusted ceiling should release 50: %',v_result;
+  END IF;
+  SELECT sum(amount) INTO v_total FROM public.vbgramg_payment_allocations
+  WHERE job_card_number='MZ-WAIVER' AND period_id='00000000-0000-0000-0000-000000000001';
+  IF v_total<>100 THEN RAISE EXCEPTION 'Waiver-adjusted allocation should be 100, got %',v_total; END IF;
+END $;
 
 SELECT 'extra contribution allocation reconciliation tests passed' AS result;

@@ -1181,6 +1181,29 @@ Deno.serve(async(req:Request)=>{
   }
 
 
+  if(action==="list-extra-charge-audit"){
+   if(approved.role!=="admin")return reply({error:"Only an approved administrator can view contribution audit history."},403);
+   const requestedOffset=Number(body.offset||0),offset=Number.isInteger(requestedOffset)&&requestedOffset>=0?Math.min(requestedOffset,5000):0,pageSize=100;
+   const actions=["extra_contribution_charge_edit","payment_allocation_released_due_to_extra_charge_edit"];
+   const {data:rows,error,count}=await admin.from("vbgramg_ledger_audit")
+    .select("id,ledger_entry_id,job_card_number,action,actor_user_id,actor_email,before_data,after_data,created_at",{count:"exact"})
+    .in("action",actions).order("created_at",{ascending:false}).order("id",{ascending:false})
+    .range(offset,offset+pageSize-1);
+   if(error)throw error;
+   const periodIds=[...new Set((rows||[]).map((row:any)=>String(row.after_data?.extra?.period_id||row.before_data?.extra?.period_id||row.after_data?.period_id||"").trim()).filter(Boolean))];
+   let periodNames=new Map<string,string>();
+   if(periodIds.length){
+    const {data:periodRows,error:periodError}=await admin.from("vbgramg_periods").select("id,period_name").in("id",periodIds);
+    if(periodError)throw periodError;
+    periodNames=new Map((periodRows||[]).map((period:any)=>[String(period.id),String(period.period_name||"")]));
+   }
+   const auditEntries=(rows||[]).map((row:any)=>{
+    const periodId=String(row.after_data?.extra?.period_id||row.before_data?.extra?.period_id||row.after_data?.period_id||"");
+    return {...row,period_id:periodId,period_name:periodNames.get(periodId)||""};
+   });
+   return reply({approved:true,audit_entries:auditEntries,offset,limit:pageSize,total_count:Number(count||0),has_more:offset+auditEntries.length<Number(count||0)});
+  }
+
   if(action==="save-contribution-extra"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can save extra contribution charges."},403);
    const jobCard=String(body.job_card_number||"").trim(),period=String(body.charge_period||"").trim(),periodId=String(body.period_id||"").trim(),amount=Number(body.amount),reason=String(body.reason||"").trim().slice(0,500);

@@ -405,3 +405,118 @@
     background: #3b2223 !important;
   }
 }
+
+
+/* Final page-specific dark-mode fixes based on mobile screenshots.
+   Explicit page selectors outrank the pages' own light-mode card rules. */
+@media screen and (prefers-color-scheme: dark) {
+  /* Contribution: this page's own mobile rules hard-code white row cards. */
+  body:has(#contribution-table) .panel,
+  body:has(#contribution-table) .table-wrap {
+    color: #edf2f7 !important;
+    background: #171d24 !important;
+    border-color: #303a45 !important;
+  }
+  #contribution-table,
+  #contribution-table tbody,
+  #contribution-table tbody tr.contribution-row,
+  #contribution-table tbody tr.contribution-row td {
+    color: #edf2f7 !important;
+    background: #171d24 !important;
+    border-color: #303a45 !important;
+  }
+  #contribution-table tbody tr.contribution-row:nth-child(even),
+  #contribution-table tbody tr.contribution-row:nth-child(even) td {
+    background: #1d252e !important;
+  }
+  #contribution-table .mobile-jobcard-line,
+  #contribution-table .mobile-jobcard-line .suffix,
+  #contribution-table .mobile-person-inline,
+  #contribution-table .contribution-row .jobcard,
+  #contribution-table .contribution-row .person {
+    color: #edf2f7 !important;
+  }
+  #contribution-table .mobile-charge-line,
+  #contribution-table .contribution-row td:first-child {
+    color: #aab5c2 !important;
+  }
+  #contribution-table .mobile-outstanding { color: #ffaaa5 !important; }
+  #contribution-table .mobile-settled { color: #75e0b7 !important; }
+
+  /* The detail drawer uses explicit white surfaces in contribution.html. */
+  #overlay .sheet-body .entry,
+  #overlay .sheet-body .entry-payment,
+  #overlay .sheet-body .entry-refund,
+  #overlay .sheet-body .entry-waiver,
+  #overlay .sheet-body .entry-charge,
+  #overlay .sheet-body .entry-voided,
+  #overlay .sheet-body .entry-other,
+  #overlay .sheet-body .payment-allocation-list {
+    color: #edf2f7 !important;
+    background: #1d252e !important;
+    border-color: #394653 !important;
+  }
+  #overlay .sheet-body .entry .desc b,
+  #overlay .sheet-body .entry .amt,
+  #overlay .sheet-body .payment-allocation-total,
+  #overlay .sheet-body .payment-allocation-note {
+    color: #edf2f7 !important;
+  }
+
+  /* Periods: override the high-specificity mobile white-card declarations. */
+  body:has(#period-body) {
+    color: #edf2f7 !important;
+    background: #0d1217 !important;
+  }
+  body:has(#period-body) .panel,
+  body:has(#period-body) .table-wrap {
+    color: #edf2f7 !important;
+    background: #171d24 !important;
+    border-color: #303a45 !important;
+  }
+  #period-body tr:not(:has(.empty)),
+  #period-body tr:not(:has(.empty)):nth-child(even),
+  #period-body tr:not(:has(.empty)) td {
+    color: #edf2f7 !important;
+    background: #1d252e !important;
+    border-color: #394653 !important;
+  }
+  #period-body tr:not(:has(.empty)):nth-child(even) {
+    background: #202a34 !important;
+  }
+  #period-body td[data-label="Period"],
+  #period-body .period-name-cell {
+    color: #edf2f7 !important;
+  }
+  #period-body .period-mobile-meta {
+    color: #aab5c2 !important;
+  }
+  body:has(#period-body) .field label {
+    color: #d6dee8 !important;
+  }
+  body:has(#period-body) .field input,
+  body:has(#period-body) .field select {
+    color: #edf2f7 !important;
+    background: #10161c !important;
+    border-color: #394653 !important;
+  }
+  body:has(#period-body) button.secondary,
+  body:has(#period-body) .row-actions button[data-action="delete"] {
+    color: #dce5ee !important;
+    background: #252f39 !important;
+    border-color: #3a4652 !important;
+  }
+  body:has(#period-body) .status {
+    color: #dce5ee !important;
+    background: #202a34 !important;
+    border-color: #394653 !important;
+  }
+  body:has(#period-body) .status.success {
+    color: #75e0b7 !important;
+    background: #15372d !important;
+  }
+  body:has(#period-body) .status.error {
+    color: #ffaaa5 !important;
+    background: #3b2223 !important;
+  }
+}

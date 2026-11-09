@@ -699,3 +699,33 @@
     border-color: #3a4652 !important;
   }
 }
+
+
+/* Contribution dark-mode follow-up: page-local selectors and the dynamically
+   injected mobile navigation header have higher specificity than the shared
+   baseline. Override those exact surfaces without affecting light mode. */
+@media screen and (prefers-color-scheme: dark) {
+  body:has(#contribution-table) #contribution-layout > .panel.contribution-main-panel {
+    color: #e7edf3 !important;
+    background: #171e25 !important;
+    border-color: #303b46 !important;
+    box-shadow: none !important;
+  }
+
+  body:has(#contribution-table) .global-mobile-header {
+    color: #e7edf3 !important;
+    background: #171e25 !important;
+    border: 1px solid #303b46 !important;
+    box-shadow: none !important;
+  }
+
+  body:has(#contribution-table) .global-mobile-header-title {
+    color: #e7edf3 !important;
+  }
+
+  body:has(#contribution-table) .global-mobile-menu-button {
+    color: #e7edf3 !important;
+    background: #252f39 !important;
+    border-color: #3a4652 !important;
+  }
+}

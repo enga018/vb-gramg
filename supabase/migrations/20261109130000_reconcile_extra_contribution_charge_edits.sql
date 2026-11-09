@@ -23,6 +23,13 @@ DECLARE
   v_rows integer;
   v_eligible_charges numeric(14,2) := 0;
   v_period_waived numeric(14,2) := 0;
+  v_legacy_waiver_remaining numeric(14,2) := 0;
+  v_legacy_waived_selected numeric(14,2) := 0;
+  v_legacy_period record;
+  v_legacy_charges numeric(14,2) := 0;
+  v_legacy_paid numeric(14,2) := 0;
+  v_legacy_period_waived numeric(14,2) := 0;
+  v_legacy_due numeric(14,2) := 0;
   v_allocated_total numeric(14,2) := 0;
   v_excess_to_release numeric(14,2) := 0;
   v_release_amount numeric(14,2) := 0;
@@ -154,6 +161,82 @@ BEGIN
         AND waiver.entry_type IN ('charge_waiver','forgive')
         AND COALESCE(waiver.is_voided,false)=false;
 
+      -- Historical waivers predate period allocation rows. The established FIFO
+      -- waiver allocator treats the portion not represented by period allocations
+      -- as a remaining pool and consumes it against unpaid periods in chronological
+      -- order. Reproduce that calculation so this edit cannot leave payment
+      -- allocations above the true post-waiver ceiling.
+      SELECT GREATEST(
+        COALESCE((
+          SELECT pg_catalog.sum(w.amount)
+          FROM public.vbgramg_charge_ledger w
+          WHERE w.job_card_number=v_card
+            AND w.entry_type IN ('charge_waiver','forgive')
+            AND COALESCE(w.is_voided,false)=false
+        ),0)
+        -
+        COALESCE((
+          SELECT pg_catalog.sum(a.amount)
+          FROM public.vbgramg_waiver_period_allocations a
+          JOIN public.vbgramg_charge_ledger linked ON linked.id=a.waiver_id
+          WHERE a.job_card_number=v_card
+            AND linked.entry_type IN ('charge_waiver','forgive')
+            AND COALESCE(linked.is_voided,false)=false
+        ),0),
+        0
+      )::numeric(14,2)
+      INTO v_legacy_waiver_remaining;
+
+      -- Consume legacy waiver remainder across earlier unpaid periods first,
+      -- using the same chronological order as vbgramg_allocate_new_waiver_fifo.
+      FOR v_legacy_period IN
+        SELECT p.id
+        FROM public.vbgramg_periods p
+        WHERE EXISTS (
+          SELECT 1 FROM public.vbgramg_charge_ledger c
+          WHERE c.job_card_number=v_card AND c.period_id=p.id
+            AND c.entry_type IN ('charge','other_charge','sanitationFee')
+            AND COALESCE(c.is_deferred,false)=false
+            AND COALESCE(c.is_voided,false)=false
+            AND NOT (c.entry_type='charge' AND pg_catalog.btrim(COALESCE(c.note,''))='Return')
+        )
+        ORDER BY COALESCE(p.contribution_month,p.period_date) ASC NULLS LAST,
+                 p.created_at ASC,p.id ASC
+      LOOP
+        SELECT COALESCE(pg_catalog.sum(c.amount),0)::numeric(14,2)
+          INTO v_legacy_charges
+        FROM public.vbgramg_charge_ledger c
+        WHERE c.job_card_number=v_card AND c.period_id=v_legacy_period.id
+          AND c.entry_type IN ('charge','other_charge','sanitationFee')
+          AND COALESCE(c.is_deferred,false)=false
+          AND COALESCE(c.is_voided,false)=false
+          AND NOT (c.entry_type='charge' AND pg_catalog.btrim(COALESCE(c.note,''))='Return');
+
+        SELECT COALESCE(pg_catalog.sum(a.amount),0)::numeric(14,2)
+          INTO v_legacy_paid
+        FROM public.vbgramg_payment_allocations a
+        JOIN public.vbgramg_charge_ledger payment ON payment.id=a.transaction_id
+        WHERE a.job_card_number=v_card AND a.period_id=v_legacy_period.id
+          AND payment.entry_type='payment'
+          AND COALESCE(payment.is_voided,false)=false;
+
+        SELECT COALESCE(pg_catalog.sum(w.amount),0)::numeric(14,2)
+          INTO v_legacy_period_waived
+        FROM public.vbgramg_waiver_period_allocations w
+        JOIN public.vbgramg_charge_ledger waiver ON waiver.id=w.waiver_id
+        WHERE w.job_card_number=v_card AND w.period_id=v_legacy_period.id
+          AND waiver.entry_type IN ('charge_waiver','forgive')
+          AND COALESCE(waiver.is_voided,false)=false;
+
+        v_legacy_due := GREATEST(v_legacy_charges-v_legacy_paid-v_legacy_period_waived,0);
+        IF v_legacy_period.id=p_period_id THEN
+          v_legacy_waived_selected := LEAST(v_legacy_waiver_remaining,v_legacy_due);
+          EXIT;
+        END IF;
+        v_legacy_waiver_remaining := GREATEST(v_legacy_waiver_remaining-v_legacy_due,0);
+      END LOOP;
+
+      v_period_waived := v_period_waived+v_legacy_waived_selected;
       v_eligible_charges := GREATEST(v_eligible_charges-v_period_waived,0);
 
       SELECT COALESCE(pg_catalog.sum(a.amount),0)::numeric(14,2)

@@ -4,7 +4,6 @@
 --   PGDATABASE=vbgramg_extra_reconcile_test psql -v ON_ERROR_STOP=1 -f tests/extra-contribution-reconciliation-postgres.sql
 
 \ir ../tests/extra-contribution-charges-postgres.sql
-\ir ../supabase/migrations/20261109130000_reconcile_extra_contribution_charge_edits.sql
 
 CREATE TABLE public.vbgramg_payment_allocations (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -42,6 +41,8 @@ CREATE TABLE public.vbgramg_ledger_audit (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO service_role;
+
+\ir ../supabase/migrations/20261109130000_reconcile_extra_contribution_charge_edits.sql
 
 -- Exercise the same ceiling enforced by the production allocation trigger.
 CREATE FUNCTION public.test_validate_extra_edit_allocation()

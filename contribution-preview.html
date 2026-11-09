@@ -63,6 +63,37 @@ button:disabled{opacity:.45}
  .record:hover{background:#151d24}
 }
 
+
+/* Preview refinement: prioritize financial readability over decoration. */
+body{background-image:none}
+.panel,.topbar,.records,.sheet,.balance,.entry{box-shadow:none}
+.records{background:transparent;border:0}
+.record{border:1px solid var(--line);border-radius:10px;margin-bottom:7px}
+.record:last-child{border-bottom:1px solid var(--line)}
+.record-main .job{color:#aeb8c4}
+.record-main .job b{color:#f5f7fa;font-size:1.04em}
+.record-main .person{color:#e3e8ee}
+.remark .tag{font-weight:650;letter-spacing:.01em}
+.tag.due{background:rgba(255,112,112,.14);color:#ff9999;border:1px solid rgba(255,112,112,.2)}
+.tag.settled{background:rgba(69,214,173,.13);color:#65e0bb;border:1px solid rgba(69,214,173,.2)}
+.tag.deferred{background:rgba(232,189,98,.13);color:#f0ca78;border:1px solid rgba(232,189,98,.2)}
+.tag.overpaid{background:rgba(111,151,255,.14);color:#a6bdff;border:1px solid rgba(111,151,255,.2)}
+.balance{border:1px solid rgba(255,112,112,.22);background:rgba(255,112,112,.055)}
+.balance strong{font-size:clamp(1.8rem,5vw,2.35rem);letter-spacing:-.035em;color:#ffaaaa}
+.entry{border:1px solid var(--line);border-left:3px solid #7d8996}
+.entry.payment{border-left-color:#45d6ad}
+.entry.charge{border-left-color:#7d8996}
+.entry .amount{font-size:1.05rem;font-weight:750;font-variant-numeric:tabular-nums}
+.entry.payment .amount{color:#65e0bb}
+.entry.charge .amount{color:#f0f2f5}
+.ledger-title{font-weight:700;color:#e1e6ec}
+.foot{border-top:1px solid var(--line)}
+@media(max-width:700px){
+ .record{margin-bottom:6px;padding:12px}
+ .remark{gap:5px}
+ .balance{padding:16px}
+}
+
 </style></head>
 <body><main>
 <header class="topbar"><h1>Contribution</h1><p>Track contribution charges, payments and outstanding balances.</p><button class="nav-dot" aria-label="Navigation">⋮</button></header>

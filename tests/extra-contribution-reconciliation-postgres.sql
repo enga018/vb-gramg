@@ -121,14 +121,13 @@ BEGIN
   INSERT INTO public.vbgramg_payment_allocations(transaction_id,period_id,job_card_number,amount,created_at)
   VALUES (v_payment_id,'00000000-0000-0000-0000-000000000001','MZ-ALLOC',100,'2026-11-02 08:00:00')
   RETURNING id INTO v_oldest_allocation;
-  INSERT INTO public.vbgramg_payment_allocations(transaction_id,period_id,job_card_number,amount,created_at)
-  VALUES (gen_random_uuid(),'00000000-0000-0000-0000-000000000001','MZ-ALLOC',200,'2026-11-03 08:00:00')
-  RETURNING id INTO v_newest_allocation;
-  -- The second allocation must refer to a real payment as well.
+  -- A second payment backs the newer allocation.
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,entry_date,note)
   VALUES ('MZ-ALLOC','Allocation Household','payment',200,'2026-11-03','Second payment')
   RETURNING id INTO v_payment_id;
-  UPDATE public.vbgramg_payment_allocations SET transaction_id=v_payment_id WHERE id=v_newest_allocation;
+  INSERT INTO public.vbgramg_payment_allocations(transaction_id,period_id,job_card_number,amount,created_at)
+  VALUES (v_payment_id,'00000000-0000-0000-0000-000000000001','MZ-ALLOC',200,'2026-11-03 08:00:00')
+  RETURNING id INTO v_newest_allocation;
 
   v_result:=public.vbgramg_save_contribution_extra(
     'MZ-ALLOC','2026-11-01','00000000-0000-0000-0000-000000000001',100,

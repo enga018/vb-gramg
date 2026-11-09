@@ -91,7 +91,7 @@ BEFORE INSERT OR UPDATE ON public.vbgramg_payment_allocations
 FOR EACH ROW EXECUTE FUNCTION public.test_validate_extra_edit_allocation();
 
 INSERT INTO public.vbgramg_contribution_citizens(job_card_number,person_name)
-VALUES ('MZ-ALLOC','Allocation Household'),('MZ-NO-EXCESS','No Excess Household'),('MZ-WAIVER','Waiver Household');
+VALUES ('MZ-ALLOC','Allocation Household'),('MZ-NO-EXCESS','No Excess Household'),('MZ-WAIVER','Waiver Household'),('MZ-LEGACY','Legacy Waiver Household');
 
 DO $$
 DECLARE
@@ -205,6 +205,43 @@ BEGIN
   SELECT sum(amount) INTO v_total FROM public.vbgramg_payment_allocations
   WHERE job_card_number='MZ-WAIVER' AND period_id='00000000-0000-0000-0000-000000000001';
   IF v_total<>100 THEN RAISE EXCEPTION 'Waiver-adjusted allocation should be 100, got %',v_total; END IF;
-END $$;
+
+  -- Scenario 4: historical waiver ledger rows have no period-allocation rows.
+  -- The older period is fully paid, so its 80 legacy waiver remainder must flow
+  -- FIFO into November and reduce the November allocation ceiling from 150 to 70.
+  INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
+  VALUES ('MZ-LEGACY','Legacy Waiver Household','charge',100,'2026-10-01','00000000-0000-0000-0000-000000000003','2026-10-01','Older period charge');
+  INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,entry_date,note)
+  VALUES ('MZ-LEGACY','Legacy Waiver Household','payment',100,'2026-10-02','Older period payment')
+  RETURNING id INTO v_payment_id;
+  INSERT INTO public.vbgramg_payment_allocations(transaction_id,period_id,job_card_number,amount)
+  VALUES (v_payment_id,'00000000-0000-0000-0000-000000000003','MZ-LEGACY',100);
+
+  INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,entry_date,note)
+  VALUES ('MZ-LEGACY','Legacy Waiver Household','charge_waiver',80,'2026-10-03','Historical unallocated waiver');
+
+  INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
+  VALUES ('MZ-LEGACY','Legacy Waiver Household','charge',100,'2026-11-01','00000000-0000-0000-0000-000000000001','2026-11-01','November base charge');
+  v_result:=public.vbgramg_save_contribution_extra(
+    'MZ-LEGACY','2026-11-01','00000000-0000-0000-0000-000000000001',100,
+    'Extra charge before legacy waiver edit','2026-11-07',gen_random_uuid());
+  IF NOT (v_result->>'ok')::boolean THEN RAISE EXCEPTION 'Could not create legacy waiver extra: %',v_result; END IF;
+
+  INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,entry_date,note)
+  VALUES ('MZ-LEGACY','Legacy Waiver Household','payment',150,'2026-11-05','November payment')
+  RETURNING id INTO v_payment_id;
+  INSERT INTO public.vbgramg_payment_allocations(transaction_id,period_id,job_card_number,amount)
+  VALUES (v_payment_id,'00000000-0000-0000-0000-000000000001','MZ-LEGACY',150);
+
+  v_result:=public.vbgramg_save_contribution_extra(
+    'MZ-LEGACY','2026-11-01','00000000-0000-0000-0000-000000000001',50,
+    'Reduced extra charge with historical waiver','2026-11-08',gen_random_uuid());
+  IF NOT (v_result->>'ok')::boolean OR (v_result->>'released_allocation_amount')::numeric<>80 THEN
+    RAISE EXCEPTION 'Historical FIFO waiver should release 80 from November allocation: %',v_result;
+  END IF;
+  SELECT sum(amount) INTO v_total FROM public.vbgramg_payment_allocations
+  WHERE job_card_number='MZ-LEGACY' AND period_id='00000000-0000-0000-0000-000000000001';
+  IF v_total<>70 THEN RAISE EXCEPTION 'Historical waiver-adjusted allocation should be 70, got %',v_total; END IF;
+END $;
 
 SELECT 'extra contribution allocation reconciliation tests passed' AS result;

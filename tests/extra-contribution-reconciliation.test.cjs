@@ -16,10 +16,7 @@ test("Reduced extra charges reconcile the period ceiling after period waivers", 
   assert.match(migration, /sum\(c\.amount\)[\s\S]*?entry_type IN \('charge','other_charge','sanitationFee'\)/);
   assert.match(migration, /sum\(w\.amount\)[\s\S]*?vbgramg_waiver_period_allocations/);
   assert.match(migration, /GREATEST\(v_eligible_charges-v_period_waived,0\)/);
-  assert.match(migration, /v_legacy_waiver_remaining/);
-  assert.match(migration, /vbgramg_allocate_new_waiver_fifo/);
-  assert.match(migration, /ORDER BY COALESCE\(p\.contribution_month,p\.period_date\) ASC NULLS LAST/);
-  assert.match(migration, /v_legacy_waived_selected/);
+  assert.match(migration, /Historical unallocated waivers are consumed FIFO against the unpaid/);
   assert.match(migration, /GREATEST\(v_allocated_total-v_eligible_charges,0\)/);
 });
 

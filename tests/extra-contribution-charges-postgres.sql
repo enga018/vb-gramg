@@ -38,7 +38,7 @@ GRANT USAGE ON SCHEMA public TO service_role;
 GRANT SELECT,INSERT,UPDATE ON ALL TABLES IN SCHEMA public TO service_role;
 \ir ../supabase/migrations/20261107140000_atomic_extra_contribution_charges.sql
 
-INSERT INTO public.vbgramg_periods VALUES
+INSERT INTO public.vbgramg_periods (id,period_name,period_date,contribution_month,status) VALUES
  ('00000000-0000-0000-0000-000000000001','NOV26','2026-11-01','2026-11-01','open'),
  ('00000000-0000-0000-0000-000000000002','NOV26(2)','2026-11-01','2026-11-01','closed'),
  ('00000000-0000-0000-0000-000000000003','OCT26','2026-10-01','2026-10-01','open');

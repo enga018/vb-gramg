@@ -30,6 +30,7 @@ DECLARE
   v_released_total numeric(14,2) := 0;
   v_release_count integer := 0;
   v_payment record;
+  v_lock record;
   v_allocation public.vbgramg_payment_allocations%ROWTYPE;
   v_released_allocations jsonb := '[]'::jsonb;
 BEGIN
@@ -58,6 +59,27 @@ BEGIN
   PERFORM pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended('vbgramg-contribution:'||v_card,0)
   );
+
+  -- Acquire the same complete period-lock set in UUID order as the FIFO allocator.
+  -- Including the selected round also covers legacy deferred rows being restored.
+  FOR v_lock IN
+    SELECT p.id
+    FROM public.vbgramg_periods p
+    WHERE p.id=p_period_id
+       OR EXISTS (
+         SELECT 1 FROM public.vbgramg_charge_ledger c
+         WHERE c.job_card_number=v_card AND c.period_id=p.id
+           AND c.entry_type IN ('charge','other_charge','sanitationFee')
+           AND COALESCE(c.is_deferred,false)=false
+           AND COALESCE(c.is_voided,false)=false
+       )
+    ORDER BY p.id
+  LOOP
+    PERFORM pg_catalog.pg_advisory_xact_lock(
+      pg_catalog.hashtextextended('contribution:'||v_card||':'||v_lock.id::text,0)
+    );
+  END LOOP;
+
   IF EXISTS (SELECT 1 FROM public.vbgramg_contribution_exemptions e
              WHERE pg_catalog.btrim(e.job_card_number)=v_card) THEN
     RETURN pg_catalog.jsonb_build_object('ok',false,'status',409,
@@ -97,11 +119,6 @@ BEGIN
   v_note := pg_catalog.left('FTO EXTRA: '||v_reason,200);
 
   IF v_updated AND v_old.ledger_entry_id IS NOT NULL THEN
-    -- Updates must serialize against allocations for this specific round. New
-    -- inserts leave period locking to the existing multi-period FIFO allocator.
-    PERFORM pg_catalog.pg_advisory_xact_lock(
-      pg_catalog.hashtextextended('contribution:'||v_card||':'||p_period_id::text,0)
-    );
     SELECT * INTO v_entry FROM public.vbgramg_charge_ledger
     WHERE id=v_old.ledger_entry_id FOR UPDATE;
     IF FOUND THEN

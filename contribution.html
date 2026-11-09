@@ -1159,7 +1159,8 @@ async function showExtraChargeAudit(append=false){
   else{const button=$("loadMoreAudit");if(button){button.disabled=false;button.textContent="Retry loading older entries";}status(err.message||"Could not load older audit records.","error");}
  }
 }
-\nfunction renderExemptions(){
+
+function renderExemptions(){
  const host=$('exemptionList');if(!host)return;
  if(!exemptions.length){host.innerHTML='<div class="empty">No exempt job cards added.</div>';return;}
  host.innerHTML=exemptions.map(x=>'<div class="entry"><div class="desc"><b>'+esc(x.job_card_number)+'</b>'+(x.note?'<small>'+esc(x.note)+'</small>':'')+'</div><button class="btn ghost small" type="button" data-remove-exemption="'+esc(x.job_card_number)+'">Remove exemption</button></div>').join('');
@@ -1751,7 +1752,8 @@ $('bulkPaymentBtn').addEventListener('click',showBulkPaymentForm);
 
 
 
-$('manageExemptionsBtn').addEventListener('click',showExemptionsForm);\n$('auditHistoryBtn').addEventListener('click',()=>showExtraChargeAudit(false));
+$('manageExemptionsBtn').addEventListener('click',showExemptionsForm);
+$('auditHistoryBtn').addEventListener('click',()=>showExtraChargeAudit(false));
 $('toggleEditMode').addEventListener('click',()=>{
  const sheet=document.querySelector('.sheet');
  if(!sheet)return;

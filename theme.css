@@ -813,3 +813,37 @@
     border-color: #3a4652 !important;
   }
 }
+
+
+/* Final override for Contribution's legacy page-local white panel rules.
+   These selectors intentionally outrank the embedded page CSS in dark mode. */
+@media screen and (prefers-color-scheme: dark) {
+  body:has(#contribution-table) > main > #app > #contribution-layout > section.panel.contribution-main-panel,
+  body:has(#contribution-table) #contribution-layout > .panel.contribution-main-panel {
+    color: #edf2f7 !important;
+    background: #171e25 !important;
+    border: 1px solid #303b46 !important;
+    box-shadow: none !important;
+  }
+
+  body:has(#contribution-table) .contribution-main-panel .stat,
+  body:has(#contribution-table) .contribution-main-panel .contribution-controls > .stat,
+  body:has(#contribution-table) .contribution-main-panel .kpi-row .stat {
+    color: #edf2f7 !important;
+    background: #1d252e !important;
+    border-color: #303b46 !important;
+    box-shadow: none !important;
+  }
+
+  body:has(#contribution-table) .contribution-main-panel .stat .k,
+  body:has(#contribution-table) .contribution-main-panel .stat .v {
+    color: #edf2f7 !important;
+  }
+
+  body:has(#contribution-table) .contribution-main-panel .search-wrap,
+  body:has(#contribution-table) .contribution-main-panel .filter-control,
+  body:has(#contribution-table) .contribution-main-panel .toolbar {
+    color: #edf2f7 !important;
+    background: transparent !important;
+  }
+}

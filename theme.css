@@ -729,3 +729,47 @@
     border-color: #3a4652 !important;
   }
 }
+
+
+/* Contribution loading UI and shared toast are injected/page-local surfaces.
+   Keep both readable and charcoal while the ledger is being fetched. */
+@media screen and (prefers-color-scheme: dark) {
+  body:has(#contribution-table) > main > .contribution-loading,
+  body:has(#contribution-table) > main > #status:not(.hidden) {
+    color: #e7edf3 !important;
+    background: #171e25 !important;
+    border-color: #303b46 !important;
+    box-shadow: none !important;
+  }
+
+  body:has(#contribution-table) > main > .contribution-loading .loading-spinner {
+    border-color: #394653 !important;
+    border-top-color: #8ab4ff !important;
+  }
+
+  body:has(#contribution-table) #app-toast,
+  body:has(#contribution-table) #app-toast.info {
+    color: #e7edf3 !important;
+    background: #202b36 !important;
+    border-color: #405064 !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,.4) !important;
+  }
+
+  body:has(#contribution-table) #app-toast.success {
+    color: #a7f0c8 !important;
+    background: #15372d !important;
+    border-color: #285a49 !important;
+  }
+
+  body:has(#contribution-table) #app-toast.error {
+    color: #ffaaa5 !important;
+    background: #3b2223 !important;
+    border-color: #684044 !important;
+  }
+
+  body:has(#contribution-table) #app-toast.warning {
+    color: #f2cd7d !important;
+    background: #3a3020 !important;
+    border-color: #66502a !important;
+  }
+}

@@ -1,8 +1,10 @@
 /* VBGRAMG automatic device theme.
    Light remains the default. Dark styles apply only when the OS/browser requests dark mode. */
 @media screen and (prefers-color-scheme: dark) {
+  html {
+    color-scheme: dark !important;
+  }
   :root {
-    color-scheme: dark;
     --ink: #f3f5f7;
     --muted: #9aa4b2;
     --line: rgba(255,255,255,.10);
@@ -618,6 +620,10 @@
   }
 
   /* Common page-level surfaces used across the app. */
+  .panel, .topbar, .module, .sidebar, .stat, .paste-box,
+  .status:not(.error):not(.success), .notice:not(.err):not(.warn),
+  .panel, .topbar, .module, .sidebar, .stat, .paste-box,
+  .status:not(.error):not(.success), .notice:not(.err):not(.warn),
   .card, .content-card, .section, .section-card, .form-card,
   .summary-card, .kpi-card, .info-card, .list-card, .row-card,
   .filter-card, .toolbar-card, .table-card, .data-card,

@@ -8,7 +8,7 @@ END $$;
 
 CREATE TABLE public.vbgramg_periods (
   id uuid PRIMARY KEY, period_name text NOT NULL, period_date date,
-  contribution_month date, status text DEFAULT 'open'
+  contribution_month date, status text DEFAULT 'open', created_at timestamptz DEFAULT now()
 );
 CREATE TABLE public.vbgramg_contribution_exemptions (job_card_number text PRIMARY KEY,note text);
 CREATE TABLE public.vbgramg_contribution_citizens (job_card_number text PRIMARY KEY,person_name text NOT NULL);

@@ -205,6 +205,6 @@ BEGIN
   SELECT sum(amount) INTO v_total FROM public.vbgramg_payment_allocations
   WHERE job_card_number='MZ-WAIVER' AND period_id='00000000-0000-0000-0000-000000000001';
   IF v_total<>100 THEN RAISE EXCEPTION 'Waiver-adjusted allocation should be 100, got %',v_total; END IF;
-END $;
+END $$;
 
 SELECT 'extra contribution allocation reconciliation tests passed' AS result;

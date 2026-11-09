@@ -454,3 +454,145 @@
     border-color: #3a4652 !important;
   }
 }
+
+
+/* Contribution page: align the list and surrounding workspace with the
+   charcoal ledger-transaction design. The transaction-history sheet itself
+   is deliberately left unchanged. */
+@media screen and (prefers-color-scheme: dark) {
+  body:has(#contribution-table) .app-header,
+  body:has(#contribution-table) .topbar,
+  body:has(#contribution-table) .panel,
+  body:has(#contribution-table) .kpi-row,
+  body:has(#contribution-table) .table-foot {
+    color: #e7edf3 !important;
+    background: #171e25 !important;
+    border-color: #303b46 !important;
+    box-shadow: none !important;
+  }
+
+  body:has(#contribution-table) .app-header .brand h1,
+  body:has(#contribution-table) .topbar .brand h1,
+  body:has(#contribution-table) .panel h2,
+  body:has(#contribution-table) .panel h3 {
+    color: #e7edf3 !important;
+  }
+
+  body:has(#contribution-table) .table-wrap {
+    background: #171e25 !important;
+    border: 1px solid #303b46 !important;
+    border-radius: 12px !important;
+    box-shadow: none !important;
+  }
+
+  body:has(#contribution-table) #contribution-table thead th {
+    color: #aeb9c5 !important;
+    background: #1d252e !important;
+    border-color: #303b46 !important;
+  }
+
+  body:has(#contribution-table) #contribution-table tbody tr.contribution-row,
+  body:has(#contribution-table) #contribution-table tbody tr.contribution-row td {
+    color: #e7edf3 !important;
+    background: #1d252e !important;
+    border-color: #303b46 !important;
+  }
+
+  body:has(#contribution-table) #contribution-table tbody tr.contribution-row:nth-child(even),
+  body:has(#contribution-table) #contribution-table tbody tr.contribution-row:nth-child(even) td {
+    background: #202a34 !important;
+  }
+
+  body:has(#contribution-table) #contribution-table tbody tr.contribution-row:hover,
+  body:has(#contribution-table) #contribution-table tbody tr.contribution-row:hover td {
+    background: #26323d !important;
+  }
+
+  body:has(#contribution-table) #contribution-table tbody tr.contribution-row.selected,
+  body:has(#contribution-table) #contribution-table tbody tr.contribution-row.selected td {
+    background: #203b35 !important;
+  }
+
+  body:has(#contribution-table) #contribution-table td.jobcard,
+  body:has(#contribution-table) #contribution-table td.person,
+  body:has(#contribution-table) #contribution-table .mobile-jobcard-line,
+  body:has(#contribution-table) #contribution-table .mobile-jobcard-line .suffix,
+  body:has(#contribution-table) #contribution-table .mobile-person-inline {
+    color: #e7edf3 !important;
+  }
+
+  body:has(#contribution-table) #contribution-table .mobile-charge-line,
+  body:has(#contribution-table) #contribution-table .muted,
+  body:has(#contribution-table) .table-foot,
+  body:has(#contribution-table) .table-foot .muted {
+    color: #aab5c2 !important;
+  }
+
+  body:has(#contribution-table) .stat,
+  body:has(#contribution-table) .stats .stat {
+    color: #e7edf3 !important;
+    background: #1d252e !important;
+    border-color: #303b46 !important;
+  }
+
+  body:has(#contribution-table) .stat .k {
+    color: #aab5c2 !important;
+  }
+
+  body:has(#contribution-table) .stat .v {
+    color: #e7edf3 !important;
+  }
+
+  body:has(#contribution-table) .stat .v.due,
+  body:has(#contribution-table) .stat .v.outstanding {
+    color: #ff9999 !important;
+  }
+
+  body:has(#contribution-table) .stat .v.deferred,
+  body:has(#contribution-table) .stat .v.partial {
+    color: #f0ca78 !important;
+  }
+
+  body:has(#contribution-table) #contribution-table .row-status.settled,
+  body:has(#contribution-table) #contribution-table .badge.paid {
+    color: #75e0b7 !important;
+    background: #15372d !important;
+    border-color: #285a49 !important;
+  }
+
+  body:has(#contribution-table) #contribution-table .row-status.deferred,
+  body:has(#contribution-table) #contribution-table .badge.partial {
+    color: #f2cd7d !important;
+    background: #3a3020 !important;
+    border-color: #66502a !important;
+  }
+
+  body:has(#contribution-table) #contribution-table .row-status.due,
+  body:has(#contribution-table) #contribution-table .badge.due {
+    color: #ffaaa5 !important;
+    background: #3b2223 !important;
+    border-color: #684044 !important;
+  }
+
+  body:has(#contribution-table) #contribution-table .row-status.overpaid,
+  body:has(#contribution-table) #contribution-table .badge.overpaid {
+    color: #a9c3ff !important;
+    background: #202e49 !important;
+    border-color: #3c527b !important;
+  }
+
+  body:has(#contribution-table) .toolbar input,
+  body:has(#contribution-table) .toolbar select,
+  body:has(#contribution-table) .filter-control select {
+    color: #e7edf3 !important;
+    background: #10161c !important;
+    border-color: #394653 !important;
+  }
+
+  body:has(#contribution-table) .kpi-actions .btn.secondary,
+  body:has(#contribution-table) .kpi-actions button.secondary {
+    color: #dce5ee !important;
+    background: #252f39 !important;
+    border-color: #3a4652 !important;
+  }
+}

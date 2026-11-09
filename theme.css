@@ -183,3 +183,162 @@
   .fto-import-modal iframe { background: #0b0d10; }
   .hidden { color: inherit; }
 }
+
+
+/* Component-level dark palette corrections.
+   Keep data/status meaning intact while preventing light surfaces and dark text
+   from leaking through page-specific component rules. */
+@media screen and (prefers-color-scheme: dark) {
+  :root {
+    --surface: #171d24;
+    --surface-soft: #1d252e;
+    --soft: #1d252e;
+    --line: #303a45;
+    --ink: #edf2f7;
+    --muted: #aab5c2;
+  }
+
+  /* Shared page chrome and nested content surfaces */
+  .topbar, .panel, .stat, .metric, .table-wrap,
+  .login-card, .history-section, .fto-card,
+  .fto-transaction-mobile-card, .applicant-review,
+  .applicant-review-table-wrap, .period-modal,
+  .period-modal-content, .confirm-content,
+  .sheet, .modal, dialog {
+    color: #edf2f7 !important;
+    background: #171d24 !important;
+    border-color: #303a45 !important;
+    box-shadow: none !important;
+  }
+
+  /* Tables, MIS job cards, contribution rows and FTO history cards */
+  table, tbody, .jobcard-row, .contribution-row, .fto-card,
+  .applicant-detail td, .applicant-detail table,
+  .fto-transaction-mobile-card {
+    color: #edf2f7 !important;
+    background: #171d24 !important;
+  }
+  tbody tr:nth-child(even), .applicant-detail tbody tr:nth-child(even) {
+    background: #1c242d !important;
+  }
+  .jobcard-row:hover, .jobcard-row:active,
+  .contribution-row:hover, .fto-card:hover,
+  .applicant-detail tbody tr:hover {
+    background: #25313c !important;
+  }
+  .jobcard-row.has-selection,
+  .jobcard-row[aria-expanded="true"],
+  #contribution-table tbody tr.selected {
+    background: #18352f !important;
+  }
+  .jobcard-row.no-selection { background: #211f1a !important; }
+
+  th, thead th, .applicant-detail th {
+    color: #dbe4ee !important;
+    background: #202a34 !important;
+    border-color: #303a45 !important;
+  }
+  td, th, .applicant-detail td, .fto-card {
+    border-color: #303a45 !important;
+  }
+
+  /* Identity text was explicitly hard-coded dark in mobile layouts. */
+  .mobile-jobcard-line, .mobile-jobcard-line .suffix,
+  .mobile-jobcard-number, .mobile-jobcard-household,
+  #mis-table .mobile-jobcard-number,
+  #mis-table .mobile-jobcard-household,
+  .desktop-jobcard-cell, .desktop-household-cell,
+  .fto-number, .card-main, .card-main strong,
+  .fto-transaction-mobile-card strong,
+  .fto-transaction-mobile-card .tx-name {
+    color: #edf2f7 !important;
+  }
+  .fto-transaction-mobile-card .tx-meta,
+  .card-side, .header-actions-label {
+    color: #aab5c2 !important;
+  }
+
+  /* Form controls and native select option menus */
+  input, select, textarea, .field input, .field select,
+  .toolbar input, .toolbar select, .filter-control select,
+  #periodSelect, #days, .desktop-applicant-dropdown {
+    color: #edf2f7 !important;
+    background: #10161c !important;
+    border-color: #394653 !important;
+  }
+  select option {
+    color: #edf2f7;
+    background: #171d24;
+  }
+  label, .field label, .filter-control label {
+    color: #d6dee8 !important;
+  }
+  input::placeholder, textarea::placeholder {
+    color: #8794a3 !important;
+  }
+
+  /* Keep primary actions distinct; secondary actions remain neutral. */
+  button:not(.secondary):not(.ghost):not(.x):not(:disabled),
+  .btn:not(.ghost):not(.secondary):not(:disabled),
+  .link-button:not(.secondary):not(:disabled) {
+    color: #f7fafc !important;
+    background: #245c50 !important;
+    border-color: #347765 !important;
+  }
+  button:not(.secondary):not(.ghost):not(.x):not(:disabled):hover,
+  .btn:not(.ghost):not(.secondary):not(:disabled):hover {
+    background: #2d705f !important;
+  }
+  button.secondary, button.ghost, .btn.ghost, .btn.secondary,
+  .link-button.secondary {
+    color: #dce5ee !important;
+    background: #252f39 !important;
+    border-color: #3a4652 !important;
+  }
+
+  /* Semantic status colors */
+  .status.success, .notice.success,
+  .badge.paid, .row-status.settled, .tag.settled,
+  .mobile-selection-status.is-selected {
+    color: #75e0b7 !important;
+    background: #15372d !important;
+    border-color: #285a49 !important;
+  }
+  .status.error, .notice.err, .notice.error,
+  .badge.due, .row-status.due, .tag.due,
+  .mobile-selection-status.is-unselected {
+    color: #ffaaa5 !important;
+    background: #3b2223 !important;
+    border-color: #684044 !important;
+  }
+  .badge.partial, .row-status.deferred, .tag.deferred {
+    color: #f2cd7d !important;
+    background: #3a3020 !important;
+    border-color: #66502a !important;
+  }
+  .row-status.overpaid, .tag.overpaid {
+    color: #a9c3ff !important;
+    background: #202e49 !important;
+    border-color: #3c527b !important;
+  }
+  .desktop-applicant-dropdown.no-applicant-selected {
+    color: #f2cd7d !important;
+    background: #3a3020 !important;
+    border-color: #66502a !important;
+  }
+
+  .overlay { background: rgba(0,0,0,.76) !important; }
+  .sheet-head, .sheet-footer, .fto-import-modal-head {
+    color: #edf2f7 !important;
+    background: #1d252e !important;
+    border-color: #303a45 !important;
+  }
+  .entry, .citizen, .record, .balance, .confirm-summary {
+    color: #edf2f7 !important;
+    background: #1d252e !important;
+    border-color: #303a45 !important;
+  }
+  .entry small, .muted, .sub, .meta, .count {
+    color: #aab5c2 !important;
+  }
+}

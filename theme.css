@@ -405,3 +405,52 @@
     background: #3b2223 !important;
   }
 }
+
+
+/* Final mobile-specific corrections for Contribution and Periods.
+   These selectors intentionally outrank page-local inline stylesheet rules. */
+@media screen and (prefers-color-scheme: dark) and (max-width: 767px) {
+  /* Contribution's mobile table cells are explicitly painted white in-page. */
+  #table-wrap.table-wrap #contribution-table tbody tr.contribution-row,
+  #table-wrap.table-wrap #contribution-table tbody tr.contribution-row td,
+  #table-wrap.table-wrap #contribution-table tbody tr.contribution-row td.mobile-details {
+    color: #edf2f7 !important;
+    background: #1b232c !important;
+    border-color: #35414d !important;
+  }
+  #table-wrap.table-wrap #contribution-table tbody tr.contribution-row td.mobile-details {
+    background: #1b232c !important;
+    box-shadow: inset 0 0 0 1px #35414d !important;
+  }
+  #table-wrap.table-wrap #contribution-table .mobile-jobcard-line,
+  #table-wrap.table-wrap #contribution-table .mobile-jobcard-line .suffix,
+  #table-wrap.table-wrap #contribution-table .mobile-person-inline,
+  #table-wrap.table-wrap #contribution-table .jobcard,
+  #table-wrap.table-wrap #contribution-table .person {
+    color: #edf2f7 !important;
+  }
+  #table-wrap.table-wrap #contribution-table .mobile-charge-line,
+  #table-wrap.table-wrap #contribution-table .muted {
+    color: #aab5c2 !important;
+  }
+
+  /* Periods page builds each mobile period as a custom grid row. */
+  #period-body tr:not(:has(.empty)),
+  #period-body tr:not(:has(.empty)) td,
+  #period-body tr:not(:has(.empty)) td[data-label="Period"] {
+    color: #edf2f7 !important;
+    background: #1b232c !important;
+    border-color: #35414d !important;
+  }
+  #period-body tr:not(:has(.empty)) td[data-label="Period"] {
+    color: #edf2f7 !important;
+  }
+  #period-body .period-mobile-meta {
+    color: #aab5c2 !important;
+  }
+  #period-body tr:not(:has(.empty)) .row-actions button[data-action="delete"] {
+    color: #dce5ee !important;
+    background: #252f39 !important;
+    border-color: #3a4652 !important;
+  }
+}

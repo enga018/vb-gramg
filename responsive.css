@@ -119,3 +119,41 @@ body.has-global-sidebar{padding-right:252px!important;box-sizing:border-box}
  body>main{width:100%;max-width:100%}
 }
 @media(prefers-reduced-motion:reduce){.global-sidebar{transition:none}}
+
+
+/* Automatic dark theme for the shared workspace sidebar and navigation drawer. */
+@media (prefers-color-scheme: dark) {
+  .global-sidebar {
+    color: #e7edf3 !important;
+    background: #171e25 !important;
+    border-color: #303b46 !important;
+    box-shadow: -12px 0 35px rgba(0,0,0,.42) !important;
+  }
+  .global-sidebar-brand strong { color: #edf2f7 !important; }
+  .global-sidebar-brand small,
+  .global-sidebar-label { color: #9aa8b8 !important; }
+  .global-sidebar-link {
+    color: #c3ccd6 !important;
+    background: transparent !important;
+  }
+  .global-sidebar-link:hover {
+    color: #f1f5f9 !important;
+    background: #25313d !important;
+  }
+  .global-sidebar-link.is-current {
+    color: #a9c7ff !important;
+    background: #263b55 !important;
+  }
+  .global-sidebar-icon { color: inherit !important; }
+  .global-sidebar-mark {
+    color: #fff !important;
+    background: #315f9f !important;
+    box-shadow: none !important;
+  }
+  .global-sidebar-toggle {
+    color: #e7edf3 !important;
+    background: #252f39 !important;
+    border-color: #3a4652 !important;
+  }
+  .global-sidebar-overlay.is-visible { background: rgba(0,0,0,.68) !important; }
+}

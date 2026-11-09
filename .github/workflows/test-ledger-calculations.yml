@@ -39,6 +39,8 @@ on:
       - "supabase/migrations/20261108190000_period_linked_new_waivers.sql"
       - "tests/new-waiver-period-allocation-postgres.sql"
       - "tests/new-waiver-period-allocation.test.cjs"
+      - "tests/voided-payment-allocation-safeguards.test.cjs"
+      - "supabase/migrations/20261109100000_ignore_voided_payment_allocations.sql"
       - "js/data-loader.js"
       - ".github/workflows/test-ledger-calculations.yml"
   push:
@@ -69,6 +71,8 @@ jobs:
         run: node --test tests/auto-allocate-unallocated-payments.test.cjs
       - name: Run new waiver allocation static tests
         run: node --test tests/new-waiver-period-allocation.test.cjs
+      - name: Run voided payment allocation safeguard tests
+        run: node --test tests/voided-payment-allocation-safeguards.test.cjs
       - name: Run Work Demand period requirement tests
         run: node --test tests/work-demand-requires-existing-period.test.cjs
       - name: Set up Deno

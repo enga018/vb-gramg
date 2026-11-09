@@ -5,27 +5,27 @@ DECLARE
   v_fifo text;
   v_replace text;
   v_old_fifo text := $old$
-payment_ids AS (
-  SELECT id FROM card_ledger WHERE entry_type = 'payment'
-),
+  payment_ids AS (
+    SELECT id FROM card_ledger WHERE entry_type = 'payment'
+  ),
 $old$;
   v_new_fifo text := $new$
-payment_ids AS (
-  SELECT id FROM card_ledger
-  WHERE entry_type = 'payment'
-    AND NOT COALESCE(is_voided, false)
-),
+  payment_ids AS (
+    SELECT id FROM card_ledger
+    WHERE entry_type = 'payment'
+      AND NOT COALESCE(is_voided, false)
+  ),
 $new$;
   v_old_replace text := $old$
-IF NOT FOUND OR tx.entry_type <> 'payment' OR tx.job_card_number IS DISTINCT FROM v_card THEN
-    RAISE EXCEPTION 'Valid payment transaction required';
+  IF NOT FOUND OR tx.entry_type <> 'payment' OR tx.job_card_number IS DISTINCT FROM v_card THEN
+      RAISE EXCEPTION 'Valid payment transaction required';
   END IF;
 $old$;
   v_new_replace text := $new$
-IF NOT FOUND OR tx.entry_type <> 'payment'
-     OR tx.job_card_number IS DISTINCT FROM v_card
-     OR COALESCE(tx.is_voided, false) THEN
-    RAISE EXCEPTION 'Valid active payment transaction required';
+  IF NOT FOUND OR tx.entry_type <> 'payment'
+       OR tx.job_card_number IS DISTINCT FROM v_card
+       OR COALESCE(tx.is_voided, false) THEN
+      RAISE EXCEPTION 'Valid active payment transaction required';
   END IF;
 $new$;
 BEGIN

@@ -1,17 +1,19 @@
 -- Harden the authoritative FIFO read and payment-allocation replacement path.
--- Match only the expected SQL predicates while tolerating formatter indentation.
+-- Match the payment_ids CTE across SQL formatter whitespace without depending
+-- on whether SELECT/FROM/WHERE are emitted on one line or several.
 DO $migration$
 DECLARE
   v_fifo text;
   v_fifo_before text;
   v_replace text;
   v_replace_before text;
-  v_fifo_pattern text := 'payment_ids AS \([[:space:]]+SELECT id FROM card_ledger WHERE entry_type = ''payment''[[:space:]]+\),';
+  v_fifo_pattern text := 'payment_ids AS \([[:space:]]*SELECT[[:space:]]+id[[:space:]]+FROM[[:space:]]+card_ledger[[:space:]]+WHERE[[:space:]]+entry_type[[:space:]]*=[[:space:]]*''payment''[[:space:]]*\)';
   v_fifo_replacement text := 'payment_ids AS (
-    SELECT id FROM card_ledger
+    SELECT id
+    FROM card_ledger
     WHERE entry_type = ''payment''
       AND NOT COALESCE(is_voided, false)
-  ),';
+  )';
   v_replace_pattern text := 'IF NOT FOUND OR tx\.entry_type <> ''payment'' OR tx\.job_card_number IS DISTINCT FROM v_card THEN[[:space:]]+RAISE EXCEPTION ''Valid payment transaction required'';[[:space:]]+END IF;';
   v_replace_replacement text := 'IF NOT FOUND OR tx.entry_type <> ''payment''
        OR tx.job_card_number IS DISTINCT FROM v_card

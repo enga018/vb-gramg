@@ -29,7 +29,7 @@ test("Allocation releases retain FIFO order and release only the exact excess", 
 
 test("Allocation writes follow period, payment, allocation lock order", () => {
   assert.match(migration, /Lock payment rows before allocation rows/);
-  assert.match(migration, /FOR UPDATE OF payment/);
+  assert.match(migration, /ORDER BY payment\.id[\s\S]*?FOR UPDATE/);
   assert.match(migration, /FOR UPDATE OF a/);
 });
 

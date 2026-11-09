@@ -982,6 +982,20 @@
 }
 
 
+/* MIS mobile table: keep every job-card row on the same charcoal surface.
+   Selection meaning remains visible only in the green/red applicant status. */
+@media screen and (prefers-color-scheme: dark) and (max-width: 767px) {
+  body:has(#mis-table) #mis-table tr.jobcard-row,
+  body:has(#mis-table) #mis-table tr.jobcard-row.has-selection,
+  body:has(#mis-table) #mis-table tr.jobcard-row.no-selection,
+  body:has(#mis-table) #mis-table tr.jobcard-row[aria-expanded="true"],
+  body:has(#mis-table) #mis-table tr.jobcard-row > td {
+    color: #e7edf3 !important;
+    background: #1b232c !important;
+    border-color: #35414d !important;
+  }
+}
+
 /* MIS mobile applicant expansion: the picker row and its label have
    page-local light backgrounds, so override them explicitly in dark mode. */
 @media screen and (prefers-color-scheme: dark) and (max-width: 767px) {

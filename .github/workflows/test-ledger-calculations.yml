@@ -145,5 +145,9 @@ jobs:
         run: |
           createdb vbgramg_new_waiver_test
           PGDATABASE=vbgramg_new_waiver_test psql -v ON_ERROR_STOP=1 -f tests/new-waiver-period-allocation-postgres.sql
+      - name: Run voided payment safeguard PostgreSQL tests
+        run: |
+          createdb vbgramg_voided_payment_test
+          PGDATABASE=vbgramg_voided_payment_test psql -v ON_ERROR_STOP=1 -f tests/voided-payment-allocation-safeguards-postgres.sql
       - name: Verify per-job-card advisory lock serializes concurrent writes
         run: bash tests/atomic-contribution-writes-concurrency.sh

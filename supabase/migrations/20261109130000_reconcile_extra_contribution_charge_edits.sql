@@ -58,10 +58,6 @@ BEGIN
   PERFORM pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended('vbgramg-contribution:'||v_card,0)
   );
-  PERFORM pg_catalog.pg_advisory_xact_lock(
-    pg_catalog.hashtextextended('contribution:'||v_card||':'||p_period_id::text,0)
-  );
-
   IF EXISTS (SELECT 1 FROM public.vbgramg_contribution_exemptions e
              WHERE pg_catalog.btrim(e.job_card_number)=v_card) THEN
     RETURN pg_catalog.jsonb_build_object('ok',false,'status',409,
@@ -101,6 +97,11 @@ BEGIN
   v_note := pg_catalog.left('FTO EXTRA: '||v_reason,200);
 
   IF v_updated AND v_old.ledger_entry_id IS NOT NULL THEN
+    -- Updates must serialize against allocations for this specific round. New
+    -- inserts leave period locking to the existing multi-period FIFO allocator.
+    PERFORM pg_catalog.pg_advisory_xact_lock(
+      pg_catalog.hashtextextended('contribution:'||v_card||':'||p_period_id::text,0)
+    );
     SELECT * INTO v_entry FROM public.vbgramg_charge_ledger
     WHERE id=v_old.ledger_entry_id FOR UPDATE;
     IF FOUND THEN
@@ -152,14 +153,17 @@ BEGIN
         -- Lock payment rows before allocation rows, matching the manual allocator's
         -- period -> payment -> allocation order and avoiding lock-order inversions.
         FOR v_payment IN
-          SELECT DISTINCT payment.id
-          FROM public.vbgramg_payment_allocations a
-          JOIN public.vbgramg_charge_ledger payment ON payment.id=a.transaction_id
-          WHERE a.job_card_number=v_card AND a.period_id=p_period_id
+          SELECT payment.id
+          FROM public.vbgramg_charge_ledger payment
+          WHERE payment.id IN (
+            SELECT a.transaction_id
+            FROM public.vbgramg_payment_allocations a
+            WHERE a.job_card_number=v_card AND a.period_id=p_period_id
+          )
             AND payment.entry_type='payment'
             AND COALESCE(payment.is_voided,false)=false
           ORDER BY payment.id
-          FOR UPDATE OF payment
+          FOR UPDATE
         LOOP
           NULL;
         END LOOP;

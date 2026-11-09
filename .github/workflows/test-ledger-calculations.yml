@@ -12,6 +12,9 @@ on:
       - "tests/extra-contribution-charges.test.cjs"
       - "tests/extra-contribution-charges-postgres.sql"
       - "supabase/migrations/20261107140000_atomic_extra_contribution_charges.sql"
+      - "supabase/migrations/20261109130000_reconcile_extra_contribution_charge_edits.sql"
+      - "tests/extra-contribution-reconciliation.test.cjs"
+      - "tests/extra-contribution-reconciliation-postgres.sql"
       - "supabase/migrations/20261107170000_atomic_contribution_ledger_edits.sql"
       - "tests/contribution-ledger-edits-postgres.sql"
       - "tests/atomic-contribution-writes-concurrency.sh"
@@ -64,7 +67,7 @@ jobs:
         with:
           node-version: 22
       - name: Run shared ledger tests
-        run: node --test tests/ledger-calculations.test.cjs tests/data-loader.test.cjs tests/postgres-contribution-balances.test.cjs tests/atomic-contribution-writes.test.cjs tests/fto-transaction-link-safeguards.test.cjs tests/extra-contribution-charges.test.cjs
+        run: node --test tests/ledger-calculations.test.cjs tests/data-loader.test.cjs tests/postgres-contribution-balances.test.cjs tests/atomic-contribution-writes.test.cjs tests/fto-transaction-link-safeguards.test.cjs tests/extra-contribution-charges.test.cjs tests/extra-contribution-reconciliation.test.cjs
       - name: Run charge-level allocation schema static tests
         run: node --test tests/charge-level-payment-allocations.test.cjs
       - name: Run automatic unallocated payment FIFO static tests
@@ -133,6 +136,10 @@ jobs:
         run: |
           createdb vbgramg_extras_test
           PGDATABASE=vbgramg_extras_test psql -v ON_ERROR_STOP=1 -f tests/extra-contribution-charges-postgres.sql
+      - name: Run extra contribution allocation reconciliation PostgreSQL tests
+        run: |
+          createdb vbgramg_extra_reconcile_test
+          PGDATABASE=vbgramg_extra_reconcile_test psql -v ON_ERROR_STOP=1 -f tests/extra-contribution-reconciliation-postgres.sql
       - name: Run atomic contribution ledger edit PostgreSQL tests
         run: |
           createdb vbgramg_edits_test

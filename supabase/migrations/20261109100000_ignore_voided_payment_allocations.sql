@@ -38,10 +38,6 @@ BEGIN
   IF pg_catalog.strpos(v_fifo, v_old_fifo) = 0 THEN
     RAISE EXCEPTION 'Expected payment_ids predicate not found in FIFO function; aborting migration';
   END IF;
-  IF pg_catalog.strpos(v_fifo, v_old_fifo) <> pg_catalog.strpos(v_fifo, v_old_fifo || ' ') THEN
-    -- Deliberately no-op guard: exact replacement below is checked by count.
-    NULL;
-  END IF;
   v_fifo := pg_catalog.replace(v_fifo, v_old_fifo, v_new_fifo);
   IF pg_catalog.strpos(v_fifo, v_new_fifo) = 0 THEN
     RAISE EXCEPTION 'Voided-payment filter was not applied to FIFO function';

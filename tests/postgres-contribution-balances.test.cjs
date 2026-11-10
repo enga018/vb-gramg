@@ -50,3 +50,12 @@ test("contribution summary has no JavaScript financial audit path", () => {
   assert.match(action, /admin\.rpc\("vbgramg_contribution_financial_summary"\)/);
   assert.doesNotMatch(action, /vbgramg_contribution_ledger_list/);
 });
+
+test("contribution FIFO detail is rendered from PostgreSQL, not the retired JavaScript calculator", () => {
+  assert.match(edge, /admin\.rpc\("vbgramg_contribution_fifo_breakdown"/);
+  assert.match(edge, /fifo_breakdown:fifoBreakdown/);
+  assert.match(contribution, /c\.fifo_breakdown\?\.groups/);
+  assert.doesNotMatch(contribution, /js\/allocation\.js/);
+  assert.equal(fs.existsSync(path.join(__dirname, "..", "js/allocation.js")), false);
+  assert.doesNotMatch(contribution, /VBGRAMGAllocation|calculateFifoGroups/);
+});

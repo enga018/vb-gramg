@@ -71,6 +71,18 @@ Do not use the accent colour as general decoration. Keep status colours reserved
 2. Migrate shared shell, navigation and toast styles.
 3. Migrate MIS.
 4. Migrate FTO history and FTO import.
-5. Migrate Periods and Work Demand.
-6. Migrate Contribution last, with financial/status regression checks.
-7. Remove obsolete duplicated overrides only after parity is verified.
+5. Migrate Work Demand and Period management.
+6. Migrate Contribution, with financial/status regression checks.
+7. Complete Android/mobile and Windows/desktop visual QA in light and dark modes.
+8. Remove obsolete duplicated overrides only after visual and functional parity is verified.
+
+
+## Page migration status
+
+- **MIS:** shared design-system styling applied with page-scoped selectors; application markup and logic unchanged.
+- **FTO history/import:** shared surfaces, status labels, reconciliation stages and dark-mode styling applied; application markup and logic unchanged.
+- **Contribution:** ledger, KPI, filter, detail, FIFO and allocation surfaces styled; financial and allocation logic unchanged.
+- **Work Demand:** setup metrics, manual-review/demand/unwilling tables, export actions and confirmation dialogs styled; demand selection, outstanding review/include, period/day inputs and export logic unchanged.
+- **Periods:** period list, lifecycle pills, create-period dialog and mobile period cards styled; period naming, creation and period actions unchanged.
+
+All page migrations in this proposal are CSS-only. Device/browser visual QA remains a required pre-merge step.

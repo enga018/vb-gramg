@@ -8,7 +8,6 @@
   }
 
   window.VBGRAMGContribution = Object.freeze({
-    calculateLedgerState: shared.calculateLedgerState,
     jobCardSuffixNumber: shared.jobCardSuffixNumber
   });
 })();

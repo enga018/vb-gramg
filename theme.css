@@ -1389,3 +1389,249 @@ body:has(#mis-table) {
     border-color: transparent;
   }
 }
+
+
+/* FTO history and detail views: shared semantic design-system layer. */
+body:has(#fto-history) {
+  background: var(--color-page, #f3f6fb);
+  color: var(--text-primary, #172033);
+}
+body:has(#fto-history) .fto-history-kpi {
+  background: var(--surface-raised, #fff);
+  border-color: var(--border-default, #e3e8f0);
+  border-radius: var(--radius-lg, 12px);
+}
+body:has(#fto-history) .fto-history-kpi span,
+body:has(#fto-history) .last-checked,
+body:has(#fto-history) .card-side {
+  color: var(--text-muted, #667085);
+}
+body:has(#fto-history) .fto-history-kpi strong,
+body:has(#fto-history) .fto-number,
+body:has(#fto-history) .fto-card strong {
+  color: var(--text-primary, #172033);
+  font-variant-numeric: tabular-nums;
+}
+body:has(#fto-history) .fto-card,
+body:has(#fto-history) .history-list .fto-card {
+  background: var(--surface-raised, #fff);
+  border-color: var(--border-default, #e3e8f0);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--shadow-sm, 0 2px 8px rgb(23 32 51 / 4%));
+}
+body:has(#fto-history) .fto-card:hover {
+  border-color: var(--border-strong, #cbd5e1);
+  background: var(--surface-hover, #f7f9fc);
+}
+body:has(#fto-history) .history-status {
+  border: 1px solid var(--border-default, #e3e8f0);
+  border-radius: var(--radius-sm, 7px);
+  font-weight: 700;
+}
+body:has(#fto-history) .history-status.processed {
+  color: var(--status-success-text, #17663a);
+  background: var(--status-success-bg, #eaf8ef);
+  border-color: var(--status-success-border, #ccebd7);
+}
+body:has(#fto-history) .history-status.rejected {
+  color: var(--status-danger-text, #9b2c20);
+  background: var(--status-danger-bg, #fff0ed);
+  border-color: var(--status-danger-border, #ffd8d2);
+}
+body:has(#fto-history) .history-status.blank {
+  color: var(--status-warning-text, #8a4b08);
+  background: var(--status-warning-bg, #fff4d9);
+  border-color: var(--status-warning-border, #f2dfb4);
+}
+body:has(#fto-history) .history-action-menu {
+  color: var(--text-primary, #172033);
+  background: var(--surface-overlay, #fff);
+  border-color: var(--border-default, #dfe5ee);
+  box-shadow: var(--shadow-lg, 0 8px 24px rgb(23 32 51 / 14%));
+}
+body:has(#fto-history) .history-action-menu button {
+  color: var(--text-primary, #172033);
+}
+body:has(#fto-history) .history-action-menu button:hover {
+  background: var(--surface-hover, #f0f4fa);
+}
+body:has(#fto-history) .history-detail td,
+body:has(#fto-history) .history-detail .detail-item {
+  color: var(--text-primary, #172033);
+  background: var(--surface-subtle, #f8fafd);
+  border-color: var(--border-default, #e3e8f0);
+}
+body:has(#fto-history) .history-detail .detail-item span {
+  color: var(--text-primary, #172033);
+}
+body:has(#fto-history) .fto-view-modal {
+  color: var(--text-primary, #172033);
+  background: var(--surface-raised, #fff);
+  border-color: var(--border-default, #e3e8f0);
+  box-shadow: var(--shadow-xl, 0 20px 70px rgb(15 23 42 / 30%));
+}
+body:has(#fto-history) .fto-view-modal-header {
+  background: var(--surface-raised, #fff);
+  border-color: var(--border-default, #e3e8f0);
+}
+body:has(#fto-history) .fto-view-summary,
+body:has(#fto-history) .fto-view-summary .summary-tile {
+  color: var(--text-primary, #172033);
+  background: var(--surface-subtle, #f7f9fc);
+  border-color: var(--border-default, #e3e8f0);
+}
+body:has(#fto-history) .fto-transaction-mobile-card {
+  color: var(--text-primary, #172033);
+  background: var(--surface-raised, #fff);
+  border-color: var(--border-default, #e3e8f0);
+}
+
+/* FTO import and reconciliation: make each review stage visually distinct. */
+body:has(#table-input) {
+  background: var(--color-page, #f3f6fb);
+  color: var(--text-primary, #172033);
+}
+body:has(#table-input) .settings-panel,
+body:has(#table-input) .reconciliation-panel,
+body:has(#table-input) .live-category-panel {
+  color: var(--text-primary, #172033);
+  background: var(--surface-subtle, #fbfcfe);
+  border-color: var(--border-default, #e3e8f0);
+  border-radius: var(--radius-lg, 13px);
+}
+body:has(#table-input) .live-category-kpi {
+  color: var(--text-primary, #172033);
+  background: var(--surface-raised, #fff);
+  border-color: var(--border-default, #e3e8f0);
+  border-radius: var(--radius-lg, 12px);
+}
+body:has(#table-input) .live-category-kpi span,
+body:has(#table-input) .live-pager span,
+body:has(#table-input) .live-tx-title {
+  color: var(--text-secondary, #475467);
+}
+body:has(#table-input) .live-category-kpi.active {
+  border-color: var(--action-primary, #2457c5);
+  background: var(--action-subtle, #f5f8ff);
+}
+body:has(#table-input) .live-jobcard-view,
+body:has(#table-input) .parsed-selected-jobcard,
+body:has(#table-input) .parsed-transaction-card,
+body:has(#table-input) .live-empty {
+  color: var(--text-primary, #172033);
+  background: var(--surface-raised, #fff);
+  border-color: var(--border-default, #dfe5ee);
+  border-radius: var(--radius-md, 10px);
+}
+body:has(#table-input) .live-jobcard-stats > div {
+  background: var(--surface-subtle, #f5f7fb);
+}
+body:has(#table-input) .live-tx-item {
+  border-color: var(--border-subtle, #edf0f5);
+  background: var(--surface-raised, #fff);
+}
+body:has(#table-input) .live-badge.ready {
+  color: var(--status-success-text, #17663a);
+  background: var(--status-success-bg, #eaf8ef);
+}
+body:has(#table-input) .live-badge.action {
+  color: var(--status-warning-text, #8a4b08);
+  background: var(--status-warning-bg, #fff2d9);
+}
+body:has(#table-input) .live-badge.existing {
+  color: var(--status-info-text, #1d4f91);
+  background: var(--status-info-bg, #eaf2ff);
+}
+body:has(#table-input) .live-badge.excluded {
+  color: var(--status-danger-text, #9b2c20);
+  background: var(--status-danger-bg, #fff0ed);
+}
+body:has(#table-input) #parsed-mobile-groups .parsed-selected-jobcard {
+  box-shadow: var(--shadow-sm, 0 2px 8px rgb(23 32 51 / 4%));
+}
+body:has(#table-input) .import-table-wrap,
+body:has(#table-input) .applicant-review-table-wrap {
+  border-color: var(--border-default, #dfe5ee);
+}
+
+/* FTO page-specific surfaces follow the device dark-mode preference. */
+@media screen and (prefers-color-scheme: dark) {
+  body:has(#fto-history) .fto-history-kpi,
+  body:has(#fto-history) .fto-card,
+  body:has(#fto-history) .history-list .fto-card,
+  body:has(#fto-history) .history-action-menu,
+  body:has(#fto-history) .history-detail .detail-item,
+  body:has(#fto-history) .fto-view-modal,
+  body:has(#fto-history) .fto-view-modal-header,
+  body:has(#fto-history) .fto-transaction-mobile-card {
+    color: #edf2f7 !important;
+    background: #171d24 !important;
+    border-color: #303a45 !important;
+    box-shadow: none;
+  }
+  body:has(#fto-history) .fto-card:hover,
+  body:has(#fto-history) .history-action-menu button:hover {
+    background: #25313c !important;
+  }
+  body:has(#fto-history) .fto-history-kpi strong,
+  body:has(#fto-history) .fto-number,
+  body:has(#fto-history) .fto-card strong,
+  body:has(#fto-history) .history-detail .detail-item span,
+  body:has(#fto-history) .history-action-menu button {
+    color: #edf2f7 !important;
+  }
+  body:has(#fto-history) .history-detail td,
+  body:has(#fto-history) .fto-view-summary,
+  body:has(#fto-history) .fto-view-summary .summary-tile {
+    color: #edf2f7 !important;
+    background: #1d252e !important;
+    border-color: #303a45 !important;
+  }
+  body:has(#fto-history) .history-status.processed {
+    color: #75e0b7 !important; background: #15372d !important; border-color: #285a49 !important;
+  }
+  body:has(#fto-history) .history-status.rejected {
+    color: #ffaaa5 !important; background: #3b2223 !important; border-color: #684044 !important;
+  }
+  body:has(#fto-history) .history-status.blank {
+    color: #f2cd7d !important; background: #3a3020 !important; border-color: #66502a !important;
+  }
+  body:has(#table-input) .settings-panel,
+  body:has(#table-input) .reconciliation-panel,
+  body:has(#table-input) .live-category-panel,
+  body:has(#table-input) .live-category-kpi,
+  body:has(#table-input) .live-jobcard-view,
+  body:has(#table-input) .parsed-selected-jobcard,
+  body:has(#table-input) .parsed-transaction-card,
+  body:has(#table-input) .live-empty,
+  body:has(#table-input) .live-tx-item {
+    color: #edf2f7 !important;
+    background: #171d24 !important;
+    border-color: #303a45 !important;
+    box-shadow: none;
+  }
+  body:has(#table-input) .live-category-kpi.active {
+    background: #202e49 !important;
+    border-color: #789cff !important;
+  }
+  body:has(#table-input) .live-jobcard-stats > div {
+    background: #1d252e !important;
+  }
+  body:has(#table-input) .live-category-kpi span,
+  body:has(#table-input) .live-pager span,
+  body:has(#table-input) .live-tx-title {
+    color: #aab5c2 !important;
+  }
+  body:has(#table-input) .live-badge.ready {
+    color: #75e0b7 !important; background: #15372d !important;
+  }
+  body:has(#table-input) .live-badge.action {
+    color: #f2cd7d !important; background: #3a3020 !important;
+  }
+  body:has(#table-input) .live-badge.existing {
+    color: #a9c3ff !important; background: #202e49 !important;
+  }
+  body:has(#table-input) .live-badge.excluded {
+    color: #ffaaa5 !important; background: #3b2223 !important;
+  }
+}

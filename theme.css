@@ -1241,3 +1241,151 @@ dialog::backdrop { background: rgb(15 23 42 / 52%); }
     animation-iteration-count: 1 !important;
   }
 }
+
+
+
+/* -------------------------------------------------------------------------
+   MIS page token migration — visual layer only.
+   Keeps MIS markup, selection workflow, pagination and data logic unchanged.
+   ------------------------------------------------------------------------- */
+body:has(#mis-table) {
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+}
+#app-panel > .panel {
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+#app-panel .meta .stat {
+  background: var(--color-bg-surface-raised);
+  border-color: var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+}
+#app-panel .meta .stat small {
+  color: var(--color-text-secondary);
+  letter-spacing: .01em;
+}
+#app-panel .meta .stat strong {
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+#app-panel .toolbar label,
+#app-panel .section-head h2 {
+  color: var(--color-text-primary);
+}
+#app-panel .toolbar input,
+#app-panel .toolbar select,
+#app-panel .desktop-applicant-dropdown,
+#app-panel .mobile-applicant-picker select {
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+#app-panel .table-wrap {
+  background: var(--color-bg-surface);
+  border-color: var(--color-border);
+  box-shadow: none;
+}
+#mis-table th {
+  color: var(--color-text-secondary);
+  background: var(--color-bg-subtle);
+  border-bottom-color: var(--color-border);
+}
+#mis-table td {
+  color: var(--color-text-primary);
+  border-bottom-color: var(--color-border);
+}
+#mis-table .desktop-applicant-row td,
+#mis-table .jobcard-row {
+  background: var(--color-bg-surface);
+}
+#mis-table .desktop-applicant-row.group-alt td {
+  background: var(--color-bg-subtle);
+}
+#mis-table .desktop-applicant-row:hover td,
+#mis-table .jobcard-row:hover,
+#mis-table .jobcard-row:active {
+  background: var(--color-brand-primary-soft);
+}
+#mis-table .desktop-applicant-count,
+#mis-table .mobile-applicant-count-badge {
+  color: var(--color-text-secondary);
+  background: var(--color-bg-muted);
+  border-color: var(--color-border);
+}
+#mis-table .desktop-applicant-dropdown.no-applicant-selected {
+  color: var(--color-status-warning);
+  background: var(--color-status-warning-bg);
+  border-color: var(--color-status-warning);
+}
+#mis-table .mobile-jobcard-number { color: var(--color-text-primary); }
+#mis-table .mobile-jobcard-household { color: var(--color-text-secondary); }
+#mis-table .mobile-selection-status.is-selected {
+  color: var(--color-status-success);
+  background: var(--color-status-success-bg);
+  border: 1px solid var(--color-status-success);
+}
+#mis-table .mobile-selection-status.is-unselected {
+  color: var(--color-status-warning);
+  background: var(--color-status-warning-bg);
+  border: 1px solid var(--color-status-warning);
+}
+#mis-table .mobile-applicant-picker-row td,
+#mis-table .applicant-detail td {
+  color: var(--color-text-primary);
+  background: var(--color-bg-subtle);
+  border-color: var(--color-border);
+}
+#mis-table .applicant-detail table {
+  border-color: var(--color-border);
+}
+#mis-table .applicant-detail th { background: var(--color-bg-muted); }
+#mis-table .applicant-detail tbody tr:nth-child(even) {
+  background: var(--color-bg-surface);
+}
+#mis-table .applicant-detail tbody tr:hover {
+  background: var(--color-brand-primary-soft);
+}
+#mis-table .applicant-detail input[type="checkbox"] {
+  accent-color: var(--color-brand-primary);
+}
+#app-panel .muted,
+#app-panel #result-count,
+#app-panel #page-label {
+  color: var(--color-text-secondary);
+}
+#app-panel .status {
+  color: var(--color-text-secondary);
+  background: var(--color-bg-subtle);
+  border-color: var(--color-border);
+}
+#app-panel .status.success {
+  color: var(--color-status-success);
+  background: var(--color-status-success-bg);
+  border-color: var(--color-status-success);
+}
+#app-panel .status.error {
+  color: var(--color-status-danger);
+  background: var(--color-status-danger-bg);
+  border-color: var(--color-status-danger);
+}
+#app-panel #prev-button:disabled,
+#app-panel #next-button:disabled {
+  opacity: .45;
+}
+
+@media (prefers-color-scheme: dark) {
+  body:has(#mis-table) { color-scheme: dark; }
+  #mis-table .desktop-applicant-dropdown.no-applicant-selected {
+    color: var(--color-status-warning);
+    background: var(--color-status-warning-bg);
+    border-color: var(--color-status-warning);
+  }
+  #mis-table .mobile-selection-status.is-selected,
+  #mis-table .mobile-selection-status.is-unselected {
+    border-color: transparent;
+  }
+}

@@ -93,7 +93,10 @@ const workflow = fs.readFileSync(
 );
 
 test("GitHub Actions runs the automatic allocation, waiver, and voided-payment PostgreSQL integration suites", () => {
-  assert.match(workflow, /Run automatic unallocated payment FIFO PostgreSQL tests[\s\S]*?tests\\/auto-allocate-unallocated-payments-postgres\\.sql/);
-  assert.match(workflow, /Run new period-linked waiver PostgreSQL tests[\s\S]*?tests\\/new-waiver-period-allocation-postgres\\.sql/);
-  assert.match(workflow, /Run voided payment safeguard PostgreSQL tests[\s\S]*?tests\\/voided-payment-allocation-safeguards-postgres\\.sql/);
+  assert.ok(workflow.includes("Run automatic unallocated payment FIFO PostgreSQL tests"));
+  assert.ok(workflow.includes("tests/auto-allocate-unallocated-payments-postgres.sql"));
+  assert.ok(workflow.includes("Run new period-linked waiver PostgreSQL tests"));
+  assert.ok(workflow.includes("tests/new-waiver-period-allocation-postgres.sql"));
+  assert.ok(workflow.includes("Run voided payment safeguard PostgreSQL tests"));
+  assert.ok(workflow.includes("tests/voided-payment-allocation-safeguards-postgres.sql"));
 });

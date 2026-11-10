@@ -85,3 +85,18 @@ test("isolated PostgreSQL test covers overpayment, FIFO, refunds, deferred and e
   assert.match(postgresTest, /restoring one does not/);
   assert.match(postgresTest, /MZ-EXEMPT/);
 });
+
+
+const workflow = fs.readFileSync(
+  path.join(__dirname, "../.github/workflows/test-ledger-calculations.yml"),
+  "utf8"
+);
+
+test("GitHub Actions runs the automatic allocation, waiver, and voided-payment PostgreSQL integration suites", () => {
+  assert.ok(workflow.includes("Run automatic unallocated payment FIFO PostgreSQL tests"));
+  assert.ok(workflow.includes("tests/auto-allocate-unallocated-payments-postgres.sql"));
+  assert.ok(workflow.includes("Run new period-linked waiver PostgreSQL tests"));
+  assert.ok(workflow.includes("tests/new-waiver-period-allocation-postgres.sql"));
+  assert.ok(workflow.includes("Run voided payment safeguard PostgreSQL tests"));
+  assert.ok(workflow.includes("tests/voided-payment-allocation-safeguards-postgres.sql"));
+});

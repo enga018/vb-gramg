@@ -1826,3 +1826,303 @@ body:has(#contribution-table) .balance {
     border-color: #354d78 !important;
   }
 }
+
+
+/* Period management: period list, lifecycle labels and create dialog. */
+body:has(#period-body) {
+  background: var(--color-page, #f3f6fb);
+  color: var(--text-primary, #172033);
+}
+body:has(#period-body) .panel {
+  color: var(--text-primary, #172033);
+  background: var(--surface-raised, #fff);
+  border-color: var(--border-default, #e3e8f0);
+  border-radius: var(--radius-lg, 14px);
+  box-shadow: var(--shadow-sm, 0 2px 8px rgb(23 32 51 / 4%));
+}
+body:has(#period-body) .panel-head h2 {
+  color: var(--text-primary, #172033);
+}
+body:has(#period-body) .table-wrap {
+  border-color: var(--border-default, #dfe5ee);
+  background: var(--surface-raised, #fff);
+  box-shadow: none;
+}
+body:has(#period-body) .table-wrap thead th {
+  color: var(--text-secondary, #475467);
+  background: var(--surface-subtle, #f5f7fb);
+  border-color: var(--border-default, #e3e8f0);
+}
+body:has(#period-body) .table-wrap tbody td {
+  color: var(--text-primary, #172033);
+  border-color: var(--border-subtle, #edf0f5);
+}
+body:has(#period-body) .table-wrap tbody tr:hover td {
+  background: var(--surface-hover, #f7f9fc);
+}
+body:has(#period-body) .period-mobile-meta,
+body:has(#period-body) .muted {
+  color: var(--text-muted, #667085);
+}
+body:has(#period-body) .pill {
+  color: var(--status-success-text, #17663a);
+  background: var(--status-success-bg, #eaf8ef);
+}
+body:has(#period-body) .pill.closed {
+  color: var(--text-secondary, #667085);
+  background: var(--surface-muted, #eef1f5);
+}
+body:has(#period-body) dialog#create-dialog {
+  color: var(--text-primary, #172033);
+  background: var(--surface-overlay, #fff);
+  border-color: var(--border-default, #e3e8f0);
+  box-shadow: var(--shadow-xl, 0 20px 70px rgb(15 23 42 / 24%));
+}
+body:has(#period-body) .dialog-content h2,
+body:has(#period-body) .field label {
+  color: var(--text-primary, #172033);
+}
+body:has(#period-body) .field input,
+body:has(#period-body) .field select {
+  color: var(--text-primary, #172033);
+  background: var(--surface-input, #fff);
+  border-color: var(--border-default, #d0d7e2);
+}
+body:has(#period-body) .field input:focus,
+body:has(#period-body) .field select:focus {
+  border-color: var(--action-primary, #2457c5);
+  box-shadow: 0 0 0 3px var(--focus-ring, rgb(36 87 197 / 16%));
+}
+body:has(#period-body) .status {
+  color: var(--text-secondary, #475467);
+  background: var(--surface-subtle, #f7f9fc);
+  border-color: var(--border-default, #e3e8f0);
+}
+body:has(#period-body) .status.error {
+  color: var(--status-danger-text, #9b2c20);
+  background: var(--status-danger-bg, #fff0ed);
+  border-color: var(--status-danger-border, #ffd8d2);
+}
+body:has(#period-body) .status.success {
+  color: var(--status-success-text, #17663a);
+  background: var(--status-success-bg, #eaf8ef);
+  border-color: var(--status-success-border, #ccebd7);
+}
+
+/* Work Demand: setup, review, demand and unwilling panels. */
+body:has(#reviewTable) {
+  background: var(--color-page, #f3f6fb);
+  color: var(--text-primary, #172033);
+}
+body:has(#reviewTable) .topbar,
+body:has(#reviewTable) main > .panel,
+body:has(#reviewTable) .demand-unwilling-grid > .panel {
+  color: var(--text-primary, #172033);
+  background: var(--surface-raised, #fff);
+  border-color: var(--border-default, #e3e8f0);
+  border-radius: var(--radius-lg, 14px);
+  box-shadow: var(--shadow-sm, 0 2px 8px rgb(23 32 51 / 4%));
+}
+body:has(#reviewTable) .brand h1,
+body:has(#reviewTable) .panel h2,
+body:has(#reviewTable) .section-heading h2 {
+  color: var(--text-primary, #172033);
+}
+body:has(#reviewTable) .brand p,
+body:has(#reviewTable) .sub,
+body:has(#reviewTable) .muted,
+body:has(#reviewTable) .small-muted,
+body:has(#reviewTable) .table-foot .page-label,
+body:has(#reviewTable) .table-action-note {
+  color: var(--text-muted, #667085);
+}
+body:has(#reviewTable) .metric {
+  color: var(--text-primary, #172033);
+  background: var(--surface-subtle, #f8fafd);
+  border-color: var(--border-default, #e3e8f0);
+  border-radius: var(--radius-md, 10px);
+}
+body:has(#reviewTable) .metric span {
+  color: var(--text-muted, #667085);
+}
+body:has(#reviewTable) .metric strong {
+  color: var(--text-primary, #172033);
+  font-variant-numeric: tabular-nums;
+}
+body:has(#reviewTable) .field label {
+  color: var(--text-secondary, #475467);
+}
+body:has(#reviewTable) .field input,
+body:has(#reviewTable) .field select {
+  color: var(--text-primary, #172033);
+  background: var(--surface-input, #fff);
+  border-color: var(--border-default, #d0d7e2);
+}
+body:has(#reviewTable) .field input:focus,
+body:has(#reviewTable) .field select:focus {
+  border-color: var(--action-primary, #2457c5);
+  box-shadow: 0 0 0 3px var(--focus-ring, rgb(36 87 197 / 16%));
+}
+body:has(#reviewTable) .table-wrap {
+  border-color: var(--border-default, #dfe5ee);
+  background: var(--surface-raised, #fff);
+}
+body:has(#reviewTable) .table-wrap th {
+  color: var(--text-secondary, #475467);
+  background: var(--surface-subtle, #f5f7fb);
+  border-color: var(--border-default, #e3e8f0);
+}
+body:has(#reviewTable) .table-wrap td {
+  color: var(--text-primary, #172033);
+  border-color: var(--border-subtle, #edf0f5);
+}
+body:has(#reviewTable) .table-wrap tbody tr:hover td {
+  background: var(--surface-hover, #f7f9fc);
+}
+body:has(#reviewTable) .count {
+  color: var(--text-secondary, #475467);
+  background: var(--surface-muted, #eef2f7);
+}
+body:has(#reviewTable) .outstanding {
+  color: var(--financial-outstanding, #b42318);
+}
+body:has(#reviewTable) .status {
+  color: var(--text-secondary, #475467);
+  background: var(--surface-subtle, #f7f9fc);
+  border-color: var(--border-default, #e3e8f0);
+}
+body:has(#reviewTable) .status.error {
+  color: var(--status-danger-text, #9b2c20);
+  background: var(--status-danger-bg, #fff0ed);
+  border-color: var(--status-danger-border, #ffd8d2);
+}
+body:has(#reviewTable) .status.success {
+  color: var(--status-success-text, #17663a);
+  background: var(--status-success-bg, #eaf8ef);
+  border-color: var(--status-success-border, #ccebd7);
+}
+body:has(#reviewTable) .include-check input {
+  accent-color: var(--action-primary, #2457c5);
+}
+body:has(#reviewTable) dialog#confirmDialog,
+body:has(#reviewTable) dialog#exportFormatDialog {
+  color: var(--text-primary, #172033);
+  background: var(--surface-overlay, #fff);
+  border-color: var(--border-default, #e3e8f0);
+  box-shadow: var(--shadow-xl, 0 20px 70px rgb(15 23 42 / 24%));
+}
+body:has(#reviewTable) .confirm-summary {
+  border-color: var(--border-default, #e3e8f0);
+}
+body:has(#reviewTable) .confirm-summary div {
+  border-color: var(--border-default, #e3e8f0);
+}
+body:has(#reviewTable) .confirm-summary dt {
+  color: var(--text-muted, #667085);
+}
+body:has(#reviewTable) .confirm-summary dd {
+  color: var(--text-primary, #172033);
+}
+
+/* Dark mode: retain legible data surfaces and semantic lifecycle states. */
+@media screen and (prefers-color-scheme: dark) {
+  body:has(#period-body) .panel,
+  body:has(#period-body) .table-wrap,
+  body:has(#period-body) dialog#create-dialog {
+    color: #edf2f7 !important;
+    background: #171d24 !important;
+    border-color: #303a45 !important;
+    box-shadow: none;
+  }
+  body:has(#period-body) .table-wrap thead th,
+  body:has(#period-body) .table-wrap tbody tr:hover td {
+    color: #edf2f7 !important;
+    background: #202832 !important;
+    border-color: #303a45 !important;
+  }
+  body:has(#period-body) .table-wrap tbody td,
+  body:has(#period-body) .panel-head h2,
+  body:has(#period-body) .dialog-content h2,
+  body:has(#period-body) .field label {
+    color: #edf2f7 !important;
+  }
+  body:has(#period-body) .field input,
+  body:has(#period-body) .field select {
+    color: #edf2f7 !important;
+    background: #111820 !important;
+    border-color: #3b4652 !important;
+  }
+  body:has(#period-body) .pill {
+    color: #75e0b7 !important;
+    background: #15372d !important;
+  }
+  body:has(#period-body) .pill.closed {
+    color: #b5bfca !important;
+    background: #29313a !important;
+  }
+  body:has(#period-body) .status {
+    color: #c6d0db !important;
+    background: #202832 !important;
+    border-color: #3b4652 !important;
+  }
+  body:has(#period-body) .status.error {
+    color: #ffaaa5 !important; background: #3b2223 !important; border-color: #684044 !important;
+  }
+  body:has(#period-body) .status.success {
+    color: #75e0b7 !important; background: #15372d !important; border-color: #285a49 !important;
+  }
+  body:has(#reviewTable) .topbar,
+  body:has(#reviewTable) main > .panel,
+  body:has(#reviewTable) .demand-unwilling-grid > .panel,
+  body:has(#reviewTable) .metric,
+  body:has(#reviewTable) .table-wrap,
+  body:has(#reviewTable) dialog#confirmDialog,
+  body:has(#reviewTable) dialog#exportFormatDialog {
+    color: #edf2f7 !important;
+    background: #171d24 !important;
+    border-color: #303a45 !important;
+    box-shadow: none;
+  }
+  body:has(#reviewTable) .table-wrap th,
+  body:has(#reviewTable) .table-wrap tbody tr:hover td {
+    color: #edf2f7 !important;
+    background: #202832 !important;
+    border-color: #303a45 !important;
+  }
+  body:has(#reviewTable) .table-wrap td,
+  body:has(#reviewTable) .metric strong,
+  body:has(#reviewTable) .brand h1,
+  body:has(#reviewTable) .panel h2,
+  body:has(#reviewTable) .section-heading h2,
+  body:has(#reviewTable) .confirm-summary dd {
+    color: #edf2f7 !important;
+  }
+  body:has(#reviewTable) .field input,
+  body:has(#reviewTable) .field select {
+    color: #edf2f7 !important;
+    background: #111820 !important;
+    border-color: #3b4652 !important;
+  }
+  body:has(#reviewTable) .count {
+    color: #c6d0db !important;
+    background: #29313a !important;
+  }
+  body:has(#reviewTable) .outstanding {
+    color: #ffaaa5 !important;
+  }
+  body:has(#reviewTable) .status {
+    color: #c6d0db !important;
+    background: #202832 !important;
+    border-color: #3b4652 !important;
+  }
+  body:has(#reviewTable) .status.error {
+    color: #ffaaa5 !important; background: #3b2223 !important; border-color: #684044 !important;
+  }
+  body:has(#reviewTable) .status.success {
+    color: #75e0b7 !important; background: #15372d !important; border-color: #285a49 !important;
+  }
+  body:has(#reviewTable) .confirm-summary,
+  body:has(#reviewTable) .confirm-summary div {
+    border-color: #303a45 !important;
+  }
+}

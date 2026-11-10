@@ -2126,3 +2126,46 @@ body:has(#reviewTable) .confirm-summary dd {
     border-color: #303a45 !important;
   }
 }
+
+
+/* Legacy page-token compatibility bridge.
+   Several migrated page scopes still use the older semantic names below.
+   Resolve them through the shared design tokens so light and dark themes
+   remain consistent while page styles are migrated incrementally. */
+:root {
+  --page-bg: var(--color-bg-canvas);
+  --color-page: var(--color-bg-canvas);
+  --card-bg: var(--color-bg-surface);
+  --card-bg-alt: var(--color-bg-subtle);
+  --card-border: var(--color-border);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-muted);
+  --surface-raised: var(--color-bg-surface-raised);
+  --surface-subtle: var(--color-bg-subtle);
+  --surface-muted: var(--color-bg-muted);
+  --surface-hover: var(--color-bg-subtle);
+  --surface-input: var(--color-bg-surface);
+  --surface-overlay: var(--color-bg-surface-raised);
+  --border-default: var(--color-border);
+  --border-subtle: var(--color-border);
+  --border-strong: var(--color-border-strong);
+  --action-primary: var(--color-brand-primary);
+  --action-subtle: var(--color-brand-primary-soft);
+  --focus-ring: var(--color-focus-ring);
+  --financial-outstanding: var(--color-financial-outstanding);
+  --status-success-text: var(--color-status-success);
+  --status-success-bg: var(--color-status-success-bg);
+  --status-success-border: var(--color-status-success);
+  --status-danger-text: var(--color-status-danger);
+  --status-danger-bg: var(--color-status-danger-bg);
+  --status-danger-border: var(--color-status-danger);
+  --status-warning-text: var(--color-status-warning);
+  --status-warning-bg: var(--color-status-warning-bg);
+  --status-warning-border: var(--color-status-warning);
+  --status-info-text: var(--color-status-info);
+  --status-info-bg: var(--color-status-info-bg);
+  --status-info-border: var(--color-status-info);
+  --shadow-lg: var(--shadow-md);
+  --shadow-xl: var(--shadow-md);
+}

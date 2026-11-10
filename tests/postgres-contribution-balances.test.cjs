@@ -39,3 +39,14 @@ test("The existing database summary remains the financial source of truth", () =
   assert.match(migration, /NOT l\.is_voided/);
   assert.match(migration, /vbgramg_contribution_exemptions/);
 });
+
+test("contribution summary has no JavaScript financial audit path", () => {
+  assert.doesNotMatch(edge, /ledger-calculations\.js/);
+  assert.doesNotMatch(edge, /audit_calculations|calculateLedgerState|calculation_audit/);
+  const start = edge.indexOf("if(action===\"list-summary\")");
+  const end = edge.indexOf("if(action===\"list\")", start);
+  assert.ok(start >= 0 && end > start, "Contribution list-summary action must exist");
+  const action = edge.slice(start, end);
+  assert.match(action, /admin\.rpc\("vbgramg_contribution_financial_summary"\)/);
+  assert.doesNotMatch(action, /vbgramg_contribution_ledger_list/);
+});

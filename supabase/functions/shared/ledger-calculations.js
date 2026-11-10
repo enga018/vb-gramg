@@ -1,6 +1,6 @@
-/* Shared VBGRAMG ledger calculations.
+/* Shared VBGRAMG non-financial helpers.
  * Runtime-neutral JavaScript: loaded as a browser script and imported by Deno.
- * Pure calculations only. Database access and financial authority remain server-side.
+ * Financial calculations and authority reside in PostgreSQL.
  */
 (function (root) {
   "use strict";

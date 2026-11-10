@@ -2169,3 +2169,79 @@ body:has(#reviewTable) .confirm-summary dd {
   --shadow-lg: var(--shadow-md);
   --shadow-xl: var(--shadow-md);
 }
+
+/* -------------------------------------------------------------------------
+   Shared data-table baseline
+   Applies to native HTML tables across the application. Page-specific table
+   rules retain control over specialised layouts and interaction states.
+   ------------------------------------------------------------------------- */
+:where(.table-wrap, .table-responsive, .table-container, .table-scroll) {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+:where(table) {
+  width: 100%;
+  max-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+:where(table thead th) {
+  color: var(--color-text-secondary);
+  background: var(--color-bg-subtle);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  line-height: var(--line-height-normal);
+  text-align: left;
+  vertical-align: middle;
+}
+:where(table th, table td) {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+:where(table tbody td) {
+  color: var(--color-text-primary);
+  background: transparent;
+  line-height: var(--line-height-normal);
+}
+:where(table tbody tr:last-child td) {
+  border-bottom: 0;
+}
+:where(table tbody tr:hover td) {
+  background: var(--color-bg-subtle);
+}
+:where(table td.numeric, table th.numeric,
+       table td[data-align="end"], table th[data-align="end"]) {
+  text-align: right;
+  white-space: nowrap;
+}
+:where(table td.amount, table td.amt, table td.balance) {
+  font-variant-numeric: tabular-nums;
+}
+@media (prefers-color-scheme: dark) {
+  :where(table thead th) {
+    color: var(--color-text-secondary);
+    background: var(--color-bg-subtle);
+    border-color: var(--color-border);
+  }
+  :where(table th, table td) {
+    border-color: var(--color-border);
+  }
+  :where(table tbody tr:hover td) {
+    background: var(--color-bg-muted);
+  }
+}
+@media (max-width: 700px) {
+  :where(.table-wrap, .table-responsive, .table-container, .table-scroll) {
+    max-width: 100%;
+  }
+  :where(table th, table td) {
+    padding: var(--space-2) var(--space-3);
+  }
+}

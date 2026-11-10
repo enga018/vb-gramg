@@ -1024,3 +1024,53 @@
     background: #171e25 !important;
   }
 }
+
+
+/* Shared design-token bridge.
+   Existing page styles can migrate to semantic tokens incrementally without
+   changing their current appearance or business behaviour. */
+:root {
+  --ink: var(--color-text-primary);
+  --muted: var(--color-text-secondary);
+  --line: var(--color-border);
+  --surface: var(--color-bg-surface);
+  --surface-soft: var(--color-bg-surface-raised);
+  --soft: var(--color-bg-subtle);
+  --accent: var(--color-brand-primary);
+  --paid: var(--color-financial-paid);
+  --partial: var(--color-financial-deferred);
+  --due: var(--color-financial-outstanding);
+  --overpaid: var(--color-financial-overpaid);
+  --green: var(--color-status-success);
+  --green-bg: var(--color-status-success-bg);
+  --red: var(--color-status-danger);
+  --red-bg: var(--color-status-danger-bg);
+  --amber: var(--color-status-warning);
+  --amber-bg: var(--color-status-warning-bg);
+  --blue: var(--color-status-info);
+  --blue-bg: var(--color-status-info-bg);
+}
+
+@media screen and (prefers-color-scheme: dark) {
+  :root {
+    --ink: var(--color-text-primary);
+    --muted: var(--color-text-secondary);
+    --line: var(--color-border);
+    --surface: var(--color-bg-surface);
+    --surface-soft: var(--color-bg-surface-raised);
+    --soft: var(--color-bg-subtle);
+    --accent: var(--color-brand-primary);
+    --paid: var(--color-financial-paid);
+    --partial: var(--color-financial-deferred);
+    --due: var(--color-financial-outstanding);
+    --overpaid: var(--color-financial-overpaid);
+    --green: var(--color-status-success);
+    --green-bg: var(--color-status-success-bg);
+    --red: var(--color-status-danger);
+    --red-bg: var(--color-status-danger-bg);
+    --amber: var(--color-status-warning);
+    --amber-bg: var(--color-status-warning-bg);
+    --blue: var(--color-status-info);
+    --blue-bg: var(--color-status-info-bg);
+  }
+}

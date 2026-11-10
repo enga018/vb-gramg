@@ -1635,3 +1635,194 @@ body:has(#table-input) .applicant-review-table-wrap {
     color: #ffaaa5 !important; background: #3b2223 !important;
   }
 }
+
+
+/* Contribution ledger: shared design-system surfaces, scoped to this page. */
+body:has(#contribution-table) {
+  background: var(--color-page, #f3f6fb);
+  color: var(--text-primary, #172033);
+}
+body:has(#contribution-table) .contribution-main-panel,
+body:has(#contribution-table) #contribution-layout > .panel {
+  color: var(--text-primary, #172033);
+  background: var(--surface-raised, #fff);
+  border-color: var(--border-default, #e3e8f0);
+  border-radius: var(--radius-lg, 14px);
+}
+body:has(#contribution-table) .contribution-kpis .stat,
+body:has(#contribution-table) .stat {
+  color: var(--text-primary, #172033);
+  background: var(--surface-subtle, #f8fafd);
+  border-color: var(--border-default, #e3e8f0);
+  border-radius: var(--radius-md, 10px);
+}
+body:has(#contribution-table) .stat .k,
+body:has(#contribution-table) .count,
+body:has(#contribution-table) .muted {
+  color: var(--text-muted, #667085);
+}
+body:has(#contribution-table) .stat .v,
+body:has(#contribution-table) .stat strong {
+  color: var(--text-primary, #172033);
+  font-variant-numeric: tabular-nums;
+}
+body:has(#contribution-table) .outstanding-kpi {
+  border-color: var(--status-danger-border, #f2c9c5);
+}
+body:has(#contribution-table) .deferred-kpi {
+  border-color: var(--status-warning-border, #f2dfb4);
+}
+body:has(#contribution-table) .contribution-controls input,
+body:has(#contribution-table) .contribution-controls select,
+body:has(#contribution-table) .field input,
+body:has(#contribution-table) .field select,
+body:has(#contribution-table) .field textarea {
+  color: var(--text-primary, #172033);
+  background: var(--surface-input, #fff);
+  border-color: var(--border-default, #d0d7e2);
+  border-radius: var(--radius-md, 9px);
+}
+body:has(#contribution-table) .contribution-controls input:focus,
+body:has(#contribution-table) .contribution-controls select:focus,
+body:has(#contribution-table) .field input:focus,
+body:has(#contribution-table) .field select:focus,
+body:has(#contribution-table) .field textarea:focus {
+  border-color: var(--action-primary, #2457c5);
+  box-shadow: 0 0 0 3px var(--focus-ring, rgb(36 87 197 / 16%));
+}
+body:has(#contribution-table) #table-wrap {
+  border-color: var(--border-default, #dfe5ee);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--surface-raised, #fff);
+}
+body:has(#contribution-table) #contribution-table thead th {
+  color: var(--text-secondary, #475467);
+  background: var(--surface-subtle, #f5f7fb);
+  border-color: var(--border-default, #e3e8f0);
+}
+body:has(#contribution-table) #contribution-table tbody td {
+  color: var(--text-primary, #172033);
+  border-color: var(--border-subtle, #edf0f5);
+}
+body:has(#contribution-table) #contribution-table tbody tr:hover td {
+  background: var(--surface-hover, #f7f9fc);
+}
+body:has(#contribution-table) .overlay {
+  background: rgb(15 23 42 / 58%);
+}
+body:has(#contribution-table) .sheet {
+  color: var(--text-primary, #172033);
+  background: var(--surface-raised, #fff);
+  border-color: var(--border-default, #dfe5ee);
+  border-radius: var(--radius-xl, 16px);
+  box-shadow: var(--shadow-xl, 0 20px 70px rgb(15 23 42 / 24%));
+}
+body:has(#contribution-table) .sheet-head,
+body:has(#contribution-table) .sheet-footer {
+  background: var(--surface-raised, #fff);
+  border-color: var(--border-default, #e3e8f0);
+}
+body:has(#contribution-table) .sheet-subtitle,
+body:has(#contribution-table) .entry .meta,
+body:has(#contribution-table) .fifo-period-summary,
+body:has(#contribution-table) .fifo-label {
+  color: var(--text-muted, #667085);
+}
+body:has(#contribution-table) .entry,
+body:has(#contribution-table) .fifo-detail-row,
+body:has(#contribution-table) .fifo-period-details,
+body:has(#contribution-table) .payment-allocation-row,
+body:has(#contribution-table) .allocation-edit-row {
+  color: var(--text-primary, #172033);
+  background: var(--surface-subtle, #f8fafd);
+  border-color: var(--border-default, #e3e8f0);
+  border-radius: var(--radius-md, 9px);
+}
+body:has(#contribution-table) .fifo-period-toggle,
+body:has(#contribution-table) .fifo-main,
+body:has(#contribution-table) .fifo-period-list {
+  color: var(--text-primary, #172033);
+}
+body:has(#contribution-table) .payment-allocation-warning {
+  color: var(--status-warning-text, #8a4b08);
+  background: var(--status-warning-bg, #fff4d9);
+  border-color: var(--status-warning-border, #f2dfb4);
+}
+body:has(#contribution-table) .payment-allocation-note,
+body:has(#contribution-table) .notice.info {
+  color: var(--status-info-text, #1d4f91);
+  background: var(--status-info-bg, #eaf2ff);
+  border-color: var(--status-info-border, #cfe0ff);
+}
+body:has(#contribution-table) .fifo-status,
+body:has(#contribution-table) .balance-row,
+body:has(#contribution-table) .amount,
+body:has(#contribution-table) .amt,
+body:has(#contribution-table) .balance {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Preserve the existing financial-state meanings in dark mode. */
+@media screen and (prefers-color-scheme: dark) {
+  body:has(#contribution-table) .contribution-main-panel,
+  body:has(#contribution-table) #contribution-layout > .panel,
+  body:has(#contribution-table) .contribution-kpis .stat,
+  body:has(#contribution-table) .stat,
+  body:has(#contribution-table) #table-wrap,
+  body:has(#contribution-table) .sheet,
+  body:has(#contribution-table) .sheet-head,
+  body:has(#contribution-table) .sheet-footer,
+  body:has(#contribution-table) .entry,
+  body:has(#contribution-table) .fifo-detail-row,
+  body:has(#contribution-table) .fifo-period-details,
+  body:has(#contribution-table) .payment-allocation-row,
+  body:has(#contribution-table) .allocation-edit-row {
+    color: #edf2f7 !important;
+    background: #171d24 !important;
+    border-color: #303a45 !important;
+    box-shadow: none;
+  }
+  body:has(#contribution-table) #contribution-table thead th,
+  body:has(#contribution-table) #contribution-table tbody tr:hover td {
+    color: #edf2f7 !important;
+    background: #202832 !important;
+    border-color: #303a45 !important;
+  }
+  body:has(#contribution-table) #contribution-table tbody td,
+  body:has(#contribution-table) .stat .v,
+  body:has(#contribution-table) .stat strong,
+  body:has(#contribution-table) .fifo-period-toggle,
+  body:has(#contribution-table) .fifo-main,
+  body:has(#contribution-table) .sheet-subtitle,
+  body:has(#contribution-table) .entry,
+  body:has(#contribution-table) .fifo-detail-row,
+  body:has(#contribution-table) .payment-allocation-row {
+    color: #edf2f7 !important;
+  }
+  body:has(#contribution-table) .contribution-controls input,
+  body:has(#contribution-table) .contribution-controls select,
+  body:has(#contribution-table) .field input,
+  body:has(#contribution-table) .field select,
+  body:has(#contribution-table) .field textarea {
+    color: #edf2f7 !important;
+    background: #111820 !important;
+    border-color: #3b4652 !important;
+  }
+  body:has(#contribution-table) .outstanding-kpi {
+    border-color: #684044 !important;
+  }
+  body:has(#contribution-table) .deferred-kpi {
+    border-color: #66502a !important;
+  }
+  body:has(#contribution-table) .payment-allocation-warning {
+    color: #f2cd7d !important;
+    background: #3a3020 !important;
+    border-color: #66502a !important;
+  }
+  body:has(#contribution-table) .payment-allocation-note,
+  body:has(#contribution-table) .notice.info {
+    color: #a9c3ff !important;
+    background: #202e49 !important;
+    border-color: #354d78 !important;
+  }
+}

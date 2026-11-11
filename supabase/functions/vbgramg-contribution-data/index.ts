@@ -1173,7 +1173,7 @@ Deno.serve(async(req:Request)=>{
   if(action==="list-extra-charge-audit"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can view contribution audit history."},403);
    const requestedOffset=Number(body.offset||0),offset=Number.isInteger(requestedOffset)&&requestedOffset>=0?Math.min(requestedOffset,5000):0,pageSize=100;
-   const actions=["extra_contribution_charge_edit","payment_allocation_released_due_to_extra_charge_edit"];
+   const actions=["extra_contribution_charge_edit","payment_allocation_released_due_to_extra_charge_edit","manual_contribution_charge","manual_contribution_extra_charge"];
    const {data:rows,error,count}=await admin.from("vbgramg_ledger_audit")
     .select("id,ledger_entry_id,job_card_number,action,actor_user_id,actor_email,before_data,after_data,created_at",{count:"exact"})
     .in("action",actions).order("created_at",{ascending:false}).order("id",{ascending:false})
@@ -1206,12 +1206,14 @@ Deno.serve(async(req:Request)=>{
    if(entryDate&&(!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)||Number.isNaN(Date.parse(entryDate))))return reply({error:"Choose a valid default entry date."},400);
    if(!reason)return reply({error:"Enter a reason or reference for the manual charge."},400);
    const validIsoDate=(value:string)=>{const match=value.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);if(!match)return false;const year=Number(match[1]),month=Number(match[2]),day=Number(match[3]),date=new Date(Date.UTC(year,month-1,day));return date.getUTCFullYear()===year&&date.getUTCMonth()===month-1&&date.getUTCDate()===day;};
+   if(entryDate&&!validIsoDate(entryDate))return reply({error:"Choose a real calendar date for the default entry date."},400);
    const seen=new Set<string>(),normalized:{job_card_number:string;amount:number;entry_date:string|null}[]=[];
    for(const raw of rows){
     const jobCard=String(raw?.job_card_number||"").trim(),amount=Number(raw?.amount);
     const rowDate=String(raw?.entry_date||"").trim();
     if(!jobCard||jobCard.length>100||!Number.isFinite(amount)||amount<=0||amount>10000000)return reply({error:"Every row must have a job card and a positive amount."},400);
     if(rowDate&&(!/^\d{4}-\d{2}-\d{2}$/.test(rowDate)||Number.isNaN(Date.parse(rowDate))))return reply({error:"Invalid entry date for job card "+jobCard+"."},400);
+    if(rowDate&&!validIsoDate(rowDate))return reply({error:"Invalid calendar date for job card "+jobCard+"."},400);
     if(!entryDate&&!rowDate)return reply({error:"Provide a default date or a date for every job card."},400);
     if(seen.has(jobCard))return reply({error:"Duplicate job card in batch: "+jobCard},400);
     seen.add(jobCard);normalized.push({job_card_number:jobCard,amount,entry_date:rowDate||null});

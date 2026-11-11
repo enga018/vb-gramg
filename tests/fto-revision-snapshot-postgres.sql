@@ -84,7 +84,8 @@ values ('00000000-0000-0000-0000-000000000001','TEST-FTOSNAP-001','JAN26');
 
 insert into public.vbgramg_periods(id,period_name,contribution_month,period_date,created_at) values
 ('00000000-0000-0000-0000-000000000010','FEB26','2026-02-01','2026-02-01','2026-02-01T00:00:00Z'),
-('00000000-0000-0000-0000-000000000011','JAN26','2026-01-01','2026-01-01','2026-01-01T00:00:00Z');
+('00000000-0000-0000-0000-000000000011','JAN26','2026-01-01','2026-01-01','2026-01-01T00:00:00Z'),
+('00000000-0000-0000-0000-000000000012','MAR26','2026-03-01','2026-03-01','2026-03-01T00:00:00Z');
 
 insert into public.vbgramg_fto_transactions(
   id,batch_id,reference_no,job_card_number,status,is_current,is_in_scope
@@ -130,7 +131,8 @@ declare
   v_snapshot jsonb;
 begin
   v_snapshot := public.vbgramg_get_fto_revision_snapshot(
-    '00000000-0000-0000-0000-000000000001'
+    '00000000-0000-0000-0000-000000000001',
+    '00000000-0000-0000-0000-000000000012'
   );
 
   if v_snapshot->'batch'->>'fto_number' <> 'TEST-FTOSNAP-001' then
@@ -141,9 +143,19 @@ begin
     raise exception 'Snapshot did not preserve all batch transaction rows';
   end if;
 
-  if jsonb_array_length(v_snapshot->'job_cards') <> 1
-     or v_snapshot->'job_cards'->>0 <> 'JC-001' then
-    raise exception 'Snapshot affected-card scope is incorrect: %', v_snapshot->'job_cards';
+  if jsonb_array_length(v_snapshot->'job_cards') <> 2
+     or not (v_snapshot->'job_cards' ? 'JC-001')
+     or not (v_snapshot->'job_cards' ? 'JC-003') then
+    raise exception 'Snapshot omitted superseded in-scope card history: %', v_snapshot->'job_cards';
+  end if;
+
+  if jsonb_array_length(v_snapshot->'periods') <> 3
+     or not exists (
+       select 1
+       from jsonb_array_elements(v_snapshot->'periods') p
+       where p->>'id' = '00000000-0000-0000-0000-000000000012'
+     ) then
+    raise exception 'Snapshot omitted the proposed target period with no ledger activity';
   end if;
 
   if jsonb_array_length(v_snapshot->'ledger_entries') <> 4 then
@@ -177,11 +189,11 @@ begin
   end if;
 
   if has_function_privilege('anon',
-       'public.vbgramg_get_fto_revision_snapshot(uuid)','EXECUTE')
+       'public.vbgramg_get_fto_revision_snapshot(uuid,uuid)','EXECUTE')
      or has_function_privilege('authenticated',
-       'public.vbgramg_get_fto_revision_snapshot(uuid)','EXECUTE')
+       'public.vbgramg_get_fto_revision_snapshot(uuid,uuid)','EXECUTE')
      or not has_function_privilege('service_role',
-       'public.vbgramg_get_fto_revision_snapshot(uuid)','EXECUTE') then
+       'public.vbgramg_get_fto_revision_snapshot(uuid,uuid)','EXECUTE') then
     raise exception 'Snapshot function grants are incorrect';
   end if;
 

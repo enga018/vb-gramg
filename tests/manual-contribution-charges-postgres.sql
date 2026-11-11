@@ -11,6 +11,8 @@ CREATE TABLE public.vbgramg_periods (
   contribution_month date, status text NOT NULL DEFAULT 'open'
 );
 CREATE TABLE public.vbgramg_contribution_exemptions (job_card_number text PRIMARY KEY,note text);
+CREATE TABLE public.vbgramg_mis_state (singleton boolean PRIMARY KEY,active_import_id uuid);
+CREATE TABLE public.vbgramg_mis_contribution_lookup (import_id uuid PRIMARY KEY,payload jsonb NOT NULL);
 CREATE TABLE public.vbgramg_contribution_citizens (job_card_number text PRIMARY KEY,person_name text NOT NULL);
 CREATE TABLE public.vbgramg_charge_ledger (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),job_card_number text NOT NULL,person_name text NOT NULL,
@@ -51,6 +53,9 @@ INSERT INTO public.vbgramg_contribution_citizens VALUES
  ('MZ-EXTRA-ONE','Extra One'),('MZ-EXTRA-TWO','Extra Two'),('MZ-EXTRA-OLD','Extra Old'),
  ('MZ-ROLLBACK','Rollback One'),('MZ-SUPPRESS','Suppressed'),('MZ-EXEMPT','Exempt'),
  ('MZ-CLOSED','Closed');
+INSERT INTO public.vbgramg_mis_state(singleton,active_import_id) VALUES (true,'00000000-0000-0000-0000-000000000099');
+INSERT INTO public.vbgramg_mis_contribution_lookup(import_id,payload) VALUES
+ ('00000000-0000-0000-0000-000000000099','{"citizens":[{"job_card_number":"MZ-MIS-ONLY","person_name":"MIS Only"}]}'::jsonb);
 
 INSERT INTO public.vbgramg_contribution_exemptions VALUES ('MZ-EXEMPT','exempt');
 INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
@@ -64,14 +69,14 @@ DO $$
 DECLARE r jsonb; n integer; actor uuid:=gen_random_uuid();
 BEGIN
   r:=public.vbgramg_save_manual_contribution_charges(
-    '[{"job_card_number":"MZ-REG-ONE","amount":100,"entry_date":"2026-11-03"},{"job_card_number":"MZ-REG-TWO","amount":150,"entry_date":"2026-11-04"}]'::jsonb,
+    '[{"job_card_number":"MZ-REG-ONE","amount":100,"entry_date":"2026-11-03"},{"job_card_number":"MZ-REG-TWO","amount":150,"entry_date":"2026-11-04"},{"job_card_number":"MZ-MIS-ONLY","amount":175,"entry_date":"2026-11-05"}]'::jsonb,
     'regular','00000000-0000-0000-0000-000000000001','2026-11-01',NULL,'Manual regular batch',actor,'admin@example.test');
-  IF NOT COALESCE((r->>'ok')::boolean,false) OR (r->>'count')::int<>2 OR (r->>'total_amount')::numeric<>250 THEN RAISE EXCEPTION 'Regular batch failed: %',r; END IF;
+  IF NOT COALESCE((r->>'ok')::boolean,false) OR (r->>'count')::int<>3 OR (r->>'total_amount')::numeric<>425 THEN RAISE EXCEPTION 'Regular batch failed: %',r; END IF;
 
   r:=public.vbgramg_save_manual_contribution_charges(
-    '[{"job_card_number":"MZ-EXTRA-ONE","amount":25,"entry_date":"2026-11-05"},{"job_card_number":"MZ-EXTRA-TWO","amount":35,"entry_date":"2026-11-06"}]'::jsonb,
+    '[{"job_card_number":"MZ-EXTRA-ONE","amount":25,"entry_date":"2026-11-05"},{"job_card_number":"MZ-EXTRA-TWO","amount":35,"entry_date":"2026-11-06"},{"job_card_number":"MZ-MIS-ONLY","amount":45,"entry_date":"2026-11-07"}]'::jsonb,
     'extra','00000000-0000-0000-0000-000000000001','2026-11-01',NULL,'Manual extra batch',actor,'admin@example.test');
-  IF NOT COALESCE((r->>'ok')::boolean,false) OR (r->>'count')::int<>2 OR (r->>'total_amount')::numeric<>60 THEN RAISE EXCEPTION 'Extra batch failed: %',r; END IF;
+  IF NOT COALESCE((r->>'ok')::boolean,false) OR (r->>'count')::int<>3 OR (r->>'total_amount')::numeric<>105 THEN RAISE EXCEPTION 'Extra batch failed: %',r; END IF;
 
   r:=public.vbgramg_save_manual_contribution_charges(
     '[{"job_card_number":"MZ-REG-ONE","amount":20},{"job_card_number":"MZ-REG-OLD","amount":20}]'::jsonb,

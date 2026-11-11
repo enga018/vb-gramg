@@ -395,6 +395,7 @@ body.embedded-mode{padding:12px!important}body.embedded-mode main{width:100%;max
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./js/supabase-client.js?v=20261104b"></script>
 <script src="./js/data-loader.js?v=20261104b"></script>
+<script src="./js/cache.js?v=20261106b"></script>
 <script src="./js/fto.js?v=20261104a"></script>
 <script src="./toast.js?v=20261103"></script>
 <script>
@@ -516,7 +517,8 @@ function selectedPeriod(){return sharedPeriods.find(p=>p.id===$('charge-period')
 function selectedPeriodDate(){return selectedPeriod()?.contribution_month||'';}
 function selectedPeriodName(){return selectedPeriod()?.period_name||'';}
 async function loadSharedPeriods(selectedId=''){
- const {data,error}=await window.VBGRAMGData.invoke('vbgramg-periods',{body:{action:'list'},deduplicate:true});
+ const data=await window.VBGRAMGCache.getOrLoad('periods:list:v1',()=>window.VBGRAMGData.request('vbgramg-periods',{body:{action:'list'}}),30000);
+ const error=null;
  if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||'Could not load shared periods.');
  sharedPeriods=data.periods||[];
  const allowed=sharedPeriods.filter(p=>p.status==='open'||p.id===selectedId);
@@ -848,6 +850,7 @@ async function verifyAccess(user){
  const {data,error}=await window.VBGRAMGData.invoke('vbgramg-app-access',{body:{}});
  if(seq!==authSequence)return false;
  if(error||!data||data.approved!==true){await supabaseClient.auth.signOut();window.location.replace('./');return false}
+ if(window.VBGRAMGCache)window.VBGRAMGCache.setUser(user.id);
  try{await loadSharedPeriods();}catch(err){status('Could not load shared periods: '+(err.message||'unknown error'),'error');return false;}
  $('app-panel').classList.remove('hidden');
  // FTO history is shown on fto.html.

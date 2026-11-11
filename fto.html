@@ -588,6 +588,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./js/supabase-client.js?v=20261104b"></script>
 <script src="./js/data-loader.js?v=20261104b"></script>
+<script src="./js/cache.js?v=20261106b"></script>
 <div id="fto-view-modal-backdrop" class="fto-view-modal-backdrop hidden" role="presentation">
  <section class="fto-view-modal" role="dialog" aria-modal="true" aria-labelledby="fto-view-modal-title">
   <header class="fto-view-modal-header">
@@ -778,7 +779,8 @@ let lastFtoMobile=window.matchMedia("(max-width: 700px)").matches;window.addEven
 
 let pendingPeriodBatch=null;
 async function loadSharedPeriods(selectedId=""){
- const {data,error}=await window.VBGRAMGData.invoke("vbgramg-periods",{body:{action:"list"},deduplicate:true});
+ const data=await window.VBGRAMGCache.getOrLoad("periods:list:v1",()=>window.VBGRAMGData.request("vbgramg-periods",{body:{action:"list"}}),30000);
+ const error=null;
  if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||"Could not load shared periods.");
  sharedPeriods=data.periods||[];
  const allowed=sharedPeriods.filter(p=>p.contribution_month&&(p.status==="open"||p.id===selectedId));
@@ -875,6 +877,7 @@ async function verifyAccess(user){
  const {data,error}=await window.VBGRAMGData.invoke('vbgramg-app-access',{body:{}});
  if(seq!==authSequence)return false;
  if(error||!data||data.approved!==true){await supabaseClient.auth.signOut();window.location.replace('./');return false}
+ if(window.VBGRAMGCache)window.VBGRAMGCache.setUser(user.id);
  $('app-panel').classList.remove('hidden');
  loadFtoHistory();
  return true;

@@ -19,7 +19,7 @@ DECLARE
   v_row record;
   v_round public.vbgramg_periods%ROWTYPE;
   v_entry public.vbgramg_charge_ledger%ROWTYPE;
-  v_extra_result jsonb;
+  v_extra public.vbgramg_contribution_extras%ROWTYPE;
   v_result_entries jsonb := '[]'::jsonb;
   v_total numeric(14,2) := 0;
   v_count integer := 0;
@@ -108,6 +108,14 @@ BEGIN
     SELECT 1 FROM pg_catalog.jsonb_to_recordset(p_entries) AS x(job_card_number text, amount numeric, entry_date date)
     WHERE NOT EXISTS (SELECT 1 FROM public.vbgramg_contribution_citizens c WHERE c.job_card_number=pg_catalog.btrim(x.job_card_number))
       AND NOT EXISTS (SELECT 1 FROM public.vbgramg_charge_ledger l WHERE l.job_card_number=pg_catalog.btrim(x.job_card_number))
+      AND NOT EXISTS (
+        SELECT 1
+        FROM public.vbgramg_mis_state ms
+        JOIN public.vbgramg_mis_contribution_lookup lookup ON lookup.import_id=ms.active_import_id
+        CROSS JOIN LATERAL pg_catalog.jsonb_to_recordset(COALESCE(lookup.payload->'citizens','[]'::jsonb))
+          AS mis_card(job_card_number text,person_name text)
+        WHERE ms.singleton IS TRUE AND mis_card.job_card_number=pg_catalog.btrim(x.job_card_number)
+      )
   ) THEN
     RETURN pg_catalog.jsonb_build_object('ok',false,'status',404,'error','At least one job card is not present in contribution records. No charges were saved.');
   END IF;
@@ -149,87 +157,90 @@ BEGIN
       RAISE EXCEPTION 'Job card % is exempted. No charges were saved.',v_row.job_card_number;
     END IF;
 
+    IF EXISTS (
+      SELECT 1 FROM public.vbgramg_contribution_exemptions e
+      WHERE pg_catalog.btrim(e.job_card_number)=v_row.job_card_number
+    ) THEN
+      RAISE EXCEPTION 'Job card % is exempted. No charges were saved.',v_row.job_card_number;
+    END IF;
     IF NOT EXISTS (
-      SELECT 1 FROM public.vbgramg_contribution_citizens c
-      WHERE c.job_card_number=v_row.job_card_number
+      SELECT 1 FROM public.vbgramg_contribution_citizens c WHERE c.job_card_number=v_row.job_card_number
+      UNION ALL SELECT 1 FROM public.vbgramg_charge_ledger l WHERE l.job_card_number=v_row.job_card_number
       UNION ALL
-      SELECT 1 FROM public.vbgramg_charge_ledger l
-      WHERE l.job_card_number=v_row.job_card_number
+      SELECT 1
+      FROM public.vbgramg_mis_state ms
+      JOIN public.vbgramg_mis_contribution_lookup lookup ON lookup.import_id=ms.active_import_id
+      CROSS JOIN LATERAL pg_catalog.jsonb_to_recordset(COALESCE(lookup.payload->'citizens','[]'::jsonb))
+        AS mis_card(job_card_number text,person_name text)
+      WHERE ms.singleton IS TRUE AND mis_card.job_card_number=v_row.job_card_number
     ) THEN
       RAISE EXCEPTION 'Job card % is not present in contribution records. No charges were saved.',v_row.job_card_number;
     END IF;
+    IF p_charge_kind='regular' AND EXISTS (
+      SELECT 1 FROM public.vbgramg_charge_ledger l
+      WHERE l.job_card_number=v_row.job_card_number AND l.period_id=p_period_id
+        AND l.entry_type='charge' AND NOT COALESCE(l.is_voided,false)
+        AND pg_catalog.left(pg_catalog.btrim(COALESCE(l.note,'')),14)='MANUAL CHARGE:'
+    ) THEN
+      RAISE EXCEPTION 'A manual regular charge already exists for job card % in this round. No charges were saved.',v_row.job_card_number;
+    END IF;
+
+    v_name := NULL;
+    SELECT c.person_name INTO v_name
+    FROM public.vbgramg_contribution_citizens c
+    WHERE c.job_card_number=v_row.job_card_number LIMIT 1;
+    IF v_name IS NULL OR pg_catalog.btrim(v_name)='' THEN
+      SELECT mis_card.person_name INTO v_name
+      FROM public.vbgramg_mis_state ms
+      JOIN public.vbgramg_mis_contribution_lookup lookup ON lookup.import_id=ms.active_import_id
+      CROSS JOIN LATERAL pg_catalog.jsonb_to_recordset(COALESCE(lookup.payload->'citizens','[]'::jsonb))
+        AS mis_card(job_card_number text,person_name text)
+      WHERE ms.singleton IS TRUE AND mis_card.job_card_number=v_row.job_card_number
+      LIMIT 1;
+    END IF;
+    IF v_name IS NULL OR pg_catalog.btrim(v_name)='' THEN
+      SELECT l.person_name INTO v_name FROM public.vbgramg_charge_ledger l
+      WHERE l.job_card_number=v_row.job_card_number ORDER BY l.created_at,l.id LIMIT 1;
+    END IF;
+    IF v_name IS NULL OR pg_catalog.btrim(v_name)='' THEN
+      RAISE EXCEPTION 'Could not resolve the household name for job card %.',v_row.job_card_number;
+    END IF;
+
+    INSERT INTO public.vbgramg_charge_ledger
+      (job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note,is_deferred,created_by)
+    VALUES (v_row.job_card_number,pg_catalog.btrim(v_name),'charge',v_row.amount,
+      p_charge_period,p_period_id,v_row.entry_date,pg_catalog.left(v_note,200),false,p_actor_user_id)
+    RETURNING * INTO v_entry;
+    IF v_entry.id IS NULL THEN
+      RAISE EXCEPTION 'The contribution ledger rejected the manual charge for job card %.',v_row.job_card_number;
+    END IF;
 
     IF p_charge_kind='extra' THEN
-      v_extra_result := public.vbgramg_save_contribution_extra(
-        v_row.job_card_number,p_charge_period,p_period_id,v_row.amount,v_reason,v_row.entry_date,p_actor_user_id
-      );
-      IF COALESCE((v_extra_result->>'ok')::boolean,false)=false THEN
-        RAISE EXCEPTION 'Job card %: %',v_row.job_card_number,COALESCE(v_extra_result->>'error','Extra charge failed.');
+      INSERT INTO public.vbgramg_contribution_extras
+        (job_card_number,person_name,charge_period,period_id,amount,reason,ledger_entry_id,created_by,updated_by)
+      VALUES (v_row.job_card_number,pg_catalog.btrim(v_name),p_charge_period,p_period_id,
+        v_row.amount,v_reason,v_entry.id,p_actor_user_id,p_actor_user_id)
+      RETURNING * INTO v_extra;
+      IF v_extra.id IS NULL THEN
+        RAISE EXCEPTION 'The extra-charge record was not saved for job card %.',v_row.job_card_number;
       END IF;
-      INSERT INTO public.vbgramg_ledger_audit
-        (ledger_entry_id,job_card_number,action,actor_user_id,actor_email,before_data,after_data)
-      VALUES ((v_extra_result->'entry'->>'id')::uuid,v_row.job_card_number,
-        'manual_contribution_extra_charge',p_actor_user_id,
-        pg_catalog.lower(pg_catalog.btrim(COALESCE(p_actor_email,''))),NULL,
-        pg_catalog.jsonb_build_object('charge_kind','extra','amount',v_row.amount,
-          'period_id',p_period_id,'charge_period',p_charge_period,'entry_date',v_row.entry_date,'reason',v_reason));
-      v_result_entries := v_result_entries || pg_catalog.jsonb_build_array(v_extra_result->'entry');
-    ELSE
-      IF EXISTS (
-        SELECT 1 FROM public.vbgramg_charge_ledger l
-        WHERE l.job_card_number=v_row.job_card_number
-          AND l.period_id=p_period_id
-          AND l.entry_type='charge'
-          AND NOT COALESCE(l.is_voided,false)
-          AND pg_catalog.left(pg_catalog.btrim(COALESCE(l.note,'')),14)='MANUAL CHARGE:'
-      ) THEN
-        RAISE EXCEPTION 'A manual regular charge already exists for job card % in this round. No charges were saved.',v_row.job_card_number;
-      END IF;
-
-      INSERT INTO public.vbgramg_charge_ledger
-        (job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note,is_deferred,created_by)
-      SELECT v_row.job_card_number,
-             COALESCE(NULLIF(pg_catalog.btrim(c.person_name),''),v_row.job_card_number),
-             'charge',v_row.amount,p_charge_period,p_period_id,v_row.entry_date,
-             pg_catalog.left(v_note,200),false,p_actor_user_id
-      FROM public.vbgramg_contribution_citizens c
-      WHERE c.job_card_number=v_row.job_card_number
-      LIMIT 1
-      RETURNING * INTO v_entry;
-
-      IF v_entry.id IS NULL THEN
-        SELECT l.person_name INTO v_name
-        FROM public.vbgramg_charge_ledger l
-        WHERE l.job_card_number=v_row.job_card_number
-        ORDER BY l.created_at,l.id LIMIT 1;
-        IF v_name IS NULL OR pg_catalog.btrim(v_name)='' THEN
-          RAISE EXCEPTION 'Could not resolve the household name for job card %.',v_row.job_card_number;
-        END IF;
-        INSERT INTO public.vbgramg_charge_ledger
-          (job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note,is_deferred,created_by)
-        VALUES (v_row.job_card_number,v_name,
-          'charge',v_row.amount,p_charge_period,p_period_id,v_row.entry_date,pg_catalog.left(v_note,200),false,p_actor_user_id)
-        RETURNING * INTO v_entry;
-        IF v_entry.id IS NULL THEN
-          RAISE EXCEPTION 'The contribution ledger rejected the manual charge for job card %.',v_row.job_card_number;
-        END IF;
-      END IF;
-
-      INSERT INTO public.vbgramg_ledger_audit
-        (ledger_entry_id,job_card_number,action,actor_user_id,actor_email,before_data,after_data)
-      VALUES (v_entry.id,v_row.job_card_number,'manual_contribution_charge',p_actor_user_id,
-        pg_catalog.lower(pg_catalog.btrim(COALESCE(p_actor_email,''))),NULL,
-        pg_catalog.jsonb_build_object('charge_kind','regular','amount',v_entry.amount,
-          'period_id',p_period_id,'charge_period',p_charge_period,'entry_date',v_row.entry_date,'reason',v_reason));
-
-      v_result_entries := v_result_entries || pg_catalog.jsonb_build_array(
-        pg_catalog.jsonb_build_object('id',v_entry.id,'job_card_number',v_entry.job_card_number,
-          'person_name',v_entry.person_name,'entry_type',v_entry.entry_type,'amount',v_entry.amount,
-          'charge_period',v_entry.charge_period,'period_id',v_entry.period_id,'entry_date',v_entry.entry_date,
-          'note',v_entry.note,'created_at',v_entry.created_at,'is_deferred',v_entry.is_deferred,
-          'is_voided',v_entry.is_voided)
-      );
     END IF;
+
+    INSERT INTO public.vbgramg_ledger_audit
+      (ledger_entry_id,job_card_number,action,actor_user_id,actor_email,before_data,after_data)
+    VALUES (v_entry.id,v_row.job_card_number,
+      CASE WHEN p_charge_kind='extra' THEN 'manual_contribution_extra_charge' ELSE 'manual_contribution_charge' END,
+      p_actor_user_id,pg_catalog.lower(pg_catalog.btrim(COALESCE(p_actor_email,''))),NULL,
+      pg_catalog.jsonb_build_object('charge_kind',p_charge_kind,'amount',v_entry.amount,
+        'period_id',p_period_id,'charge_period',p_charge_period,'entry_date',v_row.entry_date,'reason',v_reason));
+
+    v_result_entries := v_result_entries || pg_catalog.jsonb_build_array(
+      pg_catalog.jsonb_build_object('id',v_entry.id,'job_card_number',v_entry.job_card_number,
+        'person_name',v_entry.person_name,'entry_type',v_entry.entry_type,'amount',v_entry.amount,
+        'charge_period',v_entry.charge_period,'period_id',v_entry.period_id,'entry_date',v_entry.entry_date,
+        'note',v_entry.note,'created_at',v_entry.created_at,'is_deferred',v_entry.is_deferred,
+        'is_voided',v_entry.is_voided)
+    );
     v_count := v_count+1;
     v_total := v_total+v_row.amount;
   END LOOP;

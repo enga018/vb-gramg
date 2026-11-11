@@ -518,8 +518,7 @@ function selectedPeriodDate(){return selectedPeriod()?.contribution_month||'';}
 function selectedPeriodName(){return selectedPeriod()?.period_name||'';}
 async function loadSharedPeriods(selectedId=''){
  const data=await window.VBGRAMGCache.getOrLoad('periods:list:v1',()=>window.VBGRAMGData.request('vbgramg-periods',{body:{action:'list'}}),30000);
- const error=null;
- if(error||!data||data.approved!==true)throw new Error((data&&data.error)||(error&&error.message)||'Could not load shared periods.');
+ if(!data||data.approved!==true)throw new Error((data&&data.error)||'Could not load shared periods.');
  sharedPeriods=data.periods||[];
  const allowed=sharedPeriods.filter(p=>p.status==='open'||p.id===selectedId);
  const select=$('charge-period'),old=selectedId||select.value;select.replaceChildren();

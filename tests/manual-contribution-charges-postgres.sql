@@ -16,7 +16,7 @@ CREATE TABLE public.vbgramg_charge_ledger (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),job_card_number text NOT NULL,person_name text NOT NULL,
   entry_type text NOT NULL,amount numeric(14,2) NOT NULL,charge_period date,period_id uuid,
   entry_date date,note text,created_by uuid,created_at timestamptz NOT NULL DEFAULT now(),
-  is_deferred boolean NOT NULL DEFAULT false,is_voided boolean NOT NULL DEFAULT false
+  source_created_at_ms bigint,legacy_entry_id text,is_deferred boolean NOT NULL DEFAULT false,is_voided boolean NOT NULL DEFAULT false
 );
 CREATE TABLE public.vbgramg_contribution_extras (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),job_card_number text NOT NULL,person_name text NOT NULL,

@@ -142,6 +142,10 @@ jobs:
         run: |
           createdb vbgramg_fto_exemption_test
           PGDATABASE=vbgramg_fto_exemption_test psql -v ON_ERROR_STOP=1 -f tests/fto-exemption-period-eligibility-postgres.sql
+      - name: Run FTO snapshot exemption PostgreSQL integration tests
+        run: |
+          createdb vbgramg_fto_snapshot_test
+          PGDATABASE=vbgramg_fto_snapshot_test psql -v ON_ERROR_STOP=1 -f tests/fto-exemption-snapshot-lock-postgres.sql
       - name: Run atomic extra contribution charge PostgreSQL tests
         run: |
           createdb vbgramg_extras_test

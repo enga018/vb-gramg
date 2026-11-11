@@ -140,11 +140,40 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-      - name: Install PostgreSQL client
-        timeout-minutes: 6
+      - name: Configure PostgreSQL service-container client
         run: |
-          sudo apt-get update -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30
-          sudo apt-get install -y -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 postgresql-client
+          PG_CONTAINER="$(docker ps --filter 'name=postgres' --format '{{.ID}}' | head -n1)"
+          if [ -z "$PG_CONTAINER" ]; then
+            echo "PostgreSQL service container was not found."
+            docker ps -a
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/pg-client"
+          cat > "$RUNNER_TEMP/pg-client/psql" <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          exec docker exec -i \
+            -e PGHOST=localhost \
+            -e PGPORT=5432 \
+            -e PGUSER="${PGUSER:-postgres}" \
+            -e PGPASSWORD="${PGPASSWORD:-}" \
+            -e PGDATABASE="${PGDATABASE:-postgres}" \
+            "$PG_CONTAINER" psql "$@"
+          EOF
+          cat > "$RUNNER_TEMP/pg-client/createdb" <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          exec docker exec -i \
+            -e PGHOST=localhost \
+            -e PGPORT=5432 \
+            -e PGUSER="${PGUSER:-postgres}" \
+            -e PGPASSWORD="${PGPASSWORD:-}" \
+            -e PGDATABASE="${PGDATABASE:-postgres}" \
+            "$PG_CONTAINER" createdb "$@"
+          EOF
+          chmod +x "$RUNNER_TEMP/pg-client/psql" "$RUNNER_TEMP/pg-client/createdb"
+          echo "$RUNNER_TEMP/pg-client" >> "$GITHUB_PATH"
+          echo "PG_CONTAINER=$PG_CONTAINER" >> "$GITHUB_ENV"
           psql --version
           createdb --version
       - name: Run atomic contribution PostgreSQL integration tests

@@ -1,0 +1,61 @@
+name: Generate FTO revision migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      migration_name:
+        description: "Descriptive migration name (lowercase letters, numbers and underscores)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fto-revision-migration-generator
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    if: github.ref == 'refs/heads/feature/fto-revision-workflow'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/fto-revision-workflow
+          fetch-depth: 0
+
+      - name: Validate migration name
+        env:
+          MIGRATION_NAME: ${{ inputs.migration_name }}
+        run: |
+          if [[ ! "$MIGRATION_NAME" =~ ^[a-z][a-z0-9_]{2,60}$ ]]; then
+            echo "Invalid migration name. Use 3-61 lowercase letters, numbers or underscores, starting with a letter."
+            exit 1
+          fi
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v3
+        with:
+          version: latest
+
+      - name: Generate migration with Supabase CLI
+        env:
+          MIGRATION_NAME: ${{ inputs.migration_name }}
+        run: |
+          supabase --version
+          supabase migration new "$MIGRATION_NAME"
+          test "$(find supabase/migrations -maxdepth 1 -type f -name "*_${MIGRATION_NAME}.sql" | wc -l)" -eq 1
+
+      - name: Commit generated migration file
+        env:
+          MIGRATION_NAME: ${{ inputs.migration_name }}
+        run: |
+          FILE="$(find supabase/migrations -maxdepth 1 -type f -name "*_${MIGRATION_NAME}.sql" -print -quit)"
+          test -n "$FILE"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$FILE"
+          git commit -m "chore(db): generate ${MIGRATION_NAME} migration"
+          git push origin HEAD:feature/fto-revision-workflow

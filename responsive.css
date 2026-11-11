@@ -1,3 +1,6 @@
+/* Load shared design tokens before the responsive/component layer. */
+@import url("./design-tokens.css");
+
 /* Shared responsive baseline for VBGRAMG.
    Page-specific styles remain in each HTML file; this file only handles
    cross-page sizing, wrapping, touch targets, and small-screen overflow. */

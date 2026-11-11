@@ -73,11 +73,17 @@ BEGIN
     'regular','00000000-0000-0000-0000-000000000001','2026-11-01',NULL,'Manual regular batch',actor,'admin@example.test');
   IF NOT COALESCE((r->>'ok')::boolean,false) OR (r->>'count')::int<>3 OR (r->>'total_amount')::numeric<>425 THEN RAISE EXCEPTION 'Regular batch failed: %',r; END IF;
 
+  SELECT count(*) INTO n FROM public.vbgramg_ledger_audit WHERE job_card_number='MZ-MIS-ONLY' AND action='manual_contribution_charge';
+  IF n<>1 THEN RAISE EXCEPTION 'Regular manual charge audit missing'; END IF;
   r:=public.vbgramg_save_manual_contribution_charges(
     '[{"job_card_number":"MZ-EXTRA-ONE","amount":25,"entry_date":"2026-11-05"},{"job_card_number":"MZ-EXTRA-TWO","amount":35,"entry_date":"2026-11-06"},{"job_card_number":"MZ-MIS-ONLY","amount":45,"entry_date":"2026-11-07"}]'::jsonb,
     'extra','00000000-0000-0000-0000-000000000001','2026-11-01',NULL,'Manual extra batch',actor,'admin@example.test');
   IF NOT COALESCE((r->>'ok')::boolean,false) OR (r->>'count')::int<>3 OR (r->>'total_amount')::numeric<>105 THEN RAISE EXCEPTION 'Extra batch failed: %',r; END IF;
 
+  SELECT count(*) INTO n FROM public.vbgramg_ledger_audit WHERE job_card_number='MZ-MIS-ONLY' AND action='manual_contribution_extra_charge';
+  IF n<>1 THEN RAISE EXCEPTION 'Extra manual charge audit missing'; END IF;
+  SELECT count(*) INTO n FROM public.vbgramg_contribution_extras WHERE job_card_number='MZ-MIS-ONLY' AND period_id='00000000-0000-0000-0000-000000000001';
+  IF n<>1 THEN RAISE EXCEPTION 'Active-MIS extra charge was not recorded in the extras table'; END IF;
   r:=public.vbgramg_save_manual_contribution_charges(
     '[{"job_card_number":"MZ-REG-ONE","amount":20},{"job_card_number":"MZ-REG-OLD","amount":20}]'::jsonb,
     'regular','00000000-0000-0000-0000-000000000001','2026-11-01','2026-11-07','Duplicate regular',actor,'admin@example.test');

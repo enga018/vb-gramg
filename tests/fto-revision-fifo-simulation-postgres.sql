@@ -9,10 +9,10 @@ declare
   v_allocations jsonb;
   v_total numeric;
 begin
-  -- Two periods: oldest first. Payment A has ₹20 remaining after its
-  -- existing allocation; payment B has ₹100, but ₹10 has been refunded.
-  -- Period 1 has ₹50 charges, ₹10 already allocated and ₹5 linked waiver:
-  -- due ₹35. Period 2 has ₹40 charges and no prior allocations.
+  -- Three periods: oldest first. Payment A has ₹20 remaining after its
+  -- existing allocation; payment B has ₹80 after its existing allocation
+  -- and ₹10 refund. Period 1 has ₹35 due after allocation and waiver;
+  -- period 2 has ₹40 due; period 3 has ₹70 due after its existing allocation.
   v_result := public.vbgramg_simulate_fifo_allocator(
     '[
       {"period_id":"00000000-0000-0000-0000-000000000001","period_order":1,"eligible_charges":50,"linked_waivers":5},
@@ -36,8 +36,8 @@ begin
   v_allocations := v_result->'proposed_allocations';
   v_total := (v_result->>'allocated_total')::numeric;
 
-  if v_total <> 75 then
-    raise exception 'Expected simulated allocation total 75; got %', v_total;
+  if v_total <> 100 then
+    raise exception 'Expected simulated allocation total 100; got %', v_total;
   end if;
 
   if (v_allocations->0->>'payment_id') <> '10000000-0000-0000-0000-000000000001'

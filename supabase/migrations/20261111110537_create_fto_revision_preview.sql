@@ -243,7 +243,8 @@ begin
       from (
         select distinct p.id, p.contribution_month, p.period_date, p.created_at,
           row_number() over (
-            order by coalesce(p.contribution_month, p.period_date) asc nulls last,
+            order by p.contribution_month asc nulls last,
+                     p.period_date asc nulls last,
                      p.created_at asc, p.id asc
           ) as fifo_order
         from public.vbgramg_periods p

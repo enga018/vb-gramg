@@ -27,6 +27,7 @@ declare
   v_allocations jsonb := '[]'::jsonb;
   v_periods jsonb := '[]'::jsonb;
   v_total numeric(14,2) := 0;
+  v_conflicts jsonb := '[]'::jsonb;
 begin
   if p_periods is null or p_payments is null or p_allocations is null or p_refunds is null
      or jsonb_typeof(p_periods) <> 'array'
@@ -69,6 +70,18 @@ begin
     where x.period_id = v_period.period_id;
 
     v_existing_period_waived := coalesce(v_period.linked_waivers,0);
+    if v_existing_period_allocated >
+       greatest(v_period.eligible_charges - v_existing_period_waived, 0) then
+      v_conflicts := v_conflicts || jsonb_build_array(jsonb_build_object(
+        'period_id', v_period.period_id,
+        'eligible_charges', v_period.eligible_charges,
+        'existing_allocations', v_existing_period_allocated,
+        'linked_waivers', v_existing_period_waived,
+        'excess_allocated', v_existing_period_allocated
+          - greatest(v_period.eligible_charges - v_existing_period_waived, 0)
+      ));
+    end if;
+
     v_period_due := greatest(
       v_period.eligible_charges - v_existing_period_allocated - v_existing_period_waived,
       0
@@ -136,8 +149,19 @@ begin
     ));
   end loop;
 
+  if jsonb_array_length(v_conflicts) > 0 then
+    return jsonb_build_object(
+      'status','allocation_conflict',
+      'conflicts',v_conflicts,
+      'proposed_allocations','[]'::jsonb,
+      'periods',v_periods,
+      'allocated_total',0
+    );
+  end if;
+
   return jsonb_build_object(
     'status','simulated',
+    'conflicts','[]'::jsonb,
     'proposed_allocations',v_allocations,
     'periods',v_periods,
     'allocated_total',v_total

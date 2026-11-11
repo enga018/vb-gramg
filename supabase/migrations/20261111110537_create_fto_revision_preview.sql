@@ -182,14 +182,15 @@ begin
     raise exception 'FTO batch not found';
   end if;
 
-  -- Include every transaction in the batch, including superseded and
-  -- out-of-scope rows, so historical ledger links cannot be omitted.
+  -- Include current and superseded in-scope transactions. Out-of-scope
+  -- village rows must never expand the contribution revision scope.
   select coalesce(array_agg(distinct t.job_card_number order by t.job_card_number)
                     filter (where t.job_card_number is not null),
                   array[]::text[])
     into v_cards
   from public.vbgramg_fto_transactions t
-  where t.batch_id = p_batch_id;
+  where t.batch_id = p_batch_id
+    and coalesce(t.is_in_scope, true);
 
   if p_target_period_id is not null and not exists (
     select 1 from public.vbgramg_periods p where p.id = p_target_period_id

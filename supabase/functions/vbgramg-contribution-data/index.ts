@@ -1205,6 +1205,7 @@ Deno.serve(async(req:Request)=>{
    if(!/^\d{4}-\d{2}-01$/.test(chargePeriod)||Number(chargePeriod.slice(5,7))<1||Number(chargePeriod.slice(5,7))>12)return reply({error:"Choose a valid contribution month."},400);
    if(entryDate&&(!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)||Number.isNaN(Date.parse(entryDate))))return reply({error:"Choose a valid default entry date."},400);
    if(!reason)return reply({error:"Enter a reason or reference for the manual charge."},400);
+   const validIsoDate=(value:string)=>{const match=value.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);if(!match)return false;const year=Number(match[1]),month=Number(match[2]),day=Number(match[3]),date=new Date(Date.UTC(year,month-1,day));return date.getUTCFullYear()===year&&date.getUTCMonth()===month-1&&date.getUTCDate()===day;};
    const seen=new Set<string>(),normalized:{job_card_number:string;amount:number;entry_date:string|null}[]=[];
    for(const raw of rows){
     const jobCard=String(raw?.job_card_number||"").trim(),amount=Number(raw?.amount);

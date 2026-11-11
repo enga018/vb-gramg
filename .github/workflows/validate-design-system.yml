@@ -1,6 +1,7 @@
 name: Validate design system
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - "chore/design-system-validation"

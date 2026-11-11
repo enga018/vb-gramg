@@ -45,7 +45,7 @@ test("FTO re-import eligibility uses immutable created_at against every exemptio
 
 test("FTO period reassignment filters out transactions first seen during exemption intervals", () => {
   assert.match(edge, /eligibleInScopeTxs/);
-  assert.match(edge, /created_at\)\);/);
+  assert.match(edge, /select\("id,batch_id,reference_no,job_card_number,person_name,calculated_charge,status,processed_date,is_in_scope,last_seen_at,created_at"\)/);
   assert.match(edge, /exemptionHistory/);
   assert.match(edge, /for\(const tx of eligibleInScopeTxs\)/);
 });

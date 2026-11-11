@@ -1598,7 +1598,7 @@ function showManualChargeForm(){
  $('sheetBody').innerHTML='<div class="notice info">Create charges without importing an FTO. Regular charges and extra charges are recorded separately. Existing FTO charges are not replaced. A batch is saved all-or-nothing.</div>'+
  '<form id="manualChargeForm">'+
  '<div class="grid2"><div class="field"><label for="manualChargeKind">Charge type</label><select id="manualChargeKind"><option value="regular">Regular charge</option><option value="extra">Extra charge</option></select></div>'+
- '<div class="field"><label for="manualChargePeriod">Contribution round</label><select id="manualChargePeriod" required>'+periods.map(p=>'<option value="'+esc(p.id)+'" '+(p.status==="closed"?"disabled":"")+'>'+esc(p.period_name||"Contribution round")+(p.status==="closed"?" · Closed":"")+'</option>').join('')+'</select></div></div>'+
+ '<div class="field"><label for="manualChargePeriod">Contribution round</label><select id="manualChargePeriod" required>'+periods.filter(p=>p.status!=='closed').map(p=>'<option value="'+esc(p.id)+'">'+esc(p.period_name||"Contribution round")+'</option>').join('')+'</select></div></div>'+
  '<div class="grid2"><div class="field"><label for="manualChargeDate">Default entry date</label><input id="manualChargeDate" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div>'+
  '<div class="field"><label for="manualChargeMode">Entry mode</label><select id="manualChargeMode"><option value="single">Single job card</option><option value="bulk">Bulk job cards</option></select></div></div>'+
  '<div class="field"><label for="manualChargeAmountMode">Amount entry</label><select id="manualChargeAmountMode"><option value="same">Same amount for every job card</option><option value="individual">Different amount per job card</option></select></div>'+
@@ -1611,7 +1611,7 @@ function showManualChargeForm(){
  if(!periods.some(p=>p.status!=='closed')){$('manualChargeForm').innerHTML='<div class="notice err">No contribution rounds are available. Create or open a contribution round first.</div><button class="btn ghost" id="cancelManualCharges" type="button">Close</button>';$('cancelManualCharges').addEventListener('click',closeCitizenDetail);return;}
  const mode=$('manualChargeMode'),amountMode=$('manualChargeAmountMode');
  const sync=()=>{
-  const single=mode.value==="single",same=amountMode.value==="same";
+  const single=mode.value==="single";if(single)amountMode.value="same";const same=amountMode.value==="same";
   $('manualSingleCardField').classList.toggle('hidden',!single);
   $('manualBulkCardsField').classList.toggle('hidden',single);
   $('manualChargeAmountMode').disabled=single;

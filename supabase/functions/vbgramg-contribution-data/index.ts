@@ -183,14 +183,16 @@ Deno.serve(async(req:Request)=>{
 
   if(action==="list-summary"){
    const summaryStarted=performance.now();
-   const [sqlSummaryResult,exemptionsResult,misStateResult]=await Promise.all([
+   const [sqlSummaryResult,exemptionsResult,misStateResult,periodsResult]=await Promise.all([
     admin.rpc("vbgramg_contribution_financial_summary"),
     admin.from("vbgramg_contribution_exemptions").select("job_card_number,note,created_at,updated_at").order("job_card_number",{ascending:true}),
-    admin.from("vbgramg_mis_state").select("active_import_id,row_count,source_filename").eq("singleton",true).maybeSingle()
+    admin.from("vbgramg_mis_state").select("active_import_id,row_count,source_filename").eq("singleton",true).maybeSingle(),
+    admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status,created_at").order("contribution_month",{ascending:false}).order("created_at",{ascending:false})
    ]);
    if(sqlSummaryResult.error)throw sqlSummaryResult.error;
    if(exemptionsResult.error)throw exemptionsResult.error;
    if(misStateResult.error)throw misStateResult.error;
+   if(periodsResult.error)throw periodsResult.error;
    const sqlSummary=sqlSummaryResult.data as {summaries?:Record<string,any>[];totals?:Record<string,any>}|null;
    if(!sqlSummary||!Array.isArray(sqlSummary.summaries))throw new Error("The database financial summary returned an invalid response.");
    const sqlByCard=new Map(sqlSummary.summaries.map(row=>[String(row.job_card_number||"").trim(),row]));
@@ -226,7 +228,7 @@ Deno.serve(async(req:Request)=>{
     const latestApplicant=applicants.slice().sort((a,b)=>String(b.applicant_number||"").localeCompare(String(a.applicant_number||""),undefined,{numeric:true})||String(b.applicant_name||"").localeCompare(String(a.applicant_name||"")))[0];
     return {...sql,job_card_number:id,person_name:String(c.person_name||"Unnamed"),exempt:isExempt,charges:isExempt?0:Number(sql.charges)||0,deferred:isExempt?0:Number(sql.deferred)||0,paid:isExempt?0:Number(sql.paid)||0,waived:isExempt?0:Number(sql.waived)||0,returns:isExempt?0:Number(sql.returns)||0,totalCharged:isExempt?0:Number(sql.totalCharged)||0,balance:isExempt?0:Number(sql.balance)||0,display_applicant:String(latestApplicant?.applicant_name||"").trim()||String(c.person_name||"")};
    });
-   const payload={approved:true,role:approved.role,summaries,financial_totals:sqlSummary.totals||{},applicants_by_job_card:applicantsByCard,exemptions:exemptionsResult.data||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:Number(misState.row_count||0)};
+   const payload={approved:true,role:approved.role,summaries,periods:periodsResult.data||[],financial_totals:sqlSummary.totals||{},applicants_by_job_card:applicantsByCard,exemptions:exemptionsResult.data||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:Number(misState.row_count||0)};
    console.info("[contribution-summary-timing]",JSON.stringify({request_ms:Number((performance.now()-requestStarted).toFixed(1)),total_ms:Number((performance.now()-summaryStarted).toFixed(1)),calculation_source:"postgresql",job_cards:summaries.length,response_bytes:new TextEncoder().encode(JSON.stringify(payload)).length}));
    return reply(payload);
   }
@@ -1200,15 +1202,15 @@ Deno.serve(async(req:Request)=>{
    const periodId=String(body.period_id||"").trim(),chargePeriod=String(body.charge_period||"").trim();
    const entryDate=String(body.entry_date||"").trim(),reason=String(body.reason||"").trim().slice(0,500);
    if(!periodId)return reply({error:"Select a contribution round."},400);
-   if(!/^\\d{4}-\\d{2}-01$/.test(chargePeriod)||Number(chargePeriod.slice(5,7))<1||Number(chargePeriod.slice(5,7))>12)return reply({error:"Choose a valid contribution month."},400);
-   if(entryDate&&(!/^\\d{4}-\\d{2}-\\d{2}$/.test(entryDate)||Number.isNaN(Date.parse(entryDate))))return reply({error:"Choose a valid default entry date."},400);
+   if(!/^\d{4}-\d{2}-01$/.test(chargePeriod)||Number(chargePeriod.slice(5,7))<1||Number(chargePeriod.slice(5,7))>12)return reply({error:"Choose a valid contribution month."},400);
+   if(entryDate&&(!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)||Number.isNaN(Date.parse(entryDate))))return reply({error:"Choose a valid default entry date."},400);
    if(!reason)return reply({error:"Enter a reason or reference for the manual charge."},400);
    const seen=new Set<string>(),normalized:{job_card_number:string;amount:number;entry_date:string|null}[]=[];
    for(const raw of rows){
     const jobCard=String(raw?.job_card_number||"").trim(),amount=Number(raw?.amount);
     const rowDate=String(raw?.entry_date||"").trim();
     if(!jobCard||jobCard.length>100||!Number.isFinite(amount)||amount<=0||amount>10000000)return reply({error:"Every row must have a job card and a positive amount."},400);
-    if(rowDate&&(!/^\\d{4}-\\d{2}-\\d{2}$/.test(rowDate)||Number.isNaN(Date.parse(rowDate))))return reply({error:"Invalid entry date for job card "+jobCard+"."},400);
+    if(rowDate&&(!/^\d{4}-\d{2}-\d{2}$/.test(rowDate)||Number.isNaN(Date.parse(rowDate))))return reply({error:"Invalid entry date for job card "+jobCard+"."},400);
     if(!entryDate&&!rowDate)return reply({error:"Provide a default date or a date for every job card."},400);
     if(seen.has(jobCard))return reply({error:"Duplicate job card in batch: "+jobCard},400);
     seen.add(jobCard);normalized.push({job_card_number:jobCard,amount,entry_date:rowDate||null});

@@ -29,6 +29,8 @@ on:
       - "supabase/functions/vbgramg-demand-runs/index.ts"
       - "tests/work-demand-requires-existing-period.test.cjs"
       - "tests/fto-exemption-period-eligibility.test.cjs"
+      - "tests/fto-revision-history-postgres.sql"
+      - "supabase/migrations/20261111105048_add_fto_revision_history.sql"
       - "supabase/migrations/20261111120000_track_contribution_exemption_intervals.sql"
       - "tests/fto-exemption-period-eligibility-postgres.sql"
       - "supabase/migrations/20261111160000_serialize_fto_snapshot_with_exemptions.sql"
@@ -138,6 +140,10 @@ jobs:
           sudo apt-get install -y postgresql-client
       - name: Run atomic contribution PostgreSQL integration tests
         run: psql -v ON_ERROR_STOP=1 -f tests/atomic-contribution-writes-postgres.sql
+      - name: Run FTO revision history PostgreSQL tests
+        run: |
+          createdb vbgramg_fto_revision_test
+          PGDATABASE=vbgramg_fto_revision_test psql -v ON_ERROR_STOP=1 -f tests/fto-revision-history-postgres.sql
       - name: Run FTO exemption interval PostgreSQL tests
         run: |
           createdb vbgramg_fto_exemption_test

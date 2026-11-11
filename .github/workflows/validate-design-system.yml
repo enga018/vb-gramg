@@ -1,0 +1,38 @@
+name: Validate design system
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/validate-design-system.yml"
+      - ".github/scripts/validate-design-system.mjs"
+      - "design-tokens.css"
+      - "theme.css"
+      - "responsive.css"
+      - "mis.html"
+      - "mis-import.html"
+      - "fto.html"
+      - "fto-import.html"
+      - "contribution.html"
+      - "demand.html"
+      - "periods.html"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-design-system:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install validation parsers
+        run: npm install --no-save --no-package-lock postcss@8.5.6 postcss-value-parser@4.2.0 parse5@7.3.0
+
+      - name: Validate shared CSS and HTML
+        run: node .github/scripts/validate-design-system.mjs

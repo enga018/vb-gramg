@@ -48,3 +48,22 @@ test("FTO period reassignment filters out transactions first seen during exempti
   assert.match(edge, /exemptionHistory/);
   assert.match(edge, /for\(const tx of eligibleInScopeTxs\)/);
 });
+
+
+test("Re-importing an FTO after a status change preserves the original first-seen timestamp", () => {
+  const snapshot = read("supabase/migrations/20261103170000_add_atomic_fto_snapshot_rpc.sql");
+  const transactionUpsertStart = snapshot.indexOf("on conflict (id) do update set", snapshot.indexOf("insert into public.vbgramg_fto_transactions"));
+  const transactionUpsertEnd = snapshot.indexOf(";", transactionUpsertStart);
+  assert.ok(transactionUpsertStart >= 0 && transactionUpsertEnd > transactionUpsertStart);
+  const transactionUpsert = snapshot.slice(transactionUpsertStart, transactionUpsertEnd);
+
+  // The Edge Function reuses the existing transaction ID and created_at,
+  // even when status/processed_date changes during a later FTO synchronization.
+  assert.match(edge, /created_at:old\?\.created_at\|\|nowIso/);
+  assert.match(edge, /String\(old\.status\|\|""\)!==String\(row\.status\|\|""\)/);
+  assert.match(edge, /statusHistory\.push\(\{transaction_id:id,old_status:old\?\.status\?\?null,new_status:row\.status/);
+
+  // PostgreSQL updates mutable snapshot fields but never overwrites created_at.
+  assert.match(transactionUpsert, /status=excluded\.status/);
+  assert.doesNotMatch(transactionUpsert, /created_at\s*=/);
+});

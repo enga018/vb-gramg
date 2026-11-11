@@ -123,7 +123,7 @@ BEGIN
     SELECT 1 FROM pg_catalog.jsonb_to_recordset(p_entries) AS x(job_card_number text, amount numeric, entry_date date)
     JOIN public.vbgramg_charge_ledger l
       ON l.job_card_number=pg_catalog.btrim(x.job_card_number)
-     AND l.period_id=p_period_id AND l.entry_type='charge'
+     AND (l.period_id=p_period_id OR (l.period_id IS NULL AND l.charge_period=p_charge_period)) AND l.entry_type='charge'
      AND NOT COALESCE(l.is_voided,false)
      AND pg_catalog.left(pg_catalog.btrim(COALESCE(l.note,'')),14)='MANUAL CHARGE:'
   ) THEN
@@ -135,6 +135,16 @@ BEGIN
       ON e.job_card_number=pg_catalog.btrim(x.job_card_number) AND e.period_id=p_period_id
   ) THEN
     RETURN pg_catalog.jsonb_build_object('ok',false,'status',409,'error','An extra charge already exists for at least one selected job card in this round. Review the existing charge first. No charges were saved.');
+  END IF;
+  IF p_charge_kind='extra' AND EXISTS (
+    SELECT 1 FROM pg_catalog.jsonb_to_recordset(p_entries) AS x(job_card_number text, amount numeric, entry_date date)
+    JOIN public.vbgramg_charge_ledger l
+      ON l.job_card_number=pg_catalog.btrim(x.job_card_number)
+     AND (l.period_id=p_period_id OR (l.period_id IS NULL AND l.charge_period=p_charge_period))
+     AND l.entry_type='charge' AND NOT COALESCE(l.is_voided,false)
+     AND pg_catalog.left(pg_catalog.btrim(COALESCE(l.note,'')),9)='FTO EXTRA'
+  ) THEN
+    RETURN pg_catalog.jsonb_build_object('ok',false,'status',409,'error','An extra ledger charge already exists for at least one selected job card in this round. Review the existing charge first. No charges were saved.');
   END IF;
 
   v_note := CASE WHEN p_charge_kind='extra' THEN 'FTO EXTRA: ' ELSE 'MANUAL CHARGE: ' END || v_reason;
@@ -178,7 +188,8 @@ BEGIN
     END IF;
     IF p_charge_kind='regular' AND EXISTS (
       SELECT 1 FROM public.vbgramg_charge_ledger l
-      WHERE l.job_card_number=v_row.job_card_number AND l.period_id=p_period_id
+      WHERE l.job_card_number=v_row.job_card_number
+        AND (l.period_id=p_period_id OR (l.period_id IS NULL AND l.charge_period=p_charge_period))
         AND l.entry_type='charge' AND NOT COALESCE(l.is_voided,false)
         AND pg_catalog.left(pg_catalog.btrim(COALESCE(l.note,'')),14)='MANUAL CHARGE:'
     ) THEN

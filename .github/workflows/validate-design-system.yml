@@ -1,6 +1,22 @@
 name: Validate design system
 
 on:
+  push:
+    branches:
+      - "chore/design-system-validation"
+    paths:
+      - ".github/workflows/validate-design-system.yml"
+      - ".github/scripts/validate-design-system.mjs"
+      - "design-tokens.css"
+      - "theme.css"
+      - "responsive.css"
+      - "mis.html"
+      - "mis-import.html"
+      - "fto.html"
+      - "fto-import.html"
+      - "contribution.html"
+      - "demand.html"
+      - "periods.html"
   pull_request:
     paths:
       - ".github/workflows/validate-design-system.yml"

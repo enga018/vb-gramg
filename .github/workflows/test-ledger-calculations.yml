@@ -141,9 +141,12 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
       - name: Install PostgreSQL client
+        timeout-minutes: 6
         run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
+          sudo apt-get update -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30
+          sudo apt-get install -y -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 postgresql-client
+          psql --version
+          createdb --version
       - name: Run atomic contribution PostgreSQL integration tests
         run: psql -v ON_ERROR_STOP=1 -f tests/atomic-contribution-writes-postgres.sql
       - name: Run FTO revision history PostgreSQL tests

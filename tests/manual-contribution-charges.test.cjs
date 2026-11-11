@@ -17,7 +17,8 @@ test("Manual charge batch RPC is admin-service-only and validates the complete b
   assert.match(migration,/vbgramg_contribution_exemptions/);
   assert.match(migration,/vbgramg_periods/);
   assert.match(migration,/MANUAL CHARGE:/);
-  assert.match(migration,/vbgramg_save_contribution_extra/);
+  assert.match(migration,/vbgramg_contribution_extras/);
+  assert.match(migration,/vbgramg_mis_contribution_lookup/);
   assert.match(migration,/vbgramg_ledger_audit/);
   assert.match(migration,/EXCEPTION WHEN OTHERS[\s\S]*?All changes were rolled back/);
   assert.match(migration,/REVOKE ALL ON FUNCTION[\s\S]+FROM PUBLIC/);
@@ -53,6 +54,7 @@ test("Contribution page exposes individual, same-amount bulk and per-card amount
 
 test("PostgreSQL fixture exercises batch success, rollback, duplicate and permission paths", () => {
   assert.match(postgres,/MZ-REG-ONE/);
+  assert.match(postgres,/MZ-MIS-ONLY/);
   assert.match(postgres,/MZ-EXTRA-ONE/);
   assert.match(postgres,/MZ-ROLLBACK/);
   assert.match(postgres,/MZ-EXEMPT/);

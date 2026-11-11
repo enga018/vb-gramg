@@ -16,7 +16,8 @@ begin
   v_result := public.vbgramg_simulate_fifo_allocator(
     '[
       {"period_id":"00000000-0000-0000-0000-000000000001","period_order":1,"eligible_charges":50,"linked_waivers":5},
-      {"period_id":"00000000-0000-0000-0000-000000000002","period_order":2,"eligible_charges":40,"linked_waivers":0}
+      {"period_id":"00000000-0000-0000-0000-000000000002","period_order":2,"eligible_charges":40,"linked_waivers":0},
+      {"period_id":"00000000-0000-0000-0000-000000000099","period_order":3,"eligible_charges":100,"linked_waivers":0}
     ]'::jsonb,
     '[
       {"payment_id":"10000000-0000-0000-0000-000000000001","amount":50,"payment_date":"2026-01-01","created_at":"2026-01-01T09:00:00Z"},
@@ -54,6 +55,27 @@ begin
   if (v_allocations->2->>'period_id') <> '00000000-0000-0000-0000-000000000002'
      or (v_allocations->2->>'amount')::numeric <> 40 then
     raise exception 'Remaining payment credit was not carried to next period: %', v_allocations;
+  end if;
+
+  if (v_allocations->3->>'period_id') <> '00000000-0000-0000-0000-000000000099'
+     or (v_allocations->3->>'amount')::numeric <> 15 then
+    raise exception 'Payment credit was not carried through all periods: %', v_allocations;
+  end if;
+
+  -- A revision that leaves existing allocations above the eligible charge
+  -- balance must fail closed instead of returning new allocation suggestions.
+  v_result := public.vbgramg_simulate_fifo_allocator(
+    '[{"period_id":"00000000-0000-0000-0000-000000000001","period_order":1,"eligible_charges":20,"linked_waivers":0}]'::jsonb,
+    '[{"payment_id":"10000000-0000-0000-0000-000000000001","amount":100,"payment_date":"2026-01-01","created_at":"2026-01-01T09:00:00Z"}]'::jsonb,
+    '[{"payment_id":"10000000-0000-0000-0000-000000000001","period_id":"00000000-0000-0000-0000-000000000001","amount":25}]'::jsonb,
+    '[]'::jsonb,
+    false
+  );
+
+  if v_result->>'status' <> 'allocation_conflict'
+     or jsonb_array_length(v_result->'conflicts') <> 1
+     or jsonb_array_length(v_result->'proposed_allocations') <> 0 then
+    raise exception 'Over-allocated revision did not fail closed: %', v_result;
   end if;
 
   -- Exempt cards must never receive proposed allocations.

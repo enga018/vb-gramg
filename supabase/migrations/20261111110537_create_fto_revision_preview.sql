@@ -155,7 +155,8 @@ grant execute on function public.vbgramg_simulate_fifo_allocator(jsonb,jsonb,jso
 -- The caller still has to build the proposed batch replacement and run the
 -- FIFO simulator; this function never changes financial records.
 create or replace function public.vbgramg_get_fto_revision_snapshot(
-  p_batch_id uuid
+  p_batch_id uuid,
+  p_target_period_id uuid default null
 )
 returns jsonb
 language plpgsql
@@ -181,12 +182,20 @@ begin
     raise exception 'FTO batch not found';
   end if;
 
-  select coalesce(array_agg(distinct t.job_card_number order by t.job_card_number), array[]::text[])
+  -- Include every transaction in the batch, including superseded and
+  -- out-of-scope rows, so historical ledger links cannot be omitted.
+  select coalesce(array_agg(distinct t.job_card_number order by t.job_card_number)
+                    filter (where t.job_card_number is not null),
+                  array[]::text[])
     into v_cards
   from public.vbgramg_fto_transactions t
-  where t.batch_id = p_batch_id
-    and coalesce(t.is_current, true)
-    and coalesce(t.is_in_scope, true);
+  where t.batch_id = p_batch_id;
+
+  if p_target_period_id is not null and not exists (
+    select 1 from public.vbgramg_periods p where p.id = p_target_period_id
+  ) then
+    raise exception 'Target contribution period not found';
+  end if;
 
   select jsonb_build_object(
     'batch', v_batch,
@@ -213,7 +222,8 @@ begin
                      p.created_at asc, p.id asc
           ) as fifo_order
         from public.vbgramg_periods p
-        where p.id in (
+        where p.id = p_target_period_id
+           or p.id in (
           select c.period_id
           from public.vbgramg_charge_ledger c
           where c.job_card_number = any(v_cards) and c.period_id is not null
@@ -274,10 +284,10 @@ begin
 end;
 $function$;
 
-revoke all on function public.vbgramg_get_fto_revision_snapshot(uuid)
+revoke all on function public.vbgramg_get_fto_revision_snapshot(uuid,uuid)
   from public, anon, authenticated;
-grant execute on function public.vbgramg_get_fto_revision_snapshot(uuid)
+grant execute on function public.vbgramg_get_fto_revision_snapshot(uuid,uuid)
   to service_role;
 
-comment on function public.vbgramg_get_fto_revision_snapshot(uuid) is
+comment on function public.vbgramg_get_fto_revision_snapshot(uuid,uuid) is
   'Read-only snapshot for FTO revision preview; returns the batch, current and historical FTO transactions, all affected job-card ledger entries, periods, allocations, refunds, waivers, and exemption history.';

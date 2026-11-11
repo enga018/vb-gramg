@@ -31,6 +31,8 @@ on:
       - "tests/fto-exemption-period-eligibility.test.cjs"
       - "supabase/migrations/20261111120000_track_contribution_exemption_intervals.sql"
       - "tests/fto-exemption-period-eligibility-postgres.sql"
+      - "supabase/migrations/20261111160000_serialize_fto_snapshot_with_exemptions.sql"
+      - "tests/fto-exemption-snapshot-lock.test.cjs"
       - "supabase/migrations/20261106190000_include_active_mis_cards_in_financial_summary.sql"
       - "tests/postgres-contribution-balances.test.cjs"
       - "supabase/functions/vbgramg-contribution-data/index.ts"
@@ -83,6 +85,8 @@ jobs:
         run: node --test tests/work-demand-requires-existing-period.test.cjs
       - name: Run FTO exemption interval eligibility tests
         run: node --test tests/fto-exemption-period-eligibility.test.cjs
+      - name: Run FTO snapshot exemption lock tests
+        run: node --test tests/fto-exemption-snapshot-lock.test.cjs
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
@@ -138,6 +142,10 @@ jobs:
         run: |
           createdb vbgramg_fto_exemption_test
           PGDATABASE=vbgramg_fto_exemption_test psql -v ON_ERROR_STOP=1 -f tests/fto-exemption-period-eligibility-postgres.sql
+      - name: Run FTO snapshot exemption PostgreSQL integration tests
+        run: |
+          createdb vbgramg_fto_snapshot_test
+          PGDATABASE=vbgramg_fto_snapshot_test psql -v ON_ERROR_STOP=1 -f tests/fto-exemption-snapshot-lock-postgres.sql
       - name: Run atomic extra contribution charge PostgreSQL tests
         run: |
           createdb vbgramg_extras_test

@@ -18,8 +18,10 @@ jobs:
     name: Build isolated preview artifact
     runs-on: ubuntu-latest
     steps:
-      - name: Check out preview branch
+      - name: Check out design-system foundation
         uses: actions/checkout@v4
+        with:
+          ref: design/vbgramg-design-system-foundation
 
       - name: Verify shared design stylesheets
         shell: bash
@@ -29,7 +31,7 @@ jobs:
           test -f responsive.css
           test -f design-tokens.css
           test -f theme.css
-          grep -Eq 'design-tokens\.css' responsive.css
+          grep -Eq 'design-tokens\\.css' responsive.css
 
       - name: Package static application
         shell: bash
@@ -38,8 +40,8 @@ jobs:
           mkdir -p preview-package
           # Package the static app only; do not run migrations or deploy functions.
           rsync -a --exclude='.git' --exclude='.github' --exclude='preview-package' ./ preview-package/
-          printf '%s\n' "Preview commit: ${GITHUB_SHA}" > preview-package/PREVIEW-BUILD.txt
-          printf '%s\n' "This artifact is for review only. It is not a production deployment." >> preview-package/PREVIEW-BUILD.txt
+          printf '%s\\n' "Preview source: design/vbgramg-design-system-foundation" > preview-package/PREVIEW-BUILD.txt
+          printf '%s\\n' "This artifact is for review only. It is not a production deployment." >> preview-package/PREVIEW-BUILD.txt
 
       - name: Upload review package
         uses: actions/upload-artifact@v4

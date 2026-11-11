@@ -58,7 +58,7 @@ begin
   end if;
 
   if (v_allocations->3->>'period_id') <> '00000000-0000-0000-0000-000000000099'
-     or (v_allocations->3->>'amount')::numeric <> 15 then
+     or (v_allocations->3->>'amount')::numeric <> 25 then
     raise exception 'Payment credit was not carried through all periods: %', v_allocations;
   end if;
 

@@ -927,7 +927,7 @@ Deno.serve(async(req:Request)=>{
    const omittedIds=omittedTransactions.map(tx=>String(tx.id));
    const affectedCards=[...new Set([...incomingCards,...oldBatchTransactions.map(tx=>String(tx.job_card_number||"").trim()).filter(Boolean)])];
    const {data:trackedRows,error:trackedError}=affectedCards.length
-    ?await admin.from("vbgramg_fto_transactions").select("id,batch_id,reference_no,job_card_number,calculated_charge,status,processed_date,is_in_scope,is_current,last_seen_at,ledger_entry_id").in("job_card_number",affectedCards)
+    ?await admin.from("vbgramg_fto_transactions").select("id,batch_id,reference_no,job_card_number,calculated_charge,status,processed_date,is_in_scope,is_current,last_seen_at,created_at,ledger_entry_id").in("job_card_number",affectedCards)
     :{data:[],error:null};
    if(trackedError)throw trackedError;
    const trackedBatchIds=[...new Set((trackedRows||[]).map(r=>String(r.batch_id)))];

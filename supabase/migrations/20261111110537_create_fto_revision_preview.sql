@@ -28,7 +28,8 @@ declare
   v_periods jsonb := '[]'::jsonb;
   v_total numeric(14,2) := 0;
 begin
-  if jsonb_typeof(p_periods) <> 'array'
+  if p_periods is null or p_payments is null or p_allocations is null or p_refunds is null
+     or jsonb_typeof(p_periods) <> 'array'
      or jsonb_typeof(p_payments) <> 'array'
      or jsonb_typeof(p_allocations) <> 'array'
      or jsonb_typeof(p_refunds) <> 'array'
@@ -96,7 +97,7 @@ begin
       from jsonb_to_recordset(p_refunds) as x(payment_id uuid, amount numeric)
       where x.payment_id = v_payment.payment_id;
 
-      select coalesce(sum((x->>'amount')::numeric),0)::numeric(14,2)
+      select v_payment_allocated + coalesce(sum((x->>'amount')::numeric),0)::numeric(14,2)
         into v_payment_allocated
       from jsonb_array_elements(v_allocations) x
       where x->>'payment_id' = v_payment.payment_id::text;

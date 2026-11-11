@@ -1052,7 +1052,7 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{margin:0!impo
 <div id="loading-state" class="contribution-loading" role="status" aria-live="polite"><span class="loading-spinner" aria-hidden="true"></span><span>Preparing Contribution data…</span></div>
 <div id="app" class="hidden">
 <div id="contribution-layout"><section class="panel contribution-main-panel">
-<div class="contribution-top-row"><div class="contribution-kpis"><div class="stat outstanding-kpi"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred</div><div class="v deferred-kpi" id="deferred">—</div></div></div><div class="page-panel-actions"><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn ghost small hidden" id="auditHistoryBtn" type="button">Audit history</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk Payment</button><button class="btn hidden" id="exportDueBtn" type="button">Export</button></div></div>
+<div class="contribution-top-row"><div class="contribution-kpis"><div class="stat outstanding-kpi"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred</div><div class="v deferred-kpi" id="deferred">—</div></div></div><div class="page-panel-actions"><button class="btn ghost small hidden" id="manualChargeBtn" type="button">Manual Charges</button><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn ghost small hidden" id="auditHistoryBtn" type="button">Audit history</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk Payment</button><button class="btn hidden" id="exportDueBtn" type="button">Export</button></div></div>
 <div class="contribution-controls"><div class="search-wrap"><label for="search">Search name or full job card number</label><input id="search" type="search" aria-label="Search name or full job card number" placeholder="Search name or full job card number" autocomplete="off"><button id="clearSearch" class="search-clear" type="button" aria-label="Clear search" title="Clear search">×</button></div><div class="filter-control"><label for="statusFilter">Contribution status</label><select id="statusFilter" aria-label="Filter by contribution status"><option value="all">All job cards</option><option value="due" selected>Due</option><option value="paid">Settled</option><option value="overpaid">Overpaid</option><option value="deferred">Has deferred charges</option></select></div></div><p id="count" class="count"></p><div id="table-wrap" class="table-wrap"><table id="contribution-table"><thead></thead><tbody></tbody></table></div><div id="empty" class="empty hidden">No matching job cards found.</div><div class="table-foot"><span id="page-label" class="muted"></span><div class="actions"><button id="prev-button" class="btn ghost" type="button">Previous</button><button id="next-button" class="btn ghost" type="button">Next</button></div></div>
 </section></div>
 </div>
@@ -1589,6 +1589,87 @@ function showExemptionsForm(){
  $('exemptJobCards').focus();
 }
 const parseBulkPayments = window.VBGRAMGPayments.parseBulkPayments;
+function showManualChargeForm(){
+ if(appRole!=="admin"){status("Only an approved administrator can add manual charges.","error");return;}
+ $('sheetTitle').textContent="Manual contribution charges";
+ $('sheetSubtitle').textContent="Regular or extra · individual or bulk";
+ $('sheetFooter').classList.add('hidden');
+ $('toggleEditMode').classList.add('hidden');
+ $('sheetBody').innerHTML='<div class="notice info">Create charges without importing an FTO. Regular charges and extra charges are recorded separately. Existing FTO charges are not replaced. A batch is saved all-or-nothing.</div>'+
+ '<form id="manualChargeForm">'+
+ '<div class="grid2"><div class="field"><label for="manualChargeKind">Charge type</label><select id="manualChargeKind"><option value="regular">Regular charge</option><option value="extra">Extra charge</option></select></div>'+
+ '<div class="field"><label for="manualChargePeriod">Contribution round</label><select id="manualChargePeriod" required>'+periods.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.period_name||"Contribution round")+(p.status==="closed"?" · Closed":"")+'</option>').join('')+'</select></div></div>'+
+ '<div class="grid2"><div class="field"><label for="manualChargeDate">Default entry date</label><input id="manualChargeDate" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div>'+
+ '<div class="field"><label for="manualChargeMode">Entry mode</label><select id="manualChargeMode"><option value="single">Single job card</option><option value="bulk">Bulk job cards</option></select></div></div>'+
+ '<div class="field"><label for="manualChargeAmountMode">Amount entry</label><select id="manualChargeAmountMode"><option value="same">Same amount for every job card</option><option value="individual">Different amount per job card</option></select></div>'+
+ '<div class="field" id="manualSingleCardField"><label for="manualSingleCard">Full job card number</label><input id="manualSingleCard" type="text" maxlength="100" placeholder="MZ-07-001-005-001/389" autocomplete="off"></div>'+
+ '<div class="field hidden" id="manualBulkCardsField"><label for="manualBulkCards">Job card numbers</label><textarea id="manualBulkCards" rows="7" placeholder="One full job card number per line"></textarea><p class="muted">For individual amounts, use one row per card: job card, amount, optional date. Commas or tabs are accepted.</p></div>'+
+ '<div class="field" id="manualSameAmountField"><label for="manualSameAmount">Amount per job card (₹)</label><input id="manualSameAmount" type="number" min="0.01" max="10000000" step="0.01" inputmode="decimal" placeholder="Enter amount"></div>'+
+ '<div class="field"><label for="manualChargeReason">Reason / reference</label><textarea id="manualChargeReason" rows="2" maxlength="500" required placeholder="Reason for this manual charge"></textarea></div>'+
+ '<div class="actions"><button class="btn" id="previewManualCharges" type="button">Preview charges</button><button class="btn ghost" id="cancelManualCharges" type="button">Cancel</button></div><div id="manualChargePreview"></div></form>';
+ $('overlay').classList.remove('hidden');
+ if(!periods.length){$('manualChargeForm').innerHTML='<div class="notice err">No contribution rounds are available. Create or open a contribution round first.</div><button class="btn ghost" id="cancelManualCharges" type="button">Close</button>';$('cancelManualCharges').addEventListener('click',closeCitizenDetail);return;}
+ const mode=$('manualChargeMode'),amountMode=$('manualChargeAmountMode');
+ const sync=()=>{
+  const single=mode.value==="single",same=amountMode.value==="same";
+  $('manualSingleCardField').classList.toggle('hidden',!single);
+  $('manualBulkCardsField').classList.toggle('hidden',single);
+  $('manualChargeAmountMode').disabled=single;
+  $('manualSameAmountField').classList.toggle('hidden',!same);
+  if(!single&&!same)$('manualBulkCards').placeholder="MZ-07-001-005-001/389, 850\nMZ-07-001-005-001/390, 1250, 2026-11-10";
+ };
+ mode.addEventListener('change',sync);amountMode.addEventListener('change',sync);sync();
+ $('cancelManualCharges').addEventListener('click',closeCitizenDetail);
+ $('previewManualCharges').addEventListener('click',()=>{
+  const single=mode.value==="single",same=amountMode.value==="same",date=$('manualChargeDate').value;
+  const raw=single?$('manualSingleCard').value.trim():$('manualBulkCards').value.trim();
+  const rows=[],errors=[];
+  if(!date){errors.push("Choose a default entry date.");}
+  if(!raw){errors.push(single?"Enter a job card number.":"Paste at least one job card number.");}
+  const sharedAmount=same?Number($('manualSameAmount').value):null;
+  if(same&&(!Number.isFinite(sharedAmount)||sharedAmount<=0||sharedAmount>10000000))errors.push("Enter a valid positive amount.");
+  const lines=single?[raw]:raw.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  const seen=new Set();
+  for(let i=0;i<lines.length;i++){
+   const parts=single?[lines[i]]:lines[i].split(/[,\t]/).map(x=>x.trim());
+   const card=parts[0]||"";
+   if(i===0&&/^(job card|jobcard|job card number)$/i.test(card))continue;
+   const amount=same?sharedAmount:Number(parts[1]);
+   const rowDate=(!same&&parts[2])?parts[2]:null;
+   if(!card||card.length>100){errors.push("Line "+(i+1)+": invalid job card number.");continue;}
+   if(seen.has(card)){errors.push("Duplicate job card: "+card);continue;}seen.add(card);
+   if(!Number.isFinite(amount)||amount<=0||amount>10000000){errors.push("Line "+(i+1)+": invalid amount.");continue;}
+   if(rowDate&&!/^\d{4}-\d{2}-\d{2}$/.test(rowDate)){errors.push("Line "+(i+1)+": date must be YYYY-MM-DD.");continue;}
+   rows.push({job_card_number:card,amount,entry_date:rowDate||date});
+  }
+  const box=$('manualChargePreview');
+  if(errors.length){box.innerHTML='<div class="notice err">'+errors.slice(0,8).map(esc).join('<br>')+(errors.length>8?'<br>And '+(errors.length-8)+' more issue(s).':'')+'</div>';return;}
+  if(!rows.length||rows.length>500){box.innerHTML='<div class="notice err">Enter between 1 and 500 valid job cards.</div>';return;}
+  const total=rows.reduce((sum,row)=>sum+row.amount,0);
+  const period=periods.find(p=>String(p.id)===$('manualChargePeriod').value);
+  box.innerHTML='<div class="notice info">Review: <b>'+rows.length+' job card(s)</b> · total <b>'+fmt(total)+'</b> · '+esc($('manualChargeKind').value==='extra'?'Extra':'Regular')+' · '+esc(period?.period_name||'Contribution round')+'.</div>'+
+   '<div style="max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px"><table><thead><tr><th>Job card</th><th>Entry date</th><th style="text-align:right">Amount</th></tr></thead><tbody>'+rows.map(row=>'<tr><td>'+esc(row.job_card_number)+'</td><td>'+esc(row.entry_date)+'</td><td style="text-align:right">'+fmt(row.amount)+'</td></tr>').join('')+'</tbody></table></div>'+
+   '<button class="btn" id="saveManualCharges" type="button">Save '+rows.length+' charge(s)</button>';
+  $('saveManualCharges').addEventListener('click',async()=>{
+   if(busy)return;
+   const reason=$('manualChargeReason').value.trim(),periodId=$('manualChargePeriod').value,selected=periods.find(p=>String(p.id)===periodId);
+   const month=String(selected?.contribution_month||selected?.period_date||'').slice(0,7);
+   if(!reason){status("Enter a reason or reference.","error");$('manualChargeReason').focus();return;}
+   if(!/^\d{4}-\d{2}$/.test(month)){status("The selected contribution round has no valid month.","error");return;}
+   busy=true;$('saveManualCharges').disabled=true;$('saveManualCharges').textContent="Saving…";
+   try{
+    const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'save-manual-contribution-charges',entries:rows,charge_kind:$('manualChargeKind').value,period_id:periodId,charge_period:month+'-01',entry_date:date,reason},timeoutMs:false});
+    if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||"Could not save manual charges.");
+    $('overlay').classList.add('hidden');
+    busy=false;
+    await load();
+    status(data.count+" manual charge(s) saved. Total "+fmt(data.total_amount)+".","success");
+   }catch(err){status(err.message||"Could not save manual charges.","error");}
+   finally{busy=false;if($('saveManualCharges')){$('saveManualCharges').disabled=false;$('saveManualCharges').textContent="Save "+rows.length+" charge(s)";}}
+  });
+ });
+}
+
 function showBulkPaymentForm(){
  $('overlay').classList.remove('hidden');
  $('sheetFooter').classList.add('hidden');
@@ -1720,7 +1801,7 @@ async function load(){
   if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
   if(window.VBGRAMGCache)window.VBGRAMGCache.setUser(sessionData.session.user.id);
   const assignmentStarted=performance.now();
-  appRole=String(data.role||"");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");$("auditHistoryBtn").classList.toggle("hidden",appRole!=="admin");$("exportDueBtn").classList.remove("hidden");entries=[];summaryByCard=new Map((data.summaries||[]).map(row=>[String(row.job_card_number||'').trim(),row]));periods=[];paymentAllocations=[];paymentRefundReconciliations=[];extraCharges=[];citizenRegistry=(data.summaries||[]).map(row=>({job_card_number:row.job_card_number,person_name:row.person_name}));applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];
+  appRole=String(data.role||"");periods=Array.isArray(data.periods)?data.periods:[];$("manualChargeBtn").classList.toggle("hidden",appRole!=="admin");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");$("auditHistoryBtn").classList.toggle("hidden",appRole!=="admin");$("exportDueBtn").classList.remove("hidden");entries=[];summaryByCard=new Map((data.summaries||[]).map(row=>[String(row.job_card_number||'').trim(),row]));periods=[];paymentAllocations=[];paymentRefundReconciliations=[];extraCharges=[];citizenRegistry=(data.summaries||[]).map(row=>({job_card_number:row.job_card_number,person_name:row.person_name}));applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];
   recordStartupStage("assign_response_data_ms",assignmentStarted);
   const deriveStarted=performance.now();deriveCitizens();recordStartupStage("derive_citizens_total_ms",deriveStarted);renderExemptions();
   $('app').classList.remove('hidden');$('status').classList.add('hidden');$('loading-state').classList.add('hidden');
@@ -1753,6 +1834,7 @@ $('statusFilter').addEventListener('change',()=>{currentPage=0;render()});
 $('prev-button').addEventListener('click',()=>{currentPage=Math.max(0,currentPage-1);render()});$('next-button').addEventListener('click',()=>{currentPage++;render()});
 window.addEventListener('resize',()=>render());
 $('exportDueBtn').addEventListener('click',exportOutstandingDueList);
+$('manualChargeBtn').addEventListener('click',showManualChargeForm);
 $('bulkPaymentBtn').addEventListener('click',showBulkPaymentForm);
 
 

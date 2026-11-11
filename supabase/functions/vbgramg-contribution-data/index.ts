@@ -1042,7 +1042,7 @@ Deno.serve(async(req:Request)=>{
      if(ftoRows.length)chargeGuards.push({job_card_number:card,period_id:periodId,prospective_fto_amount:0});
     }
    }
-   const totalAmount=Number(normalized.filter(r=>r.is_in_scope&&!exemptCards.has(String(r.job_card_number))&&!skippedDuplicateSet.has(String(r.reference_no))&&["blank","processed"].includes(String(r.status))).reduce((sum,r)=>sum+Number(r.calculated_charge||0),0).toFixed(2));
+   const totalAmount=Number(normalized.filter(r=>r.is_in_scope&&!exemptCards.has(String(r.job_card_number))&&isEligibleFirstSeen(r)&&!skippedDuplicateSet.has(String(r.reference_no))&&["blank","processed"].includes(String(r.status))).reduce((sum,r)=>sum+Number(r.calculated_charge||0),0).toFixed(2));
    const {data:priorImport,error:priorImportError}=await admin.from("vbgramg_charge_imports").select("id").eq("source_sha256",sourceSha).maybeSingle();
    if(priorImportError)throw priorImportError;
    const importId=String(priorImport?.id||crypto.randomUUID());

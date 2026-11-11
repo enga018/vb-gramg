@@ -789,8 +789,33 @@ Deno.serve(async(req:Request)=>{
    const {data:exemptionRows,error:exemptionError}=await admin.from("vbgramg_contribution_exemptions").select("job_card_number");
    if(exemptionError)throw exemptionError;
    const exemptCards=new Set((exemptionRows||[]).map(r=>String(r.job_card_number)));
+   // Eligibility is based on immutable first-seen time, not last_seen_at. This
+   // prevents a re-import after un-exemption from charging transactions first
+   // recorded during any historical exemption interval.
+   const incomingCardsForEligibility=[...new Set(normalized.filter(r=>r.is_in_scope).map(r=>String(r.job_card_number)))];
+   const {data:exemptionHistory,error:exemptionHistoryError}=incomingCardsForEligibility.length
+    ?await admin.from("vbgramg_contribution_exemption_history").select("job_card_number,started_at,ended_at").in("job_card_number",incomingCardsForEligibility)
+    :{data:[],error:null};
+   if(exemptionHistoryError)throw exemptionHistoryError;
+   const firstSeenByReference=new Map<string,string>();
+   if(batchOld?.id){
+    const {data:priorBatchRows,error:priorBatchRowsError}=await admin.from("vbgramg_fto_transactions").select("reference_no,created_at").eq("batch_id",String(batchOld.id));
+    if(priorBatchRowsError)throw priorBatchRowsError;
+    for(const row of priorBatchRows||[])if(row.created_at)firstSeenByReference.set(String(row.reference_no),String(row.created_at));
+   }
+   const isEligibleFirstSeen=(row:Record<string,any>)=>{
+    const firstSeen=firstSeenByReference.get(String(row.reference_no))||new Date().toISOString();
+    const timestamp=Date.parse(firstSeen);
+    if(!Number.isFinite(timestamp))return false;
+    return !(exemptionHistory||[]).some(interval=>{
+     if(String(interval.job_card_number)!==String(row.job_card_number))return false;
+     const started=Date.parse(String(interval.started_at||""));
+     const ended=interval.ended_at?Date.parse(String(interval.ended_at)):Number.POSITIVE_INFINITY;
+     return Number.isFinite(started)&&timestamp>=started&&timestamp<ended;
+    });
+   };
    let skippedDuplicateReferences:string[]=[];
-   let chargeCandidateRows=normalized.filter(r=>r.is_in_scope&&!exemptCards.has(String(r.job_card_number))&&["blank","processed"].includes(String(r.status))&&Number(r.calculated_charge||0)>0);
+   let chargeCandidateRows=normalized.filter(r=>r.is_in_scope&&!exemptCards.has(String(r.job_card_number))&&isEligibleFirstSeen(r)&&["blank","processed"].includes(String(r.status))&&Number(r.calculated_charge||0)>0);
    let incomingRefs=chargeCandidateRows.map(r=>String(r.reference_no));
    // Check all incoming references, including rejected rows. A reference already
    // attached to this same FTO/card/period is an update, never a duplicate blocker.
@@ -802,7 +827,7 @@ Deno.serve(async(req:Request)=>{
      for(const old of ledgerRefMatches||[]){
       if(!(old.reference_numbers||[]).includes(String(input.reference_no)))continue;
       const sameFtoLedger=String(old.job_card_number)===String(input.job_card_number)&&String(old.charge_period||"")===chargePeriod&&(!old.period_id||String(old.period_id)===periodId);
-      const needsCharge=input.is_in_scope&&!exemptCards.has(String(input.job_card_number))&&["blank","processed"].includes(String(input.status))&&Number(input.calculated_charge||0)>0;
+      const needsCharge=input.is_in_scope&&!exemptCards.has(String(input.job_card_number))&&isEligibleFirstSeen(input)&&["blank","processed"].includes(String(input.status))&&Number(input.calculated_charge||0)>0;
       if(needsCharge&&!sameFtoLedger)skippedDuplicateReferences.push(String(input.reference_no));
      }
     }
@@ -813,7 +838,7 @@ Deno.serve(async(req:Request)=>{
     // Keep duplicate rows in the FTO snapshot/history, but exclude them from
     // contribution reconciliation. Removing them here would mark an older
     // same-batch transaction as omitted and could void its existing charge.
-    chargeCandidateRows=normalized.filter(r=>r.is_in_scope&&!exemptCards.has(String(r.job_card_number))&&!skippedDuplicateSet.has(String(r.reference_no))&&["blank","processed"].includes(String(r.status))&&Number(r.calculated_charge||0)>0);
+    chargeCandidateRows=normalized.filter(r=>r.is_in_scope&&!exemptCards.has(String(r.job_card_number))&&isEligibleFirstSeen(r)&&!skippedDuplicateSet.has(String(r.reference_no))&&["blank","processed"].includes(String(r.status))&&Number(r.calculated_charge||0)>0);
     incomingRefs=chargeCandidateRows.map(r=>String(r.reference_no));
    }
    const snapshotReferenceSet=new Set(normalized.map(r=>String(r.reference_no)));

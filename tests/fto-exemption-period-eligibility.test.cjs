@@ -30,7 +30,7 @@ test("Removing an exemption no longer rebuilds charges from retained FTO history
   assert.ok(start >= 0 && end > start);
   const block = edge.slice(start, end);
   assert.match(block, /vbgramg_set_contribution_exemption/);
-  assert.match(block, /never rebuilds or backfills\\s+charges/i);
+  assert.match(block, /never rebuilds or backfills\s+charges/i);
   assert.doesNotMatch(block, /vbgramg_fto_transactions/);
   assert.doesNotMatch(block, /vbgramg_charge_ledger/);
 });

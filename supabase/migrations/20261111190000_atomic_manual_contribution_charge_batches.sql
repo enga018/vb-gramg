@@ -45,8 +45,8 @@ BEGIN
     RETURN pg_catalog.jsonb_build_object('ok',false,'status',400,'error','A batch must contain 1–500 job cards.');
   END IF;
   IF EXISTS (
-    SELECT 1 FROM pg_catalog.jsonb_array_elements(p_entries) AS row_value
-    WHERE pg_catalog.jsonb_typeof(row_value)<>'object'
+    SELECT 1 FROM pg_catalog.jsonb_array_elements(p_entries) AS item(value)
+    WHERE pg_catalog.jsonb_typeof(item.value)<>'object'
   ) THEN
     RETURN pg_catalog.jsonb_build_object('ok',false,'status',400,'error','Every batch row must be a job-card object.');
   END IF;

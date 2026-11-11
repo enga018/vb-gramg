@@ -1591,6 +1591,7 @@ function showExemptionsForm(){
 const parseBulkPayments = window.VBGRAMGPayments.parseBulkPayments;
 function showManualChargeForm(){
  if(appRole!=="admin"){status("Only an approved administrator can add manual charges.","error");return;}
+ const openPeriods=periods.filter(p=>p.status!=="closed"&&/^\d{4}-\d{2}$/.test(String(p.contribution_month||p.period_date||"").slice(0,7)));
  $('sheetTitle').textContent="Manual contribution charges";
  $('sheetSubtitle').textContent="Regular or extra · individual or bulk";
  $('sheetFooter').classList.add('hidden');
@@ -1598,7 +1599,7 @@ function showManualChargeForm(){
  $('sheetBody').innerHTML='<div class="notice info">Create charges without importing an FTO. Regular charges and extra charges are recorded separately. Existing FTO charges are not replaced. A batch is saved all-or-nothing.</div>'+
  '<form id="manualChargeForm">'+
  '<div class="grid2"><div class="field"><label for="manualChargeKind">Charge type</label><select id="manualChargeKind"><option value="regular">Regular charge</option><option value="extra">Extra charge</option></select></div>'+
- '<div class="field"><label for="manualChargePeriod">Contribution round</label><select id="manualChargePeriod" required>'+periods.filter(p=>p.status!=='closed').map(p=>'<option value="'+esc(p.id)+'">'+esc(p.period_name||"Contribution round")+'</option>').join('')+'</select></div></div>'+
+ '<div class="field"><label for="manualChargePeriod">Contribution round</label><select id="manualChargePeriod" required>'+openPeriods.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.period_name||"Contribution round")+'</option>').join('')+'</select></div></div>'+
  '<div class="grid2"><div class="field"><label for="manualChargeDate">Default entry date</label><input id="manualChargeDate" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div>'+
  '<div class="field"><label for="manualChargeMode">Entry mode</label><select id="manualChargeMode"><option value="single">Single job card</option><option value="bulk">Bulk job cards</option></select></div></div>'+
  '<div class="field"><label for="manualChargeAmountMode">Amount entry</label><select id="manualChargeAmountMode"><option value="same">Same amount for every job card</option><option value="individual">Different amount per job card</option></select></div>'+
@@ -1608,7 +1609,7 @@ function showManualChargeForm(){
  '<div class="field"><label for="manualChargeReason">Reason / reference</label><textarea id="manualChargeReason" rows="2" maxlength="500" required placeholder="Reason for this manual charge"></textarea></div>'+
  '<div class="actions"><button class="btn" id="previewManualCharges" type="button">Preview charges</button><button class="btn ghost" id="cancelManualCharges" type="button">Cancel</button></div><div id="manualChargePreview"></div></form>';
  $('overlay').classList.remove('hidden');
- if(!periods.some(p=>p.status!=='closed')){$('manualChargeForm').innerHTML='<div class="notice err">No contribution rounds are available. Create or open a contribution round first.</div><button class="btn ghost" id="cancelManualCharges" type="button">Close</button>';$('cancelManualCharges').addEventListener('click',closeCitizenDetail);return;}
+ if(!openPeriods.length){$('manualChargeForm').innerHTML='<div class="notice err">No contribution rounds are available. Create or open a contribution round first.</div><button class="btn ghost" id="cancelManualCharges" type="button">Close</button>';$('cancelManualCharges').addEventListener('click',closeCitizenDetail);return;}
  const mode=$('manualChargeMode'),amountMode=$('manualChargeAmountMode');
  const sync=()=>{
   const single=mode.value==="single";if(single)amountMode.value="same";const same=amountMode.value==="same";

@@ -40,8 +40,8 @@ FOR EACH ROW EXECUTE FUNCTION public.test_suppress_manual_charge();
 
 GRANT USAGE ON SCHEMA public TO service_role;
 GRANT SELECT,INSERT,UPDATE ON ALL TABLES IN SCHEMA public TO service_role;
-\\ir ../supabase/migrations/20261107140000_atomic_extra_contribution_charges.sql
-\\ir ../supabase/migrations/20261111190000_atomic_manual_contribution_charge_batches.sql
+\ir ../supabase/migrations/20261107140000_atomic_extra_contribution_charges.sql
+\ir ../supabase/migrations/20261111190000_atomic_manual_contribution_charge_batches.sql
 
 INSERT INTO public.vbgramg_periods VALUES
  ('00000000-0000-0000-0000-000000000001','NOV26','2026-11-01','2026-11-01','open'),

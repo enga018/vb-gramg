@@ -149,3 +149,135 @@ revoke all on function public.vbgramg_simulate_fifo_allocator(jsonb,jsonb,jsonb,
   from public, anon, authenticated;
 grant execute on function public.vbgramg_simulate_fifo_allocator(jsonb,jsonb,jsonb,jsonb,boolean)
   to service_role;
+
+
+-- Read-only snapshot of every ledger component needed to preview a revision.
+-- The caller still has to build the proposed batch replacement and run the
+-- FIFO simulator; this function never changes financial records.
+create or replace function public.vbgramg_get_fto_revision_snapshot(
+  p_batch_id uuid
+)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $function$
+declare
+  v_batch jsonb;
+  v_cards text[];
+  v_result jsonb;
+begin
+  if p_batch_id is null then
+    raise exception 'FTO batch ID is required';
+  end if;
+
+  select to_jsonb(b)
+    into v_batch
+  from public.vbgramg_fto_batches b
+  where b.id = p_batch_id;
+
+  if v_batch is null then
+    raise exception 'FTO batch not found';
+  end if;
+
+  select coalesce(array_agg(distinct t.job_card_number order by t.job_card_number), array[]::text[])
+    into v_cards
+  from public.vbgramg_fto_transactions t
+  where t.batch_id = p_batch_id
+    and coalesce(t.is_current, true)
+    and coalesce(t.is_in_scope, true);
+
+  select jsonb_build_object(
+    'batch', v_batch,
+    'transactions', coalesce((
+      select jsonb_agg(to_jsonb(t) order by t.reference_no, t.id)
+      from public.vbgramg_fto_transactions t
+      where t.batch_id = p_batch_id
+    ), '[]'::jsonb),
+    'job_cards', to_jsonb(v_cards),
+    'ledger_entries', coalesce((
+      select jsonb_agg(to_jsonb(c) order by c.job_card_number, c.entry_date nulls last, c.created_at, c.id)
+      from public.vbgramg_charge_ledger c
+      where c.job_card_number = any(v_cards)
+    ), '[]'::jsonb),
+    'periods', coalesce((
+      select jsonb_agg(
+        to_jsonb(p) || jsonb_build_object('fifo_order', ordered.fifo_order)
+        order by ordered.fifo_order
+      )
+      from (
+        select distinct p.id, p.contribution_month, p.period_date, p.created_at,
+          row_number() over (
+            order by coalesce(p.contribution_month, p.period_date) asc nulls last,
+                     p.created_at asc, p.id asc
+          ) as fifo_order
+        from public.vbgramg_periods p
+        where p.id in (
+          select c.period_id
+          from public.vbgramg_charge_ledger c
+          where c.job_card_number = any(v_cards) and c.period_id is not null
+          union
+          select a.period_id
+          from public.vbgramg_payment_allocations a
+          where a.job_card_number = any(v_cards)
+          union
+          select w.period_id
+          from public.vbgramg_waiver_period_allocations w
+          where w.job_card_number = any(v_cards)
+        )
+      ) ordered
+      join public.vbgramg_periods p on p.id = ordered.id
+    ), '[]'::jsonb),
+    'payment_allocations', coalesce((
+      select jsonb_agg(
+        to_jsonb(a) || jsonb_build_object(
+          'payment_is_voided', coalesce(payment.is_voided, false),
+          'payment_entry_type', payment.entry_type
+        )
+        order by a.job_card_number, a.period_id, a.transaction_id
+      )
+      from public.vbgramg_payment_allocations a
+      join public.vbgramg_charge_ledger payment on payment.id = a.transaction_id
+      where a.job_card_number = any(v_cards)
+    ), '[]'::jsonb),
+    'payment_refunds', coalesce((
+      select jsonb_agg(to_jsonb(r) order by r.payment_id, r.created_at, r.id)
+      from public.vbgramg_payment_refund_reconciliations r
+      where r.job_card_number = any(v_cards)
+    ), '[]'::jsonb),
+    'waiver_allocations', coalesce((
+      select jsonb_agg(
+        to_jsonb(w) || jsonb_build_object(
+          'waiver_is_voided', coalesce(waiver.is_voided, false),
+          'waiver_entry_type', waiver.entry_type
+        )
+        order by w.job_card_number, w.period_id, w.waiver_id
+      )
+      from public.vbgramg_waiver_period_allocations w
+      join public.vbgramg_charge_ledger waiver on waiver.id = w.waiver_id
+      where w.job_card_number = any(v_cards)
+    ), '[]'::jsonb),
+    'active_exemptions', coalesce((
+      select jsonb_agg(to_jsonb(e) order by e.job_card_number)
+      from public.vbgramg_contribution_exemptions e
+      where e.job_card_number = any(v_cards)
+    ), '[]'::jsonb),
+    'exemption_history', coalesce((
+      select jsonb_agg(to_jsonb(h) order by h.job_card_number, h.started_at, h.id)
+      from public.vbgramg_contribution_exemption_history h
+      where h.job_card_number = any(v_cards)
+    ), '[]'::jsonb)
+  ) into v_result;
+
+  return v_result;
+end;
+$function$;
+
+revoke all on function public.vbgramg_get_fto_revision_snapshot(uuid)
+  from public, anon, authenticated;
+grant execute on function public.vbgramg_get_fto_revision_snapshot(uuid)
+  to service_role;
+
+comment on function public.vbgramg_get_fto_revision_snapshot(uuid) is
+  'Read-only snapshot for FTO revision preview; returns the batch, current and historical FTO transactions, all affected job-card ledger entries, periods, allocations, refunds, waivers, and exemption history.';

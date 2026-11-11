@@ -21,6 +21,11 @@ create unique index if not exists vbgramg_contribution_exemption_history_one_ope
   on public.vbgramg_contribution_exemption_history (job_card_number)
   where ended_at is null;
 
+-- This audit history is read and written only by the trusted server-side Edge Function.
+alter table public.vbgramg_contribution_exemption_history enable row level security;
+revoke all on public.vbgramg_contribution_exemption_history from public, anon, authenticated;
+grant select, insert, update, delete on public.vbgramg_contribution_exemption_history to service_role;
+
 -- Existing active exemptions are backfilled using their original creation time.
 -- This deliberately does not infer or fabricate historical intervals for exemptions
 -- that were already removed before this migration.

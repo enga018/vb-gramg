@@ -27,42 +27,42 @@ DECLARE
   v_note text;
   v_name text;
 BEGIN
-  IF p_charge_kind NOT IN ('regular','extra') THEN
-    RETURN pg_catalog.jsonb_build_object('ok',false,'status',400,'error','Choose regular or extra charge.');
+  IF p_charge_kind IS NULL OR p_charge_kind NOT IN ('regular','extra') THEN
+    RETURN pg_catalog.pg_catalog.jsonb_build_object('ok',false,'status',400,'error','Choose regular or extra charge.');
   END IF;
   IF p_period_id IS NULL OR p_charge_period IS NULL
      OR EXTRACT(day FROM p_charge_period)<>1 THEN
-    RETURN pg_catalog.jsonb_build_object('ok',false,'status',400,'error','Choose a valid contribution round and month.');
+    RETURN pg_catalog.pg_catalog.jsonb_build_object('ok',false,'status',400,'error','Choose a valid contribution round and month.');
   END IF;
   IF p_actor_user_id IS NULL OR v_reason='' THEN
-    RETURN pg_catalog.jsonb_build_object('ok',false,'status',400,'error','Entry date, reason, and administrator are required.');
+    RETURN pg_catalog.pg_catalog.jsonb_build_object('ok',false,'status',400,'error','Entry date, reason, and administrator are required.');
   END IF;
-  IF jsonb_typeof(p_entries)<>'array'
-     OR jsonb_array_length(p_entries)<1 OR jsonb_array_length(p_entries)>500 THEN
-    RETURN pg_catalog.jsonb_build_object('ok',false,'status',400,'error','A batch must contain 1–500 job cards.');
+  IF pg_catalog.jsonb_typeof(p_entries)<>'array'
+     OR pg_catalog.jsonb_array_length(p_entries)<1 OR pg_catalog.jsonb_array_length(p_entries)>500 THEN
+    RETURN pg_catalog.pg_catalog.jsonb_build_object('ok',false,'status',400,'error','A batch must contain 1–500 job cards.');
   END IF;
 
   IF EXISTS (
-    SELECT 1 FROM pg_catalog.jsonb_to_recordset(p_entries)
+    SELECT 1 FROM pg_catalog.pg_catalog.jsonb_to_recordset(p_entries)
       AS x(job_card_number text, amount numeric)
     GROUP BY pg_catalog.btrim(COALESCE(job_card_number,''))
     HAVING pg_catalog.count(*)>1 OR pg_catalog.btrim(COALESCE(job_card_number,''))=''
   ) THEN
-    RETURN pg_catalog.jsonb_build_object('ok',false,'status',400,'error','Job cards must be non-empty and unique within the batch.');
+    RETURN pg_catalog.pg_catalog.jsonb_build_object('ok',false,'status',400,'error','Job cards must be non-empty and unique within the batch.');
   END IF;
   IF EXISTS (
-    SELECT 1 FROM pg_catalog.jsonb_to_recordset(p_entries)
+    SELECT 1 FROM pg_catalog.pg_catalog.jsonb_to_recordset(p_entries)
       AS x(job_card_number text, amount numeric, entry_date date)
     WHERE amount IS NULL OR amount<=0 OR amount>10000000
        OR amount::text IN ('NaN','Infinity','-Infinity')
   ) THEN
-    RETURN pg_catalog.jsonb_build_object('ok',false,'status',400,'error','Every job card must have a valid positive amount.');
+    RETURN pg_catalog.pg_catalog.jsonb_build_object('ok',false,'status',400,'error','Every job card must have a valid positive amount.');
   END IF;
 
   -- Household locks are acquired in deterministic order before period locks.
   FOR v_card IN
     SELECT DISTINCT pg_catalog.btrim(x.job_card_number) AS job_card_number
-    FROM pg_catalog.jsonb_to_recordset(p_entries)
+    FROM pg_catalog.pg_catalog.jsonb_to_recordset(p_entries)
       AS x(job_card_number text, amount numeric)
     ORDER BY 1
   LOOP
@@ -72,7 +72,7 @@ BEGIN
   END LOOP;
   FOR v_card IN
     SELECT DISTINCT pg_catalog.btrim(x.job_card_number) AS job_card_number
-    FROM pg_catalog.jsonb_to_recordset(p_entries)
+    FROM pg_catalog.pg_catalog.jsonb_to_recordset(p_entries)
       AS x(job_card_number text, amount numeric)
     ORDER BY 1
   LOOP
@@ -84,14 +84,14 @@ BEGIN
   SELECT * INTO v_round FROM public.vbgramg_periods
   WHERE id=p_period_id FOR UPDATE;
   IF NOT FOUND THEN
-    RETURN pg_catalog.jsonb_build_object('ok',false,'status',404,'error','The selected contribution round was not found.');
+    RETURN pg_catalog.pg_catalog.jsonb_build_object('ok',false,'status',404,'error','The selected contribution round was not found.');
   END IF;
   IF COALESCE(v_round.status,'open')<>'open' THEN
-    RETURN pg_catalog.jsonb_build_object('ok',false,'status',409,'error','This contribution round is closed. Reopen it before adding charges.');
+    RETURN pg_catalog.pg_catalog.jsonb_build_object('ok',false,'status',409,'error','This contribution round is closed. Reopen it before adding charges.');
   END IF;
   IF COALESCE(v_round.contribution_month,v_round.period_date) IS NULL
      OR pg_catalog.date_trunc('month',COALESCE(v_round.contribution_month,v_round.period_date))::date<>p_charge_period THEN
-    RETURN pg_catalog.jsonb_build_object('ok',false,'status',400,'error','The selected contribution round does not match the chosen month.');
+    RETURN pg_catalog.pg_catalog.jsonb_build_object('ok',false,'status',400,'error','The selected contribution round does not match the chosen month.');
   END IF;
 
   v_note := CASE WHEN p_charge_kind='extra' THEN 'FTO EXTRA: ' ELSE 'MANUAL CHARGE: ' END || v_reason;
@@ -100,17 +100,17 @@ BEGIN
     SELECT pg_catalog.btrim(x.job_card_number) AS job_card_number,
            x.amount::numeric(14,2) AS amount,
            COALESCE(x.entry_date,p_entry_date) AS entry_date
-    FROM pg_catalog.jsonb_to_recordset(p_entries)
+    FROM pg_catalog.pg_catalog.jsonb_to_recordset(p_entries)
       AS x(job_card_number text, amount numeric, entry_date date)
     ORDER BY pg_catalog.btrim(x.job_card_number)
   LOOP
     v_entry := NULL;
     IF v_row.entry_date IS NULL THEN
-      RETURN pg_catalog.jsonb_build_object('ok',false,'status',400,'error','A valid entry date is required for every row.');
+      RETURN pg_catalog.pg_catalog.jsonb_build_object('ok',false,'status',400,'error','A valid entry date is required for every row.');
     END IF;
     IF EXISTS (SELECT 1 FROM public.vbgramg_contribution_exemptions e
                WHERE pg_catalog.btrim(e.job_card_number)=v_row.job_card_number) THEN
-      RETURN pg_catalog.jsonb_build_object('ok',false,'status',409,
+      RETURN pg_catalog.pg_catalog.jsonb_build_object('ok',false,'status',409,
         'error','Job card '||v_row.job_card_number||' is exempted. No charges were saved.');
     END IF;
 
@@ -121,7 +121,7 @@ BEGIN
       SELECT 1 FROM public.vbgramg_charge_ledger l
       WHERE l.job_card_number=v_row.job_card_number
     ) THEN
-      RETURN pg_catalog.jsonb_build_object('ok',false,'status',404,
+      RETURN pg_catalog.pg_catalog.jsonb_build_object('ok',false,'status',404,
         'error','Job card '||v_row.job_card_number||' is not present in contribution records. No charges were saved.');
     END IF;
 
@@ -130,13 +130,13 @@ BEGIN
         v_row.job_card_number,p_charge_period,p_period_id,v_row.amount,v_reason,v_row.entry_date,p_actor_user_id
       );
       IF COALESCE((v_extra_result->>'ok')::boolean,false)=false THEN
-        RETURN pg_catalog.jsonb_build_object(
+        RETURN pg_catalog.pg_catalog.jsonb_build_object(
           'ok',false,'status',COALESCE((v_extra_result->>'status')::integer,400),
           'error','Job card '||v_row.job_card_number||': '||COALESCE(v_extra_result->>'error','Extra charge failed.'),
           'failed_job_card',v_row.job_card_number
         );
       END IF;
-      v_result_entries := v_result_entries || jsonb_build_array(v_extra_result->'entry');
+      v_result_entries := v_result_entries || pg_catalog.jsonb_build_array(v_extra_result->'entry');
     ELSE
       IF EXISTS (
         SELECT 1 FROM public.vbgramg_charge_ledger l
@@ -146,7 +146,7 @@ BEGIN
           AND NOT COALESCE(l.is_voided,false)
           AND pg_catalog.left(pg_catalog.btrim(COALESCE(l.note,'')),14)='MANUAL CHARGE:'
       ) THEN
-        RETURN pg_catalog.jsonb_build_object('ok',false,'status',409,
+        RETURN pg_catalog.pg_catalog.jsonb_build_object('ok',false,'status',409,
           'error','A manual regular charge already exists for job card '||v_row.job_card_number||' in this round. No charges were saved.');
       END IF;
 
@@ -180,11 +180,11 @@ BEGIN
         (ledger_entry_id,job_card_number,action,actor_user_id,actor_email,before_data,after_data)
       VALUES (v_entry.id,v_row.job_card_number,'manual_contribution_charge',p_actor_user_id,
         pg_catalog.lower(pg_catalog.btrim(COALESCE(p_actor_email,''))),NULL,
-        pg_catalog.jsonb_build_object('charge_kind','regular','amount',v_entry.amount,
+        pg_catalog.pg_catalog.jsonb_build_object('charge_kind','regular','amount',v_entry.amount,
           'period_id',p_period_id,'charge_period',p_charge_period,'entry_date',v_row.entry_date,'reason',v_reason));
 
-      v_result_entries := v_result_entries || jsonb_build_array(
-        pg_catalog.jsonb_build_object('id',v_entry.id,'job_card_number',v_entry.job_card_number,
+      v_result_entries := v_result_entries || pg_catalog.jsonb_build_array(
+        pg_catalog.pg_catalog.jsonb_build_object('id',v_entry.id,'job_card_number',v_entry.job_card_number,
           'person_name',v_entry.person_name,'entry_type',v_entry.entry_type,'amount',v_entry.amount,
           'charge_period',v_entry.charge_period,'period_id',v_entry.period_id,'entry_date',v_entry.entry_date,
           'note',v_entry.note,'created_at',v_entry.created_at,'is_deferred',v_entry.is_deferred,
@@ -195,7 +195,7 @@ BEGIN
     v_total := v_total+v_row.amount;
   END LOOP;
 
-  RETURN pg_catalog.jsonb_build_object('ok',true,'charge_kind',p_charge_kind,
+  RETURN pg_catalog.pg_catalog.jsonb_build_object('ok',true,'charge_kind',p_charge_kind,
     'count',v_count,'total_amount',v_total,'entries',v_result_entries);
 END;
 $function$;

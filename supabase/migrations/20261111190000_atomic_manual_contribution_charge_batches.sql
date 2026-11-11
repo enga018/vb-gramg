@@ -146,8 +146,7 @@ BEGIN
     END IF;
     IF EXISTS (SELECT 1 FROM public.vbgramg_contribution_exemptions e
                WHERE pg_catalog.btrim(e.job_card_number)=v_row.job_card_number) THEN
-      RETURN pg_catalog.jsonb_build_object('ok',false,'status',409,
-        'error','Job card '||v_row.job_card_number||' is exempted. No charges were saved.');
+      RAISE EXCEPTION 'Job card % is exempted. No charges were saved.',v_row.job_card_number;
     END IF;
 
     IF NOT EXISTS (
@@ -157,8 +156,7 @@ BEGIN
       SELECT 1 FROM public.vbgramg_charge_ledger l
       WHERE l.job_card_number=v_row.job_card_number
     ) THEN
-      RETURN pg_catalog.jsonb_build_object('ok',false,'status',404,
-        'error','Job card '||v_row.job_card_number||' is not present in contribution records. No charges were saved.');
+      RAISE EXCEPTION 'Job card % is not present in contribution records. No charges were saved.',v_row.job_card_number;
     END IF;
 
     IF p_charge_kind='extra' THEN
@@ -178,8 +176,7 @@ BEGIN
           AND NOT COALESCE(l.is_voided,false)
           AND pg_catalog.left(pg_catalog.btrim(COALESCE(l.note,'')),14)='MANUAL CHARGE:'
       ) THEN
-        RETURN pg_catalog.jsonb_build_object('ok',false,'status',409,
-          'error','A manual regular charge already exists for job card '||v_row.job_card_number||' in this round. No charges were saved.');
+        RAISE EXCEPTION 'A manual regular charge already exists for job card % in this round. No charges were saved.',v_row.job_card_number;
       END IF;
 
       INSERT INTO public.vbgramg_charge_ledger
@@ -204,7 +201,7 @@ BEGIN
         INSERT INTO public.vbgramg_charge_ledger
           (job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note,is_deferred,created_by)
         VALUES (v_row.job_card_number,v_name,
-          'charge',v_row.amount,p_charge_period,p_period_id,p_entry_date,pg_catalog.left(v_note,200),false,p_actor_user_id)
+          'charge',v_row.amount,p_charge_period,p_period_id,v_row.entry_date,pg_catalog.left(v_note,200),false,p_actor_user_id)
         RETURNING * INTO v_entry;
       END IF;
 

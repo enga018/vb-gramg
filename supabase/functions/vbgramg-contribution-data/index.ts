@@ -1191,6 +1191,38 @@ Deno.serve(async(req:Request)=>{
    return reply({approved:true,audit_entries:auditEntries,offset,limit:pageSize,total_count:Number(count||0),has_more:offset+auditEntries.length<Number(count||0)});
   }
 
+  if(action==="save-manual-contribution-charges"){
+   if(approved.role!=="admin")return reply({error:"Only an approved administrator can add manual contribution charges."},403);
+   const rows=body.entries;
+   if(!Array.isArray(rows)||rows.length<1||rows.length>500)return reply({error:"A manual charge batch must contain 1–500 job cards."},400);
+   const chargeKind=String(body.charge_kind||"");
+   if(!["regular","extra"].includes(chargeKind))return reply({error:"Choose regular or extra charge."},400);
+   const periodId=String(body.period_id||"").trim(),chargePeriod=String(body.charge_period||"").trim();
+   const entryDate=String(body.entry_date||"").trim(),reason=String(body.reason||"").trim().slice(0,500);
+   if(!periodId)return reply({error:"Select a contribution round."},400);
+   if(!/^\\d{4}-\\d{2}-01$/.test(chargePeriod)||Number(chargePeriod.slice(5,7))<1||Number(chargePeriod.slice(5,7))>12)return reply({error:"Choose a valid contribution month."},400);
+   if(entryDate&&(!/^\\d{4}-\\d{2}-\\d{2}$/.test(entryDate)||Number.isNaN(Date.parse(entryDate))))return reply({error:"Choose a valid default entry date."},400);
+   if(!reason)return reply({error:"Enter a reason or reference for the manual charge."},400);
+   const seen=new Set<string>(),normalized:{job_card_number:string;amount:number;entry_date:string|null}[]=[];
+   for(const raw of rows){
+    const jobCard=String(raw?.job_card_number||"").trim(),amount=Number(raw?.amount);
+    const rowDate=String(raw?.entry_date||"").trim();
+    if(!jobCard||jobCard.length>100||!Number.isFinite(amount)||amount<=0||amount>10000000)return reply({error:"Every row must have a job card and a positive amount."},400);
+    if(rowDate&&(!/^\\d{4}-\\d{2}-\\d{2}$/.test(rowDate)||Number.isNaN(Date.parse(rowDate))))return reply({error:"Invalid entry date for job card "+jobCard+"."},400);
+    if(!entryDate&&!rowDate)return reply({error:"Provide a default date or a date for every job card."},400);
+    if(seen.has(jobCard))return reply({error:"Duplicate job card in batch: "+jobCard},400);
+    seen.add(jobCard);normalized.push({job_card_number:jobCard,amount,entry_date:rowDate||null});
+   }
+   const {data:result,error:writeError}=await admin.rpc("vbgramg_save_manual_contribution_charges",{
+    p_entries:normalized,p_charge_kind:chargeKind,p_period_id:periodId,
+    p_charge_period:chargePeriod,p_entry_date:entryDate||null,p_reason:reason,
+    p_actor_user_id:authData.user.id,p_actor_email:email
+   });
+   if(writeError)throw writeError;
+   if(!result||result.ok!==true)return reply({error:String(result?.error||"Could not save manual contribution charges.")},Number(result?.status)||400);
+   return reply({approved:true,charge_kind:chargeKind,entries:result.entries||[],count:Number(result.count)||0,total_amount:Number(result.total_amount)||0});
+  }
+
   if(action==="save-contribution-extra"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can save extra contribution charges."},403);
    const jobCard=String(body.job_card_number||"").trim(),period=String(body.charge_period||"").trim(),periodId=String(body.period_id||"").trim(),amount=Number(body.amount),reason=String(body.reason||"").trim().slice(0,500);

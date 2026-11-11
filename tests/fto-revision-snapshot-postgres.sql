@@ -103,6 +103,7 @@ insert into public.vbgramg_charge_ledger(
 ('00000000-0000-0000-0000-000000000201','JC-001','charge',80,'00000000-0000-0000-0000-000000000011','2026-01-01','2026-01-01T01:00:00Z',false,'FTO'),
 ('00000000-0000-0000-0000-000000000202','JC-001','payment',50,null,'2026-01-05','2026-01-05T01:00:00Z',false,'Bank payment'),
 ('00000000-0000-0000-0000-000000000203','JC-001','charge_waiver',10,null,'2026-01-06','2026-01-06T01:00:00Z',false,'Waiver'),
+('00000000-0000-0000-0000-000000000206','JC-001','forgive',15,null,'2026-01-07','2026-01-07T01:00:00Z',false,'Partially linked legacy waiver'),
 ('00000000-0000-0000-0000-000000000204','JC-001','other_charge',25,'00000000-0000-0000-0000-000000000010','2026-02-01','2026-02-01T01:00:00Z',true,'Voided charge'),
 ('00000000-0000-0000-0000-000000000205','JC-002','charge',90,'00000000-0000-0000-0000-000000000011','2026-01-01','2026-01-01T01:00:00Z',false,'Out of scope');
 
@@ -119,7 +120,8 @@ insert into public.vbgramg_payment_refund_reconciliations(
 insert into public.vbgramg_waiver_period_allocations(
   id,waiver_id,period_id,job_card_number,amount
 ) values
-('00000000-0000-0000-0000-000000000501','00000000-0000-0000-0000-000000000203','00000000-0000-0000-0000-000000000011','JC-001',10);
+('00000000-0000-0000-0000-000000000501','00000000-0000-0000-0000-000000000203','00000000-0000-0000-0000-000000000011','JC-001',10),
+('00000000-0000-0000-0000-000000000502','00000000-0000-0000-0000-000000000206','00000000-0000-0000-0000-000000000011','JC-001',4);
 
 insert into public.vbgramg_contribution_exemptions(job_card_number,note)
 values ('JC-001','Synthetic exemption');
@@ -158,7 +160,7 @@ begin
     raise exception 'Snapshot omitted the proposed target period with no ledger activity';
   end if;
 
-  if jsonb_array_length(v_snapshot->'ledger_entries') <> 4 then
+  if jsonb_array_length(v_snapshot->'ledger_entries') <> 5 then
     raise exception 'Snapshot omitted ledger context for the affected card';
   end if;
 
@@ -176,6 +178,14 @@ begin
   if jsonb_array_length(v_snapshot->'waiver_allocations') <> 1
      or (v_snapshot->'waiver_allocations'->0->>'amount')::numeric <> 10 then
     raise exception 'Snapshot waiver evidence is incomplete';
+  end if;
+
+  if jsonb_array_length(v_snapshot->'unlinked_legacy_waivers') <> 1
+     or v_snapshot->'unlinked_legacy_waivers'->0->>'entry_type' <> 'forgive'
+     or (v_snapshot->'unlinked_legacy_waivers'->0->>'unlinked_amount')::numeric <> 11
+     or (v_snapshot->'unlinked_legacy_waivers'->0->>'linked_amount')::numeric <> 4 then
+    raise exception 'Snapshot did not identify the partially linked legacy waiver remainder: %',
+      v_snapshot->'unlinked_legacy_waivers';
   end if;
 
   if jsonb_array_length(v_snapshot->'active_exemptions') <> 1

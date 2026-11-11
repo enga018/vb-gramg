@@ -1,0 +1,50 @@
+name: Design system preview package
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - preview/design-system-pages-artifact
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vbgramg-design-preview
+  cancel-in-progress: true
+
+jobs:
+  package-preview:
+    name: Build isolated preview artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out preview branch
+        uses: actions/checkout@v4
+
+      - name: Verify shared design stylesheets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f index.html
+          test -f responsive.css
+          test -f design-tokens.css
+          test -f theme.css
+          grep -Eq 'design-tokens\.css' responsive.css
+
+      - name: Package static application
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p preview-package
+          # Package the static app only; do not run migrations or deploy functions.
+          rsync -a --exclude='.git' --exclude='.github' --exclude='preview-package' ./ preview-package/
+          printf '%s\n' "Preview commit: ${GITHUB_SHA}" > preview-package/PREVIEW-BUILD.txt
+          printf '%s\n' "This artifact is for review only. It is not a production deployment." >> preview-package/PREVIEW-BUILD.txt
+
+      - name: Upload review package
+        uses: actions/upload-artifact@v4
+        with:
+          name: vbgramg-design-system-preview
+          path: preview-package/
+          if-no-files-found: error
+          retention-days: 7

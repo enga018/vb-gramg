@@ -934,6 +934,24 @@ Deno.serve(async(req:Request)=>{
    let trackBatches:Record<string,any>[]=[];
    if(trackedBatchIds.length){const {data,error}=await admin.from("vbgramg_fto_batches").select("id,ledger_charge_period,period_id,fto_number").in("id",trackedBatchIds);if(error)throw error;trackBatches=data||[];}
    const batchPeriod=new Map(trackBatches.map(r=>[String(r.id),{month:String(r.ledger_charge_period||""),periodId:String(r.period_id||""),fto:String(r.fto_number||"") }]));
+   // Re-check first-seen eligibility for the complete reconciliation snapshot,
+   // including retained rows from older FTO batches and rows omitted from this paste.
+   // The earlier incoming-row check is not sufficient: status re-imports must never
+   // make a transaction first recorded during an exemption chargeable later.
+   const {data:reconciliationExemptions,error:reconciliationExemptionsError}=affectedCards.length
+    ?await admin.from("vbgramg_contribution_exemption_history").select("job_card_number,started_at,ended_at").in("job_card_number",affectedCards)
+    :{data:[],error:null};
+   if(reconciliationExemptionsError)throw reconciliationExemptionsError;
+   const eligibleForLedger=(tx:Record<string,any>)=>{
+    const firstSeen=Date.parse(String(tx.created_at||""));
+    if(!Number.isFinite(firstSeen))return false;
+    return !(reconciliationExemptions||[]).some(interval=>{
+     if(String(interval.job_card_number)!==String(tx.job_card_number))return false;
+     const started=Date.parse(String(interval.started_at||""));
+     const ended=interval.ended_at?Date.parse(String(interval.ended_at)):Number.POSITIVE_INFINITY;
+     return Number.isFinite(started)&&firstSeen>=started&&firstSeen<ended;
+    });
+   };
    const relevant=(trackedRows||[]).filter(r=>{const p=batchPeriod.get(String(r.batch_id));return p?.month===chargePeriod&&p.periodId===periodId&&r.is_in_scope===true&&r.is_current===true;});
    const snapshotByIdentity=new Map<string,Record<string,any>>();
    for(const tx of relevant){
@@ -952,7 +970,12 @@ Deno.serve(async(req:Request)=>{
     snapshotByIdentity.set(batchId+"::"+reference,tx);
    }
    const txByCard=new Map<string,Record<string,any>[]>();
-   for(const tx of snapshotByIdentity.values()){const card=String(tx.job_card_number);if(!txByCard.has(card))txByCard.set(card,[]);txByCard.get(card)!.push(tx);}
+   for(const tx of snapshotByIdentity.values()){
+    if(!eligibleForLedger(tx))continue;
+    const card=String(tx.job_card_number);
+    if(!txByCard.has(card))txByCard.set(card,[]);
+    txByCard.get(card)!.push(tx);
+   }
    const {data:ledgerRows,error:ledgerError}=affectedCards.length
     ?await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,entry_type,amount,charge_period,entry_date,note,import_id,created_by,is_deferred,is_voided,reference_numbers,period_id,applicant_name,applicant_number,applicant_unique_id,fto_applicant_name").in("job_card_number",affectedCards).eq("charge_period",chargePeriod).in("entry_type",["charge","other_charge"])
     :{data:[],error:null};

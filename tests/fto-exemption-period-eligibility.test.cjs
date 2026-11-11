@@ -49,6 +49,19 @@ test("FTO period reassignment filters out transactions first seen during exempti
   assert.match(edge, /for\(const tx of eligibleInScopeTxs\)/);
 });
 
+test("Final FTO snapshot reconciliation excludes transactions first seen during exemption intervals", () => {
+  const reconciliationStart = edge.indexOf("const reconciliationExemptions");
+  const reconciliationEnd = edge.indexOf("const {data:ledgerRows", reconciliationStart);
+  assert.ok(reconciliationStart >= 0 && reconciliationEnd > reconciliationStart);
+  const reconciliation = edge.slice(reconciliationStart, reconciliationEnd);
+
+  assert.match(reconciliation, /eligibleForLedger/);
+  assert.match(reconciliation, /tx\.created_at/);
+  assert.match(reconciliation, /firstSeen>=started&&firstSeen<ended/);
+  assert.match(reconciliation, /if\(!eligibleForLedger\(tx\)\)continue/);
+  assert.doesNotMatch(reconciliation, /last_seen_at.*eligibleForLedger/);
+});
+
 
 test("Re-importing an FTO after a status change preserves the original first-seen timestamp", () => {
   const snapshot = read("supabase/migrations/20261103170000_add_atomic_fto_snapshot_rpc.sql");

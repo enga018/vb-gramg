@@ -52,7 +52,7 @@ BEGIN
   END IF;
   IF EXISTS (
     SELECT 1 FROM pg_catalog.jsonb_to_recordset(p_entries)
-      AS x(job_card_number text, amount numeric)
+      AS x(job_card_number text, amount numeric, entry_date date)
     WHERE amount IS NULL OR amount<=0 OR amount>10000000
        OR amount::text IN ('NaN','Infinity','-Infinity')
   ) THEN
@@ -98,11 +98,16 @@ BEGIN
 
   FOR v_row IN
     SELECT pg_catalog.btrim(x.job_card_number) AS job_card_number,
-           x.amount::numeric(14,2) AS amount
+           x.amount::numeric(14,2) AS amount,
+           COALESCE(x.entry_date,p_entry_date) AS entry_date
     FROM pg_catalog.jsonb_to_recordset(p_entries)
-      AS x(job_card_number text, amount numeric)
+      AS x(job_card_number text, amount numeric, entry_date date)
     ORDER BY pg_catalog.btrim(x.job_card_number)
   LOOP
+    v_entry := NULL;
+    IF v_row.entry_date IS NULL THEN
+      RETURN pg_catalog.jsonb_build_object('ok',false,'status',400,'error','A valid entry date is required for every row.');
+    END IF;
     IF EXISTS (SELECT 1 FROM public.vbgramg_contribution_exemptions e
                WHERE pg_catalog.btrim(e.job_card_number)=v_row.job_card_number) THEN
       RETURN pg_catalog.jsonb_build_object('ok',false,'status',409,
@@ -122,7 +127,7 @@ BEGIN
 
     IF p_charge_kind='extra' THEN
       v_extra_result := public.vbgramg_save_contribution_extra(
-        v_row.job_card_number,p_charge_period,p_period_id,v_row.amount,v_reason,p_entry_date,p_actor_user_id
+        v_row.job_card_number,p_charge_period,p_period_id,v_row.amount,v_reason,v_row.entry_date,p_actor_user_id
       );
       IF COALESCE((v_extra_result->>'ok')::boolean,false)=false THEN
         RETURN pg_catalog.jsonb_build_object(
@@ -149,7 +154,7 @@ BEGIN
         (job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note,is_deferred,created_by)
       SELECT v_row.job_card_number,
              COALESCE(NULLIF(pg_catalog.btrim(c.person_name),''),v_row.job_card_number),
-             'charge',v_row.amount,p_charge_period,p_period_id,p_entry_date,
+             'charge',v_row.amount,p_charge_period,p_period_id,v_row.entry_date,
              pg_catalog.left(v_note,200),false,p_actor_user_id
       FROM public.vbgramg_contribution_citizens c
       WHERE c.job_card_number=v_row.job_card_number
@@ -176,7 +181,7 @@ BEGIN
       VALUES (v_entry.id,v_row.job_card_number,'manual_contribution_charge',p_actor_user_id,
         pg_catalog.lower(pg_catalog.btrim(COALESCE(p_actor_email,''))),NULL,
         pg_catalog.jsonb_build_object('charge_kind','regular','amount',v_entry.amount,
-          'period_id',p_period_id,'charge_period',p_charge_period,'entry_date',p_entry_date,'reason',v_reason));
+          'period_id',p_period_id,'charge_period',p_charge_period,'entry_date',v_row.entry_date,'reason',v_reason));
 
       v_result_entries := v_result_entries || jsonb_build_array(
         pg_catalog.jsonb_build_object('id',v_entry.id,'job_card_number',v_entry.job_card_number,

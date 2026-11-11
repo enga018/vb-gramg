@@ -106,8 +106,8 @@ begin
     left join public.vbgramg_fto_transactions existing on existing.id = tx.id
     join public.vbgramg_contribution_exemption_history h
       on h.job_card_number = pg_catalog.btrim(tx.job_card_number)
-     and coalesce(existing.created_at, tx.created_at) >= h.started_at
-     and coalesce(existing.created_at, tx.created_at) < coalesce(h.ended_at, 'infinity'::timestamptz)
+     and coalesce(existing.created_at, tx.created_at, transaction_timestamp()) >= h.started_at
+     and coalesce(existing.created_at, tx.created_at, transaction_timestamp()) < coalesce(h.ended_at, 'infinity'::timestamptz)
     where coalesce(tx.is_in_scope,true)
       and exists (
         select 1

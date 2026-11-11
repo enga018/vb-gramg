@@ -34,7 +34,7 @@ BEGIN
      OR EXTRACT(day FROM p_charge_period)<>1 THEN
     RETURN pg_catalog.jsonb_build_object('ok',false,'status',400,'error','Choose a valid contribution round and month.');
   END IF;
-  IF p_entry_date IS NULL OR p_actor_user_id IS NULL OR v_reason='' THEN
+  IF p_actor_user_id IS NULL OR v_reason='' THEN
     RETURN pg_catalog.jsonb_build_object('ok',false,'status',400,'error','Entry date, reason, and administrator are required.');
   END IF;
   IF jsonb_typeof(p_entries)<>'array'

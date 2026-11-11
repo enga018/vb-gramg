@@ -148,6 +148,7 @@ jobs:
             docker ps -a
             exit 1
           fi
+          export PG_CONTAINER
           mkdir -p "$RUNNER_TEMP/pg-client"
           cat > "$RUNNER_TEMP/pg-client/psql" <<'EOF'
           #!/usr/bin/env bash

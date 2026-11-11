@@ -30,6 +30,7 @@ on:
       - "tests/work-demand-requires-existing-period.test.cjs"
       - "tests/fto-exemption-period-eligibility.test.cjs"
       - "supabase/migrations/20261111120000_track_contribution_exemption_intervals.sql"
+      - "tests/fto-exemption-period-eligibility-postgres.sql"
       - "supabase/migrations/20261106190000_include_active_mis_cards_in_financial_summary.sql"
       - "tests/postgres-contribution-balances.test.cjs"
       - "supabase/functions/vbgramg-contribution-data/index.ts"
@@ -133,6 +134,10 @@ jobs:
           sudo apt-get install -y postgresql-client
       - name: Run atomic contribution PostgreSQL integration tests
         run: psql -v ON_ERROR_STOP=1 -f tests/atomic-contribution-writes-postgres.sql
+      - name: Run FTO exemption interval PostgreSQL tests
+        run: |
+          createdb vbgramg_fto_exemption_test
+          PGDATABASE=vbgramg_fto_exemption_test psql -v ON_ERROR_STOP=1 -f tests/fto-exemption-period-eligibility-postgres.sql
       - name: Run atomic extra contribution charge PostgreSQL tests
         run: |
           createdb vbgramg_extras_test

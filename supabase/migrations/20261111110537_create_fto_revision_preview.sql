@@ -294,6 +294,37 @@ begin
       join public.vbgramg_charge_ledger waiver on waiver.id = w.waiver_id
       where w.job_card_number = any(v_cards)
     ), '[]'::jsonb),
+    -- The balance breakdown applies charge_waiver/forgive globally FIFO.
+    -- Any amount not explicitly linked to a period cannot be simulated safely.
+    -- Return its exact unlinked remainder so preview can fail closed.
+    'unlinked_legacy_waivers', coalesce((
+      select jsonb_agg(
+        jsonb_build_object(
+          'waiver_id', waiver.id,
+          'job_card_number', waiver.job_card_number,
+          'entry_type', waiver.entry_type,
+          'amount', waiver.amount,
+          'linked_amount', coalesce(linked.total_linked, 0),
+          'unlinked_amount', greatest(waiver.amount - coalesce(linked.total_linked, 0), 0),
+          'overallocated_amount', greatest(coalesce(linked.total_linked, 0) - waiver.amount, 0)
+        )
+        order by waiver.job_card_number, waiver.created_at, waiver.id
+      )
+      from public.vbgramg_charge_ledger waiver
+      left join lateral (
+        select sum(w.amount)::numeric(14,2) as total_linked
+        from public.vbgramg_waiver_period_allocations w
+        where w.waiver_id = waiver.id
+          and w.job_card_number = waiver.job_card_number
+      ) linked on true
+      where waiver.job_card_number = any(v_cards)
+        and waiver.entry_type in ('charge_waiver', 'forgive')
+        and not coalesce(waiver.is_voided, false)
+        and (
+          greatest(waiver.amount - coalesce(linked.total_linked, 0), 0) > 0
+          or greatest(coalesce(linked.total_linked, 0) - waiver.amount, 0) > 0
+        )
+    ), '[]'::jsonb),
     'active_exemptions', coalesce((
       select jsonb_agg(to_jsonb(e) order by e.job_card_number)
       from public.vbgramg_contribution_exemptions e

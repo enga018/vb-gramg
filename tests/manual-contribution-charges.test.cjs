@@ -19,6 +19,7 @@ test("Manual charge batch RPC is admin-service-only and validates the complete b
   assert.match(migration,/MANUAL CHARGE:/);
   assert.match(migration,/vbgramg_contribution_extras/);
   assert.match(migration,/vbgramg_mis_contribution_lookup/);
+  assert.match(migration,/vbgramg_mis_contribution_lookup/);
   assert.match(migration,/vbgramg_ledger_audit/);
   assert.match(migration,/EXCEPTION WHEN OTHERS[\s\S]*?All changes were rolled back/);
   assert.match(migration,/REVOKE ALL ON FUNCTION[\s\S]+FROM PUBLIC/);
@@ -37,7 +38,9 @@ test("Edge action is restricted to administrators and validates dates, amounts a
   assert.match(action,/new Set<string>\(\)/);
   assert.match(action,/Number\.isFinite\(amount\)/);
   assert.match(action,/\^\\d\{4\}-\\d\{2\}-\\d\{2\}\$/);
+  assert.match(action,/validIsoDate/);
   assert.match(action,/vbgramg_save_manual_contribution_charges/);
+  assert.match(edge,/manual_contribution_extra_charge/);
 });
 
 test("Contribution page exposes individual, same-amount bulk and per-card amount entry", () => {
@@ -49,12 +52,14 @@ test("Contribution page exposes individual, same-amount bulk and per-card amount
   assert.match(page,/Different amount per job card/);
   assert.match(page,/Preview charges/);
   assert.match(page,/save-manual-contribution-charges/);
+  assert.match(page,/Manual extra charge added/);
   assert.match(page,/periods=Array\.isArray\(data\.periods\)\?data\.periods:\[\]/);
 });
 
 test("PostgreSQL fixture exercises batch success, rollback, duplicate and permission paths", () => {
   assert.match(postgres,/MZ-REG-ONE/);
   assert.match(postgres,/MZ-MIS-ONLY/);
+  assert.match(postgres,/manual_contribution_extra_charge/);
   assert.match(postgres,/MZ-EXTRA-ONE/);
   assert.match(postgres,/MZ-ROLLBACK/);
   assert.match(postgres,/MZ-EXEMPT/);

@@ -50,7 +50,7 @@ test("FTO period reassignment filters out transactions first seen during exempti
 });
 
 test("Final FTO snapshot reconciliation excludes transactions first seen during exemption intervals", () => {
-  const reconciliationStart = edge.indexOf("const reconciliationExemptions");
+  const reconciliationStart = edge.indexOf("const {data:reconciliationExemptions");
   const reconciliationEnd = edge.indexOf("const {data:ledgerRows", reconciliationStart);
   assert.ok(reconciliationStart >= 0 && reconciliationEnd > reconciliationStart);
   const reconciliation = edge.slice(reconciliationStart, reconciliationEnd);

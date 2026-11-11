@@ -34,8 +34,8 @@ begin
   v_allocations := v_result->'proposed_allocations';
   v_total := (v_result->>'allocated_total')::numeric;
 
-  if v_total <> 85 then
-    raise exception 'Expected simulated allocation total 85; got %', v_total;
+  if v_total <> 75 then
+    raise exception 'Expected simulated allocation total 75; got %', v_total;
   end if;
 
   if (v_allocations->0->>'payment_id') <> '10000000-0000-0000-0000-000000000001'

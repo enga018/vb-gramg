@@ -1145,10 +1145,13 @@ async function showExtraChargeAudit(append=false){
   const rows=auditRows.map(row=>{
    const before=row.before_data||{},after=row.after_data||{},beforeExtra=before.extra||{},afterExtra=after.extra||{};
    const isEdit=row.action==="extra_contribution_charge_edit";
-   const heading=isEdit?"Extra contribution edited":"Payment allocation released";
-   const detail=isEdit
-    ?'<div><b>Charge:</b> '+money(beforeExtra.amount)+' → '+money(afterExtra.amount)+'</div>'+(Number(after.released_total||0)>0?'<div><b>Payment allocation released:</b> '+money(after.released_total)+'</div>':'')+'<div><b>Reason:</b> '+esc(afterExtra.reason||beforeExtra.reason||"Not recorded")+'</div>'
-    :'<div><b>Previous allocation:</b> '+money(after.previous_amount)+'</div><div><b>Released:</b> '+money(after.released_amount)+'</div><div><b>Remaining allocation:</b> '+money(after.remaining_amount)+'</div>';
+   const isManualCharge=row.action==="manual_contribution_charge"||row.action==="manual_contribution_extra_charge";
+   const heading=isManualCharge?(after.charge_kind==="extra"?"Manual extra charge added":"Manual regular charge added"):isEdit?"Extra contribution edited":"Payment allocation released";
+   const detail=isManualCharge
+    ?'<div><b>Charge:</b> '+money(after.amount)+'</div><div><b>Entry date:</b> '+esc(after.entry_date||"Not recorded")+'</div><div><b>Reason:</b> '+esc(after.reason||"Not recorded")+'</div>'
+    :isEdit
+     ?'<div><b>Charge:</b> '+money(beforeExtra.amount)+' → '+money(afterExtra.amount)+'</div>'+(Number(after.released_total||0)>0?'<div><b>Payment allocation released:</b> '+money(after.released_total)+'</div>':'')+'<div><b>Reason:</b> '+esc(afterExtra.reason||beforeExtra.reason||"Not recorded")+'</div>'
+     :'<div><b>Previous allocation:</b> '+money(after.previous_amount)+'</div><div><b>Released:</b> '+money(after.released_amount)+'</div><div><b>Remaining allocation:</b> '+money(after.remaining_amount)+'</div>';
    return '<div class="entry"><div class="desc"><b>'+esc(heading)+'</b><small>'+esc(row.job_card_number||"Unknown job card")+' · '+esc(row.period_name||"Contribution period")+' · '+esc(dateLabel(row.created_at))+'</small>'+detail+'<small>Recorded by: '+esc(row.actor_email||"Administrator")+'</small></div></div>';
   }).join("");
   const more=data.has_more?'<div style="padding:12px 0"><button class="btn ghost small" id="loadMoreAudit" type="button">Load older entries</button></div>':"";

@@ -17,13 +17,13 @@ concurrency:
 
 jobs:
   generate:
-    if: github.ref == 'refs/heads/feature/fto-revision-workflow'
+    if: github.ref == 'refs/heads/feature/fto-revision-preview'
     runs-on: ubuntu-latest
     steps:
       - name: Check out feature branch
         uses: actions/checkout@v4
         with:
-          ref: feature/fto-revision-workflow
+          ref: feature/fto-revision-preview
           fetch-depth: 0
 
       - name: Validate migration name
@@ -58,4 +58,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "$FILE"
           git commit -m "chore(db): generate ${MIGRATION_NAME} migration"
-          git push origin HEAD:feature/fto-revision-workflow
+          git push origin HEAD:feature/fto-revision-preview

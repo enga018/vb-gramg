@@ -25,6 +25,7 @@ DECLARE
   v_count integer := 0;
   v_reason text := pg_catalog.left(pg_catalog.btrim(COALESCE(p_reason,'')),500);
   v_note text;
+  v_name text;
 BEGIN
   IF p_charge_kind NOT IN ('regular','extra') THEN
     RETURN pg_catalog.jsonb_build_object('ok',false,'status',400,'error','Choose regular or extra charge.');
@@ -69,12 +70,16 @@ BEGIN
       pg_catalog.hashtextextended('vbgramg-contribution:'||v_card.job_card_number,0)
     );
   END LOOP;
-  PERFORM pg_catalog.pg_advisory_xact_lock(
-    pg_catalog.hashtextextended('contribution:'||
-      (SELECT pg_catalog.string_agg(pg_catalog.btrim(x.job_card_number),',' ORDER BY pg_catalog.btrim(x.job_card_number))
-       FROM pg_catalog.jsonb_to_recordset(p_entries) AS x(job_card_number text, amount numeric))
-      ||':'||p_period_id::text,0)
-  );
+  FOR v_card IN
+    SELECT DISTINCT pg_catalog.btrim(x.job_card_number) AS job_card_number
+    FROM pg_catalog.jsonb_to_recordset(p_entries)
+      AS x(job_card_number text, amount numeric)
+    ORDER BY 1
+  LOOP
+    PERFORM pg_catalog.pg_advisory_xact_lock(
+      pg_catalog.hashtextextended('contribution:'||v_card.job_card_number||':'||p_period_id::text,0)
+    );
+  END LOOP;
 
   SELECT * INTO v_round FROM public.vbgramg_periods
   WHERE id=p_period_id FOR UPDATE;
@@ -152,13 +157,16 @@ BEGIN
       RETURNING * INTO v_entry;
 
       IF v_entry.id IS NULL THEN
-        SELECT l.person_name INTO v_card
+        SELECT l.person_name INTO v_name
         FROM public.vbgramg_charge_ledger l
         WHERE l.job_card_number=v_row.job_card_number
         ORDER BY l.created_at,l.id LIMIT 1;
+        IF v_name IS NULL OR pg_catalog.btrim(v_name)='' THEN
+          RAISE EXCEPTION 'Could not resolve the household name for job card %.',v_row.job_card_number;
+        END IF;
         INSERT INTO public.vbgramg_charge_ledger
           (job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note,is_deferred,created_by)
-        VALUES (v_row.job_card_number,COALESCE(NULLIF(pg_catalog.btrim(v_card.job_card_number),''),v_row.job_card_number),
+        VALUES (v_row.job_card_number,v_name,
           'charge',v_row.amount,p_charge_period,p_period_id,p_entry_date,pg_catalog.left(v_note,200),false,p_actor_user_id)
         RETURNING * INTO v_entry;
       END IF;

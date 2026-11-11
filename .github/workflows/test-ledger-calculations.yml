@@ -28,6 +28,8 @@ on:
       - "demand.html"
       - "supabase/functions/vbgramg-demand-runs/index.ts"
       - "tests/work-demand-requires-existing-period.test.cjs"
+      - "tests/fto-exemption-period-eligibility.test.cjs"
+      - "supabase/migrations/20261111120000_track_contribution_exemption_intervals.sql"
       - "supabase/migrations/20261106190000_include_active_mis_cards_in_financial_summary.sql"
       - "tests/postgres-contribution-balances.test.cjs"
       - "supabase/functions/vbgramg-contribution-data/index.ts"
@@ -78,6 +80,8 @@ jobs:
         run: node --test tests/voided-payment-allocation-safeguards.test.cjs
       - name: Run Work Demand period requirement tests
         run: node --test tests/work-demand-requires-existing-period.test.cjs
+      - name: Run FTO exemption interval eligibility tests
+        run: node --test tests/fto-exemption-period-eligibility.test.cjs
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:

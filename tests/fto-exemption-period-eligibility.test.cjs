@@ -12,6 +12,9 @@ test("Exemption intervals are retained and only one open interval is allowed per
   assert.match(migration, /started_at timestamptz not null/i);
   assert.match(migration, /ended_at timestamptz/i);
   assert.match(migration, /where ended_at is null/i);
+  assert.match(migration, /enable row level security/i);
+  assert.match(migration, /revoke all on public\\.vbgramg_contribution_exemption_history from public, anon, authenticated/i);
+  assert.match(migration, /grant select, insert, update, delete on public\\.vbgramg_contribution_exemption_history to service_role/i);
   assert.match(migration, /coalesce\(e\.created_at, now\(\)\)/i);
 });
 

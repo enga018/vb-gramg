@@ -174,8 +174,8 @@ jobs:
           chmod +x "$RUNNER_TEMP/pg-client/psql" "$RUNNER_TEMP/pg-client/createdb"
           echo "$RUNNER_TEMP/pg-client" >> "$GITHUB_PATH"
           echo "PG_CONTAINER=$PG_CONTAINER" >> "$GITHUB_ENV"
-          psql --version
-          createdb --version
+          "$RUNNER_TEMP/pg-client/psql" --version
+          "$RUNNER_TEMP/pg-client/createdb" --version
       - name: Run atomic contribution PostgreSQL integration tests
         run: psql -v ON_ERROR_STOP=1 -f tests/atomic-contribution-writes-postgres.sql
       - name: Run FTO revision history PostgreSQL tests

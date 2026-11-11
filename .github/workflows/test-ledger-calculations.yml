@@ -31,6 +31,8 @@ on:
       - "tests/fto-exemption-period-eligibility.test.cjs"
       - "tests/fto-revision-history-postgres.sql"
       - "supabase/migrations/20261111105048_add_fto_revision_history.sql"
+      - "supabase/migrations/20261111110537_create_fto_revision_preview.sql"
+      - "tests/fto-revision-fifo-simulation-postgres.sql"
       - "supabase/migrations/20261111120000_track_contribution_exemption_intervals.sql"
       - "tests/fto-exemption-period-eligibility-postgres.sql"
       - "supabase/migrations/20261111160000_serialize_fto_snapshot_with_exemptions.sql"
@@ -144,6 +146,10 @@ jobs:
         run: |
           createdb vbgramg_fto_revision_test
           PGDATABASE=vbgramg_fto_revision_test psql -v ON_ERROR_STOP=1 -f tests/fto-revision-history-postgres.sql
+      - name: Run FTO FIFO simulation PostgreSQL tests
+        run: |
+          createdb vbgramg_fto_fifo_simulation_test
+          PGDATABASE=vbgramg_fto_fifo_simulation_test psql -v ON_ERROR_STOP=1 -f tests/fto-revision-fifo-simulation-postgres.sql
       - name: Run FTO exemption interval PostgreSQL tests
         run: |
           createdb vbgramg_fto_exemption_test

@@ -175,8 +175,9 @@ begin
     raise exception 'Snapshot payment refund evidence is incomplete';
   end if;
 
-  if jsonb_array_length(v_snapshot->'waiver_allocations') <> 1
-     or (v_snapshot->'waiver_allocations'->0->>'amount')::numeric <> 10 then
+  if jsonb_array_length(v_snapshot->'waiver_allocations') <> 2
+     or (v_snapshot->'waiver_allocations'->0->>'amount')::numeric <> 10
+     or (v_snapshot->'waiver_allocations'->1->>'amount')::numeric <> 4 then
     raise exception 'Snapshot waiver evidence is incomplete';
   end if;
 

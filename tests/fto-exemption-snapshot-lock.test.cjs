@@ -19,8 +19,8 @@ test("Atomic FTO snapshot rechecks first-seen exemption eligibility inside Postg
   const snapshot = migration.slice(start, end);
   assert.match(snapshot, /pg_advisory_xact_lock[\s\S]*contribution-card:/i);
   assert.match(snapshot, /left join public\.vbgramg_fto_transactions existing on existing\.id = tx\.id/i);
-  assert.match(snapshot, /coalesce\(existing\.created_at, tx\.created_at, transaction_timestamp\(\)\) >= h\.started_at/i);
-  assert.match(snapshot, /coalesce\(existing\.created_at, tx\.created_at, transaction_timestamp\(\)\) < coalesce\(h\.ended_at/i);
+  assert.match(snapshot, /existing\.created_at is null and tx\.created_at is null/i);
+  assert.match(snapshot, /coalesce\(existing\.created_at, tx\.created_at\) < coalesce\(h\.ended_at/i);
   assert.match(snapshot, /reference_no = any\(coalesce\(lr\.reference_numbers/i);
   assert.match(snapshot, /FTO snapshot rejected: a transaction was first seen during a contribution exemption interval/i);
 });

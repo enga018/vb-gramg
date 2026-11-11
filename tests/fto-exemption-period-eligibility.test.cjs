@@ -49,6 +49,10 @@ test("FTO period reassignment filters out transactions first seen during exempti
   assert.match(edge, /for\(const tx of eligibleInScopeTxs\)/);
 });
 
+test("FTO import total excludes transactions first seen during exemption intervals", () => {
+  assert.match(edge, /normalized\.filter\(r=>r\.is_in_scope&&!exemptCards\.has\(String\(r\.job_card_number\)\)&&isEligibleFirstSeen\(r\)&&!skippedDuplicateSet\.has\(String\(r\.reference_no\)\)/);
+});
+
 test("Final FTO reconciliation loads immutable first-seen timestamps for historical batches", () => {
   assert.match(edge, /select\("id,batch_id,reference_no,job_card_number,calculated_charge,status,processed_date,is_in_scope,is_current,last_seen_at,created_at,ledger_entry_id"\)\.in\("job_card_number",affectedCards\)/);
 });

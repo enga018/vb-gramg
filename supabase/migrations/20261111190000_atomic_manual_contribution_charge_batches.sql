@@ -166,6 +166,13 @@ BEGIN
       IF COALESCE((v_extra_result->>'ok')::boolean,false)=false THEN
         RAISE EXCEPTION 'Job card %: %',v_row.job_card_number,COALESCE(v_extra_result->>'error','Extra charge failed.');
       END IF;
+      INSERT INTO public.vbgramg_ledger_audit
+        (ledger_entry_id,job_card_number,action,actor_user_id,actor_email,before_data,after_data)
+      VALUES ((v_extra_result->'entry'->>'id')::uuid,v_row.job_card_number,
+        'manual_contribution_extra_charge',p_actor_user_id,
+        pg_catalog.lower(pg_catalog.btrim(COALESCE(p_actor_email,''))),NULL,
+        pg_catalog.jsonb_build_object('charge_kind','extra','amount',v_row.amount,
+          'period_id',p_period_id,'charge_period',p_charge_period,'entry_date',v_row.entry_date,'reason',v_reason));
       v_result_entries := v_result_entries || pg_catalog.jsonb_build_array(v_extra_result->'entry');
     ELSE
       IF EXISTS (
@@ -203,6 +210,9 @@ BEGIN
         VALUES (v_row.job_card_number,v_name,
           'charge',v_row.amount,p_charge_period,p_period_id,v_row.entry_date,pg_catalog.left(v_note,200),false,p_actor_user_id)
         RETURNING * INTO v_entry;
+        IF v_entry.id IS NULL THEN
+          RAISE EXCEPTION 'The contribution ledger rejected the manual charge for job card %.',v_row.job_card_number;
+        END IF;
       END IF;
 
       INSERT INTO public.vbgramg_ledger_audit

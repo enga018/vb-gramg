@@ -38,9 +38,17 @@ BEGIN
   IF p_actor_user_id IS NULL OR v_reason='' THEN
     RETURN pg_catalog.jsonb_build_object('ok',false,'status',400,'error','Entry date, reason, and administrator are required.');
   END IF;
-  IF p_entries IS NULL OR pg_catalog.jsonb_typeof(p_entries)<>'array'
-     OR pg_catalog.jsonb_array_length(p_entries)<1 OR pg_catalog.jsonb_array_length(p_entries)>500 THEN
+  IF p_entries IS NULL OR pg_catalog.jsonb_typeof(p_entries)<>'array' THEN
+    RETURN pg_catalog.jsonb_build_object('ok',false,'status',400,'error','A batch must be a JSON array of job cards.');
+  END IF;
+  IF pg_catalog.jsonb_array_length(p_entries)<1 OR pg_catalog.jsonb_array_length(p_entries)>500 THEN
     RETURN pg_catalog.jsonb_build_object('ok',false,'status',400,'error','A batch must contain 1–500 job cards.');
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM pg_catalog.jsonb_array_elements(p_entries) AS row_value
+    WHERE pg_catalog.jsonb_typeof(row_value)<>'object'
+  ) THEN
+    RETURN pg_catalog.jsonb_build_object('ok',false,'status',400,'error','Every batch row must be a job-card object.');
   END IF;
 
   IF EXISTS (

@@ -497,7 +497,7 @@ Deno.serve(async(req:Request)=>{
    const {error:updateBatchError}=await admin.from("vbgramg_fto_batches").update({period_id:periodId,contribution_period:contributionPeriod,ledger_charge_period:chargePeriod}).eq("id",batchId);
    if(updateBatchError)throw updateBatchError;
    if(!cards.length)return reply({approved:true,fto_number:batch.fto_number,old_period:oldPeriod,new_period:chargePeriod,contribution_period:contributionPeriod,transactions_changed:(batchTx||[]).length,job_cards_recalculated:0});
-   const {data:allTx,error:allTxError}=await admin.from("vbgramg_fto_transactions").select("id,batch_id,reference_no,job_card_number,person_name,calculated_charge,status,processed_date,is_in_scope,last_seen_at").in("job_card_number",cards);
+   const {data:allTx,error:allTxError}=await admin.from("vbgramg_fto_transactions").select("id,batch_id,reference_no,job_card_number,person_name,calculated_charge,status,processed_date,is_in_scope,last_seen_at,created_at").in("job_card_number",cards);
    if(allTxError)throw allTxError;
    const allBatchIds=[...new Set((allTx||[]).map(r=>String(r.batch_id)))];
    const batchPeriodMap=new Map<string,{period:string,fto:string,periodId:string}>();
@@ -512,8 +512,20 @@ Deno.serve(async(req:Request)=>{
    const {data:exemptionRows,error:exemptionError}=await admin.from("vbgramg_contribution_exemptions").select("job_card_number");
    if(exemptionError)throw exemptionError;
    const exemptCards=new Set((exemptionRows||[]).map(r=>String(r.job_card_number)));
+   const {data:exemptionHistory,error:exemptionHistoryError}=await admin.from("vbgramg_contribution_exemption_history").select("job_card_number,started_at,ended_at").in("job_card_number",cards);
+   if(exemptionHistoryError)throw exemptionHistoryError;
+   const eligibleInScopeTxs=inScopeTxs.filter(tx=>{
+    const firstSeen=Date.parse(String(tx.created_at||""));
+    if(!Number.isFinite(firstSeen))return false;
+    return !(exemptionHistory||[]).some(interval=>{
+     if(String(interval.job_card_number)!==String(tx.job_card_number))return false;
+     const started=Date.parse(String(interval.started_at||""));
+     const ended=interval.ended_at?Date.parse(String(interval.ended_at)):Number.POSITIVE_INFINITY;
+     return Number.isFinite(started)&&firstSeen>=started&&firstSeen<ended;
+    });
+   });
    const txByKey=new Map<string,Record<string,any>[]>();
-   for(const tx of inScopeTxs){const p=batchPeriodMap.get(String(tx.batch_id))?.periodId||"";const key=String(tx.job_card_number)+"|"+p;if(!txByKey.has(key))txByKey.set(key,[]);txByKey.get(key)!.push(tx);}
+   for(const tx of eligibleInScopeTxs){const p=batchPeriodMap.get(String(tx.batch_id))?.periodId||"";const key=String(tx.job_card_number)+"|"+p;if(!txByKey.has(key))txByKey.set(key,[]);txByKey.get(key)!.push(tx);}
    const chargeMonths=[...new Set([...roundMonthById.values()].filter(Boolean))];
    const {data:oldLedger,error:oldLedgerError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,note,reference_numbers,import_id,charge_period,period_id").in("job_card_number",cards).eq("entry_type","charge").in("charge_period",chargeMonths);
    if(oldLedgerError)throw oldLedgerError;

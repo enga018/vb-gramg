@@ -95,17 +95,6 @@ begin
   v_old_charge_period := v_initial_batch.ledger_charge_period;
   v_old_contribution_period := v_initial_batch.contribution_period;
 
-  if v_old_period_id = p_period_id
-     and v_old_charge_period = p_charge_period
-     and v_old_contribution_period = p_contribution_period then
-    return pg_catalog.jsonb_build_object(
-      'ok', true, 'unchanged', true, 'batch_id', p_batch_id,
-      'old_period_id', v_old_period_id, 'new_period_id', p_period_id,
-      'transactions_changed', 0, 'job_cards_recalculated', 0,
-      'ledger_inserted', 0, 'ledger_voided', 0
-    );
-  end if;
-
   select coalesce(array_agg(card order by card), '{}'::text[])
     into v_cards
   from (
@@ -138,6 +127,17 @@ begin
      or v_batch.ledger_charge_period is distinct from v_old_charge_period
      or v_batch.contribution_period is distinct from v_old_contribution_period then
     raise exception 'The FTO period changed concurrently; refresh history and try again' using errcode = '40001';
+  end if;
+
+  if v_batch.period_id = p_period_id
+     and v_batch.ledger_charge_period = p_charge_period
+     and v_batch.contribution_period = p_contribution_period then
+    return pg_catalog.jsonb_build_object(
+      'ok',true,'unchanged',true,'batch_id',p_batch_id,
+      'old_period_id',v_old_period_id,'new_period_id',p_period_id,
+      'transactions_changed',0,'job_cards_recalculated',0,
+      'ledger_inserted',0,'ledger_voided',0
+    );
   end if;
 
   -- Re-read and lock the complete transaction set only after acquiring shared locks.

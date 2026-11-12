@@ -6,6 +6,8 @@ const path = require("node:path");
 const read = relative => fs.readFileSync(path.join(__dirname, "..", relative), "utf8");
 const sql = read("supabase/migrations/20261106181317_record_contribution_transaction.sql");
 const cashCapSql = read("supabase/migrations/20261112150000_limit_cash_payment_to_outstanding_balance.sql");
+const html = read("contribution.html");
+const sqlTest = read("tests/atomic-contribution-writes-postgres.sql");
 const bulkSql = read("supabase/migrations/20261107034818_atomic_bulk_bank_payment.sql");
 const edge = read("supabase/functions/vbgramg-contribution-data/index.ts");
 

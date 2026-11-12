@@ -153,13 +153,43 @@ jobs:
           cat > "$RUNNER_TEMP/pg-client/psql" <<'EOF'
           #!/usr/bin/env bash
           set -euo pipefail
-          exec docker exec -i \
-            -e PGHOST=localhost \
-            -e PGPORT=5432 \
-            -e PGUSER="${PGUSER:-postgres}" \
-            -e PGPASSWORD="${PGPASSWORD:-}" \
-            -e PGDATABASE="${PGDATABASE:-postgres}" \
-            "$PG_CONTAINER" psql "$@"
+          args=()
+          sql_file=""
+          while (($#)); do
+            case "$1" in
+              -f|--file)
+                if (($# < 2)); then
+                  echo "Missing SQL file after $1" >&2
+                  exit 2
+                fi
+                sql_file="$2"
+                args+=("-f" "-")
+                shift 2
+                ;;
+              --file=*)
+                sql_file="${1#*=}"
+                args+=("-f" "-")
+                shift
+                ;;
+              *)
+                args+=("$1")
+                shift
+                ;;
+            esac
+          done
+          docker_args=(
+            -i
+            -e PGHOST=localhost
+            -e PGPORT=5432
+            -e PGUSER="${PGUSER:-postgres}"
+            -e PGPASSWORD="${PGPASSWORD:-}"
+            -e PGDATABASE="${PGDATABASE:-postgres}"
+            "$PG_CONTAINER" psql
+          )
+          if [[ -n "$sql_file" ]]; then
+            exec docker exec "${docker_args[@]}" "${args[@]}" < "$sql_file"
+          fi
+          exec docker exec "${docker_args[@]}" "${args[@]}"
           EOF
           cat > "$RUNNER_TEMP/pg-client/createdb" <<'EOF'
           #!/usr/bin/env bash

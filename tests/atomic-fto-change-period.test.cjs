@@ -20,6 +20,13 @@ test("Change Period shares the FTO snapshot and exemption per-card lock namespac
   assert.match(migration, /hashtextextended\('contribution:' \|\| v_card \|\| ':' \|\| v_round_id::text, 0\)/i);
 });
 
+test("Change Period locks cards before the destination period row", () => {
+  const cardLock = migration.indexOf("hashtextextended('contribution-card:'");
+  const periodRowLock = migration.indexOf("from public.vbgramg_periods\\n  where id = p_period_id\\n  for update");
+  assert.ok(cardLock >= 0 && periodRowLock > cardLock,
+    "card advisory locks must be acquired before the destination period FOR UPDATE lock");
+});
+
 test("Change Period uses first-seen exemption intervals and preserves charge snapshots", () => {
   assert.match(migration, /tx\.created_at >= h\.started_at[\s\S]*?tx\.created_at < coalesce\(h\.ended_at/i);
   assert.match(migration, /sum\(tx\.calculated_charge\)/i);

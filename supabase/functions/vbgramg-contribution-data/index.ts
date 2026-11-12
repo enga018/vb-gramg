@@ -468,7 +468,7 @@ Deno.serve(async(req:Request)=>{
    const periodId=String(body.period_id||"").trim();
    const contributionPeriod=String(body.contribution_period||"").trim().slice(0,100);
    const chargePeriod=String(body.charge_period||"").trim();
-   const monthMatch=chargePeriod.match(/^(\\d{4})-(\\d{2})-01$/);
+   const monthMatch=chargePeriod.match(/^(\d{4})-(\d{2})-01$/);
    if(!batchId||!periodId)return reply({error:"Select a saved FTO and an existing contribution round."},400);
    if(!contributionPeriod||!monthMatch||Number(monthMatch[2])<1||Number(monthMatch[2])>12)return reply({error:"Enter a valid contribution month and round."},400);
    const {data:result,error}=await admin.rpc("vbgramg_change_fto_period",{

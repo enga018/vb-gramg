@@ -53,7 +53,7 @@ The current PostgreSQL fixture covers:
 - allocation-safety rejection rolling back the entire reassignment;
 - audit entries and idempotent repeated invocation.
 
-Concurrency serialization and injected mid-write failure tests remain follow-up test hardening before the PR is marked ready.
+A static lock-order regression assertion now verifies that card advisory locks precede the destination period row lock. The PostgreSQL fixture also injects a failure during replacement-ledger insertion and verifies that the batch period, old ledger row, transaction links, and audit rows all roll back. A true two-session concurrency test remains useful follow-up hardening.
 
 Wire the SQL integration test into the existing CI PostgreSQL test workflow.
 

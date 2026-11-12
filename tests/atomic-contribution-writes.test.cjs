@@ -56,6 +56,9 @@ test("Record Payment is limited to the outstanding balance in PostgreSQL and the
   assert.ok(html.includes("Number(c.balance)>0.001?'<button class=\"btn\" type=\"button\" id=\"addPaymentBtn\">Record payment"));
   assert.ok(html.includes("max=\"'+Number(c.balance).toFixed(2)+'\""));
   assert.ok(html.includes("amount>Number(c.balance)+0.001"));
+  assert.ok(html.includes("isWaiver?Number(c.balance).toFixed(2):10000000"));
+  assert.ok(html.includes("isWaiver&&amount>Number(c.balance)+0.001"));
+  assert.ok(html.includes("Waiver cannot exceed the current outstanding balance."));
   assert.ok(sqlTest.includes("Cash overpayment was not rejected"));
   assert.ok(sqlTest.includes("Valid partial cash payment failed"));
   assert.ok(sqlTest.includes("Final exact-balance cash payment failed"));

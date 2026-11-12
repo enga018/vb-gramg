@@ -50,13 +50,15 @@ test("Operation-specific limits and validation match the current Edge Function r
 });
 
 test("Record Payment is limited to the outstanding balance in PostgreSQL and the UI", () => {
-  assert.match(cashCapSql, /WHEN 'cash_payment' THEN[\\s\\S]*?Payment cannot exceed the current outstanding balance/);
-  assert.match(cashCapSql, /pg_advisory_xact_lock/);
-  assert.match(html, /Number\\(c\\.balance\\)>0\\.001\\?'<button class="btn" type="button" id="addPaymentBtn">Record payment/);
-  assert.match(html, /max="\'+Number\\(c\\.balance\\)\\.toFixed\\(2\\)\+'/);
-  assert.match(sqlTest, /Cash overpayment was not rejected/);
-  assert.match(sqlTest, /Valid partial cash payment failed/);
-  assert.match(sqlTest, /Final exact-balance cash payment failed/);
+  assert.ok(cashCapSql.includes("IF v_amount > GREATEST(0, v_balance) + 0.001"));
+  assert.ok(cashCapSql.includes("Payment cannot exceed the current outstanding balance."));
+  assert.ok(cashCapSql.includes("pg_advisory_xact_lock"));
+  assert.ok(html.includes("Number(c.balance)>0.001?'<button class=\"btn\" type=\"button\" id=\"addPaymentBtn\">Record payment"));
+  assert.ok(html.includes("max=\"'+Number(c.balance).toFixed(2)+'\""));
+  assert.ok(html.includes("amount>Number(c.balance)+0.001"));
+  assert.ok(sqlTest.includes("Cash overpayment was not rejected"));
+  assert.ok(sqlTest.includes("Valid partial cash payment failed"));
+  assert.ok(sqlTest.includes("Final exact-balance cash payment failed"));
 });
 
 test("Ledger insert and audit insert are in the same database function transaction", () => {

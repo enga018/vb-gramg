@@ -191,6 +191,31 @@ begin
     );
   get diagnostics v_transactions = row_count;
 
+  -- Do not supersede an FTO charge that has an unexpected downstream
+  -- reference. Those workflows must be reconciled explicitly first.
+  if exists (
+    select 1
+    from public.vbgramg_charge_ledger l
+    join unnest(v_cards) c(card) on c.card = l.job_card_number
+    where l.entry_type = 'charge'
+      and coalesce(l.is_voided,false) = false
+      and pg_catalog.upper(pg_catalog.left(pg_catalog.btrim(coalesce(l.note,'')),3)) = 'FTO'
+      and pg_catalog.upper(pg_catalog.left(pg_catalog.btrim(coalesce(l.note,'')),9)) <> 'FTO EXTRA'
+      and (
+        l.period_id = any(v_rounds)
+        or (l.period_id is null and l.charge_period in (v_old_charge_period,p_charge_period))
+      )
+      and (
+        exists (select 1 from public.vbgramg_contribution_extras e where e.ledger_entry_id = l.id)
+        or exists (select 1 from public.vbgramg_payment_allocations a where a.transaction_id = l.id)
+        or exists (select 1 from public.vbgramg_payment_refund_reconciliations r where r.payment_id = l.id or r.refund_id = l.id)
+        or exists (select 1 from public.vbgramg_waiver_period_allocations w where w.waiver_id = l.id)
+      )
+  ) then
+    raise exception 'An affected FTO charge has a downstream financial reference; reconcile that reference before changing the FTO period'
+      using errcode = '23514';
+  end if;
+
   -- Supersede only FTO import component rows in the affected card/rounds.
   -- Manual charges and FTO EXTRA entries are deliberately excluded.
   for v_card in select unnest(v_cards) order by 1 loop

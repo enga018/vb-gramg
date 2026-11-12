@@ -103,14 +103,14 @@ for each row execute function public.vbgramg_skip_exempt_contribution_write();
 
 -- Test-only fault injection: fail after the RPC has started its ledger rebuild.
 create or replace function public.test_fail_fto_rebuild_insert()
-returns trigger language plpgsql as $
+returns trigger language plpgsql as $test$
 begin
   if current_setting('app.test_fail_fto_rebuild', true) = 'on'
      and new.note = 'FTO import' then
     raise exception 'injected FTO rebuild failure';
   end if;
   return new;
-end $;
+end $test$;
 create trigger test_fail_fto_rebuild_insert
 before insert on public.vbgramg_charge_ledger
 for each row execute function public.test_fail_fto_rebuild_insert();

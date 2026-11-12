@@ -140,13 +140,65 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-      - name: Install PostgreSQL client
-        timeout-minutes: 6
+      - name: Configure PostgreSQL service-container client
         run: |
-          sudo apt-get update -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30
-          sudo apt-get install -y -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 postgresql-client
-          psql --version
-          createdb --version
+          PG_CONTAINER="$(docker ps --filter 'name=postgres' --format '{{.ID}}' | head -n1)"
+          if [ -z "$PG_CONTAINER" ]; then
+            echo "PostgreSQL service container was not found."
+            docker ps -a
+            exit 1
+          fi
+          export PG_CONTAINER
+          docker cp "$GITHUB_WORKSPACE/." "$PG_CONTAINER:/tmp/vbgramg"
+          mkdir -p "$RUNNER_TEMP/pg-client"
+          cat > "$RUNNER_TEMP/pg-client/psql" <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          args=()
+          while (($#)); do
+            case "$1" in
+              -f|--file)
+                if (($# < 2)); then
+                  echo "Missing SQL file after $1" >&2
+                  exit 2
+                fi
+                args+=("-f" "/tmp/vbgramg/$2")
+                shift 2
+                ;;
+              --file=*)
+                args+=("-f" "/tmp/vbgramg/${1#*=}")
+                shift
+                ;;
+              *)
+                args+=("$1")
+                shift
+                ;;
+            esac
+          done
+          exec docker exec -i \
+            -e PGHOST=localhost \
+            -e PGPORT=5432 \
+            -e PGUSER="${PGUSER:-postgres}" \
+            -e PGPASSWORD="${PGPASSWORD:-}" \
+            -e PGDATABASE="${PGDATABASE:-postgres}" \
+            "$PG_CONTAINER" psql "${args[@]}"
+          EOF
+          cat > "$RUNNER_TEMP/pg-client/createdb" <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          exec docker exec -i \
+            -e PGHOST=localhost \
+            -e PGPORT=5432 \
+            -e PGUSER="${PGUSER:-postgres}" \
+            -e PGPASSWORD="${PGPASSWORD:-}" \
+            -e PGDATABASE="${PGDATABASE:-postgres}" \
+            "$PG_CONTAINER" createdb "$@"
+          EOF
+          chmod +x "$RUNNER_TEMP/pg-client/psql" "$RUNNER_TEMP/pg-client/createdb"
+          echo "$RUNNER_TEMP/pg-client" >> "$GITHUB_PATH"
+          echo "PG_CONTAINER=$PG_CONTAINER" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/pg-client/psql" --version
+          "$RUNNER_TEMP/pg-client/createdb" --version
       - name: Run atomic contribution PostgreSQL integration tests
         run: psql -v ON_ERROR_STOP=1 -f tests/atomic-contribution-writes-postgres.sql
       - name: Run FTO revision history PostgreSQL tests

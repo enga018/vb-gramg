@@ -45,11 +45,21 @@ test("FTO re-import eligibility uses immutable created_at against every exemptio
   assert.match(edge, /isEligibleFirstSeen\(input\)/);
 });
 
-test("FTO period reassignment filters out transactions first seen during exemption intervals", () => {
-  assert.match(edge, /eligibleInScopeTxs/);
-  assert.match(edge, /select\("id,batch_id,reference_no,job_card_number,person_name,calculated_charge,status,processed_date,is_in_scope,last_seen_at,created_at"\)/);
-  assert.match(edge, /exemptionHistory/);
-  assert.match(edge, /for\(const tx of eligibleInScopeTxs\)/);
+test("Atomic PostgreSQL FTO period reassignment filters first-seen exemption intervals", () => {
+  const start = edge.indexOf('if(action==="change-fto-period"){');
+  const end = edge.indexOf("\\n  if(action===", start + 20);
+  assert.ok(start >= 0 && end > start);
+  const action = edge.slice(start, end);
+  assert.match(action, /admin\\.rpc\\("vbgramg_change_fto_period"/);
+
+  const migration = read("supabase/migrations/20261112100000_atomic_fto_change_period.sql");
+  const rpcStart = migration.indexOf("create or replace function public.vbgramg_change_fto_period");
+  const rpcEnd = migration.indexOf("$function$;", rpcStart);
+  assert.ok(rpcStart >= 0 && rpcEnd > rpcStart);
+  const rpc = migration.slice(rpcStart, rpcEnd);
+  assert.match(rpc, /tx\\.created_at >= h\\.started_at[\\s\\S]*?tx\\.created_at < coalesce\\(h\\.ended_at/i);
+  assert.match(rpc, /public\\.vbgramg_contribution_exemption_history/i);
+  assert.match(rpc, /tx\\.is_in_scope = true/);
 });
 
 test("FTO import total excludes transactions first seen during exemption intervals", () => {

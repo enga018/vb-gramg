@@ -54,6 +54,7 @@ declare
   v_deferred boolean;
   v_entry_date date;
   v_allocated numeric(14,2);
+  v_waived numeric(14,2);
   v_non_fto numeric(14,2);
   v_transactions integer := 0;
   v_cards_count integer := 0;
@@ -267,6 +268,15 @@ begin
         and payment.entry_type = 'payment'
         and coalesce(payment.is_voided,false) = false;
 
+      select coalesce(sum(w.amount),0)::numeric(14,2)
+      into v_waived
+      from public.vbgramg_waiver_period_allocations w
+      join public.vbgramg_charge_ledger waiver on waiver.id = w.waiver_id
+      where w.job_card_number = v_card
+        and w.period_id = v_round_id
+        and waiver.entry_type in ('charge_waiver','forgive')
+        and coalesce(waiver.is_voided,false) = false;
+
       select coalesce(sum(l.amount),0)::numeric(14,2)
       into v_non_fto
       from public.vbgramg_charge_ledger l
@@ -280,9 +290,9 @@ begin
           or pg_catalog.upper(pg_catalog.left(pg_catalog.btrim(coalesce(l.note,'')),9)) = 'FTO EXTRA'
         );
 
-      if v_allocated > v_non_fto + v_amount then
-        raise exception 'FTO Change Period blocked for %: allocated %.2f exceeds revised eligible charges %.2f',
-          v_card,v_allocated,v_non_fto+v_amount using errcode = '23514';
+      if v_allocated + v_waived > v_non_fto + v_amount then
+        raise exception 'FTO Change Period blocked for %: allocated plus waived %.2f exceeds revised eligible charges %.2f',
+          v_card,v_allocated+v_waived,v_non_fto+v_amount using errcode = '23514';
       end if;
 
       if v_amount > 0 then

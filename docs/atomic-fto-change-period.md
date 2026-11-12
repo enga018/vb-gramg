@@ -1,6 +1,6 @@
 # Atomic FTO Change Period — implementation plan
 
-> Status: design / draft PR only. This document does not change runtime behavior or production data.
+> Status: implementation committed to PR #224 for CI and review. No production migration or Edge Function deployment has been performed.
 
 ## Problem
 
@@ -15,14 +15,14 @@ Move the complete reassignment into one PostgreSQL RPC invoked once by the Edge 
 ### Required transaction behavior
 
 1. Validate the batch, destination period, month label, and period status inside the RPC. Edge Function pre-reads are not authoritative.
-2. Lock the FTO batch and affected job cards. Acquire the shared transaction-scoped advisory lock for every affected card using the exact namespace already used by exemption and snapshot operations: `contribution-card:<job-card-number>`.
+2. Read the batch to discover its cards, acquire the shared transaction-scoped advisory lock for every affected card using `contribution-card:<job-card-number>`, then lock and re-read the batch. This matches snapshot lock order and avoids a batch-row/card-lock deadlock.
 3. Acquire card locks in lexical order to avoid deadlocks.
 4. Re-read all transactions and relevant batches/periods after locks are acquired. Determine all old and new contribution rounds that must be recalculated.
 5. Re-evaluate immutable first-seen eligibility inside the transaction using each FTO transaction's `created_at` and `vbgramg_contribution_exemption_history` intervals. A transaction first seen during an exemption interval remains ineligible even if the exemption later ends. Do not substitute the current active-exemption list for interval history.
 6. Preserve the existing FTO charge formula and stored transaction `calculated_charge` values. This workflow changes period assignment, not calculation parameters.
 7. Rebuild only the FTO charge component for affected card/round pairs. Preserve manual charges and FTO EXTRA charges as independent ledger entries.
 8. Never modify payment ledger rows or `vbgramg_payment_allocations`.
-9. Do not physically delete ledger rows. Retain superseded FTO charge rows for audit and mark them voided using the existing `is_voided` lifecycle field. Define keeper/voiding behavior with integration tests before merge.
+9. Do not physically delete ledger rows. Retain superseded FTO charge rows for audit and mark them voided using the existing `is_voided` lifecycle field. Create a replacement aggregate for each affected card/round; never automatically unvoid an older row.
 10. Update batch period fields, ledger charge period/period ID, and affected transaction `ledger_entry_id` links in the same database transaction.
 11. Any validation, allocation-safety, uniqueness, or write failure must roll back every change.
 12. Return a compact result with batch ID, old/new period, transaction count, affected card count, and ledger rows created/updated/voided.
@@ -43,24 +43,23 @@ Replace the multi-request `action === "change-fto-period"` implementation with e
 
 ## Required tests
 
-Add PostgreSQL integration coverage for:
-- moves between two rounds in the same month (e.g. `MAY26` to `MAY26 (2)`) and between months;
-- transactions first seen before, during, and after exemption intervals;
-- exemption changes serializing with Change Period through the shared card lock;
+The current PostgreSQL fixture covers:
+- moving between `MAY26` and `MAY26 (2)`;
+- transactions first seen before, during, and after an exemption interval;
 - manual charges and FTO EXTRA charges remaining unchanged;
-- payment rows and allocations remaining unchanged;
-- old FTO charge rows retained and voided, not deleted;
-- batch period fields, ledger rows, and transaction links agreeing;
+- payment allocation preservation;
+- superseded FTO rows retained and voided;
+- transaction links rebuilt from eligible transactions;
 - allocation-safety rejection rolling back the entire reassignment;
-- injected failure after an early write rolling back all writes;
-- idempotent repeated invocation;
-- deterministic multi-card lock ordering.
+- audit entries and idempotent repeated invocation.
+
+Concurrency serialization and injected mid-write failure tests remain follow-up test hardening before the PR is marked ready.
 
 Wire the SQL integration test into the existing CI PostgreSQL test workflow.
 
 ## Scope boundary
 
-This PR is a design checkpoint only. The SQL RPC, Edge Function refactor, and integration tests are follow-up implementation work. Do not apply a migration or deploy an Edge Function from this draft.
+This PR contains the SQL RPC, Edge Function refactor, static safeguards, and PostgreSQL integration fixture. It remains draft until CI and review pass. Do not apply the migration or deploy the Edge Function without explicit approval.
 
 ## Verified database constraints and implementation decisions
 
@@ -75,13 +74,12 @@ Inspection of the current production schema and data confirms:
 ### Keeper and supersession rules
 
 - Only active, non-voided FTO ledger rows may be selected as keepers.
-- Reuse one existing active row for a card/round when it represents the recalculated FTO component; update its references and amount without changing the stored transaction charge values.
-- When multiple active FTO rows are found for the same card/round, retain one deterministic keeper and mark the others `is_voided = true`.
-- When a card/round no longer has an eligible FTO charge, mark its active FTO ledger row(s) voided and clear the affected transaction links.
+- Mark every active FTO import row for an affected card/round as `is_voided = true`, preserving its before-image in `vbgramg_ledger_audit`.
+- Create a fresh aggregate row when eligible FTO charges remain; if none remain, leave the old rows voided and transaction links cleared.
 - Never unvoid a historical row automatically. If a previously voided FTO charge becomes applicable again, create a new ledger row so the superseded history remains intact.
 - Keep FTO EXTRA rows outside the FTO component rebuild. Keep manual rows outside the rebuild.
 - Before changing a ledger row, reject unexpected references from payment allocations, refund reconciliations, waiver allocations, or contribution-extra records rather than mutating or deleting a referenced financial record.
-- Apply the same allocation-safety ceiling as snapshot reconciliation to each affected card/round, accounting for non-FTO charges (including FTO EXTRA), waivers, and existing allocations. Reject the whole reassignment if the revised eligible charges cannot support current allocations.
+- Apply an allocation-safety ceiling to every affected card/round, including non-FTO charges (including FTO EXTRA), waiver allocations, and payment allocations. Reject the whole reassignment if the revised eligible charges cannot support existing commitments.
 - Record an audit row for material ledger changes/voiding, including before/after JSON and actor identity, using the existing `vbgramg_ledger_audit` table.
 
 The RPC must derive affected cards and source/destination rounds from the batch and database rows after locking. Client-supplied card lists, transaction lists, or ledger IDs must not be trusted as the scope of the operation.

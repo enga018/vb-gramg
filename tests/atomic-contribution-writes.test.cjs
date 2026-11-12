@@ -5,6 +5,7 @@ const path = require("node:path");
 
 const read = relative => fs.readFileSync(path.join(__dirname, "..", relative), "utf8");
 const sql = read("supabase/migrations/20261106181317_record_contribution_transaction.sql");
+const cashCapSql = read("supabase/migrations/20261112150000_limit_cash_payment_to_outstanding_balance.sql");
 const bulkSql = read("supabase/migrations/20261107034818_atomic_bulk_bank_payment.sql");
 const edge = read("supabase/functions/vbgramg-contribution-data/index.ts");
 
@@ -44,6 +45,16 @@ test("Operation-specific limits and validation match the current Edge Function r
   assert.match(sql, /Waiver must be positive and cannot exceed the current outstanding balance/);
   assert.match(sql, /Return amount must be positive and cannot exceed payments less previous returns/);
   assert.doesNotMatch(sql, /p_operation IN \('waiver', 'return'\)[\s\S]{0,160}10000000/);
+});
+
+test("Record Payment is limited to the outstanding balance in PostgreSQL and the UI", () => {
+  assert.match(cashCapSql, /WHEN 'cash_payment' THEN[\\s\\S]*?Payment cannot exceed the current outstanding balance/);
+  assert.match(cashCapSql, /pg_advisory_xact_lock/);
+  assert.match(html, /Number\\(c\\.balance\\)>0\\.001\\?'<button class="btn" type="button" id="addPaymentBtn">Record payment/);
+  assert.match(html, /max="\'+Number\\(c\\.balance\\)\\.toFixed\\(2\\)\+'/);
+  assert.match(sqlTest, /Cash overpayment was not rejected/);
+  assert.match(sqlTest, /Valid partial cash payment failed/);
+  assert.match(sqlTest, /Final exact-balance cash payment failed/);
 });
 
 test("Ledger insert and audit insert are in the same database function transaction", () => {

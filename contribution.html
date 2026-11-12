@@ -1565,7 +1565,7 @@ function showPaymentForm(){
  $('paymentForm').addEventListener('submit',async ev=>{
   ev.preventDefault();if(busy)return;
   const amount=Number($('paymentAmount').value),date=$('paymentDate').value,note="Cash";
-  if(!Number.isFinite(amount)||amount<=0){status('Enter an amount greater than zero.','error');return;}if(isWaiver&&amount>Number(c.balance)+0.001){status('Waiver cannot exceed the current outstanding balance.','error');return;}
+  if(!Number.isFinite(amount)||amount<=0){status('Enter an amount greater than zero.','error');return;}
   if(amount>Number(c.balance)+0.001){status('Payment cannot exceed the current outstanding balance.','error');return;}
   busy=true;$('savePayment').disabled=true;$('savePayment').textContent='Saving…';
   try{
@@ -1745,7 +1745,7 @@ function showAdjustmentForm(action){
  $('adjustmentForm').addEventListener('submit',async ev=>{
   ev.preventDefault();if(busy)return;
   const amount=Number($('adjustAmount').value),date=$('adjustDate').value,note=$('adjustNote').value;
-  if(!Number.isFinite(amount)||amount<=0){status('Enter an amount greater than zero.','error');return;}
+  if(!Number.isFinite(amount)||amount<=0){status('Enter an amount greater than zero.','error');return;}if(isWaiver&&amount>Number(c.balance)+0.001){status('Waiver cannot exceed the current outstanding balance.','error');return;}
   busy=true;$('saveAdjustment').disabled=true;$('saveAdjustment').textContent='Saving…';
   try{
    const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action,job_card_number:c.id,amount,entry_date:date,note},timeoutMs:false});

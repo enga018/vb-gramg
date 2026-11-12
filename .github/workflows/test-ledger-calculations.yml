@@ -226,6 +226,8 @@ jobs:
         run: |
           createdb vbgramg_fto_change_period_test
           PGDATABASE=vbgramg_fto_change_period_test psql -v ON_ERROR_STOP=1 -f tests/atomic-fto-change-period-postgres.sql
+      - name: Verify FTO Change Period waits for concurrent card writes
+        run: PGDATABASE=vbgramg_fto_change_period_test bash tests/atomic-fto-change-period-concurrency.sh
       - name: Run FTO snapshot exemption PostgreSQL integration tests
         run: |
           createdb vbgramg_fto_snapshot_test

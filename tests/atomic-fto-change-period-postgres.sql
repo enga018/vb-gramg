@@ -68,6 +68,13 @@ create table public.vbgramg_payment_allocations (
   job_card_number text not null,
   amount numeric not null
 );
+create table public.vbgramg_waiver_period_allocations (
+  id uuid primary key default gen_random_uuid(),
+  waiver_id uuid not null,
+  period_id uuid not null,
+  job_card_number text not null,
+  amount numeric not null
+);
 create table public.vbgramg_ledger_audit (
   id uuid primary key default gen_random_uuid(),
   ledger_entry_id uuid,
@@ -103,7 +110,7 @@ values
  ('20000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','REF-ELIGIBLE','CARD/A','Applicant A',10,'processed','2026-05-08','2026-05-09'),
  ('20000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000001','REF-EXEMPT','CARD/A','Applicant B',20,'processed','2026-05-09','2026-05-11'),
  ('20000000-0000-0000-0000-000000000003','10000000-0000-0000-0000-000000000002','REF-OTHER-ROUND','CARD/A','Applicant C',5,'processed','2026-05-10','2026-05-10'),
- ('20000000-0000-0000-0000-000000000004','10000000-0000-0000-0000-000000000001','REF-CARD-B','CARD/B','Applicant D',1,'processed','2026-05-10','2026-05-10');
+ ('20000000-0000-0000-0000-000000000004','10000000-0000-0000-0000-000000000001','REF-CARD-B','CARD/B','Applicant D',1,'processed','2026-05-10','2026-05-13');
 
 insert into public.vbgramg_contribution_exemption_history(job_card_number,started_at,ended_at)
 values ('CARD/A','2026-05-10T00:00:00Z','2026-05-12T00:00:00Z');

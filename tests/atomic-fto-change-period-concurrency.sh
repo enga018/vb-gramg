@@ -6,14 +6,14 @@ batch_id="10000000-0000-0000-0000-000000000003"
 destination_period="00000000-0000-0000-0000-000000000002"
 
 # Session A holds the same card advisory lock that Change Period must acquire.
-PGAPPNAME=fto-change-period-lock-holder psql -v ON_ERROR_STOP=1 -c "BEGIN; SELECT pg_advisory_xact_lock(hashtextextended('contribution-card:${job_card}', 0)); SELECT pg_sleep(3); COMMIT" >/tmp/vbgramg-fto-period-lock-holder.log 2>&1 &
+psql -v ON_ERROR_STOP=1 -c "BEGIN; SELECT pg_advisory_xact_lock(hashtextextended('contribution-card:${job_card}', 0)); SELECT pg_sleep(3); COMMIT" >/tmp/vbgramg-fto-period-lock-holder.log 2>&1 &
 lock_pid=$!
 
 # Wait until PostgreSQL confirms Session A is inside pg_sleep, which means the
 # advisory lock has already been acquired. This avoids a timing-only race.
 ready=0
 for _ in $(seq 1 40); do
-  active=$(psql -v ON_ERROR_STOP=1 -Atqc "SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND application_name='fto-change-period-lock-holder' AND wait_event='PgSleep' AND state='active'")
+  active=$(psql -v ON_ERROR_STOP=1 -Atqc "SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND query LIKE '%pg_sleep(3)%' AND wait_event='PgSleep' AND state='active'")
   if [[ "$active" -ge 1 ]]; then
     ready=1
     break

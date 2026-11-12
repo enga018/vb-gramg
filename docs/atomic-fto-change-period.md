@@ -61,3 +61,27 @@ Wire the SQL integration test into the existing CI PostgreSQL test workflow.
 ## Scope boundary
 
 This PR is a design checkpoint only. The SQL RPC, Edge Function refactor, and integration tests are follow-up implementation work. Do not apply a migration or deploy an Edge Function from this draft.
+
+## Verified database constraints and implementation decisions
+
+Inspection of the current production schema and data confirms:
+
+- `vbgramg_payment_allocations.transaction_id` references a payment ledger row and its `period_id` is immutable on update. The allocation validation trigger also rejects non-payment ledger rows. The Change Period RPC must leave these rows untouched.
+- `vbgramg_fto_transactions.ledger_entry_id` references `vbgramg_charge_ledger(id)` with `ON DELETE SET NULL`; it is the FTO-to-ledger link that must be reassigned atomically.
+- `vbgramg_charge_ledger.is_voided` already exists and is included in financial eligibility calculations. The ledger has no soft-delete timestamp or separate supersession relation.
+- FTO batch rows are uniquely identified by `fto_number`; transaction rows are unique by `(batch_id, reference_no)`.
+- The current production snapshot has 747 FTO transactions, 709 linked transactions, 7 batches, and 709 active FTO ledger rows. No FTO ledger row currently has a payment allocation, and no duplicate active FTO ledger groups were found. These are baseline observations, not assumptions the RPC may rely on.
+
+### Keeper and supersession rules
+
+- Only active, non-voided FTO ledger rows may be selected as keepers.
+- Reuse one existing active row for a card/round when it represents the recalculated FTO component; update its references and amount without changing the stored transaction charge values.
+- When multiple active FTO rows are found for the same card/round, retain one deterministic keeper and mark the others `is_voided = true`.
+- When a card/round no longer has an eligible FTO charge, mark its active FTO ledger row(s) voided and clear the affected transaction links.
+- Never unvoid a historical row automatically. If a previously voided FTO charge becomes applicable again, create a new ledger row so the superseded history remains intact.
+- Keep FTO EXTRA rows outside the FTO component rebuild. Keep manual rows outside the rebuild.
+- Before changing a ledger row, reject unexpected references from payment allocations, refund reconciliations, waiver allocations, or contribution-extra records rather than mutating or deleting a referenced financial record.
+- Apply the same allocation-safety ceiling as snapshot reconciliation to each affected card/round, accounting for non-FTO charges (including FTO EXTRA), waivers, and existing allocations. Reject the whole reassignment if the revised eligible charges cannot support current allocations.
+- Record an audit row for material ledger changes/voiding, including before/after JSON and actor identity, using the existing `vbgramg_ledger_audit` table.
+
+The RPC must derive affected cards and source/destination rounds from the batch and database rows after locking. Client-supplied card lists, transaction lists, or ledger IDs must not be trusted as the scope of the operation.

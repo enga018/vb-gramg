@@ -68,6 +68,15 @@ create table public.vbgramg_payment_allocations (
   job_card_number text not null,
   amount numeric not null
 );
+create table public.vbgramg_contribution_extras (
+  id uuid primary key default gen_random_uuid(),
+  ledger_entry_id uuid
+);
+create table public.vbgramg_payment_refund_reconciliations (
+  id uuid primary key default gen_random_uuid(),
+  payment_id uuid not null,
+  refund_id uuid not null
+);
 create table public.vbgramg_waiver_period_allocations (
   id uuid primary key default gen_random_uuid(),
   waiver_id uuid not null,

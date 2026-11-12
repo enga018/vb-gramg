@@ -37,6 +37,7 @@ set search_path = ''
 as $function$
 declare
   v_batch public.vbgramg_fto_batches%rowtype;
+  v_ledger public.vbgramg_charge_ledger%rowtype;
   v_period public.vbgramg_periods%rowtype;
   v_old_period_id uuid;
   v_old_charge_period date;
@@ -182,7 +183,7 @@ begin
       select p.contribution_month into v_round_month
       from public.vbgramg_periods p where p.id = v_round_id;
 
-      for v_batch in
+      for v_ledger in
         select l.*
         from public.vbgramg_charge_ledger l
         where l.job_card_number = v_card
@@ -211,13 +212,13 @@ begin
         insert into public.vbgramg_ledger_audit
           (ledger_entry_id,job_card_number,action,actor_user_id,before_data,after_data)
         values
-          (v_batch.id,v_card,'fto_change_period_voided',p_actor_user_id,
-           pg_catalog.to_jsonb(v_batch),
+          (v_ledger.id,v_card,'fto_change_period_voided',p_actor_user_id,
+           pg_catalog.to_jsonb(v_ledger),
            pg_catalog.jsonb_build_object('is_voided',true,'batch_id',p_batch_id,
              'old_period_id',v_old_period_id,'new_period_id',p_period_id));
         update public.vbgramg_charge_ledger
         set is_voided = true
-        where id = v_batch.id;
+        where id = v_ledger.id;
         v_voided := v_voided + 1;
       end loop;
 

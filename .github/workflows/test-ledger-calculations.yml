@@ -149,12 +149,12 @@ jobs:
             exit 1
           fi
           export PG_CONTAINER
+          docker cp "$GITHUB_WORKSPACE/." "$PG_CONTAINER:/tmp/vbgramg"
           mkdir -p "$RUNNER_TEMP/pg-client"
           cat > "$RUNNER_TEMP/pg-client/psql" <<'EOF'
           #!/usr/bin/env bash
           set -euo pipefail
           args=()
-          sql_file=""
           while (($#)); do
             case "$1" in
               -f|--file)
@@ -162,13 +162,11 @@ jobs:
                   echo "Missing SQL file after $1" >&2
                   exit 2
                 fi
-                sql_file="$2"
-                args+=("-f" "-")
+                args+=("-f" "/tmp/vbgramg/$2")
                 shift 2
                 ;;
               --file=*)
-                sql_file="${1#*=}"
-                args+=("-f" "-")
+                args+=("-f" "/tmp/vbgramg/${1#*=}")
                 shift
                 ;;
               *)
@@ -177,19 +175,13 @@ jobs:
                 ;;
             esac
           done
-          docker_args=(
-            -i
-            -e PGHOST=localhost
-            -e PGPORT=5432
-            -e PGUSER="${PGUSER:-postgres}"
-            -e PGPASSWORD="${PGPASSWORD:-}"
-            -e PGDATABASE="${PGDATABASE:-postgres}"
-            "$PG_CONTAINER" psql
-          )
-          if [[ -n "$sql_file" ]]; then
-            exec docker exec "${docker_args[@]}" "${args[@]}" < "$sql_file"
-          fi
-          exec docker exec "${docker_args[@]}" "${args[@]}"
+          exec docker exec -i \
+            -e PGHOST=localhost \
+            -e PGPORT=5432 \
+            -e PGUSER="${PGUSER:-postgres}" \
+            -e PGPASSWORD="${PGPASSWORD:-}" \
+            -e PGDATABASE="${PGDATABASE:-postgres}" \
+            "$PG_CONTAINER" psql "${args[@]}"
           EOF
           cat > "$RUNNER_TEMP/pg-client/createdb" <<'EOF'
           #!/usr/bin/env bash

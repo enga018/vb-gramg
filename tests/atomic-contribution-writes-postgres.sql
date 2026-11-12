@@ -358,6 +358,7 @@ BEGIN
     RAISE EXCEPTION 'Bulk ledger insert was not rolled back after audit failure.';
   END IF;
 
+  SELECT count(*) INTO audit_before FROM public.vbgramg_ledger_audit WHERE job_card_number='MZ-CASH';
   SELECT count(*) INTO before_count FROM public.vbgramg_charge_ledger WHERE job_card_number='MZ-CASH' AND entry_type='payment';
   r := public.vbgramg_record_contribution_transaction('MZ-CASH','cash_payment',150,'2026-11-06','Cash',gen_random_uuid(),'tester@example.invalid');
   IF (r->>'ok')::boolean OR (r->>'status')::integer <> 400

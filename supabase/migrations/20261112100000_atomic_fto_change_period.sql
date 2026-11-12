@@ -168,6 +168,10 @@ begin
     raise exception 'A legacy FTO charge has no round link in a month with multiple rounds; resolve that ledger link before changing this FTO' using errcode = '23514';
   end if;
 
+  -- The exemption-write trigger must permit both voiding and replacement rows
+  -- for this audited operation; first-seen interval checks remain authoritative.
+  perform pg_catalog.set_config('app.vbgramg_allow_fto_period_rebuild','on',true);
+
   update public.vbgramg_fto_batches
   set period_id = p_period_id,
       contribution_period = p_contribution_period,
@@ -298,7 +302,6 @@ begin
       if v_amount > 0 then
         -- Suppress the normal active-exemption insert guard only inside this
         -- audited RPC; interval eligibility above remains authoritative.
-        perform pg_catalog.set_config('app.vbgramg_allow_fto_period_rebuild','on',true);
         insert into public.vbgramg_charge_ledger
           (job_card_number,person_name,entry_type,amount,charge_period,entry_date,
            note,created_by,is_deferred,reference_numbers,period_id,is_voided)
@@ -313,7 +316,6 @@ begin
         update public.vbgramg_charge_ledger
         set is_deferred = coalesce(v_deferred,false)
         where id = v_ledger_id;
-        perform pg_catalog.set_config('app.vbgramg_allow_fto_period_rebuild','off',true);
         v_inserted := v_inserted + 1;
 
         update public.vbgramg_fto_transactions tx
@@ -342,6 +344,8 @@ begin
     end loop;
     v_cards_count := v_cards_count + 1;
   end loop;
+
+  perform pg_catalog.set_config('app.vbgramg_allow_fto_period_rebuild','off',true);
 
   return pg_catalog.jsonb_build_object(
     'ok',true,'unchanged',false,'batch_id',p_batch_id,

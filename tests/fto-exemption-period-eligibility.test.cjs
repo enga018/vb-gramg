@@ -47,7 +47,7 @@ test("FTO re-import eligibility uses immutable created_at against every exemptio
 
 test("Atomic PostgreSQL FTO period reassignment filters first-seen exemption intervals", () => {
   const start = edge.indexOf('if(action==="change-fto-period"){');
-  const end = edge.indexOf('if(action==="work-demand-balances")', start);
+  const end = edge.indexOf('if(action==="work-demand-balances")', start + 20);
   assert.ok(start >= 0 && end > start);
   const action = edge.slice(start, end);
   assert.match(action, /admin\.rpc\("vbgramg_change_fto_period"/);

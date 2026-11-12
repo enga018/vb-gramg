@@ -246,36 +246,36 @@ begin
             and tx.created_at < coalesce(h.ended_at,'infinity'::timestamptz)
         );
 
+      -- Fail closed if existing allocation commitments exceed the revised
+      -- eligible FTO plus all non-FTO charges in this card/round, including zero-FTO rounds.
+      select coalesce(sum(a.amount),0)::numeric(14,2)
+      into v_allocated
+      from public.vbgramg_payment_allocations a
+      join public.vbgramg_charge_ledger payment on payment.id = a.transaction_id
+      where a.job_card_number = v_card
+        and a.period_id = v_round_id
+        and payment.entry_type = 'payment'
+        and coalesce(payment.is_voided,false) = false;
+
+      select coalesce(sum(l.amount),0)::numeric(14,2)
+      into v_non_fto
+      from public.vbgramg_charge_ledger l
+      where l.job_card_number = v_card
+        and (l.period_id = v_round_id or (l.period_id is null and l.charge_period = v_round_month))
+        and l.entry_type in ('charge','other_charge')
+        and coalesce(l.is_deferred,false) = false
+        and coalesce(l.is_voided,false) = false
+        and (
+          pg_catalog.upper(pg_catalog.left(pg_catalog.btrim(coalesce(l.note,'')),3)) <> 'FTO'
+          or pg_catalog.upper(pg_catalog.left(pg_catalog.btrim(coalesce(l.note,'')),9)) = 'FTO EXTRA'
+        );
+
+      if v_allocated > v_non_fto + v_amount then
+        raise exception 'FTO Change Period blocked for %: allocated %.2f exceeds revised eligible charges %.2f',
+          v_card,v_allocated,v_non_fto+v_amount using errcode = '23514';
+      end if;
+
       if v_amount > 0 then
-        -- Fail closed if existing allocation commitments exceed the revised
-        -- eligible FTO plus all non-FTO charges in this card/round.
-        select coalesce(sum(a.amount),0)::numeric(14,2)
-        into v_allocated
-        from public.vbgramg_payment_allocations a
-        join public.vbgramg_charge_ledger payment on payment.id = a.transaction_id
-        where a.job_card_number = v_card
-          and a.period_id = v_round_id
-          and payment.entry_type = 'payment'
-          and coalesce(payment.is_voided,false) = false;
-
-        select coalesce(sum(l.amount),0)::numeric(14,2)
-        into v_non_fto
-        from public.vbgramg_charge_ledger l
-        where l.job_card_number = v_card
-          and (l.period_id = v_round_id or (l.period_id is null and l.charge_period = v_round_month))
-          and l.entry_type in ('charge','other_charge')
-          and coalesce(l.is_deferred,false) = false
-          and coalesce(l.is_voided,false) = false
-          and (
-            pg_catalog.upper(pg_catalog.left(pg_catalog.btrim(coalesce(l.note,'')),3)) <> 'FTO'
-            or pg_catalog.upper(pg_catalog.left(pg_catalog.btrim(coalesce(l.note,'')),9)) = 'FTO EXTRA'
-          );
-
-        if v_allocated > v_non_fto + v_amount then
-          raise exception 'FTO Change Period blocked for %: allocated %.2f exceeds revised eligible charges %.2f'
-            ,v_card,v_allocated,v_non_fto+v_amount using errcode = '23514';
-        end if;
-
         -- Suppress the normal active-exemption insert guard only inside this
         -- audited RPC; interval eligibility above remains authoritative.
         perform pg_catalog.set_config('app.vbgramg_allow_fto_period_rebuild','on',true);

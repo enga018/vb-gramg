@@ -37,6 +37,7 @@ set search_path = ''
 as $function$
 declare
   v_batch public.vbgramg_fto_batches%rowtype;
+  v_initial_batch public.vbgramg_fto_batches%rowtype;
   v_ledger public.vbgramg_charge_ledger%rowtype;
   v_period public.vbgramg_periods%rowtype;
   v_old_period_id uuid;
@@ -69,10 +70,10 @@ begin
     raise exception 'A valid contribution period and month-start charge date are required' using errcode = '22023';
   end if;
 
-  select * into v_batch
+  -- Read without taking the row lock. Acquire per-card locks first to match snapshot ordering.
+  select * into v_initial_batch
   from public.vbgramg_fto_batches
-  where id = p_batch_id
-  for update;
+  where id = p_batch_id;
   if not found then
     raise exception 'The selected FTO batch was not found' using errcode = 'P0002';
   end if;
@@ -86,13 +87,13 @@ begin
      or v_period.period_name is distinct from p_contribution_period then
     raise exception 'Select an existing shared charge round for the chosen contribution month' using errcode = '23514';
   end if;
-  if v_period.status <> 'open' and v_batch.period_id is distinct from p_period_id then
+  if v_period.status <> 'open' and v_initial_batch.period_id is distinct from p_period_id then
     raise exception 'The destination period is closed; reopen it before assigning an FTO' using errcode = '23514';
   end if;
 
-  v_old_period_id := v_batch.period_id;
-  v_old_charge_period := v_batch.ledger_charge_period;
-  v_old_contribution_period := v_batch.contribution_period;
+  v_old_period_id := v_initial_batch.period_id;
+  v_old_charge_period := v_initial_batch.ledger_charge_period;
+  v_old_contribution_period := v_initial_batch.contribution_period;
 
   if v_old_period_id = p_period_id
      and v_old_charge_period = p_charge_period
@@ -129,6 +130,15 @@ begin
       );
     end loop;
   end loop;
+
+  -- Lock and re-read the batch only after acquiring the per-card locks.
+  select * into v_batch from public.vbgramg_fto_batches where id = p_batch_id for update;
+  if not found then raise exception 'The selected FTO batch no longer exists' using errcode = 'P0002'; end if;
+  if v_batch.period_id is distinct from v_old_period_id
+     or v_batch.ledger_charge_period is distinct from v_old_charge_period
+     or v_batch.contribution_period is distinct from v_old_contribution_period then
+    raise exception 'The FTO period changed concurrently; refresh history and try again' using errcode = '40001';
+  end if;
 
   -- Re-read and lock the complete transaction set only after acquiring shared locks.
   perform tx.id

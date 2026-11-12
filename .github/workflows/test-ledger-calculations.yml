@@ -43,6 +43,7 @@ on:
       - "tests/fto-exemption-snapshot-lock.test.cjs"
       - "tests/atomic-fto-change-period.test.cjs"
       - "tests/atomic-fto-change-period-postgres.sql"
+      - "tests/atomic-fto-change-period-concurrency.sh"
       - "supabase/migrations/20261112100000_atomic_fto_change_period.sql"
       - "supabase/migrations/20261106190000_include_active_mis_cards_in_financial_summary.sql"
       - "tests/postgres-contribution-balances.test.cjs"

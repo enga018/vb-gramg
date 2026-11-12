@@ -41,6 +41,10 @@ on:
       - "tests/fto-exemption-period-eligibility-postgres.sql"
       - "supabase/migrations/20261111160000_serialize_fto_snapshot_with_exemptions.sql"
       - "tests/fto-exemption-snapshot-lock.test.cjs"
+      - "tests/atomic-fto-change-period.test.cjs"
+      - "tests/atomic-fto-change-period-postgres.sql"
+      - "tests/atomic-fto-change-period-concurrency.sh"
+      - "supabase/migrations/20261112100000_atomic_fto_change_period.sql"
       - "supabase/migrations/20261106190000_include_active_mis_cards_in_financial_summary.sql"
       - "tests/postgres-contribution-balances.test.cjs"
       - "supabase/functions/vbgramg-contribution-data/index.ts"
@@ -95,6 +99,8 @@ jobs:
         run: node --test tests/fto-exemption-period-eligibility.test.cjs
       - name: Run FTO snapshot exemption lock tests
         run: node --test tests/fto-exemption-snapshot-lock.test.cjs
+      - name: Run atomic FTO Change Period safeguards
+        run: node --test tests/atomic-fto-change-period.test.cjs
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
@@ -217,6 +223,12 @@ jobs:
         run: |
           createdb vbgramg_fto_exemption_test
           PGDATABASE=vbgramg_fto_exemption_test psql -v ON_ERROR_STOP=1 -f tests/fto-exemption-period-eligibility-postgres.sql
+      - name: Run atomic FTO Change Period PostgreSQL integration tests
+        run: |
+          createdb vbgramg_fto_change_period_test
+          PGDATABASE=vbgramg_fto_change_period_test psql -v ON_ERROR_STOP=1 -f tests/atomic-fto-change-period-postgres.sql
+      - name: Verify FTO Change Period waits for concurrent card writes
+        run: PGDATABASE=vbgramg_fto_change_period_test bash tests/atomic-fto-change-period-concurrency.sh
       - name: Run FTO snapshot exemption PostgreSQL integration tests
         run: |
           createdb vbgramg_fto_snapshot_test

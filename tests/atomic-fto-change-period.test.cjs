@@ -36,7 +36,7 @@ test("Change Period retains superseded FTO ledger rows and excludes manual/FTO E
 
 test("Change Period preserves payment allocations and checks the allocation ceiling", () => {
   assert.match(migration, /sum\(a\.amount\)/i);
-  assert.match(migration, /v_allocated > v_non_fto \+ v_amount/i);
+  assert.match(migration, /v_allocated \\+ v_waived > v_non_fto \\+ v_amount/i);
   assert.doesNotMatch(migration, /delete\s+from\s+public\.vbgramg_payment_allocations/i);
   assert.doesNotMatch(migration, /update\s+public\.vbgramg_payment_allocations/i);
 });

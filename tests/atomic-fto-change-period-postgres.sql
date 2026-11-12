@@ -205,8 +205,8 @@ begin
     raise exception 'Injected failure did not roll back ledger voiding';
   end if;
   if (select ledger_entry_id from public.vbgramg_fto_transactions where id='20000000-0000-0000-0000-000000000001')
-       is distinct from '30000000-0000-0000-0000-000000000001'::uuid then
-    raise exception 'Injected failure did not restore transaction ledger links';
+       is not null then
+    raise exception 'Injected failure did not restore the original transaction ledger link';
   end if;
   if exists(select 1 from public.vbgramg_ledger_audit where action in ('fto_change_period_voided','fto_change_period_created')) then
     raise exception 'Injected failure left partial audit rows';

@@ -79,17 +79,15 @@ begin
     raise exception 'The selected FTO batch was not found' using errcode = 'P0002';
   end if;
 
+  -- Read destination metadata without a row lock. The authoritative FOR UPDATE
+  -- happens after shared card/round advisory locks, matching manual charge writes.
   select * into v_period
   from public.vbgramg_periods
-  where id = p_period_id
-  for update;
+  where id = p_period_id;
   if not found
      or v_period.contribution_month is distinct from p_charge_period
      or v_period.period_name is distinct from p_contribution_period then
     raise exception 'Select an existing shared charge round for the chosen contribution month' using errcode = '23514';
-  end if;
-  if v_period.status <> 'open' and v_initial_batch.period_id is distinct from p_period_id then
-    raise exception 'The destination period is closed; reopen it before assigning an FTO' using errcode = '23514';
   end if;
 
   v_old_period_id := v_initial_batch.period_id;
@@ -120,6 +118,22 @@ begin
       );
     end loop;
   end loop;
+
+  -- Lock the destination period only after advisory locks. Manual charge writes
+  -- acquire card/round locks before this same period row; reversing that order
+  -- can deadlock when a period reassignment races with a manual charge.
+  select * into v_period
+  from public.vbgramg_periods
+  where id = p_period_id
+  for update;
+  if not found
+     or v_period.contribution_month is distinct from p_charge_period
+     or v_period.period_name is distinct from p_contribution_period then
+    raise exception 'The destination contribution round changed; refresh and try again' using errcode = '23514';
+  end if;
+  if v_period.status <> 'open' and v_initial_batch.period_id is distinct from p_period_id then
+    raise exception 'The destination period is closed; reopen it before assigning an FTO' using errcode = '23514';
+  end if;
 
   -- Lock and re-read the batch only after acquiring the per-card locks.
   select * into v_batch from public.vbgramg_fto_batches where id = p_batch_id for update;

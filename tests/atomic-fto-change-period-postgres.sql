@@ -101,6 +101,20 @@ create trigger vbgramg_skip_exempt_ledger_write
 before insert or update on public.vbgramg_charge_ledger
 for each row execute function public.vbgramg_skip_exempt_contribution_write();
 
+-- Test-only fault injection: fail after the RPC has started its ledger rebuild.
+create or replace function public.test_fail_fto_rebuild_insert()
+returns trigger language plpgsql as $
+begin
+  if current_setting('app.test_fail_fto_rebuild', true) = 'on'
+     and new.note = 'FTO import' then
+    raise exception 'injected FTO rebuild failure';
+  end if;
+  return new;
+end $;
+create trigger test_fail_fto_rebuild_insert
+before insert on public.vbgramg_charge_ledger
+for each row execute function public.test_fail_fto_rebuild_insert();
+
 \ir ../supabase/migrations/20261112100000_atomic_fto_change_period.sql
 
 insert into public.vbgramg_periods(id,period_name,period_date,contribution_month)
@@ -166,6 +180,37 @@ begin
 
   update public.vbgramg_payment_allocations set amount=0.50
   where transaction_id='30000000-0000-0000-0000-000000000004';
+
+  -- Inject a failure after batch/ledger work has begun. The exception must
+  -- roll back batch reassignment, ledger voiding, links, and audit inserts.
+  perform set_config('app.test_fail_fto_rebuild','on',true);
+  v_failed := false;
+  begin
+    perform public.vbgramg_change_fto_period(
+      '10000000-0000-0000-0000-000000000001',
+      '00000000-0000-0000-0000-000000000002',
+      'MAY26 (2)','2026-05-01',
+      '90000000-0000-0000-0000-000000000001'
+    );
+  exception when others then
+    v_failed := true;
+  end;
+  perform set_config('app.test_fail_fto_rebuild','off',true);
+  if not v_failed then raise exception 'Expected injected mid-write failure'; end if;
+  if (select period_id from public.vbgramg_fto_batches where id='10000000-0000-0000-0000-000000000001')
+      <> '00000000-0000-0000-0000-000000000001' then
+    raise exception 'Injected failure did not roll back the batch period';
+  end if;
+  if (select is_voided from public.vbgramg_charge_ledger where id='30000000-0000-0000-0000-000000000001') then
+    raise exception 'Injected failure did not roll back ledger voiding';
+  end if;
+  if (select ledger_entry_id from public.vbgramg_fto_transactions where id='20000000-0000-0000-0000-000000000001')
+       is distinct from '30000000-0000-0000-0000-000000000001'::uuid then
+    raise exception 'Injected failure did not restore transaction ledger links';
+  end if;
+  if exists(select 1 from public.vbgramg_ledger_audit where action in ('fto_change_period_voided','fto_change_period_created')) then
+    raise exception 'Injected failure left partial audit rows';
+  end if;
 
   v_result := public.vbgramg_change_fto_period(
     '10000000-0000-0000-0000-000000000001',

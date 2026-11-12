@@ -264,4 +264,12 @@ begin
   if v_result->>'unchanged' <> 'true' then raise exception 'Repeated Change Period call was not idempotent'; end if;
 end $$;
 
+-- Separate batch/card used by the two-session advisory-lock integration test.
+insert into public.vbgramg_fto_batches(id,fto_number,contribution_period,ledger_charge_period,period_id)
+values ('10000000-0000-0000-0000-000000000003','FTO-CONCURRENCY','MAY26','2026-05-01','00000000-0000-0000-0000-000000000001');
+insert into public.vbgramg_fto_transactions
+ (id,batch_id,reference_no,job_card_number,person_name,calculated_charge,status,processed_date,created_at)
+values
+ ('20000000-0000-0000-0000-000000000005','10000000-0000-0000-0000-000000000003','REF-CONCURRENT','CARD/CONCURRENT','Concurrent Applicant',10,'processed','2026-05-08','2026-05-09');
+
 select 'Atomic FTO Change Period PostgreSQL integration tests passed' as result;

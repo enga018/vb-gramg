@@ -194,3 +194,15 @@ test("Extra contribution history exposes a direct edit action using its dedicate
   assert.match(page, /showExtraChargeForm\(preferredPeriodId\)/);
 });
 
+test("Citizen transaction history exposes only the agreed balance-based actions", () => {
+  assert.match(html, /id="addPaymentBtn">Record payment/);
+  assert.match(html, /id="payFullBtn">Pay in full/);
+  assert.match(html, /id="waiveBtn">Waive/);
+  assert.match(html, /id="returnBtn">Refund/);
+  assert.doesNotMatch(html, /id="extraChargeBtn"/);
+  assert.doesNotMatch(html, /Add \/ edit extra amount/);
+  assert.doesNotMatch(html, /addEventListener\('click',showExtraChargeForm\)/);
+  assert.match(html, /c\.exempt\?'<div class="muted">This job card is exempt from contribution\.<\/div>'/);
+  assert.match(html, /Number\(c\.balance\)>0\.001\?/);
+  assert.match(html, /Number\(c\.balance\)<-0\.001\?/);
+});

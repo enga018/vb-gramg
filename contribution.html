@@ -1471,14 +1471,14 @@ function renderCitizenDetail(id){
    if(panel)panel.classList.remove('hidden');
   }
  }));
- $('sheetFooter').innerHTML='<div class="balance"><div class="label">'+(c.balance<0?'Overpaid':'Outstanding')+'</div><div class="amount '+(c.balance<0?'overpaid':c.balance===0?'zero':'owing')+'">'+fmt(Math.abs(Number(c.balance)||0))+'</div></div>'+(c.exempt?'<div class="muted">This job card is exempt from contribution.</div>':'<div class="transaction-actions">'+(Number(c.balance)>0.001?'<button class="btn" type="button" id="addPaymentBtn">Record payment</button>':'')+''+(c.balance>0?'<button class="btn" type="button" id="payFullBtn">Pay in full</button>':'')+(appRole==='admin'?'<button class="btn ghost" type="button" id="extraChargeBtn">Add / edit extra amount</button>':'')+(appRole==='admin'&&!c.exempt&&Number(c.balance)>0.001?'<button class="btn ghost" type="button" id="waiveBtn">Waive</button>':'')+(appRole==='admin'&&Number(c.balance)<-0.001?'<button class="btn ghost" type="button" id="returnBtn">Return</button>':'')+'</div>');
+ $('sheetFooter').innerHTML='<div class="balance"><div class="label">'+(c.balance<0?'Overpaid':'Outstanding')+'</div><div class="amount '+(c.balance<0?'overpaid':c.balance===0?'zero':'owing')+'">'+fmt(Math.abs(Number(c.balance)||0))+'</div></div>'+(c.exempt?'<div class="muted">This job card is exempt from contribution.</div>':'<div class="transaction-actions">'+(Number(c.balance)>0.001?'<button class="btn" type="button" id="addPaymentBtn">Record payment</button>':'')+''+(c.balance>0?'<button class="btn" type="button" id="payFullBtn">Pay in full</button>':'')+(appRole==='admin'&&!c.exempt&&Number(c.balance)>0.001?'<button class="btn ghost" type="button" id="waiveBtn">Waive</button>':'')+(appRole==='admin'&&Number(c.balance)<-0.001?'<button class="btn ghost" type="button" id="returnBtn">Refund</button>':'')+'</div>');
  $('overlay').classList.remove('hidden');
  document.querySelectorAll('#contribution-table tbody tr').forEach(row=>row.classList.toggle('selected',row.dataset.card===c.id));
  const addPayment=$('addPaymentBtn');if(addPayment)addPayment.addEventListener('click',showPaymentForm);
  const payFull=$('payFullBtn');if(payFull)payFull.addEventListener('click',payInFull);
  const waive=$('waiveBtn');if(waive)waive.addEventListener('click',()=>showAdjustmentForm('add-waiver'));
  const ret=$('returnBtn');if(ret)ret.addEventListener('click',()=>showAdjustmentForm('add-return'));
- const extraBtn=$('extraChargeBtn');if(extraBtn)extraBtn.addEventListener('click',showExtraChargeForm);
+
  document.querySelectorAll('[data-review-allocation]').forEach(btn=>btn.addEventListener('click',()=>showPaymentAllocationForm(btn.dataset.reviewAllocation)));
  document.querySelectorAll('[data-edit-entry]').forEach(btn=>btn.addEventListener('click',()=>showEditForm(btn.dataset.editEntry)));
 }

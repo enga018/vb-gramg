@@ -22,7 +22,7 @@ test("Change Period shares the FTO snapshot and exemption per-card lock namespac
 
 test("Change Period locks cards before the destination period row", () => {
   const cardLock = migration.indexOf("hashtextextended('contribution-card:'");
-  const periodRowLock = migration.search(/from public\\.vbgramg_periods\\s+where id = p_period_id\\s+for update/i);
+  const periodRowLock = migration.search(/from public\.vbgramg_periods\s+where id = p_period_id\s+for update/i);
   assert.ok(cardLock >= 0 && periodRowLock > cardLock,
     "card advisory locks must be acquired before the destination period FOR UPDATE lock");
 });

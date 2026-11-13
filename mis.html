@@ -616,12 +616,14 @@ function renderTable(){
   detailCell.appendChild(secondLine);
   tr.appendChild(detailCell);tr.tabIndex=0;tr.setAttribute('role','button');tr.setAttribute('aria-expanded',String(expandedCards.has(group.key)));
   tbody.appendChild(tr);
-  const toggleMobileApplicants=()=>{
-   if(expandedCards.has(group.key))expandedCards.delete(group.key);else expandedCards.add(group.key);
-   renderTable();
-  };
   tr.addEventListener('click',toggleMobileApplicants);
   tr.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleMobileApplicants()}});
+  function toggleMobileApplicants(){
+   if(expandedCards.has(group.key))expandedCards.delete(group.key);else expandedCards.add(group.key);
+   renderTable();
+   const restoredRow=Array.from($('mis-table').querySelectorAll('.jobcard-row')).find(row=>row.querySelector('.mobile-jobcard-number')?.textContent===group.key);
+   if(restoredRow)restoredRow.focus({preventScroll:true});
+  }
   if(expandedCards.has(group.key)){
    const detailRow=document.createElement('tr');detailRow.className='mobile-applicant-picker-row';
    const detail=document.createElement('td');detail.colSpan=1;

@@ -35,17 +35,16 @@ begin
     raise exception 'First payment did not fill oldest period after waiver: %',v_allocations;
   end if;
 
-  if (v_allocations->1->>'payment_id') <> '10000000-0000-0000-0000-000000000002'
+  if (v_allocations->1->>'payment_id') <> '10000000-0000-0000-0000-000000000001'
      or (v_allocations->1->>'period_id') <> '00000000-0000-0000-0000-000000000002'
-     or (v_allocations->1->>'amount')::numeric <> 40 then
-    raise exception 'Second payment was not applied to next period: %',v_allocations;
+     or (v_allocations->1->>'amount')::numeric <> 5 then
+    raise exception 'Remaining first-payment balance was not carried to next period: %',v_allocations;
   end if;
 
   if (v_allocations->2->>'payment_id') <> '10000000-0000-0000-0000-000000000002'
      or (v_allocations->2->>'period_id') <> '00000000-0000-0000-0000-000000000002'
-     or (v_allocations->2->>'amount')::numeric <> 0 then
-    -- Zero allocations must not be emitted; this branch should never happen.
-    raise exception 'Unexpected zero allocation emitted: %',v_allocations;
+     or (v_allocations->2->>'amount')::numeric <> 35 then
+    raise exception 'Second payment did not complete next period: %',v_allocations;
   end if;
 end
 $$;

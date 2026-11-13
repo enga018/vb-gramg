@@ -684,7 +684,7 @@ function renderHistoryTransactions(batch){
  wrapper.appendChild(summary);
  const toolbar=document.createElement("div");toolbar.className="fto-view-toolbar";
  const title=document.createElement("strong");title.textContent="Transaction details · "+transactions.length+" rows";
- const toggle=document.createElement("button");toggle.type="button";toggle.className="secondary";toggle.setAttribute("aria-expanded",String(showSensitiveFtoDetails));toggle.setAttribute("aria-controls","fto-sensitive-transaction-details");toggle.textContent=showSensitiveFtoDetails?"Hide UTR & rejection reason":"Show UTR & rejection reason";
+ const toggle=document.createElement("button");toggle.type="button";toggle.className="secondary";toggle.setAttribute("aria-expanded",String(showSensitiveFtoDetails));toggle.setAttribute("aria-controls","fto-sensitive-transaction-details fto-sensitive-mobile-details");toggle.textContent=showSensitiveFtoDetails?"Hide UTR & rejection reason":"Show UTR & rejection reason";
  toolbar.append(title,toggle);wrapper.appendChild(toolbar);
  const labels=["Job Card No. (Panchayat Name)","Applicant Name","Credit Amount (In Rs.)","Status","Processed Date"];
  if(showSensitiveFtoDetails)labels.push("UTR No.","Rejection Reason");
@@ -700,7 +700,7 @@ function renderHistoryTransactions(batch){
  }
  if(!transactions.length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=labels.length;td.textContent="No local transaction rows are saved for this FTO.";tr.appendChild(td);tbody.appendChild(tr);}
  table.append(tbody);tableWrap.appendChild(table);wrapper.appendChild(tableWrap);
- const mobile=document.createElement("div");mobile.className="fto-transaction-mobile";
+ const mobile=document.createElement("div");mobile.className="fto-transaction-mobile";if(showSensitiveFtoDetails)mobile.id="fto-sensitive-mobile-details";
  const isMobile=window.matchMedia("(max-width: 700px)").matches,txPages=Math.max(1,Math.ceil(transactions.length/10));ftoTransactionPage=Math.min(ftoTransactionPage,txPages-1);const txStart=isMobile?ftoTransactionPage*10:0,visibleTransactions=isMobile?transactions.slice(txStart,txStart+10):transactions;
  for(const tx of visibleTransactions){
   const card=document.createElement("article");card.className="fto-transaction-mobile-card";

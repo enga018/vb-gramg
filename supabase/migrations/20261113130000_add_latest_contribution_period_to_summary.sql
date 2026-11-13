@@ -66,7 +66,9 @@ ledger_by_card AS (
         AND NOT latest.is_voided
         AND latest.entry_type IN ('charge', 'other_charge', 'sanitationFee')
         AND NOT (latest.entry_type = 'charge' AND btrim(COALESCE(latest.note, '')) = 'Return')
-      ORDER BY latest.charge_period DESC NULLS LAST,
+      ORDER BY
+        COALESCE(p.contribution_month, p.period_date, latest.charge_period) DESC NULLS LAST,
+        p.created_at DESC,
         latest.entry_date DESC NULLS LAST,
         latest.created_at DESC,
         latest.id DESC

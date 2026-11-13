@@ -65,6 +65,8 @@ test("desktop Contribution table shows latest named period and a separate status
   assert.match(migration, /latest_contribution_period/);
   assert.match(migration, /JOIN public\.vbgramg_periods AS p ON p\.id = latest\.period_id/);
   assert.match(migration, /latest\.is_voided/);
+  assert.match(migration, /p\.created_at DESC/);
+  assert.match(migration, /COALESCE\(p\.contribution_month, p\.period_date, latest\.charge_period\)/);
   assert.match(contribution, /\['Job Card Number','Head of Household','Last Contribution','Outstanding','Status'\]/);
   assert.match(contribution, /c\.latest_contribution_period/);
   assert.doesNotMatch(contribution, /Last Charges/);

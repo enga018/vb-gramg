@@ -88,7 +88,7 @@
         .global-mobile-header .global-mobile-menu-button{display:inline-flex!important;position:static!important;inset:auto!important;transform:none!important;flex:0 0 40px;width:40px;height:40px;min-height:40px;margin:0!important;padding:0!important;align-items:center;justify-content:center;border:1px solid #e0e6ef!important;border-radius:9px!important;background:#f0f3f8!important;color:#172033!important;font-size:21px!important;line-height:1!important;box-shadow:none!important}
       }
     `;
-    document.head.appendChild(mobileHeaderStyle);
+    mobileHeaderStyle.textContent += `\n      .global-sidebar-link{min-height:44px}\n      .global-mobile-menu-button,.global-sidebar-desktop-toggle{width:44px;min-width:44px;height:44px;min-height:44px}\n      .global-sidebar-toggle:focus-visible,.global-sidebar-link:focus-visible,.vbgramg-dialog-close:focus-visible{outline:3px solid var(--color-focus-ring,#60a5fa);outline-offset:2px}\n    `;\n    document.head.appendChild(mobileHeaderStyle);
 
     /* Give native dialogs one predictable title-left / close-right header. */
     document.querySelectorAll('dialog[aria-labelledby]').forEach(function(dialog){
@@ -113,21 +113,37 @@
 
     document.body.insertBefore(sidebar, document.body.firstChild);
     document.body.appendChild(overlay);
-    function close() {
+    var previousBodyOverflow = "";
+    function close(restoreFocus) {
+      if (!sidebar.classList.contains("is-open")) return;
       sidebar.classList.remove("is-open"); overlay.classList.remove("is-visible");
       button.setAttribute("aria-expanded", "false");
       button.setAttribute("aria-label", "Open navigation");
+      document.body.style.overflow = previousBodyOverflow;
+      if (restoreFocus !== false) button.focus();
     }
     function open() {
       sidebar.classList.add("is-open"); overlay.classList.add("is-visible");
       button.setAttribute("aria-expanded", "true");
       button.setAttribute("aria-label", "Close navigation");
+      previousBodyOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      var firstLink = nav.querySelector("a[href]");
+      if (firstLink) window.requestAnimationFrame(function () { firstLink.focus(); });
     }
     button.addEventListener("click", function () { sidebar.classList.contains("is-open") ? close() : open(); });
-    overlay.addEventListener("click", close);
-    nav.addEventListener("click", function (event) { if (event.target.closest("a")) close(); });
+    overlay.addEventListener("click", function () { close(); });
+    nav.addEventListener("click", function (event) { if (event.target.closest("a")) close(false); });
     document.addEventListener("keydown", function (event) {
-      if (event.key === "Escape" && sidebar.classList.contains("is-open")) { close(); button.focus(); }
+      if (!sidebar.classList.contains("is-open")) return;
+      if (event.key === "Escape") { event.preventDefault(); close(); return; }
+      if (event.key === "Tab") {
+        var items = Array.prototype.slice.call(sidebar.querySelectorAll("a[href], button:not([disabled]), [tabindex]:not([tabindex=\"-1\"])"));
+        if (!items.length) { event.preventDefault(); return; }
+        var first = items[0], last = items[items.length - 1];
+        if (event.shiftKey && (document.activeElement === first || !sidebar.contains(document.activeElement))) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && (document.activeElement === last || !sidebar.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
+      }
     });
     window.addEventListener("resize", function () { syncResponsiveMode(); if (window.innerWidth > 1023 && !window.matchMedia("(max-height:600px) and (pointer:coarse)").matches) close(); });
   }

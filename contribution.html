@@ -153,15 +153,16 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  #contribution-table tbody tr.contribution-row.settled{box-shadow:inset 3px 0 #16a34a}
 }
 
-/* Desktop contribution table: show latest charge status and due balance. */
+/* Desktop contribution table: show latest named period, balance, and status separately. */
 @media(min-width:768px) and (min-height:601px), (pointer:fine) and (min-width:768px){
  #contribution-table{table-layout:auto}
- #contribution-table thead th:nth-child(1){width:29%}
- #contribution-table thead th:nth-child(2){width:39%}
- #contribution-table thead th:nth-child(3),#contribution-table thead th:nth-child(4){width:16%;text-align:right}
- #contribution-table tbody td.last-charge-cell,#contribution-table tbody td.outstanding-cell{font-weight:750;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
- #contribution-table .last-charge-amount{display:inline-block}
- #contribution-table .deferred-tag{display:inline-block;margin-left:6px;padding:3px 6px;border-radius:5px;background:#fff4d6;color:#9a6700;font-size:.68rem;font-weight:800;letter-spacing:.01em;vertical-align:middle}
+ #contribution-table thead th:nth-child(1){width:22%}
+ #contribution-table thead th:nth-child(2){width:28%}
+ #contribution-table thead th:nth-child(3){width:18%}
+ #contribution-table thead th:nth-child(4){width:16%;text-align:right}
+ #contribution-table thead th:nth-child(5){width:16%}
+ #contribution-table tbody td.outstanding-cell{font-weight:750;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+ #contribution-table tbody td.last-contribution-cell,#contribution-table tbody td.status-cell{white-space:nowrap}
  #contribution-table tbody td.jobcard{white-space:nowrap}
  #contribution-table tbody td.person{font-weight:650}
 }
@@ -1079,6 +1080,18 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{margin:0!impo
   min-height: 44px !important;
 }
 
+
+/* Final desktop column sizing for the five-column Contribution table. */
+@media(min-width:768px) and (min-height:601px), (pointer:fine) and (min-width:768px){
+ #contribution-table{width:100%;table-layout:fixed}
+ #contribution-table thead th:nth-child(1){width:22%;text-align:left}
+ #contribution-table thead th:nth-child(2){width:28%;text-align:left}
+ #contribution-table thead th:nth-child(3){width:18%;text-align:left}
+ #contribution-table thead th:nth-child(4){width:16%;text-align:right}
+ #contribution-table thead th:nth-child(5){width:16%;text-align:left}
+ #contribution-table tbody td.last-contribution-cell,#contribution-table tbody td.status-cell{white-space:nowrap}
+ #contribution-table tbody td.outstanding-cell{text-align:right;white-space:nowrap}
+}
 </style>
   <link rel="stylesheet" href="./responsive.css?v=20261111-design-system">
 <link rel="stylesheet" href="./theme.css?v=20261111-design-system">
@@ -1309,7 +1322,7 @@ function render(){
  $('prev-button').classList.remove('hidden');$('next-button').classList.remove('hidden');
  const thead=$('contribution-table').querySelector('thead'),tbody=$('contribution-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
  const head=document.createElement('tr');
- (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Last Charges','Outstanding']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Remarks'){th.style.textAlign='right';th.className='balance-heading';}head.appendChild(th)});thead.appendChild(head);
+ (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Last Contribution','Outstanding','Status']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Remarks'){th.style.textAlign='right';th.className='balance-heading';}head.appendChild(th)});thead.appendChild(head);
  shown.forEach((c,index)=>{
   const state=c.exempt?'exempt':c.balance<0?'overpaid':c.balance>0?'due':'settled',tr=document.createElement('tr');tr.className='contribution-row '+state;tr.tabIndex=0;tr.dataset.card=c.id;tr.setAttribute('role','button');tr.setAttribute('aria-label','Open contribution history for '+c.name+' job card '+c.id);
   const cell=(value,cls)=>{const td=document.createElement('td');td.textContent=value;if(cls)td.className=cls;tr.appendChild(td);return td};
@@ -1342,15 +1355,15 @@ function render(){
 
   }else{
    cell(c.id,'jobcard');cell(c.name+(c.exempt?' · EXEMPT':''),'person');
-   const latestCharge=c.ledger.filter(e=>!e.is_voided&&(e.entry_type==='charge'||e.entry_type==='other_charge'||e.entry_type==='sanitationFee')&&!(e.entry_type==='charge'&&String(e.note||'').trim()==='Return')).slice().sort((a,b)=>String(b.entry_date||b.created_at||'').localeCompare(String(a.entry_date||a.created_at||'')))[0];
-   const latestChargeAmount=latestCharge?Number(latestCharge.amount):c.latest_charge_amount;
-   cell(latestChargeAmount!==null&&latestChargeAmount!==undefined?fmt(latestChargeAmount):'—','last-charge-cell');
+   cell(String(c.latest_contribution_period||'').trim()||'—','last-contribution-cell');
    const dueAmount=Number(c.balance)||0;
-   const dueCell=cell('','outstanding-cell');
-   if(dueAmount<0){const tag=document.createElement('span');tag.className='row-status overpaid';tag.textContent='Overpaid '+fmt(Math.abs(dueAmount));tag.style.display='inline-flex';tag.style.marginLeft='5px';dueCell.appendChild(tag);}
-   if(dueAmount===0){const tag=document.createElement('span');tag.className='row-status settled';tag.textContent='Settled';dueCell.appendChild(tag);}
-   if(c.deferred>0){const tag=document.createElement('span');tag.className='row-status deferred';tag.textContent='Deferred '+fmt(c.deferred);tag.style.display='inline-flex';tag.style.marginLeft='5px';dueCell.appendChild(tag);}
-   if(dueAmount>0){const tag=document.createElement('span');tag.className='row-status due';tag.textContent='Outstanding '+fmt(dueAmount);tag.style.display='inline-flex';tag.style.marginLeft='5px';dueCell.appendChild(tag);}
+   cell(fmt(Math.max(0,dueAmount)),'outstanding-cell');
+   const statusCell=cell('','status-cell');
+   const statusTag=document.createElement('span');
+   statusTag.className='row-status '+(dueAmount<0?'overpaid':dueAmount>0?'due':'settled');
+   statusTag.textContent=dueAmount<0?'Overpaid':dueAmount>0?'Due':'Settled';
+   statusCell.appendChild(statusTag);
+   if(c.deferred>0){const deferredTag=document.createElement('span');deferredTag.className='row-status deferred';deferredTag.textContent='Deferred';deferredTag.style.display='inline-flex';deferredTag.style.marginLeft='5px';statusCell.appendChild(deferredTag);}
   }
   tr.addEventListener('click',()=>openCitizen(c.id));tr.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();openCitizen(c.id)}});tbody.appendChild(tr);
  });

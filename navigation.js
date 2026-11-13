@@ -88,7 +88,8 @@
         .global-mobile-header .global-mobile-menu-button{display:inline-flex!important;position:static!important;inset:auto!important;transform:none!important;flex:0 0 40px;width:40px;height:40px;min-height:40px;margin:0!important;padding:0!important;align-items:center;justify-content:center;border:1px solid #e0e6ef!important;border-radius:9px!important;background:#f0f3f8!important;color:#172033!important;font-size:21px!important;line-height:1!important;box-shadow:none!important}
       }
     `;
-    mobileHeaderStyle.textContent += `\n      .global-sidebar-link{min-height:44px}\n      .global-mobile-menu-button,.global-sidebar-desktop-toggle{width:44px;min-width:44px;height:44px;min-height:44px}\n      .global-sidebar-toggle:focus-visible,.global-sidebar-link:focus-visible,.vbgramg-dialog-close:focus-visible{outline:3px solid var(--color-focus-ring,#60a5fa);outline-offset:2px}\n    `;\n    document.head.appendChild(mobileHeaderStyle);
+    mobileHeaderStyle.textContent += `\n      .global-sidebar-link{min-height:44px}\n      .global-mobile-header .global-mobile-menu-button,.global-sidebar-desktop-toggle{width:44px;min-width:44px;height:44px;min-height:44px}\n      .global-sidebar-toggle:focus-visible,.global-sidebar-link:focus-visible,.vbgramg-dialog-close:focus-visible{outline:3px solid var(--color-focus-ring,#60a5fa);outline-offset:2px}\n    `;
+    document.head.appendChild(mobileHeaderStyle);
 
     /* Give native dialogs one predictable title-left / close-right header. */
     document.querySelectorAll('dialog[aria-labelledby]').forEach(function(dialog){
@@ -108,7 +109,7 @@
       header.appendChild(closeButton);
     });
     var dialogHeaderStyle=document.createElement('style');
-    dialogHeaderStyle.textContent='.vbgramg-dialog-header{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;margin:0 0 12px}.vbgramg-dialog-header h2{margin:0!important;text-align:left!important}.vbgramg-dialog-close{display:inline-flex;align-items:center;justify-content:center;flex:0 0 36px;width:36px;min-width:36px;height:36px;min-height:36px;padding:0!important;border:1px solid #e0e6ef!important;border-radius:9px!important;background:#f0f3f8!important;color:#344054!important;font-size:22px!important;line-height:1!important;box-shadow:none!important}.vbgramg-dialog-close:hover{background:#e6ebf3!important}';
+    dialogHeaderStyle.textContent='.vbgramg-dialog-header{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;margin:0 0 12px}.vbgramg-dialog-header h2{margin:0!important;text-align:left!important}.vbgramg-dialog-close{display:inline-flex;align-items:center;justify-content:center;flex:0 0 44px;width:44px;min-width:44px;height:44px;min-height:44px;padding:0!important;border:1px solid #e0e6ef!important;border-radius:9px!important;background:#f0f3f8!important;color:#344054!important;font-size:22px!important;line-height:1!important;box-shadow:none!important}.vbgramg-dialog-close:hover{background:#e6ebf3!important}';
     document.head.appendChild(dialogHeaderStyle);
 
     document.body.insertBefore(sidebar, document.body.firstChild);

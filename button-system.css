@@ -1,0 +1,106 @@
+/* VBGRAMG shared action-button system.
+   Loaded after page styles so visual variants are consistent without changing
+   page-specific layout, labels, handlers, or business logic. */
+:root {
+  --button-height: 44px;
+  --button-radius: var(--radius-md, 10px);
+  --button-font: var(--font-family-sans, system-ui, sans-serif);
+  --button-primary-bg: var(--color-brand-primary, #172033);
+  --button-primary-hover: var(--color-brand-primary-hover, #1d4ed8);
+  --button-secondary-bg: var(--color-bg-muted, #e2e8f0);
+  --button-secondary-border: var(--color-border-strong, #cbd5e1);
+  --button-secondary-text: var(--color-text-primary, #0f172a);
+  --button-danger-bg: var(--color-status-danger-bg, #fff4f2);
+  --button-danger-border: #f2c9c4;
+  --button-danger-text: var(--color-status-danger, #a12b20);
+}
+
+/* Shared base: native buttons and button-like links. */
+:where(button, .btn, .link-button, .module-link, a.link) {
+  box-sizing: border-box;
+  min-height: var(--button-height);
+  padding: 10px 14px;
+  border: 1px solid transparent;
+  border-radius: var(--button-radius);
+  font-family: var(--button-font);
+  font-size: .9rem;
+  font-weight: 650;
+  line-height: 1.2;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+:where(button, .btn, .link-button, .module-link, a.link):not(.secondary):not(.ghost):not(.danger) {
+  background: var(--button-primary-bg);
+  border-color: var(--button-primary-bg);
+  color: #fff;
+}
+:where(button, .btn, .link-button, .module-link, a.link):not(.secondary):not(.ghost):not(.danger):hover:not(:disabled) {
+  background: var(--button-primary-hover);
+  border-color: var(--button-primary-hover);
+  color: #fff;
+}
+:where(button.secondary, button.ghost, .btn.secondary, .btn.ghost, .link-button.secondary, .link-button.ghost, a.link.secondary) {
+  background: var(--button-secondary-bg);
+  border-color: var(--button-secondary-border);
+  color: var(--button-secondary-text);
+}
+:where(button.secondary, button.ghost, .btn.secondary, .btn.ghost, .link-button.secondary, .link-button.ghost, a.link.secondary):hover:not(:disabled) {
+  background: var(--color-bg-subtle, #f1f5f9);
+  border-color: var(--button-secondary-border);
+  color: var(--button-secondary-text);
+}
+:where(button.danger, .btn.danger, .link-button.danger) {
+  background: var(--button-danger-bg);
+  border-color: var(--button-danger-border);
+  color: var(--button-danger-text);
+}
+:where(button.danger, .btn.danger, .link-button.danger):hover:not(:disabled) {
+  background: var(--color-status-danger-bg, #fef2f2);
+  border-color: var(--button-danger-text);
+  color: var(--button-danger-text);
+}
+:where(button, .btn, .link-button, .module-link, a.link):focus-visible {
+  outline: 3px solid var(--color-focus-ring, #60a5fa);
+  outline-offset: 2px;
+}
+:where(button, .btn, .link-button, .module-link, a.link):disabled,
+:where(button, .btn, .link-button, .module-link, a.link)[aria-disabled="true"] {
+  opacity: .5;
+  cursor: not-allowed;
+}
+:where(button, .btn, .link-button, .module-link, a.link):active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+/* Explicit compact utility is opt-in; it still preserves a usable touch area. */
+:where(.btn.small, .button-small) {
+  min-height: 40px;
+  padding: 8px 11px;
+  font-size: .84rem;
+}
+:where(.icon-button, button.icon-only, .x) {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(button, .btn, .link-button, .module-link, a.link) {
+    transition: none;
+  }
+  :where(button, .btn, .link-button, .module-link, a.link):active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* Contribution has legacy !important button rules; normalize only the shared
+   button primitives here while leaving its transaction-specific colours intact. */
+body:has(#contribution-table) :where(.btn, .app-header-actions > a, .app-header-actions > button, .top-actions > a, .top-actions > button, .page-actions-bar > a, .page-actions-bar > button) {
+  min-height: 44px !important;
+  font-family: var(--button-font) !important;
+}

@@ -1104,7 +1104,8 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{margin:0!impo
  window.VBGRAMG_CONTRIBUTION_STAGE=function(next){stage=String(next);if(panel)panel.textContent=stage;};
  window.addEventListener('error',function(event){
   const message=event.message||'A page script failed to load or execute.';
-  window.VBGRAMG_CONTRIBUTION_STAGE('JavaScript error: '+message);
+  const source=event.filename?event.filename+' :'+(event.lineno||'?')+':'+(event.colno||'?'):'source unavailable';
+  window.VBGRAMG_CONTRIBUTION_STAGE('JavaScript error: '+message+' ('+source+')');
  });
  window.addEventListener('unhandledrejection',function(event){
   const reason=event.reason&&event.reason.message?event.reason.message:String(event.reason||'Unknown promise error');

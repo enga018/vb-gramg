@@ -138,6 +138,20 @@ begin
       from public.vbgramg_ledger_audit a
       where a.job_card_number = any(v_cards)
         and a.action = 'manual_charge_linked_to_fto'
+        and exists (
+          select 1
+          from jsonb_array_elements_text(
+            case
+              when jsonb_typeof(a.after_data->'reference_numbers') = 'array'
+                then a.after_data->'reference_numbers'
+              else '[]'::jsonb
+            end
+          ) linked_reference
+          join public.vbgramg_fto_transactions transaction_row
+            on transaction_row.batch_id = p_batch_id
+           and coalesce(transaction_row.is_in_scope, true)
+           and transaction_row.reference_no = linked_reference.value
+        )
     ), '[]'::jsonb),
     'charge_payment_allocations', coalesce((
       select jsonb_agg(

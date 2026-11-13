@@ -1,6 +1,6 @@
 /* VBGRAMG shared action-button system.
-   Loaded after page styles so visual variants are consistent without changing
-   page-specific layout, labels, handlers, or business logic. */
+   This stylesheet normalizes interaction targets and explicit button variants.
+   Unclassified native buttons retain their page-specific visual styling. */
 :root {
   --button-height: 44px;
   --button-radius: var(--radius-md, 10px);
@@ -15,42 +15,41 @@
   --button-danger-text: var(--color-status-danger, #a12b20);
 }
 
-/* Shared base: native buttons and button-like links. */
+/* Shared interaction baseline only: do not repaint unclassified page controls. */
 :where(button, .btn, .link-button, .module-link, a.link) {
   box-sizing: border-box;
   min-height: var(--button-height);
-  padding: 10px 14px;
-  border: 1px solid transparent;
+  touch-action: manipulation;
+}
+
+/* Primary styling is opt-in for shared button classes, not every <button>. */
+:where(.btn:not(.secondary):not(.ghost):not(.danger),
+       button.primary, .link-button, .module-link, a.link) {
   border-radius: var(--button-radius);
   font-family: var(--button-font);
-  font-size: .9rem;
   font-weight: 650;
-  line-height: 1.2;
   text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  cursor: pointer;
-  touch-action: manipulation;
-  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
 }
-:where(button, .btn, .link-button, .module-link, a.link):not(.secondary):not(.ghost):not(.danger) {
+:where(.btn:not(.secondary):not(.ghost):not(.danger),
+       button.primary, .link-button, .module-link, a.link) {
   background: var(--button-primary-bg);
   border-color: var(--button-primary-bg);
   color: #fff;
 }
-:where(button, .btn, .link-button, .module-link, a.link):not(.secondary):not(.ghost):not(.danger):hover:not(:disabled) {
+:where(.btn:not(.secondary):not(.ghost):not(.danger),
+       button.primary, .link-button, .module-link, a.link):hover:not(:disabled) {
   background: var(--button-primary-hover);
   border-color: var(--button-primary-hover);
   color: #fff;
 }
-:where(button.secondary, button.ghost, .btn.secondary, .btn.ghost, .link-button.secondary, .link-button.ghost, a.link.secondary) {
+:where(button.secondary, button.ghost, .btn.secondary, .btn.ghost,
+       .link-button.secondary, .link-button.ghost, a.link.secondary) {
   background: var(--button-secondary-bg);
   border-color: var(--button-secondary-border);
   color: var(--button-secondary-text);
 }
-:where(button.secondary, button.ghost, .btn.secondary, .btn.ghost, .link-button.secondary, .link-button.ghost, a.link.secondary):hover:not(:disabled) {
+:where(button.secondary, button.ghost, .btn.secondary, .btn.ghost,
+       .link-button.secondary, .link-button.ghost, a.link.secondary):hover:not(:disabled) {
   background: var(--color-bg-subtle, #f1f5f9);
   border-color: var(--button-secondary-border);
   color: var(--button-secondary-text);
@@ -78,7 +77,7 @@
   transform: translateY(1px);
 }
 
-/* Explicit compact utility is opt-in; it still preserves a usable touch area. */
+/* Explicit compact utility remains at least 40px high. */
 :where(.btn.small, .button-small) {
   min-height: 40px;
   padding: 8px 11px;
@@ -98,9 +97,9 @@
   }
 }
 
-/* Contribution has legacy !important button rules; normalize only the shared
-   button primitives here while leaving its transaction-specific colours intact. */
-body:has(#contribution-table) :where(.btn, .app-header-actions > a, .app-header-actions > button, .top-actions > a, .top-actions > button, .page-actions-bar > a, .page-actions-bar > button) {
+/* Contribution has legacy !important rules; normalize touch target only. */
+body:has(#contribution-table) :where(.btn, .app-header-actions > a,
+  .app-header-actions > button, .top-actions > a, .top-actions > button,
+  .page-actions-bar > a, .page-actions-bar > button) {
   min-height: 44px !important;
-  font-family: var(--button-font) !important;
 }

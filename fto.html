@@ -547,6 +547,32 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 .fto-import-modal-head h2{margin:0;font-size:1.05rem}
 .fto-import-modal iframe{display:block;width:100%;height:calc(100% - 60px);border:0;background:#f3f6fb}
 @media(max-width:767px){.fto-import-modal{width:100%;height:100dvh;max-height:100dvh;border:0;border-radius:0}.fto-import-modal-head{padding:10px 14px}}
+
+/* Keep FTO interactive controls comfortably tappable without changing layout or behavior. */
+.history-expand,
+.history-action-menu button,
+#fto-history-table .history-action-cell>button,
+.action-trigger,
+.period-modal-header button,
+.period-modal .period-modal-actions button,
+.fto-view-modal-header button,
+.fto-modal-actions button,
+.fto-view-toolbar button,
+.fto-view-modal-content .transaction-mobile-toggle-button {
+  box-sizing: border-box;
+  min-height: 44px;
+}
+.action-trigger {
+  min-width: 44px;
+  width: 44px;
+}
+.period-modal-header button {
+  min-width: 44px;
+  width: 44px;
+  height: 44px;
+  flex-basis: 44px;
+}
+
 </style>
   <link rel="stylesheet" href="./responsive.css?v=20261111-design-system">
 <link rel="stylesheet" href="./theme.css?v=20261111-design-system">

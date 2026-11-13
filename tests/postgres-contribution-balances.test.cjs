@@ -63,10 +63,10 @@ test("contribution FIFO detail is rendered from PostgreSQL, not the retired Java
 test("desktop Contribution table shows latest named period and a separate status column", () => {
   const migration = read("supabase/migrations/20261113130000_add_latest_contribution_period_to_summary.sql");
   assert.match(migration, /latest_contribution_period/);
-  assert.match(migration, /JOIN public\\.vbgramg_periods AS p ON p\\.id = latest\\.period_id/);
-  assert.match(migration, /latest\\.is_voided/);
+  assert.match(migration, /JOIN public\.vbgramg_periods AS p ON p\.id = latest\.period_id/);
+  assert.match(migration, /latest\.is_voided/);
   assert.match(contribution, /\['Job Card Number','Head of Household','Last Contribution','Outstanding','Status'\]/);
-  assert.match(contribution, /c\\.latest_contribution_period/);
+  assert.match(contribution, /c\.latest_contribution_period/);
   assert.doesNotMatch(contribution, /Last Charges/);
-  assert.match(contribution, /statusTag\\.textContent=dueAmount<0\?'Overpaid':dueAmount>0\?'Due':'Settled'/);
+  assert.match(contribution, /statusTag\.textContent=dueAmount<0\?'Overpaid':dueAmount>0\?'Due':'Settled'/);
 });

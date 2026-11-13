@@ -1087,7 +1087,7 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{margin:0!impo
 <body>
 <main>
 <div id="status" class="notice info hidden" role="status" aria-live="polite"></div>
-<div id="loading-state" class="contribution-loading" role="status" aria-live="polite"><span class="loading-spinner" aria-hidden="true"></span><span>Preparing Contribution data…</span></div>
+<div id="loading-state" class="contribution-loading" role="status" aria-live="polite"><span class="loading-spinner" aria-hidden="true"></span><span>Preparing Contribution data…</span><small id="startup-diagnostic" style="display:block;margin-top:8px;font-size:.78rem;color:var(--muted)">Starting page scripts…</small></div>
 <div id="app" class="hidden">
 <div id="contribution-layout"><section class="panel contribution-main-panel">
 <div class="contribution-top-row"><div class="contribution-kpis"><div class="stat outstanding-kpi"><div class="k">Outstanding</div><div class="v due" id="outstanding">—</div></div><div class="stat"><div class="k">Deferred</div><div class="v deferred-kpi" id="deferred">—</div></div></div><div class="page-panel-actions"><button class="btn ghost small hidden" id="manualChargeBtn" type="button">Manual Charges</button><button class="btn ghost small hidden" id="manageExemptionsBtn" type="button">Exemptions</button><button class="btn ghost small hidden" id="auditHistoryBtn" type="button">Audit history</button><button class="btn hidden" id="bulkPaymentBtn" type="button">Bulk Payment</button><button class="btn hidden" id="exportDueBtn" type="button">Export</button></div></div>
@@ -1097,6 +1097,27 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{margin:0!impo
 </main>
 <div id="overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="sheet"><div class="sheet-head"><div class="sheet-heading"><h2 id="sheetTitle">Job card number</h2><div id="sheetSubtitle" class="sheet-subtitle"></div></div><div class="sheet-head-actions"><button class="btn ghost small" id="toggleEditMode" type="button" aria-pressed="false">Edit</button><button class="x" id="closeSheet" aria-label="Close">×</button></div></div><div id="sheetBody" class="sheet-body"></div><div id="sheetFooter" class="sheet-footer hidden"></div></div></div>
 
+<script>
+(function(){
+ const panel=document.getElementById('startup-diagnostic');
+ let stage='Starting page scripts';
+ window.VBGRAMG_CONTRIBUTION_STAGE=function(next){stage=String(next);if(panel)panel.textContent=stage;};
+ window.addEventListener('error',function(event){
+  const message=event.message||'A page script failed to load or execute.';
+  window.VBGRAMG_CONTRIBUTION_STAGE('JavaScript error: '+message);
+ });
+ window.addEventListener('unhandledrejection',function(event){
+  const reason=event.reason&&event.reason.message?event.reason.message:String(event.reason||'Unknown promise error');
+  window.VBGRAMG_CONTRIBUTION_STAGE('Startup promise error: '+reason);
+ });
+ window.setTimeout(function(){
+  const loading=document.getElementById('loading-state');
+  if(loading&&!loading.classList.contains('hidden')&&panel&&panel.textContent==='Starting page scripts'){
+   panel.textContent='Startup did not begin. Check whether browser scripts are blocked or failed to load.';
+  }
+ },20000);
+})();
+</script>
 <script src="./supabase/functions/shared/ledger-calculations.js?v=20261104a"></script>
 <script src="./js/contribution.js?v=20261104a"></script>
 <script src="./js/charges.js?v=20261104a"></script>
@@ -1111,6 +1132,7 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{margin:0!impo
 const $=id=>document.getElementById(id);
 const startupNode=$('status');
 if(startupNode)startupNode.textContent='JavaScript started — loading connection library…';
+if(window.VBGRAMG_CONTRIBUTION_STAGE)window.VBGRAMG_CONTRIBUTION_STAGE('Loading Supabase connection library…');
 function setStartupError(message){
  const loading=$('loading-state');
  if(loading)loading.classList.add('hidden');
@@ -1140,6 +1162,7 @@ try {
 } finally {
  if(readinessTimer!==undefined)window.clearTimeout(readinessTimer);
 }
+if(window.VBGRAMG_CONTRIBUTION_STAGE)window.VBGRAMG_CONTRIBUTION_STAGE('Connection library ready. Preparing page controls…');
 let entries=[], citizens=[], citizenRegistry=[], applicantsByCard={}, extraCharges=[], exemptions=[], periods=[], paymentAllocations=[], paymentRefundReconciliations=[], currentCitizen=null, busy=false, currentPage=0, pageSize=20, appRole="";
 let summaryByCard=new Map(),auditRows=[];
 const startupTiming={startedAt:performance.now(),stages:{},counts:{}};
@@ -1830,6 +1853,7 @@ async function payInFull(){
 
 async function load(){
  if(busy)return;
+ if(window.VBGRAMG_CONTRIBUTION_STAGE)window.VBGRAMG_CONTRIBUTION_STAGE('Checking sign-in session…');
  try{
   status('Restoring your sign-in session…');
   // Never leave the page on its initial account-check message if session storage stalls.
@@ -1842,6 +1866,7 @@ async function load(){
   // The protected list action independently validates the verified session and approved-user record.
   // Avoid a redundant access-function network round trip during startup.
   status('Loading active MIS and contribution ledger…');
+  if(window.VBGRAMG_CONTRIBUTION_STAGE)window.VBGRAMG_CONTRIBUTION_STAGE('Requesting Contribution data from server…');
   // The list endpoint reads the active MIS, ledger, allocations and FTO attribution.
   // Bound startup wait so a stalled request cannot leave the page loading indefinitely.
   let listTimer;
@@ -1854,13 +1879,16 @@ async function load(){
    ]);
   }finally{if(listTimer)window.clearTimeout(listTimer);}
   recordStartupStage('list_invoke_network_plus_json_parse_ms',requestStarted);
+  if(window.VBGRAMG_CONTRIBUTION_STAGE)window.VBGRAMG_CONTRIBUTION_STAGE('Contribution data received. Processing job cards…');
   const {data,error}=listResult;
   if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
   if(window.VBGRAMGCache)window.VBGRAMGCache.setUser(sessionData.session.user.id);
   const assignmentStarted=performance.now();
   appRole=String(data.role||"");periods=Array.isArray(data.periods)?data.periods:[];$("manualChargeBtn").classList.toggle("hidden",appRole!=="admin");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");$("auditHistoryBtn").classList.toggle("hidden",appRole!=="admin");$("exportDueBtn").classList.remove("hidden");entries=[];summaryByCard=new Map((data.summaries||[]).map(row=>[String(row.job_card_number||'').trim(),row]));paymentAllocations=[];paymentRefundReconciliations=[];extraCharges=[];citizenRegistry=(data.summaries||[]).map(row=>({job_card_number:row.job_card_number,person_name:row.person_name}));applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];
   recordStartupStage("assign_response_data_ms",assignmentStarted);
+  if(window.VBGRAMG_CONTRIBUTION_STAGE)window.VBGRAMG_CONTRIBUTION_STAGE('Building contribution summaries…');
   const deriveStarted=performance.now();deriveCitizens();recordStartupStage("derive_citizens_total_ms",deriveStarted);renderExemptions();
+  if(window.VBGRAMG_CONTRIBUTION_STAGE)window.VBGRAMG_CONTRIBUTION_STAGE('Rendering Contribution table…');
   $('app').classList.remove('hidden');$('status').classList.add('hidden');$('loading-state').classList.add('hidden');
   const firstRenderStarted=performance.now();
   render();
@@ -1870,6 +1898,7 @@ async function load(){
   $('app').classList.add('hidden');$('loading-state').classList.add('hidden');
   const node=$('status');
   const message=err&&err.message?err.message:'Could not load contribution data.';
+  if(window.VBGRAMG_CONTRIBUTION_STAGE)window.VBGRAMG_CONTRIBUTION_STAGE('Startup failed: '+message);
   if(window.showToast)window.showToast(message,'error',8000);
   if(node){
    node.className='notice info';

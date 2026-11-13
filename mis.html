@@ -238,7 +238,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 .mis-import-dialog{width:min(1500px,100%);height:min(94vh,1100px);min-height:0;background:#f3f6fb;border:1px solid #d7deea;border-radius:18px;box-shadow:0 24px 80px rgb(0 0 0 / 28%);display:flex;flex-direction:column;overflow:hidden}
 .mis-import-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;background:#fff;border-bottom:1px solid #e3e8f0}
 .mis-import-dialog-head strong{font-size:.96rem;color:#172033}
-.mis-import-dialog-head button{min-height:38px;padding:8px 13px}
+.mis-import-dialog-head button{min-height:44px;min-width:44px;padding:10px 13px}
 .mis-import-frame{display:block;width:100%;height:100%;min-height:0;border:0;background:#f3f6fb;flex:1}
 body.mis-import-open{overflow:hidden}
 @media(max-width:700px){.mis-data-actions{display:grid;grid-template-columns:1fr}.mis-data-actions button{width:100%}.mis-import-backdrop{padding:0}.mis-import-dialog{width:100%;height:100dvh;max-height:100dvh;border:0;border-radius:0}.mis-import-dialog-head{padding:9px 12px}.mis-import-frame{height:calc(100dvh - 56px)}}
@@ -374,7 +374,41 @@ function openMisImportModal(){
  else hideEmbeddedMisImportHeader();
  requestAnimationFrame(()=>$("close-mis-import").focus({preventScroll:true}));
 }
-$("mis-import-frame").addEventListener("load",hideEmbeddedMisImportHeader);
+function getMisImportFocusableElements(doc){
+ return Array.from(doc.querySelectorAll('a[href],area[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),iframe,[tabindex]:not([tabindex="-1"])')).filter(element=>{
+  if(element.hidden||element.getAttribute('aria-hidden')==='true')return false;
+  const style=doc.defaultView.getComputedStyle(element);
+  return style.display!=='none'&&style.visibility!=='hidden'&&element.getClientRects().length>0;
+ });
+}
+function focusMisImportFrameEdge(last){
+ const frame=$("mis-import-frame");
+ try{
+  const doc=frame.contentDocument;
+  if(!doc)return false;
+  const focusables=getMisImportFocusableElements(doc);
+  const target=last?focusables[focusables.length-1]:focusables[0];
+  if(target){target.focus({preventScroll:true});return true}
+  $("close-mis-import").focus({preventScroll:true});
+  return true;
+ }catch(_){return false}
+}
+function bindMisImportFrameKeyboard(){
+ hideEmbeddedMisImportHeader();
+ try{
+  const doc=$("mis-import-frame").contentDocument;
+  if(!doc)return;
+  doc.addEventListener("keydown",event=>{
+   if(event.key!=="Tab"||$("mis-import-modal").classList.contains("hidden"))return;
+   const focusables=getMisImportFocusableElements(doc);
+   if(!focusables.length){event.preventDefault();$("close-mis-import").focus({preventScroll:true});return}
+   const first=focusables[0],last=focusables[focusables.length-1],active=doc.activeElement;
+   if(event.shiftKey&&active===first){event.preventDefault();$("close-mis-import").focus({preventScroll:true})}
+   else if(!event.shiftKey&&active===last){event.preventDefault();$("close-mis-import").focus({preventScroll:true})}
+  });
+ }catch(_){}
+}
+$("mis-import-frame").addEventListener("load",bindMisImportFrameKeyboard);
 function closeMisImportModal(){
  $("mis-import-modal").classList.add("hidden");document.body.classList.remove("mis-import-open");$("import-link").focus();
 }
@@ -384,7 +418,14 @@ $("import-link").addEventListener("click",()=>{
 });
 $("close-mis-import").addEventListener("click",closeMisImportModal);
 $("mis-import-modal").addEventListener("click",event=>{if(event.target===$("mis-import-modal"))closeMisImportModal();});
-document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!$("mis-import-modal").classList.contains("hidden"))closeMisImportModal();});
+document.addEventListener("keydown",event=>{
+ if($("mis-import-modal").classList.contains("hidden"))return;
+ if(event.key==="Escape"){event.preventDefault();closeMisImportModal();return}
+ if(event.key==="Tab"&&document.activeElement===$("close-mis-import")){
+  event.preventDefault();
+  focusMisImportFrameEdge(event.shiftKey);
+ }
+});
 window.addEventListener("message",event=>{
  if(event.origin!==window.location.origin||!event.data||event.data.type!=="vbgramg-mis-import-complete")return;
  if(window.VBGRAMGCache){window.VBGRAMGCache.invalidate('mis:data:v1');window.VBGRAMGCache.invalidate('mis:selections:v1');}

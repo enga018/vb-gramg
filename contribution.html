@@ -1057,6 +1057,28 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{margin:0!impo
 .search-clear{width:44px;height:44px}
 .fifo-detail-row .fifo-edit .btn,
 .entry .entry-actions .btn{min-width:44px;min-height:44px;padding:9px 10px}
+
+/* Normalize remaining Contribution actions to accessible 44px touch targets.
+   Keep transaction behavior, visual hierarchy, and responsive layout unchanged. */
+.search-clear {
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+}
+#overlay .sheet-head-actions .btn,
+#overlay .sheet-body .entry .entry-actions .btn,
+#overlay .sheet-footer .transaction-actions .btn,
+#desktop-detail-panel .sheet.desktop-inline-sheet .sheet-head-actions .btn,
+#desktop-detail-panel .sheet.desktop-inline-sheet .entry .entry-actions .btn,
+#desktop-detail-panel .sheet.desktop-inline-sheet .sheet-footer .transaction-actions .btn,
+.kpi-actions .btn,
+.page-panel-actions .btn {
+  box-sizing: border-box;
+  min-height: 44px !important;
+}
+
 </style>
   <link rel="stylesheet" href="./responsive.css?v=20261111-design-system">
 <link rel="stylesheet" href="./theme.css?v=20261111-design-system">

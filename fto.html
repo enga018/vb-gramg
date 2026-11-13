@@ -684,11 +684,11 @@ function renderHistoryTransactions(batch){
  wrapper.appendChild(summary);
  const toolbar=document.createElement("div");toolbar.className="fto-view-toolbar";
  const title=document.createElement("strong");title.textContent="Transaction details · "+transactions.length+" rows";
- const toggle=document.createElement("button");toggle.type="button";toggle.className="secondary";toggle.textContent=showSensitiveFtoDetails?"Hide UTR & rejection reason":"Show UTR & rejection reason";
+ const toggle=document.createElement("button");toggle.type="button";toggle.className="secondary";toggle.setAttribute("aria-expanded",String(showSensitiveFtoDetails));toggle.setAttribute("aria-controls","fto-sensitive-transaction-details fto-sensitive-mobile-details");toggle.textContent=showSensitiveFtoDetails?"Hide UTR & rejection reason":"Show UTR & rejection reason";
  toolbar.append(title,toggle);wrapper.appendChild(toolbar);
  const labels=["Job Card No. (Panchayat Name)","Applicant Name","Credit Amount (In Rs.)","Status","Processed Date"];
  if(showSensitiveFtoDetails)labels.push("UTR No.","Rejection Reason");
- const tableWrap=document.createElement("div");tableWrap.className="fto-view-table-wrap";
+ const tableWrap=document.createElement("div");tableWrap.className="fto-view-table-wrap";if(showSensitiveFtoDetails)tableWrap.id="fto-sensitive-transaction-details";
  const table=document.createElement("table");table.className="fto-view-table";const thead=document.createElement("thead"),headRow=document.createElement("tr");
  const displayLabels=["Job Card No.","Applicant Name","Credit Amount","Status","Processed Date","UTR","Rejection Reason"];
  labels.forEach((label,i)=>{const th=document.createElement("th");th.textContent=displayLabels[i];headRow.appendChild(th)});thead.appendChild(headRow);table.appendChild(thead);
@@ -700,7 +700,7 @@ function renderHistoryTransactions(batch){
  }
  if(!transactions.length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=labels.length;td.textContent="No local transaction rows are saved for this FTO.";tr.appendChild(td);tbody.appendChild(tr);}
  table.append(tbody);tableWrap.appendChild(table);wrapper.appendChild(tableWrap);
- const mobile=document.createElement("div");mobile.className="fto-transaction-mobile";
+ const mobile=document.createElement("div");mobile.className="fto-transaction-mobile";if(showSensitiveFtoDetails)mobile.id="fto-sensitive-mobile-details";
  const isMobile=window.matchMedia("(max-width: 700px)").matches,txPages=Math.max(1,Math.ceil(transactions.length/10));ftoTransactionPage=Math.min(ftoTransactionPage,txPages-1);const txStart=isMobile?ftoTransactionPage*10:0,visibleTransactions=isMobile?transactions.slice(txStart,txStart+10):transactions;
  for(const tx of visibleTransactions){
   const card=document.createElement("article");card.className="fto-transaction-mobile-card";
@@ -721,19 +721,39 @@ function renderHistoryTransactions(batch){
  txNext.addEventListener("click",()=>{ftoTransactionPage++;$("fto-view-modal-content").replaceChildren(renderHistoryTransactions(batch))});
  txPager.append(txPrev,txLabel,txNext);wrapper.appendChild(txPager);
  const note=document.createElement("p");note.className="fto-view-note";note.textContent="UTR and rejection reason are hidden by default.";wrapper.appendChild(note);
- toggle.addEventListener("click",()=>{showSensitiveFtoDetails=!showSensitiveFtoDetails;const content=$("fto-view-modal-content");content.replaceChildren(renderHistoryTransactions(batch));});
+ toggle.addEventListener("click",()=>{showSensitiveFtoDetails=!showSensitiveFtoDetails;const content=$("fto-view-modal-content");content.replaceChildren(renderHistoryTransactions(batch));const nextToggle=content.querySelector(".fto-view-toolbar button");if(nextToggle)nextToggle.focus();});
  return wrapper;
 }
-let currentViewingFtoBatch=null;
-function openFtoViewModal(batch){
+let currentViewingFtoBatch=null,ftoViewModalOpener=null;
+function openFtoViewModal(batch,opener=null){
  currentViewingFtoBatch=batch;
+ ftoViewModalOpener=opener||document.activeElement;
  showSensitiveFtoDetails=false;ftoTransactionPage=0;
  $("fto-view-modal-title").textContent="FTO "+String(batch.fto_number||"transactions");
  $("fto-view-modal-subtitle").textContent=String(batch.contribution_period||"No contribution period")+" · "+(batch.transactions||[]).length+" transactions";
  $("fto-view-modal-content").replaceChildren(renderHistoryTransactions(batch));
  $("fto-view-modal-backdrop").classList.remove("hidden");$("fto-view-modal-close").focus();
 }
-function closeFtoViewModal(){$("fto-view-modal-backdrop").classList.add("hidden");$("fto-view-modal-content").replaceChildren();currentViewingFtoBatch=null;}
+function closeFtoViewModal(){
+ $("fto-view-modal-backdrop").classList.add("hidden");
+ $("fto-view-modal-content").replaceChildren();
+ currentViewingFtoBatch=null;
+ const opener=ftoViewModalOpener;ftoViewModalOpener=null;
+ if(opener&&opener.isConnected&&typeof opener.focus==="function")opener.focus();
+}
+function trapFtoViewModalFocus(event){
+ const backdrop=$("fto-view-modal-backdrop");
+ if(backdrop.classList.contains("hidden"))return;
+ const dialog=backdrop.querySelector('[role="dialog"]');
+ if(!dialog)return;
+ const focusable=Array.from(dialog.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')).filter(el=>!el.hidden&&el.getAttribute("aria-hidden")!=="true");
+ if(event.key==="Tab"){
+  if(!focusable.length){event.preventDefault();dialog.setAttribute("tabindex","-1");dialog.focus();return;}
+  const first=focusable[0],last=focusable[focusable.length-1];
+  if(event.shiftKey&&(document.activeElement===first||!dialog.contains(document.activeElement))){event.preventDefault();last.focus();}
+  else if(!event.shiftKey&&(document.activeElement===last||!dialog.contains(document.activeElement))){event.preventDefault();first.focus();}
+ }else if(event.key==="Escape"){event.preventDefault();closeFtoViewModal();}
+}
 let ftoHistoryPage=0;const ftoHistoryPageSize=10;
 function updateFtoHistoryKpis(){
  const totals=ftoHistoryRows.reduce((sum,batch)=>{
@@ -758,8 +778,8 @@ function renderFtoHistory(reset=true){
  const visibleBatches=isMobile?filtered.slice(start,start+ftoHistoryPageSize):filtered;
  visibleBatches.forEach(batch=>{
   const card=document.createElement("article");card.className="fto-card";card.setAttribute("tabindex","0");card.setAttribute("role","button");card.setAttribute("aria-label","Open FTO "+String(batch.fto_number||""));
-  card.addEventListener("click",()=>openFtoViewModal(batch));
-  card.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();openFtoViewModal(batch)}});
+  card.addEventListener("click",()=>openFtoViewModal(batch,card));
+  card.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();openFtoViewModal(batch,card)}});
   const main=document.createElement("div");main.className="card-main";
   const number=document.createElement("div");number.className="fto-number";number.textContent=String(batch.fto_number||"—");
   const periodLine=document.createElement("div");periodLine.className="period-line";periodLine.textContent=String(batch.contribution_period||"No contribution period");
@@ -868,7 +888,10 @@ $("fto-history-period").addEventListener("change",()=>renderFtoHistory());
 $("period-modal-form").addEventListener("submit",saveFtoPeriod);
 $("period-modal-cancel").addEventListener("click",closePeriodModal);$("period-modal-close").addEventListener("click",closePeriodModal);
 $("period-modal-backdrop").addEventListener("click",event=>{if(event.target===$("period-modal-backdrop"))closePeriodModal();});
-document.addEventListener("keydown",event=>{if(event.key!=="Escape")return;if(!$("fto-view-modal-backdrop").classList.contains("hidden"))closeFtoViewModal();else if(!$("period-modal-backdrop").classList.contains("hidden"))closePeriodModal();});
+document.addEventListener("keydown",event=>{
+ if(!$("fto-view-modal-backdrop").classList.contains("hidden")){trapFtoViewModalFocus(event);return;}
+ if(event.key==="Escape"&&!$("period-modal-backdrop").classList.contains("hidden"))closePeriodModal();
+});
 
 
 async function verifyAccess(user){

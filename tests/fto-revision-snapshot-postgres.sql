@@ -102,7 +102,8 @@ begin
 end
 $$;
 
-\ir ../supabase/migrations/20261111110537_create_fto_revision_preview.sql\n\ir ../supabase/migrations/20261113190000_extend_fto_revision_snapshot.sql
+\ir ../supabase/migrations/20261111110537_create_fto_revision_preview.sql
+\ir ../supabase/migrations/20261113190000_extend_fto_revision_snapshot.sql
 
 insert into public.vbgramg_fto_batches(id,fto_number,contribution_period)
 values ('00000000-0000-0000-0000-000000000001','TEST-FTOSNAP-001','JAN26');
@@ -211,19 +212,6 @@ begin
      or (v_snapshot->'payment_allocations'->0->>'amount')::numeric <> 20
      or v_snapshot->'payment_allocations'->0->>'payment_is_voided' <> 'false' then
     raise exception 'Snapshot payment allocation evidence is incomplete';
-  end if;
-
-  if jsonb_array_length(v_snapshot->'charge_payment_allocations') <> 1
-     or (v_snapshot->'charge_payment_allocations'->0->>'amount')::numeric <> 12
-     or v_snapshot->'charge_payment_allocations'->0->>'charge_period_id'
-       <> '00000000-0000-0000-0000-000000000011' then
-    raise exception 'Snapshot charge-level allocation evidence is incomplete';
-  end if;
-
-  if jsonb_array_length(v_snapshot->'manual_charge_links') <> 1
-     or v_snapshot->'manual_charge_links'->0->>'ledger_entry_id'
-       <> '00000000-0000-0000-0000-000000000204' then
-    raise exception 'Snapshot manual FTO link history is incomplete';
   end if;
 
   if jsonb_array_length(v_snapshot->'charge_payment_allocations') <> 1

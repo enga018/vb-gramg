@@ -1112,24 +1112,33 @@ const $=id=>document.getElementById(id);
 const startupNode=$('status');
 if(startupNode)startupNode.textContent='JavaScript started — loading connection library…';
 function setStartupError(message){
+ const loading=$('loading-state');
+ if(loading)loading.classList.add('hidden');
  const node=$('status');
  if(!node)return;
  if(window.showToast)window.showToast(message,'error',8000);
- node.className='notice info';
- node.replaceChildren();
+ node.className='notice err';
+ node.replaceChildren(document.createTextNode(message+' '));
  const retry=document.createElement('button');
  retry.type='button';
  retry.className='btn ghost small';
  retry.textContent='Reload page';
  retry.addEventListener('click',()=>window.location.reload());
  node.appendChild(retry);
+ node.classList.remove('hidden');
 }
 let supabaseClient;
+let readinessTimer;
 try {
- supabaseClient = await window.VBGRAMG_SUPABASE_READY;
+ supabaseClient = await Promise.race([
+  window.VBGRAMG_SUPABASE_READY,
+  new Promise((_,reject)=>{readinessTimer=window.setTimeout(()=>reject(new Error('Connection library initialization timed out after 15 seconds. Check your connection and reload the page.')),15000);})
+ ]);
 } catch (libraryError) {
- setStartupError('Could not load the connection library. Check your internet connection and use Reload page to try again.');
+ setStartupError(libraryError&&libraryError.message?libraryError.message:'Could not load the connection library. Check your internet connection and reload the page.');
  return;
+} finally {
+ if(readinessTimer!==undefined)window.clearTimeout(readinessTimer);
 }
 let entries=[], citizens=[], citizenRegistry=[], applicantsByCard={}, extraCharges=[], exemptions=[], periods=[], paymentAllocations=[], paymentRefundReconciliations=[], currentCitizen=null, busy=false, currentPage=0, pageSize=20, appRole="";
 let summaryByCard=new Map(),auditRows=[];
@@ -1966,6 +1975,8 @@ $('sheetBody').addEventListener('click',ev=>{
 supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT'||!session){$('app').classList.add('hidden');status('Sign in from the VBGRAMG home page first.');}});
 load().catch(err=>setStartupError(err&&err.message?err.message:'Could not start the Contribution page.'));
 })().catch(err=>{
+ const loading=document.getElementById('loading-state');
+ if(loading)loading.classList.add('hidden');
  const node=document.getElementById('status');
  if(node){
   const message='Could not start the Contribution page. Return to the main menu, sign in again, then reopen Contribution.';

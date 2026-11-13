@@ -80,6 +80,11 @@ begin
           from public.vbgramg_payment_allocations a
           where a.job_card_number = any(v_cards)
           union
+          select charge.period_id
+          from public.vbgramg_charge_payment_allocations a
+          join public.vbgramg_charge_ledger charge on charge.id = a.charge_id
+          where a.job_card_number = any(v_cards) and charge.period_id is not null
+          union
           select w.period_id
           from public.vbgramg_waiver_period_allocations w
           where w.job_card_number = any(v_cards)

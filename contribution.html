@@ -1042,6 +1042,16 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{margin:0!impo
  }
  #table-wrap #contribution-table .mobile-person-inline{white-space:normal;overflow-wrap:anywhere;word-break:normal}
 }
+
+/* Contribution Citizen View dialog accessibility and touch targets. */
+#overlay[role="dialog"] .sheet{outline:none}
+#overlay[role="dialog"] .sheet-head-actions .btn,
+#overlay[role="dialog"] .sheet-head-actions .x,
+#overlay[role="dialog"] .sheet-body .entry-actions .btn,
+#overlay[role="dialog"] .sheet-footer .transaction-actions .btn{
+ min-width:44px;min-height:44px;box-sizing:border-box
+}
+#overlay[role="dialog"] .sheet-head-actions .x{display:inline-flex;align-items:center;justify-content:center}
 </style>
   <link rel="stylesheet" href="./responsive.css?v=20261111-design-system">
 <link rel="stylesheet" href="./theme.css?v=20261111-design-system">
@@ -1058,7 +1068,7 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{margin:0!impo
 </section></div>
 </div>
 </main>
-<div id="overlay" class="overlay hidden" role="dialog" aria-modal="true"><div class="sheet"><div class="sheet-head"><div class="sheet-heading"><h2 id="sheetTitle">Job card number</h2><div id="sheetSubtitle" class="sheet-subtitle"></div></div><div class="sheet-head-actions"><button class="btn ghost small" id="toggleEditMode" type="button" aria-pressed="false">Edit</button><button class="x" id="closeSheet" aria-label="Close">×</button></div></div><div id="sheetBody" class="sheet-body"></div><div id="sheetFooter" class="sheet-footer hidden"></div></div></div>
+<div id="overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="sheet"><div class="sheet-head"><div class="sheet-heading"><h2 id="sheetTitle">Job card number</h2><div id="sheetSubtitle" class="sheet-subtitle"></div></div><div class="sheet-head-actions"><button class="btn ghost small" id="toggleEditMode" type="button" aria-pressed="false">Edit</button><button class="x" id="closeSheet" aria-label="Close">×</button></div></div><div id="sheetBody" class="sheet-body"></div><div id="sheetFooter" class="sheet-footer hidden"></div></div></div>
 
 <script src="./supabase/functions/shared/ledger-calculations.js?v=20261104a"></script>
 <script src="./js/contribution.js?v=20261104a"></script>
@@ -1298,7 +1308,9 @@ function exportOutstandingDueList(){
  const rows=due.map(c=>'<tr><td>'+esc(c.id)+'</td><td>'+esc(c.name||'—')+'</td><td class="amount">'+fmt(c.balance)+'</td></tr>').join('');
  const popup=window.open('','_blank');
  if(!popup){status('Allow pop-ups for this site to export the due list.','err');return;}
- const report='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contribution Outstanding Due List</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#172033;margin:28px}h1{font-size:20px;margin:0 0 5px}.meta{color:#667085;font-size:12px;margin-bottom:18px}.summary{display:flex;gap:24px;margin:0 0 18px;font-size:13px}.summary b{font-size:15px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;border-bottom:1px solid #dfe5ee;text-align:left}th{background:#edf2f8;text-transform:uppercase;font-size:10px;letter-spacing:.04em}.amount{text-align:right;white-space:nowrap;font-weight:700}.total td{font-weight:800;border-top:2px solid #667085}@media print{body{margin:12mm}thead{display:table-header-group}tr{break-inside:avoid}}@media(max-width:600px){body{margin:14px;overflow-x:auto}.summary{gap:14px;flex-wrap:wrap}}</style></head><body><h1>Contribution Outstanding Due List</h1><div class="meta">VBGRAMG · Generated on '+esc(new Date().toLocaleDateString('en-IN'))+'</div><table><thead><tr><th>Job Card Number</th><th>Head of Household</th><th style="text-align:right">Outstanding</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
+ const report='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contribution Outstanding Due List</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#172033;margin:28px}h1{font-size:20px;margin:0 0 5px}.meta{color:#667085;font-size:12px;margin-bottom:18px}.summary{display:flex;gap:24px;margin:0 0 18px;font-size:13px}.summary b{font-size:15px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;border-bottom:1px solid #dfe5ee;text-align:left}th{background:#edf2f8;text-transform:uppercase;font-size:10px;letter-spacing:.04em}.amount{text-align:right;white-space:nowrap;font-weight:700}.total td{font-weight:800;border-top:2px solid #667085}@media print{body{margin:12mm}thead{display:table-header-group}tr{break-inside:avoid}}@media(max-width:600px){body{margin:14px;overflow-x:auto}.summary{gap:14px;flex-wrap:wrap}}
+
+</style></head><body><h1>Contribution Outstanding Due List</h1><div class="meta">VBGRAMG · Generated on '+esc(new Date().toLocaleDateString('en-IN'))+'</div><table><thead><tr><th>Job Card Number</th><th>Head of Household</th><th style="text-align:right">Outstanding</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
  popup.document.open();popup.document.write(report);popup.document.close();popup.focus();popup.print();
 }
 function buildFifoBreakdown(c){
@@ -1336,8 +1348,10 @@ function buildFifoBreakdown(c){
  return '<div class="section-title">Transaction history</div><div class="fifo-period-list">'+(rows||'<div class="empty">No active charges to allocate.</div>')+'</div>'+(netRefundExcess>0?'<div class="notice info">Refunds exceed recorded payments by '+fmt(netRefundExcess)+'. The existing outstanding balance includes this difference.</div>':'');
 }
 let citizenDetailRequest=0;
+let citizenDialogOpener=null;
 async function openCitizen(id){
  const c=citizens.find(item=>item.id===id);if(!c)return;
+ if($("overlay").classList.contains("hidden"))citizenDialogOpener=document.activeElement;
  currentCitizen=c;
  const requestId=++citizenDetailRequest;
  const sheet=$('overlay').querySelector('.sheet');
@@ -1348,6 +1362,7 @@ async function openCitizen(id){
  $('sheetBody').innerHTML='<div class="notice info">Loading complete transaction details…</div>';
  $('toggleEditMode').classList.add('hidden');
  $('overlay').classList.remove('hidden');
+ $('closeSheet').focus();
  document.querySelectorAll('#contribution-table tbody tr').forEach(row=>row.classList.toggle('selected',row.dataset.card===c.id));
  try{
   const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'job-card-details',job_card_number:c.id},deduplicate:true,timeoutMs:45000});
@@ -1857,11 +1872,27 @@ $('toggleEditMode').addEventListener('click',()=>{
 });
 function closeCitizenDetail(){
  citizenDetailRequest++;
-
  $('overlay').classList.add('hidden');
  currentCitizen=null;
  document.querySelectorAll('#contribution-table tbody tr').forEach(row=>row.classList.remove('selected'));
+ const opener=citizenDialogOpener;
+ citizenDialogOpener=null;
+ if(opener&&opener.isConnected&&typeof opener.focus==='function')opener.focus();
+ else if($('search'))$('search').focus();
 }
+document.addEventListener('keydown',ev=>{
+ const overlay=$('overlay');
+ if(!overlay||overlay.classList.contains('hidden'))return;
+ if(ev.key==='Escape'){ev.preventDefault();closeCitizenDetail();return;}
+ if(ev.key!=='Tab')return;
+ const sheet=overlay.querySelector('.sheet');
+ if(!sheet)return;
+ const focusable=Array.from(sheet.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')).filter(el=>el.getClientRects().length&&!el.closest('.hidden'));
+ if(!focusable.length){ev.preventDefault();sheet.setAttribute('tabindex','-1');sheet.focus();return;}
+ const first=focusable[0],last=focusable[focusable.length-1];
+ if(ev.shiftKey&&(document.activeElement===first||!sheet.contains(document.activeElement))){ev.preventDefault();last.focus();}
+ else if(!ev.shiftKey&&(document.activeElement===last||!sheet.contains(document.activeElement))){ev.preventDefault();first.focus();}
+});
 $('closeSheet').addEventListener('click',closeCitizenDetail);
 $('overlay').addEventListener('click',e=>{if(e.target===$('overlay'))closeCitizenDetail();});
 $('sheetBody').addEventListener('keydown',ev=>{

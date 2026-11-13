@@ -153,7 +153,7 @@ insert into public.vbgramg_ledger_audit(
   '00000000-0000-0000-0000-000000000204',
   'JC-001','manual_charge_linked_to_fto',
   '{"id":"00000000-0000-0000-0000-000000000204"}'::jsonb,
-  '{"note":"FTO-linked"}'::jsonb
+  '{"reference_numbers":["REF-001"],"note":"FTO-linked"}'::jsonb
 );
 
 insert into public.vbgramg_payment_refund_reconciliations(

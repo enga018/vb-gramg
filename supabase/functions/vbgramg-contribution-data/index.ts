@@ -91,19 +91,27 @@ Deno.serve(async(req:Request)=>{
  if(req.method==="OPTIONS")return new Response("ok",{headers:corsHeaders});
  if(req.method!=="POST")return reply({error:"Method not allowed"},405);
  const requestStarted=performance.now();
+ const requestStageTimings:Record<string,number>={};
  const header=req.headers.get("Authorization")||"";const token=header.replace(/^Bearer\s+/i,"");
  if(!token||token===header)return reply({error:"Sign in required."},401);
  const url=Deno.env.get("SUPABASE_URL"),anonKey=Deno.env.get("SUPABASE_ANON_KEY"),serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
  if(!url||!anonKey||!serviceKey)return reply({error:"Server configuration is incomplete."},500);
  const auth=createClient(url,anonKey,{auth:{persistSession:false,autoRefreshToken:false}});
+ const authLookupStarted=performance.now();
  const {data:authData,error:authError}=await auth.auth.getUser(token);
+ requestStageTimings.auth_user=Number((performance.now()-authLookupStarted).toFixed(1));
  if(authError||!authData.user||!authData.user.email_confirmed_at)return reply({error:"A verified account is required."},401);
  const admin=createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
  const email=(authData.user.email||"").trim().toLowerCase();
+ const approvalLookupStarted=performance.now();
  const {data:approved,error:approvalError}=await admin.from("vbgramg_approved_users").select("email,role").eq("email",email).maybeSingle();
+ requestStageTimings.approved_user_lookup=Number((performance.now()-approvalLookupStarted).toFixed(1));
  if(approvalError)return reply({error:"Could not verify app access."},500);if(!approved)return reply({error:"This account has not been approved for VBGRAMG."},403);
  try{
-  const body=await req.json().catch(()=>({}));const action=String(body.action||"list");
+  const bodyParseStarted=performance.now();
+  const body=await req.json().catch(()=>({}));
+  requestStageTimings.request_body_parse=Number((performance.now()-bodyParseStarted).toFixed(1));
+  const action=String(body.action||"list");
   if(action==="save-exemption"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can manage exempt job cards."},403);
    const jobCard=String(body.job_card_number||"").trim().slice(0,100);
@@ -247,7 +255,7 @@ Deno.serve(async(req:Request)=>{
     return {...sql,job_card_number:id,person_name:String(c.person_name||"Unnamed"),exempt:isExempt,charges:isExempt?0:Number(sql.charges)||0,deferred:isExempt?0:Number(sql.deferred)||0,paid:isExempt?0:Number(sql.paid)||0,waived:isExempt?0:Number(sql.waived)||0,returns:isExempt?0:Number(sql.returns)||0,totalCharged:isExempt?0:Number(sql.totalCharged)||0,balance:isExempt?0:Number(sql.balance)||0};
    });
    const payload={approved:true,role:approved.role,summaries,periods:periodsResult.data||[],financial_totals:sqlSummary.totals||{},exemptions:exemptionsResult.data||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:Number(misState.row_count||0)};
-   console.info("[contribution-summary-timing]",JSON.stringify({request_ms:Number((performance.now()-requestStarted).toFixed(1)),total_ms:Number((performance.now()-summaryStarted).toFixed(1)),query_timings_ms:queryTimings,applicant_cache_hit:Boolean(lookupCache?.payload),calculation_source:"postgresql",job_cards:summaries.length,response_bytes:new TextEncoder().encode(JSON.stringify(payload)).length}));
+   console.info("[contribution-summary-timing]",JSON.stringify({request_ms:Number((performance.now()-requestStarted).toFixed(1)),pre_action_ms:Number((summaryStarted-requestStarted).toFixed(1)),request_stage_timings_ms:requestStageTimings,total_ms:Number((performance.now()-summaryStarted).toFixed(1)),query_timings_ms:queryTimings,applicant_cache_hit:Boolean(lookupCache?.payload),calculation_source:"postgresql",job_cards:summaries.length,response_bytes:new TextEncoder().encode(JSON.stringify(payload)).length}));
    return reply(payload);
   }
 

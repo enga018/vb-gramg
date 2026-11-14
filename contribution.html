@@ -29,17 +29,21 @@ table{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem;white
 /* Contribution action modal: match the Periods > Create Period dialog. */
 #overlay.action-modal-overlay{padding:16px!important;background:rgb(15 23 42 / 48%)!important}
 #overlay.action-modal-overlay>.sheet.action-modal{
+ display:flex!important;flex-direction:column!important;
  width:min(92vw,440px)!important;max-width:440px!important;
- height:auto!important;max-height:90vh!important;
+ height:auto!important;min-height:0!important;max-height:90dvh!important;
+ flex:0 1 auto!important;
  border:1px solid var(--line)!important;border-radius:16px!important;
  box-shadow:0 18px 55px rgb(15 23 42 / 22%)!important;
 }
-#overlay>.sheet.action-modal .sheet-head{padding:18px 20px;min-height:76px}
+#overlay>.sheet.action-modal .sheet-head{flex:0 0 auto!important;padding:16px 18px;min-height:0!important}
 #overlay>.sheet.action-modal .sheet-head h2{font-size:1.18rem;font-weight:750}
-#overlay>.sheet.action-modal .sheet-body{padding:18px!important;overflow:auto}
+#overlay>.sheet.action-modal .sheet-body{flex:0 1 auto!important;min-height:0!important;padding:18px!important;overflow:auto}
 #overlay>.sheet.action-modal .sheet-body .notice{margin-bottom:10px}
 #overlay>.sheet.action-modal .sheet-body form{display:grid;gap:10px}
 #overlay>.sheet.action-modal .sheet-body form .field{margin:0}
+#overlay>.sheet.action-modal #toggleEditMode{display:none!important}
+#overlay>.sheet.action-modal .sheet-footer{display:none!important}
 #overlay>.sheet.action-modal .sheet-body form .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 #overlay>.sheet.action-modal .sheet-body form button{min-height:46px}
 #overlay>.sheet.action-modal .sheet-body form .btn.ghost{margin-left:0}
@@ -1733,7 +1737,7 @@ function showExtraChargeForm(preferredPeriodId){
 function showPaymentForm(){
  $('sheetFooter').classList.add('hidden');
  const c=currentCitizen;if(!c)return;
- $('sheetTitle').textContent='Record payment';$('sheetSubtitle').textContent='';$('sheetBody').innerHTML='<form id="paymentForm"><div class="field"><label for="paymentAmount">Amount (₹)</label><input id="paymentAmount" type="number" min="0.01" max="'+Number(c.balance).toFixed(2)+'" step="0.01" required inputmode="decimal"></div><div class="field"><label for="paymentDate">Date</label><input id="paymentDate" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div><div class="dialog-actions"><button class="btn" type="submit" id="savePayment">Save</button><button class="btn ghost" type="button" id="cancelPayment">Cancel</button></div></form>';
+ $('sheetTitle').textContent='Record payment';$('sheetSubtitle').textContent='';$('toggleEditMode').classList.add('hidden');$('sheetBody').innerHTML='<form id="paymentForm"><div class="field"><label for="paymentAmount">Amount (₹)</label><input id="paymentAmount" type="number" min="0.01" max="'+Number(c.balance).toFixed(2)+'" step="0.01" required inputmode="decimal"></div><div class="field"><label for="paymentDate">Date</label><input id="paymentDate" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div><div class="dialog-actions"><button class="btn" type="submit" id="savePayment">Save</button><button class="btn ghost" type="button" id="cancelPayment">Cancel</button></div></form>';
  $('cancelPayment').addEventListener('click',closeCitizenDetail);
  $('paymentForm').addEventListener('submit',async ev=>{
   ev.preventDefault();if(busy)return;
@@ -1913,7 +1917,7 @@ function showAdjustmentForm(action){
  $('sheetFooter').classList.add('hidden');
  const c=currentCitizen;if(!c)return;
  const isWaiver=action==="add-waiver",title=isWaiver?"Waive":"Refund";
- $('sheetTitle').textContent=isWaiver?"Waive":"Refund";$('sheetSubtitle').textContent='';
+ $('sheetTitle').textContent=isWaiver?"Waive":"Refund";$('sheetSubtitle').textContent='';$('toggleEditMode').classList.add('hidden');
  $('sheetBody').innerHTML='<form id="adjustmentForm"><div class="field"><label for="adjustAmount">Amount (₹)</label><input id="adjustAmount" type="number" min="0.01" max="' +(isWaiver?Number(c.balance).toFixed(2):10000000)+'" step="0.01" required inputmode="decimal"></div><div class="field"><label for="adjustDate">Date</label><input id="adjustDate" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div><div class="dialog-actions"><button class="btn" id="saveAdjustment" type="submit">'+title+'</button><button class="btn ghost" id="cancelAdjustment" type="button">Cancel</button></div></form>';
  $('cancelAdjustment').addEventListener('click',closeCitizenDetail);
  $('adjustmentForm').addEventListener('submit',async ev=>{
@@ -1932,7 +1936,7 @@ function showAdjustmentForm(action){
 async function payInFull(){
  const c=currentCitizen;if(!c||busy||c.balance<=0)return;
  $('sheetFooter').classList.add('hidden');
- $('sheetTitle').textContent='Pay in full';$('sheetSubtitle').textContent='';
+ $('sheetTitle').textContent='Pay in full';$('sheetSubtitle').textContent='';$('toggleEditMode').classList.add('hidden');
  $('sheetBody').innerHTML='<div class="balance"><div class="label">Amount</div><div class="amount owing">'+fmt(c.balance)+'</div></div><div class="dialog-actions"><button class="btn" type="button" id="confirmFullPayment">Confirm</button><button class="btn ghost" type="button" id="cancelFullPayment">Cancel</button></div>';
  $('cancelFullPayment').addEventListener('click',closeCitizenDetail);
  $('confirmFullPayment').addEventListener('click',()=>executeFullPayment());

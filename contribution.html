@@ -26,24 +26,30 @@ table{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem;white
 .badge{display:inline-flex;font-size:.66rem;font-weight:750;padding:4px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.04em}.badge.paid{background:#e6f4ea;color:var(--paid)}.badge.partial{background:#fdf1e3;color:var(--partial)}.badge.due{background:#fdeaea;color:var(--due)}.row-status{display:inline-flex;align-items:center;gap:4px;margin-top:5px;font-size:.7rem;font-weight:800;border-radius:6px;padding:3px 7px;white-space:nowrap}.row-status.overpaid{background:#c7d8ff;color:#1e40af}.row-status.due{background:#f8caca;color:#8f1717}.row-status.exempt{background:#e2e5e9;color:#344054}.row-status.settled{background:#bfe8ca;color:#14532d}.row-status.deferred{background:#ffe09a;color:#754400}
 .notice{padding:11px 13px;border:1px solid #e5eaf2;border-radius:10px;background:#f7f9fc;color:#475467;font-size:.88rem;line-height:1.45;margin:0 0 16px;overflow-wrap:anywhere}.notice.err{background:#fff4f2;border-color:#ffd8d2;color:#a12b20}.notice.info{background:#f7f9fc;border-color:#e5eaf2;color:#475467}.hidden{display:none!important}.empty{padding:24px;text-align:center;color:var(--muted);font-size:.9rem}.count{color:var(--muted);font-size:.84rem;margin:0 0 10px}
 
-/* Reusable compact action modal, visually aligned with the Periods > Create Period dialog. */
-#overlay.action-modal-overlay{padding:16px!important}
+/* Contribution action modal: match the Periods > Create Period dialog. */
+#overlay.action-modal-overlay{padding:16px!important;background:rgb(15 23 42 / 48%)!important}
 #overlay.action-modal-overlay>.sheet.action-modal{
  width:min(92vw,440px)!important;max-width:440px!important;
  height:auto!important;max-height:90vh!important;
  border:1px solid var(--line)!important;border-radius:16px!important;
  box-shadow:0 18px 55px rgb(15 23 42 / 22%)!important;
 }
-#overlay>.sheet.action-modal .sheet-head{padding:16px 18px}
+#overlay>.sheet.action-modal .sheet-head{padding:18px 20px;min-height:76px}
+#overlay>.sheet.action-modal .sheet-head h2{font-size:1.18rem;font-weight:750}
 #overlay>.sheet.action-modal .sheet-body{padding:22px!important;overflow:auto}
 #overlay>.sheet.action-modal .sheet-body .notice{margin-bottom:16px}
 #overlay>.sheet.action-modal .sheet-body form{display:grid;gap:14px}
 #overlay>.sheet.action-modal .sheet-body form .field{margin:0}
 #overlay>.sheet.action-modal .sheet-body form .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-#overlay>.sheet.action-modal .sheet-body form button{min-height:44px}
-#overlay>.sheet.action-modal .sheet-body form .btn.ghost{margin-left:6px}
+#overlay>.sheet.action-modal .sheet-body form button{min-height:46px}
+#overlay>.sheet.action-modal .sheet-body form .btn.ghost{margin-left:0}
 #overlay>.sheet.action-modal .dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
-#overlay>.sheet.action-modal .dialog-actions button{min-width:112px;min-height:44px}
+#overlay>.sheet.action-modal .dialog-actions button{flex:1;min-width:112px;min-height:46px}
+#overlay>.sheet.action-modal .x{
+ width:44px;height:44px;border-radius:10px;
+ color:#f3fffb;background:#216653;border:1px solid #32836d;
+ font-size:24px;font-weight:700;
+}
 @media(max-width:767px){
  #overlay.action-modal-overlay{padding:16px!important}
  #overlay.action-modal-overlay>.sheet.action-modal{
@@ -51,9 +57,13 @@ table{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem;white
   height:auto!important;max-height:90dvh!important;
   border:1px solid var(--line)!important;border-radius:16px!important;
  }
- #overlay>.sheet.action-modal .sheet-head{padding:14px 16px}
+ #overlay>.sheet.action-modal .sheet-head{padding:16px 18px;min-height:72px}
  #overlay>.sheet.action-modal .sheet-body{padding:18px!important}
  #overlay>.sheet.action-modal .sheet-body form .grid2{grid-template-columns:1fr}
+ #overlay>.sheet.action-modal .sheet-body form button,
+ #overlay>.sheet.action-modal .dialog-actions button{width:100%;min-height:46px}
+ #overlay>.sheet.action-modal .sheet-body form .btn.ghost{margin-left:0}
+ #overlay>.sheet.action-modal .dialog-actions{display:grid;grid-template-columns:1fr 1fr}
 }
 
 /* Citizen detail surfaces inherit the active light/dark theme. */

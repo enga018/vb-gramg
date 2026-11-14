@@ -36,6 +36,8 @@ on:
       - "supabase/migrations/20261111105048_add_fto_revision_history.sql"
       - "supabase/migrations/20261111110537_create_fto_revision_preview.sql"
       - "tests/fto-revision-fifo-simulation-postgres.sql"
+      - "supabase/migrations/20261113180000_add_fto_revision_fifo_rebuild.sql"
+      - "tests/fto-revision-fifo-rebuild-postgres.sql"
       - "tests/fto-revision-snapshot-postgres.sql"
       - "supabase/migrations/20261111120000_track_contribution_exemption_intervals.sql"
       - "tests/fto-exemption-period-eligibility-postgres.sql"
@@ -215,6 +217,11 @@ jobs:
         run: |
           createdb vbgramg_fto_fifo_simulation_test
           PGDATABASE=vbgramg_fto_fifo_simulation_test psql -v ON_ERROR_STOP=1 -f tests/fto-revision-fifo-simulation-postgres.sql
+      - name: Run FTO full FIFO rebuild PostgreSQL tests
+        if: hashFiles('tests/fto-revision-fifo-rebuild-postgres.sql') != ''
+        run: |
+          createdb vbgramg_fto_fifo_rebuild_test
+          PGDATABASE=vbgramg_fto_fifo_rebuild_test psql -v ON_ERROR_STOP=1 -f tests/fto-revision-fifo-rebuild-postgres.sql
       - name: Run FTO revision snapshot PostgreSQL tests
         run: |
           createdb vbgramg_fto_revision_snapshot_test

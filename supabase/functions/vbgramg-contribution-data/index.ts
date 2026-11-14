@@ -216,7 +216,9 @@ Deno.serve(async(req:Request)=>{
    const sqlByCard=new Map(sqlSummary.summaries.map(row=>[String(row.job_card_number||"").trim(),row]));
    const misState=misStateResult.data;
    if(!misState?.active_import_id)throw new Error("There is no active MIS import. Load the active MIS before using the contribution table.");
+   const applicantCacheStarted=performance.now();
    const {data:lookupCache,error:lookupError}=await admin.from("vbgramg_mis_contribution_lookup").select("payload").eq("import_id",misState.active_import_id).maybeSingle();
+   queryTimings["applicant_cache"]=Number((performance.now()-applicantCacheStarted).toFixed(1));
    if(lookupError)throw lookupError;
    let citizens:Record<string,string>[]=[];
    let applicantsByCard:Record<string,Record<string,string|null>[]>={};

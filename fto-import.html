@@ -418,7 +418,7 @@ header .app-header-actions > button {
  <div class="settings-panel">
  <div class="import-grid">
   <div class="field"><label for="fto-number">FTO number</label><input id="fto-number" type="text" maxlength="100" placeholder="Detected from pasted table" readonly required></div>
-  <div class="field"><label for="charge-period">Period</label><select id="charge-period" required><option value="">Loading open periods…</option></select></div>
+  <div class="field"><label for="charge-period">Period</label><select id="charge-period" required disabled aria-busy="true"><option value="">Loading open periods…</option></select></div>
   <div class="field"><label for="amount-divisor">Divisor (Credit Amount ÷)</label><input id="amount-divisor" type="number" min="0.01" step="any" value="300" required></div>
   <div class="field"><label for="amount-multiplier">Multiplier (×)</label><input id="amount-multiplier" type="number" min="0.01" step="any" value="100" required></div>
 
@@ -592,14 +592,19 @@ function selectedPeriod(){return sharedPeriods.find(p=>p.id===$('charge-period')
 function selectedPeriodDate(){return selectedPeriod()?.contribution_month||'';}
 function selectedPeriodName(){return selectedPeriod()?.period_name||'';}
 async function loadSharedPeriods(selectedId=''){
+ const select=$('charge-period');
+ select.disabled=true;
+ select.setAttribute('aria-busy','true');
  const data=await window.VBGRAMGCache.getOrLoad('periods:list:v1',()=>window.VBGRAMGData.request('vbgramg-periods',{body:{action:'list'}}),30000);
  if(!data||data.approved!==true)throw new Error((data&&data.error)||'Could not load shared periods.');
  sharedPeriods=data.periods||[];
  const allowed=sharedPeriods.filter(p=>p.status==='open'||p.id===selectedId);
- const select=$('charge-period'),old=selectedId||select.value;select.replaceChildren();
+ const old=selectedId||select.value;select.replaceChildren();
  const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent=allowed.some(p=>p.status==='open')?'Select a contribution month':'No open contribution months — manage periods';select.appendChild(placeholder);
  for(const p of allowed.filter(p=>p.contribution_month)){const option=document.createElement('option');option.value=p.id;option.textContent=p.period_name+(p.status==='closed'?' · Closed':'');option.dataset.date=p.contribution_month;option.dataset.status=p.status;select.appendChild(option);}
  if([...select.options].some(o=>o.value===old))select.value=old;
+ select.disabled=false;
+ select.removeAttribute('aria-busy');
 }
 function currentStatusAction(){return 'all'}
 function actionGroups(){return importGroups}
@@ -931,8 +936,13 @@ async function verifyAccess(user){
  if(seq!==authSequence)return false;
  if(error||!data||data.approved!==true){await supabaseClient.auth.signOut();window.location.replace('./');return false}
  if(window.VBGRAMGCache)window.VBGRAMGCache.setUser(user.id);
- try{await loadSharedPeriods();}catch(err){status('Could not load shared periods: '+(err.message||'unknown error'),'error');return false;}
  $('app-panel').classList.remove('hidden');
+ // Load periods after the import panel is visible, without delaying first paint.
+ loadSharedPeriods().catch(err=>{
+  $('charge-period').disabled=true;
+  $('charge-period').setAttribute('aria-busy','false');
+  status('Could not load shared periods: '+(err.message||'unknown error'),'error');
+ });
  // FTO history is shown on fto.html.
  return true;
 }

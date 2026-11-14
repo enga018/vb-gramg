@@ -15,7 +15,26 @@
   --button-danger-text: var(--color-status-danger, #a12b20);
 }
 
-/* Shared interaction baseline only: do not repaint unclassified page controls. */
+/* Shared geometry: all actions use one compact, predictable control size.
+   Page-specific colors and layout remain owned by each page. */
+:where(button, .btn, .link-button, .module-link, a.link) {
+  box-sizing: border-box;
+  min-height: 40px !important;
+  padding: 8px 13px !important;
+  border-radius: 10px;
+  font-size: .875rem;
+  line-height: 1.2;
+  touch-action: manipulation;
+}
+
+/* Icon-only controls stay square and easy to tap. */
+:where(.icon-button, button.icon-only, .x) {
+  width: 40px;
+  min-width: 40px;
+  min-height: 40px !important;
+  padding: 8px !important;
+}
+
 :where(button, .btn, .link-button, .module-link, a.link) {
   box-sizing: border-box;
   min-height: var(--button-height);
@@ -77,9 +96,9 @@
   transform: translateY(1px);
 }
 
-/* Explicit compact utility remains at least 40px high. */
+/* Compact utility is available for dense tables when explicitly requested. */
 :where(.btn.small, .button-small) {
-  min-height: 40px;
+  min-height: 36px !important;
   padding: 8px 11px;
   font-size: .84rem;
 }

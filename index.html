@@ -15,9 +15,9 @@ button,.module-link{font:inherit;font-weight:650;border:0;border-radius:10px;min
 button.secondary{background:#e2e8f0;color:#0f172a}.hidden{display:none!important}
 .status{margin-top:14px;padding:12px 14px;border-radius:9px;background:#f8fafc;color:#475569;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.9rem}.status.error{background:#fef2f2;color:#991b1b}.status.success{background:#f0fdf4;color:#166534}
 .account{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.account-label{font-size:.9rem;color:#475569;overflow-wrap:anywhere}
-.modules{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:20px}
-.module{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:22px;border:1px solid #e2e8f0;border-radius:14px;background:#fff;box-shadow:0 8px 24px rgb(15 23 42 / 4%);text-decoration:none;color:#0f172a;min-height:190px}
-.module:hover{border-color:#94a3b8;background:#f8fafc}.module.future{opacity:.72;cursor:not-allowed}.module .symbol{font-size:1.8rem}.module p{margin:0;font-size:.92rem}.module-link{margin-top:auto;width:100%}
+.modules{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:14px}
+.module{display:flex;flex-direction:column;align-items:flex-start;gap:7px;padding:16px;border:1px solid #e2e8f0;border-radius:14px;background:#fff;box-shadow:0 8px 24px rgb(15 23 42 / 4%);text-decoration:none;color:#0f172a;min-height:0}
+.module:hover{border-color:#94a3b8;background:#f8fafc}.module.future{opacity:.72;cursor:not-allowed}.module .symbol{display:grid;place-items:center;width:34px;height:34px;font-size:1.45rem;font-weight:750;line-height:1;color:#64748b}.module p{margin:0;font-size:.92rem}.module-link{margin-top:3px;width:100%}
 @media(max-width:600px){body{padding:10px}.topbar{padding:15px}.account{width:100%;justify-content:space-between}.panel{padding:18px}}
 
 /* Keep every header action visually consistent with the standard Refresh button. */
@@ -57,7 +57,7 @@ header .top-actions > button:hover {
 .module { min-width: 0; overflow-wrap: anywhere; }
 .module h2 { margin: 0; }
 .module p { line-height: 1.55; }
-#home-panel .panel > p { max-width: 66ch; }
+#home-panel .panel > p { display:none; }\n#home-panel .panel > h2 { margin:0; }
 #login-status, #home-status { overflow-wrap: anywhere; }
 @media (max-width: 600px) {
   body { padding: 12px; }
@@ -100,13 +100,13 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 <header class="topbar"><div><h1>VBGRAMG</h1><p style="margin:0">Village Benefit Management</p></div>
 <div class="account"><span id="account-label" class="account-label"></span><button id="logout-button" class="secondary" type="button">Sign out</button></div>
 </header>
-<div class="panel"><h2>Choose a module</h2><p>Open the workspace you need. MIS, FTO, Contribution, and Work Demand have separate workspaces.</p>
+<div class="panel"><h2>Modules</h2>
 <div class="modules">
-<a class="module" href="./mis.html"><span class="symbol" aria-hidden="true">👥</span><h2>MIS</h2><p>Search job cards, view households and applicants, and manage applicant selections. Administrators can also import and compare MIS files.</p><span class="module-link">Open MIS</span></a>
-<a class="module" href="./fto.html"><span class="symbol" aria-hidden="true">📄</span><h2>FTO</h2><p>Search FTO references and build payment-related tracking.</p><span class="module-link">Open FTO</span></a>
-<a class="module" href="./demand.html"><span class="symbol" aria-hidden="true">📋</span><h2>Work Demand</h2><p>Prepare Work Demand and Unwilling to Work documents from MIS and Contribution data.</p><span class="module-link">Open Work Demand</span></a>
-<a class="module" href="./periods.html"><span class="symbol" aria-hidden="true">🗓️</span><h2>Periods</h2><p>Create, review, close, and reopen shared periods used by Work Demand and FTO.</p><span class="module-link">Manage periods</span></a>
-<a class="module" href="./contribution.html?v=20261026-startup-check"><span class="symbol" aria-hidden="true">₹</span><h2>Contribution</h2><p>Track monthly charges, payments, and outstanding balances by job card.</p><span class="module-link">Open Contribution</span></a>
+<a class="module" href="./mis.html"><span class="symbol" aria-hidden="true">▦</span><h2>MIS</h2><p>Job cards and applicants</p><span class="module-link">Open MIS</span></a>
+<a class="module" href="./fto.html"><span class="symbol" aria-hidden="true">▤</span><h2>FTO</h2><p>FTO records and payments</p><span class="module-link">Open FTO</span></a>
+<a class="module" href="./demand.html"><span class="symbol" aria-hidden="true">☷</span><h2>Work Demand</h2><p>Prepare work demand lists</p><span class="module-link">Open Work Demand</span></a>
+<a class="module" href="./periods.html"><span class="symbol" aria-hidden="true">◷</span><h2>Periods</h2><p>Manage work periods</p><span class="module-link">Manage periods</span></a>
+<a class="module" href="./contribution.html?v=20261026-startup-check"><span class="symbol" aria-hidden="true">₹</span><h2>Contribution</h2><p>Charges and balances</p><span class="module-link">Open Contribution</span></a>
 </div>
 <div id="home-status" class="status" aria-live="polite">Signed in.</div>
 </div>

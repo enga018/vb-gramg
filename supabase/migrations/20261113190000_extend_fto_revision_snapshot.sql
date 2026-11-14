@@ -82,8 +82,11 @@ begin
           union
           select charge.period_id
           from public.vbgramg_charge_payment_allocations a
+          join public.vbgramg_charge_ledger payment on payment.id = a.payment_id
           join public.vbgramg_charge_ledger charge on charge.id = a.charge_id
-          where a.job_card_number = any(v_cards) and charge.period_id is not null
+          where payment.job_card_number = any(v_cards)
+            and charge.job_card_number = payment.job_card_number
+            and charge.period_id is not null
           union
           select w.period_id
           from public.vbgramg_waiver_period_allocations w
@@ -156,18 +159,20 @@ begin
     'charge_payment_allocations', coalesce((
       select jsonb_agg(
         to_jsonb(a) || jsonb_build_object(
+          'job_card_number', payment.job_card_number,
           'payment_is_voided', coalesce(payment.is_voided, false),
           'payment_entry_type', payment.entry_type,
           'charge_is_voided', coalesce(charge.is_voided, false),
           'charge_is_deferred', coalesce(charge.is_deferred, false),
           'charge_period_id', charge.period_id
         )
-        order by a.job_card_number, charge.period_id, a.payment_id, a.charge_id
+        order by payment.job_card_number, charge.period_id, a.payment_id, a.charge_id
       )
       from public.vbgramg_charge_payment_allocations a
       join public.vbgramg_charge_ledger payment on payment.id = a.payment_id
       join public.vbgramg_charge_ledger charge on charge.id = a.charge_id
-      where a.job_card_number = any(v_cards)
+      where payment.job_card_number = any(v_cards)
+        and charge.job_card_number = payment.job_card_number
     ), '[]'::jsonb),
     'unlinked_legacy_waivers', coalesce((
       select jsonb_agg(

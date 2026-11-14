@@ -362,6 +362,23 @@ body.embedded-mode{padding:12px!important}body.embedded-mode main{width:100%;max
  .live-jobcard-stats>div{padding:6px 5px}
 }
 
+/* Step 5 mobile: tighten the individual job-card details further. */
+@media(max-width:700px){
+ .live-jobcard-view{padding:8px}
+ .live-jobcard-title{gap:5px;padding-bottom:7px}
+ .live-jobcard-person{margin-top:2px;font-size:.75rem;line-height:1.25}
+ .live-jobcard-stats{gap:5px;margin:7px 0}
+ .live-jobcard-stats>div{padding:6px 5px}
+ .live-reason{margin:7px 0;padding:7px 9px}
+ .live-tx-title{margin:8px 0 5px}
+ .live-tx-item{gap:6px;padding:7px}
+}
+@media(max-width:380px){
+ .live-jobcard-view{padding:7px}
+ .live-jobcard-stats>div{padding:5px 4px}
+ .live-tx-item{padding:6px}
+}
+
 /* Standardize interactive FTO import controls to accessible 44px touch targets. */
 button,
 .link-button,
@@ -705,7 +722,7 @@ function liveRenderCard(type){
  const group=list[Math.min(index,list.length-1)],card=group.job_card_number;
  position.textContent=(Math.min(index,list.length-1)+1)+' of '+list.length;prev.disabled=index<=0;next.disabled=index>=list.length-1;
  const title=document.createElement('div');title.className='live-jobcard-title';
- const identity=document.createElement('div');const jc=document.createElement('strong');jc.textContent=card;const person=document.createElement('div');person.className='live-jobcard-person';person.textContent='FTO applicant: '+(group.person_name||'Name not provided');identity.append(jc,person);
+ const identity=document.createElement('div');const jc=document.createElement('strong');jc.textContent=card;const person=document.createElement('div');person.className='live-jobcard-person';person.textContent=group.person_name||'Name not provided';identity.append(jc,person);
  const badge=document.createElement('span');badge.className='live-badge '+({automatic:'ready',manual:'action',already:'existing',cannot:'excluded'}[type]);badge.textContent=({automatic:'Ready to import',manual:'Manual review',already:'Already imported',cannot:'Cannot import'}[type]);title.append(identity,badge);target.appendChild(title);
  if(group.reason){const reason=document.createElement('div');reason.className='live-reason';reason.textContent=group.reason;target.appendChild(reason)}
  const stats=document.createElement('div');stats.className='live-jobcard-stats';

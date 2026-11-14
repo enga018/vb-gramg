@@ -82,8 +82,7 @@ end
 $$;
 
 -- Duplicate FIFO order values must be rejected rather than tie-broken by UUID.
-do $
-begin
+do $1
   begin
     perform public.vbgramg_simulate_fifo_rebuild(
       '[

@@ -82,7 +82,7 @@ end
 $$;
 
 -- Duplicate FIFO order values must be rejected rather than tie-broken by UUID.
-do $
+do $fifo$
   begin
     perform public.vbgramg_simulate_fifo_rebuild(
       '[
@@ -95,7 +95,7 @@ do $
   exception when raise_exception then
     if sqlerrm = 'Duplicate period order unexpectedly accepted' then raise; end if;
   end;
-$;
+$fifo$;
 
 -- Exempt cards receive no allocation proposal.
 do $$

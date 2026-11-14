@@ -97,6 +97,31 @@ do $fifo$
   end;
 $fifo$;
 
+-- Missing or explicit-null FIFO order values must also be rejected.
+do $fifo_missing$
+begin
+  begin
+    perform public.vbgramg_simulate_fifo_rebuild(
+      '[{"period_id":"00000000-0000-0000-0000-000000000001","eligible_charges":10,"linked_waivers":0}]'::jsonb,
+      '[]'::jsonb,'[]'::jsonb,false
+    );
+    raise exception 'Missing period order unexpectedly accepted';
+  exception when raise_exception then
+    if sqlerrm = 'Missing period order unexpectedly accepted' then raise; end if;
+  end;
+
+  begin
+    perform public.vbgramg_simulate_fifo_rebuild(
+      '[{"period_id":"00000000-0000-0000-0000-000000000001","period_order":null,"eligible_charges":10,"linked_waivers":0}]'::jsonb,
+      '[]'::jsonb,'[]'::jsonb,false
+    );
+    raise exception 'Null period order unexpectedly accepted';
+  exception when raise_exception then
+    if sqlerrm = 'Null period order unexpectedly accepted' then raise; end if;
+  end;
+end;
+$fifo_missing$;
+
 -- Exempt cards receive no allocation proposal.
 do $$
 declare v_result jsonb;

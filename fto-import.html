@@ -321,6 +321,47 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 
 body.embedded-mode{padding:12px!important}body.embedded-mode main{width:100%;max-width:none;margin:0}body.embedded-mode .topbar{display:none!important}body.embedded-mode .panel{box-shadow:none;border-radius:12px}
 
+/* Step 5 mobile review: compact spacing while preserving all controls and behaviour. */
+@media(max-width:700px){
+ .live-category-kpis{gap:7px;margin:12px 0}
+ .live-category-kpi{min-height:82px;padding:9px 10px;gap:3px;border-radius:11px}
+ .live-category-kpi.active{padding:8px 9px}
+ .live-category-kpi span{font-size:.72rem}
+ .live-category-kpi strong{font-size:1.22rem;line-height:1.15}
+ .live-category-kpi small{font-size:.64rem}
+ .live-category-panel{padding:10px;border-radius:12px}
+ .live-category-heading{gap:7px;margin-bottom:10px}
+ .live-category-heading h3{font-size:.96rem}
+ .live-category-heading p{font-size:.79rem;line-height:1.4}
+ .live-badge{padding:4px 7px;font-size:.68rem}
+ .live-jobcard-view{padding:10px;border-radius:11px}
+ .live-jobcard-title{gap:7px;padding-bottom:9px}
+ .live-jobcard-title strong{font-size:.86rem}
+ .live-jobcard-person{font-size:.77rem}
+ .live-jobcard-stats{gap:6px;margin:9px 0}
+ .live-jobcard-stats>div{padding:7px 6px;border-radius:8px}
+ .live-jobcard-stats span{font-size:.61rem;line-height:1.25}
+ .live-jobcard-stats strong{font-size:.74rem}
+ .live-reason{margin:9px 0;padding:8px 10px;font-size:.77rem}
+ .live-tx-title{margin:10px 0 6px;font-size:.76rem}
+ .live-tx-list{gap:6px}
+ .live-tx-item{gap:7px;padding:8px;border-radius:8px}
+ .live-tx-item span{font-size:.62rem}
+ .live-tx-item strong{font-size:.73rem}
+ .live-pager{gap:7px;margin-top:10px}
+ .live-pager span{min-width:42px;font-size:.75rem}
+ .live-pager button{min-height:40px;padding:8px 10px;font-size:.82rem}
+ .live-empty{padding:13px;font-size:.8rem}
+}
+@media(max-width:380px){
+ .live-category-kpi{min-height:78px;padding:8px}
+ .live-category-kpi strong{font-size:1.12rem}
+ .live-category-kpi span{font-size:.68rem}
+ .live-category-kpi small{font-size:.61rem}
+ .live-jobcard-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .live-jobcard-stats>div{padding:6px 5px}
+}
+
 /* Standardize interactive FTO import controls to accessible 44px touch targets. */
 button,
 .link-button,

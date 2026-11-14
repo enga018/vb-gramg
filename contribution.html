@@ -1275,7 +1275,7 @@ if(new URLSearchParams(window.location.search).get('debug')==='contribution-load
  let panel=document.getElementById('contribution-load-diagnostics');
  if(!panel){panel=document.createElement('pre');panel.id='contribution-load-diagnostics';panel.style.cssText='position:fixed;z-index:99999;left:8px;right:8px;bottom:8px;max-height:55vh;overflow:auto;margin:0;padding:12px;border:2px solid #2457c5;border-radius:10px;background:#fff;color:#172033;box-shadow:0 4px 24px #0003;font:12px/1.5 ui-monospace,monospace;white-space:pre-wrap;overflow-wrap:anywhere';document.body.appendChild(panel);}
  const t=window.__VBGRAMG_CONTRIBUTION_STARTUP_TIMING;
- const labels={total_ms:'Total page startup',list_invoke_network_plus_json_parse_ms:'Data request + JSON parsing',assign_response_data_ms:'Assign response data',group_ledger_by_job_card_ms:'Group ledger by job card',calculate_balances_and_name_sort_ms:'Calculate balances + sort names',derive_citizens_total_ms:'Derive all job cards',filter_and_sort_visible_list_ms:'Filter + sort displayed list',build_table_dom_ms:'Build table DOM',render_total_ms:'Render total',first_render_call_ms:'First render call'};
+ const labels={total_ms:'Total page startup',list_invoke_network_plus_json_parse_ms:'Supabase invoke total (network + JSON parse)',edge_http_resource_ms:'Browser HTTP resource duration',edge_request_wait_ms:'HTTP wait to first response byte',edge_response_transfer_ms:'HTTP response transfer',assign_response_data_ms:'Assign response data',group_ledger_by_job_card_ms:'Group ledger by job card',calculate_balances_and_name_sort_ms:'Calculate balances + sort names',derive_citizens_total_ms:'Derive all job cards',filter_and_sort_visible_list_ms:'Filter + sort displayed list',build_table_dom_ms:'Build table DOM',render_total_ms:'Render total',first_render_call_ms:'First render call'};
  panel.textContent='CONTRIBUTION LOAD DIAGNOSTICS\\n'+Object.entries(labels).filter(([key])=>Number.isFinite(t.stages[key])||key==='total_ms').map(([key,label])=>label+': '+(key==='total_ms'?t.total_ms:t.stages[key])+' ms').join('\\n')+'\\n\\nRows: '+t.counts.ledger_entries+' ledger entries / '+t.counts.citizens+' citizens / '+t.counts.job_cards+' job cards';
 }
 };
@@ -2030,6 +2030,21 @@ async function load(){
    ]);
   }finally{if(listTimer)window.clearTimeout(listTimer);}
   recordStartupStage('list_invoke_network_plus_json_parse_ms',requestStarted);
+  // Capture browser Resource Timing for the Supabase Edge Function request.
+  // Supabase JS parses JSON internally, so Resource Timing isolates the HTTP
+  // transfer while payload size provides context for the parsing workload.
+  const functionResource=performance.getEntriesByType('resource')
+   .filter(entry=>entry.name.includes('/functions/v1/vbgramg-contribution-data'))
+   .sort((a,b)=>b.responseEnd-a.responseEnd)[0];
+  if(functionResource){
+   startupTiming.stages.edge_http_resource_ms=Number(functionResource.duration.toFixed(1));
+   startupTiming.stages.edge_response_transfer_ms=Number(Math.max(0,functionResource.responseEnd-functionResource.responseStart).toFixed(1));
+   startupTiming.stages.edge_request_wait_ms=Number(Math.max(0,functionResource.responseStart-functionResource.requestStart).toFixed(1));
+   startupTiming.counts.edge_transfer_bytes=functionResource.transferSize||null;
+  }
+  if(listResult&&listResult.data){
+   try{startupTiming.counts.response_json_bytes=new TextEncoder().encode(JSON.stringify(listResult.data)).length;}catch(_){}
+  }
   if(window.VBGRAMG_CONTRIBUTION_STAGE)window.VBGRAMG_CONTRIBUTION_STAGE('Contribution data received. Processing job cards…');
   const {data,error}=listResult;
   if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');

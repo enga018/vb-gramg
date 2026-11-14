@@ -47,7 +47,7 @@ function rankActiveMisApplicants(byCard:Map<string,Record<string,string|null>[]>
 }
 function matchActiveMisApplicant(byCard:Map<string,Record<string,string|null>[]>,jobCard:string,name:string){
  const ranked=rankActiveMisApplicants(byCard,jobCard,name);
- return ranked.length===1&&ranked[0].match_percentage>=80?ranked[0]:null;
+ return ranked.length===1?ranked[0]:null;
 }
 const periodFromNote=(note:string):string|null=>{const n=note.trim().toUpperCase();const months:Record<string,string>={JAN:"01",FEB:"02",MAR:"03",APR:"04",MAY:"05",JUN:"06",JUL:"07",AUG:"08",SEP:"09",OCT:"10",NOV:"11",DEC:"12"};const m=n.match(/^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s*26/);return m?`2026-${months[m[1]]}-01`:null;};
 const isoDate=(ms:number):string=>new Date(ms).toISOString().slice(0,10);
@@ -401,12 +401,12 @@ Deno.serve(async(req:Request)=>{
      const input=referenceRows.find(item=>item.job_card_number===String(r.job_card_number)),ftoName=String(input?.person_name||"");
      const candidates=rankActiveMisApplicants(activeMisApplicants,String(r.job_card_number),ftoName).slice(0,10);
      const best=candidates[0],second=candidates[1],gap=second?best.match_percentage-second.match_percentage:100;
-     const matchConfident=Boolean(best&&best.match_percentage>=80&&(!second||second.match_percentage<80||gap>=10));
+     const matchConfident=Boolean(best&&(candidates.length===1||best.match_percentage>=80&&(!second||second.match_percentage<80||gap>=10)));
      const hasAttachedApplicant=Boolean(r.applicant_unique_id||r.applicant_name||r.applicant_number);
      const applicantMismatch=Boolean(r.applicant_name&&ftoName&&normalizeApplicantIdentity(r.applicant_name)!==normalizeApplicantIdentity(ftoName));
      return {id:r.id,job_card_number:r.job_card_number,person_name:r.person_name,amount:r.amount,is_deferred:r.is_deferred,charge_count:(existing||[]).filter(x=>!x.is_voided&&String(x.job_card_number)===String(r.job_card_number)&&(!x.period_id||String(x.period_id)===periodId)&&!/^FTO\b/i.test(String(x.note||""))).length,applicant_name:r.applicant_name||null,applicant_number:r.applicant_number||null,applicant_unique_id:r.applicant_unique_id||null,fto_applicant_name:r.fto_applicant_name||null,fto_name:ftoName,applicant_mismatch:applicantMismatch,match_confident:matchConfident,suggested_applicant:!hasAttachedApplicant&&matchConfident?best:null,candidates};
     });
-    const applicantMatches=referenceRows.map(input=>{const candidates=rankActiveMisApplicants(activeMisApplicants,input.job_card_number,input.person_name).slice(0,10);const best=candidates[0],second=candidates[1];const gap=second?best.match_percentage-second.match_percentage:100;const confident=Boolean(best&&best.match_percentage>=80&&(!second||second.match_percentage<80||gap>=10));return {job_card_number:input.job_card_number,fto_name:input.person_name,candidates,suggested_applicant:confident?best:null,requires_manual:!confident};});
+    const applicantMatches=referenceRows.map(input=>{const candidates=rankActiveMisApplicants(activeMisApplicants,input.job_card_number,input.person_name).slice(0,10);const best=candidates[0],second=candidates[1];const gap=second?best.match_percentage-second.match_percentage:100;const confident=Boolean(best&&(candidates.length===1||best.match_percentage>=80&&(!second||second.match_percentage<80||gap>=10)));return {job_card_number:input.job_card_number,fto_name:input.person_name,candidates,suggested_applicant:confident?best:null,requires_manual:!confident};});
     return reply({approved:true,charge_period:periodDate,duplicates,applicant_matches:applicantMatches,unknown_job_cards:cards.filter(card=>!known.has(card.toUpperCase())&&!exemptedSet.has(card.toUpperCase())),exempted_job_cards:cards.filter(card=>exemptedSet.has(card.toUpperCase())),not_in_active_mis_job_cards:notInActiveMis,already_allocated:[...allocatedMap].map(([job_card_number,refs])=>({job_card_number,allocations:[...refs.values()]})),duplicate_references:[...duplicateMap].map(([job_card_number,refs])=>({job_card_number,reference_numbers:[...refs]}))});
    }
    const rows=body.rows,sourceSha=String(body.source_sha256||"").toLowerCase(),sourceFilename=String(body.source_filename||"").trim().slice(0,255),ftoNumber=String(body.fto_number||"").trim().toUpperCase().slice(0,100);
@@ -587,7 +587,7 @@ Deno.serve(async(req:Request)=>{
      pending.push({ledger_entry_id:ledgerId,job_card_number:jobCard,fto_name:ftoName,attached_applicant:entry.applicant_name||null,reason:"FTO name differs from the applicant already attached. Existing mapping has been retained; confirm any change explicitly.",candidates:ranked.slice(0,10)});
      continue;
     }
-    if(best.match_percentage>=80&&(!second||second.match_percentage<80||gap>=10)){
+    if(ranked.length===1||best.match_percentage>=80&&(!second||second.match_percentage<80||gap>=10)){
      const {error:updateError}=await admin.from("vbgramg_charge_ledger").update({applicant_name:best.applicant_name,applicant_number:best.applicant_number,applicant_unique_id:best.applicant_unique_id,fto_applicant_name:ftoName}).eq("id",ledgerId);
      if(updateError)throw updateError;automaticMatches++;
     }else{

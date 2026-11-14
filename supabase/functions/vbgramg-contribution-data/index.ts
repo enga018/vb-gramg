@@ -189,7 +189,7 @@ Deno.serve(async(req:Request)=>{
    if(lookupError)throw lookupError;
    const applicantsByCard=lookupCache?.payload?.applicants_by_job_card;
    if(!applicantsByCard||typeof applicantsByCard!=="object"||Array.isArray(applicantsByCard))throw new Error("Applicant lookup is not ready. Reload Contribution and try Export again.");
-   return reply({approved:true,active_mis_import_id:misState.active_import_id});
+   return reply({approved:true,applicants_by_job_card:applicantsByCard,active_mis_import_id:misState.active_import_id});
   }
   if(action==="list-summary"){
    const summaryStarted=performance.now();
@@ -236,7 +236,7 @@ Deno.serve(async(req:Request)=>{
     if(!sql)throw new Error(`Database summary is missing active MIS job card ${id}.`);
     return {...sql,job_card_number:id,person_name:String(c.person_name||"Unnamed"),exempt:isExempt,charges:isExempt?0:Number(sql.charges)||0,deferred:isExempt?0:Number(sql.deferred)||0,paid:isExempt?0:Number(sql.paid)||0,waived:isExempt?0:Number(sql.waived)||0,returns:isExempt?0:Number(sql.returns)||0,totalCharged:isExempt?0:Number(sql.totalCharged)||0,balance:isExempt?0:Number(sql.balance)||0};
    });
-   const payload={approved:true,role:approved.role,summaries,periods:periodsResult.data||[],financial_totals:sqlSummary.totals||{},applicants_by_job_card:applicantsByCard,exemptions:exemptionsResult.data||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:Number(misState.row_count||0)};
+   const payload={approved:true,role:approved.role,summaries,periods:periodsResult.data||[],financial_totals:sqlSummary.totals||{},exemptions:exemptionsResult.data||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:Number(misState.row_count||0)};
    console.info("[contribution-summary-timing]",JSON.stringify({request_ms:Number((performance.now()-requestStarted).toFixed(1)),total_ms:Number((performance.now()-summaryStarted).toFixed(1)),calculation_source:"postgresql",job_cards:summaries.length,response_bytes:new TextEncoder().encode(JSON.stringify(payload)).length}));
    return reply(payload);
   }

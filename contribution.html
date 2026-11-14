@@ -1342,7 +1342,7 @@ function render(){
    amountGroup.appendChild(primary);
    if(c.deferred>0){const deferred=document.createElement('small');deferred.className='mobile-deferred';deferred.textContent='Deferred '+fmt(c.deferred);amountGroup.appendChild(deferred);}
    summaryLine.appendChild(amountGroup);detail.appendChild(summaryLine);
-   const actionToggle=document.createElement('button');actionToggle.type='button';actionToggle.className='mobile-actions-toggle';actionToggle.innerHTML='<span class="mobile-actions-toggle-label"><span class="mobile-actions-mark">⌘</span> Actions</span><span class="mobile-actions-toggle-hint">Tap to expand <span class="mobile-actions-chevron">⌄</span></span>';actionToggle.setAttribute('aria-label','Expand actions for this job card');detail.appendChild(actionToggle);
+   const actionToggle=document.createElement('button');actionToggle.type='button';actionToggle.className='mobile-actions-toggle';actionToggle.innerHTML='<span class="mobile-actions-toggle-label">Actions</span><span class="mobile-actions-chevron" aria-hidden="true">⌄</span>';actionToggle.setAttribute('aria-label','Expand actions for this job card');detail.appendChild(actionToggle);
   }else{   cell(c.id,'jobcard');cell(c.name+(c.exempt?' · EXEMPT':''),'person');
    cell(String(c.latest_contribution_period||'').trim()||'—','last-contribution-cell');
    const dueAmount=Number(c.balance)||0;
@@ -1381,7 +1381,29 @@ function exportOutstandingDueList(){
  const popup=window.open('','_blank');
  if(!popup){status('Allow pop-ups for this site to export the due list.','err');return;}
  const report='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contribution Outstanding Due List</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#172033;margin:28px}h1{font-size:20px;margin:0 0 5px}.meta{color:#667085;font-size:12px;margin-bottom:18px}.summary{display:flex;gap:24px;margin:0 0 18px;font-size:13px}.summary b{font-size:15px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;border-bottom:1px solid #dfe5ee;text-align:left}th{background:#edf2f8;text-transform:uppercase;font-size:10px;letter-spacing:.04em}.amount{text-align:right;white-space:nowrap;font-weight:700}.total td{font-weight:800;border-top:2px solid #667085}@media print{body{margin:12mm}thead{display:table-header-group}tr{break-inside:avoid}}@media(max-width:600px){body{margin:14px;overflow-x:auto}.summary{gap:14px;flex-wrap:wrap}}' +
-'</style></head><body><h1>Contribution Outstanding Due List</h1><div class="meta">VBGRAMG · Generated on '+esc(new Date().toLocaleDateString('en-IN'))+'</div><table><thead><tr><th>Job Card Number</th><th>Head of Household</th><th>Applicant Name</th><th style="text-align:right">Outstanding</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
+'
+/* Mobile Contribution action panel: clean expansion control and ordered actions. */
+@media(max-width:767px){
+  body.sheet-open{overflow:hidden}
+  .overlay{position:fixed;inset:0;padding:0;align-items:stretch;justify-content:stretch}
+  .overlay .sheet{width:100%;max-width:none;height:100vh;height:100dvh;max-height:100vh;max-height:100dvh;border:0;border-radius:0}
+  .mobile-actions-toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:46px;margin-top:8px;padding:10px 13px;border:1px solid var(--line);border-radius:11px;background:#f0f3f8;color:var(--ink);font:700 .9rem/1.2 system-ui,sans-serif;text-align:left}
+  .mobile-actions-toggle-label{display:inline-flex;align-items:center}
+  .mobile-actions-chevron{display:inline-block;font-size:1.2rem;line-height:1;transition:transform .22s ease}
+  #contribution-table tbody tr.contribution-row[aria-expanded="true"] .mobile-actions-chevron{transform:rotate(180deg)}
+  .contribution-actions-row td{border:0!important}
+  .mobile-action-panel{display:flex;flex-direction:column;gap:10px;padding:13px!important;border:1px solid var(--line);border-radius:13px;background:#f7f9fc!important;box-shadow:0 4px 14px rgb(15 23 42 / 5%);animation:mobileActionReveal .2s ease-out both}
+  .mobile-action-panel-head{display:flex;align-items:center;padding-bottom:8px;border-bottom:1px solid var(--line);color:var(--ink);font-size:.82rem;font-weight:750}
+  .mobile-action-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+  .mobile-action-grid .action-tile{display:flex!important;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px;width:100%;min-width:0;min-height:50px!important;padding:10px!important;border:1px solid var(--line)!important;border-radius:10px!important;background:#fff!important;color:var(--ink)!important;font-size:.82rem!important;font-weight:700!important;white-space:normal}
+  .mobile-action-grid .action-tile.primary-action{background:#172033!important;color:#fff!important;border-color:#172033!important}
+  .action-tile-icon{display:inline-grid;place-items:center;flex:none;width:25px;height:25px;border-radius:8px;background:#e9eef5;font-size:1rem;font-weight:800}
+  .mobile-action-grid .primary-action .action-tile-icon{background:rgb(255 255 255 / 16%)}
+  .mobile-history-button{display:flex!important;align-items:center;justify-content:center;gap:8px;width:100%;min-height:48px!important;margin-top:1px;border:1px solid #cbd5e1!important;border-radius:10px!important;background:#eaf0f7!important;color:var(--ink)!important;font-size:.84rem!important;font-weight:750!important}
+  .mobile-history-button .action-tile-icon{background:#dce5f0}
+  @keyframes mobileActionReveal{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+}
+</style></head><body><h1>Contribution Outstanding Due List</h1><div class="meta">VBGRAMG · Generated on '+esc(new Date().toLocaleDateString('en-IN'))+'</div><table><thead><tr><th>Job Card Number</th><th>Head of Household</th><th>Applicant Name</th><th style="text-align:right">Outstanding</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
  popup.document.open();popup.document.write(report);popup.document.close();popup.focus();popup.print();
 }
 function buildFifoBreakdown(c){
@@ -1434,6 +1456,7 @@ async function openCitizen(id){
  $('sheetBody').innerHTML='<div class="notice info">Loading complete transaction details…</div>';
  $('toggleEditMode').classList.add('hidden');
  $('overlay').classList.remove('hidden');
+ document.body.classList.add('sheet-open');
  $('closeSheet').focus();
  document.querySelectorAll('#contribution-table tbody tr').forEach(row=>row.classList.toggle('selected',row.dataset.card===c.id));
  let loaded=false;
@@ -1950,6 +1973,7 @@ $('toggleEditMode').addEventListener('click',()=>{
 function closeCitizenDetail(){
  citizenDetailRequest++;
  $('overlay').classList.add('hidden');
+ document.body.classList.remove('sheet-open');
  currentCitizen=null;
  document.querySelectorAll('#contribution-table tbody tr').forEach(row=>row.classList.remove('selected'));
  const opener=citizenDialogOpener;
@@ -2032,24 +2056,4 @@ load().catch(err=>setStartupError(err&&err.message?err.message:'Could not start 
 </body>
 </html>
 
-/* Mobile Contribution action panel: clear expansion affordance and touch-friendly actions. */
-@media(max-width:767px){
-  #contribution-table tbody tr.contribution-row{cursor:pointer}
-  #contribution-table tbody tr.contribution-row[aria-expanded="true"] .mobile-actions-chevron{transform:rotate(180deg)}
-  .mobile-actions-toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:44px;margin-top:3px;padding:9px 12px;border:1px solid var(--line,#dbe3ed);border-radius:11px;background:var(--surface-muted,#f3f6fa);color:var(--ink,#1e293b);font:700 .82rem/1.2 system-ui,sans-serif;text-align:left}
-  .mobile-actions-toggle-label,.mobile-actions-toggle-hint{display:inline-flex;align-items:center;gap:7px}
-  .mobile-actions-toggle-hint{color:var(--muted,#64748b);font-size:.72rem;font-weight:600}
-  .mobile-actions-mark{display:inline-grid;place-items:center;width:23px;height:23px;border-radius:7px;background:#dbeafe;color:#1d4ed8;font-size:1rem;font-weight:800}
-  .mobile-actions-chevron{display:inline-block;font-size:1.1rem;line-height:1;transition:transform .22s ease}
-  .contribution-actions-row td{border:0!important}
-  .mobile-action-panel{display:flex;flex-direction:column;gap:11px;padding:13px!important;border:1px solid var(--line,#dbe3ed);border-radius:13px;background:var(--surface,#fff)!important;box-shadow:0 5px 16px rgb(15 23 42 / 6%);animation:mobileActionReveal .22s ease-out both}
-  .mobile-action-panel-head{display:flex;align-items:center;justify-content:space-between;padding-bottom:9px;border-bottom:1px solid var(--line,#e2e8f0);color:var(--ink,#1e293b);font-size:.78rem;font-weight:750}
-  .mobile-action-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
-  .mobile-action-grid .action-tile{display:flex!important;flex-direction:row;align-items:center;justify-content:flex-start;gap:9px;width:100%;min-width:0;min-height:49px!important;height:auto!important;padding:9px 10px!important;border:1px solid var(--line,#dbe3ed)!important;border-radius:10px!important;background:var(--surface-muted,#f8fafc)!important;color:var(--ink,#1e293b)!important;font-size:.78rem!important;font-weight:700!important;white-space:normal}
-  .mobile-action-grid .action-tile.primary-action{border-color:#bfdbfe!important;background:#eff6ff!important;color:#1d4ed8!important}
-  .action-tile-icon{display:inline-grid;place-items:center;flex:none;width:25px;height:25px;border-radius:8px;background:rgb(100 116 139 / 12%);font-size:1rem;font-weight:800}
-  .mobile-action-grid .primary-action .action-tile-icon{background:#dbeafe}
-  .mobile-history-button{display:flex!important;align-items:center;justify-content:center;gap:8px;width:100%;min-height:45px!important;border:1px solid #cbd5e1!important;border-radius:10px!important;background:var(--surface-muted,#f8fafc)!important;color:var(--ink,#334155)!important;font-size:.8rem!important;font-weight:700!important}
-  .mobile-history-button .action-tile-icon{background:#e2e8f0}
-  @keyframes mobileActionReveal{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
-}
+

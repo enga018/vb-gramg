@@ -826,7 +826,7 @@ function updateImportButton(){
  const unresolvedApplicants=[...applicantMatchSuggestions.entries()].some(([card,match])=>!exemptedCards.has(card)&&match.requires_manual&&!reconciliationApplicantSelections.has(card));
  const hasDuplicateReferences=[...duplicateReferences.entries()].some(([card,refs])=>refs.length>0&&!notInActiveMisCards.has(card)&&!exemptedCards.has(card));
  $('fto-import-button').textContent=duplicateCards.size?'Confirm review & synchronize FTO':'Synchronize FTO';
- $('fto-import-button').disabled=!ftoNumber||!period||!parsedDataRows.length||!selected.length||invalid||checkingDuplicates||duplicateCheckFailed||calculationPending||Boolean(calculationError)||ftoIdentityMismatch||unreviewed||unverifiedNew||unresolvedApplicants||hasDuplicateReferences;
+ $('fto-import-button').disabled=!ftoNumber||!period||!parsedDataRows.length||!selected.length||invalid||checkingDuplicates||duplicateCheckFailed||calculationPending||Boolean(calculationError)||ftoIdentityMismatch||(existingFtoKnown&&!expectedRevisionFto)||unreviewed||unverifiedNew||unresolvedApplicants||hasDuplicateReferences;
 }
 async function lookupFtoBatch(){
  const ftoNumber=$('fto-number').value.trim();if(!ftoNumber)return;
@@ -835,6 +835,12 @@ async function lookupFtoBatch(){
   const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'check-fto-import-state',fto_number:ftoNumber,transactions:incoming},deduplicate:true});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not look up the FTO.');
   if(data.found&&data.batch){
+   if(!expectedRevisionFto){
+    existingFtoKnown=true;existingFtoUnchanged=false;ftoIdentityMismatch=true;
+    $('import-controls').classList.add('hidden');
+    status('This FTO has already been imported. To update its transactions, open FTO History and select Revise. Regular Import accepts new FTO numbers only.','error');
+    updateImportButton();return;
+   }
    const nameMatches=sharedPeriods.filter(p=>p.period_name.toLowerCase()===String(data.batch.contribution_period||'').toLowerCase());const monthMatches=sharedPeriods.filter(p=>p.contribution_month===data.batch.ledger_charge_period);const savedPeriod=sharedPeriods.find(p=>p.id===data.batch.period_id)||(nameMatches.length===1?nameMatches[0]:(monthMatches.length===1?monthMatches[0]:null));
    if(savedPeriod){await loadSharedPeriods(savedPeriod.id);$('charge-period').value=savedPeriod.id;}
    existingFtoKnown=true;

@@ -53,7 +53,7 @@ test("Record Payment is limited to the outstanding balance in PostgreSQL and the
   assert.ok(cashCapSql.includes("IF v_amount > GREATEST(0, v_balance) + 0.001"));
   assert.ok(cashCapSql.includes("Payment cannot exceed the current outstanding balance."));
   assert.ok(cashCapSql.includes("pg_advisory_xact_lock"));
-  assert.match(html, /Number\(c\.balance\)\s*>\s*0\.001\s*\?/, "Record Payment must be gated by a positive outstanding balance");
+  assert.ok(html.includes("Number(c.balance)>0.001"), "Record Payment must be gated by a positive outstanding balance");
   assert.ok(html.includes('id="addPaymentBtn"'), "Record Payment action must be present");
   assert.ok(html.includes("Record payment"), "Record Payment action must retain its label");
   assert.ok(html.includes("max=\"'+Number(c.balance).toFixed(2)+'\""));

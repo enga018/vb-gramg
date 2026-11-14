@@ -2418,3 +2418,41 @@ body:has(#desktop-fetch-preview) #desktop-fetch-preview table {
     background: #3a4855 !important;
   }
 }
+
+
+/* Contribution action modals: explicitly override legacy white drawer surfaces in dark mode. */
+@media screen and (prefers-color-scheme: dark) {
+  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal,
+  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .sheet-head,
+  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .sheet-body {
+    color: #edf2f7 !important;
+    background: #171d24 !important;
+    border-color: #303a45 !important;
+  }
+  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .sheet-head {
+    background: #1d252e !important;
+    border-bottom-color: #303a45 !important;
+  }
+  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .sheet-subtitle,
+  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .field label,
+  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .muted {
+    color: #aab5c2 !important;
+  }
+  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .field input,
+  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .field select,
+  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .field textarea {
+    color: #edf2f7 !important;
+    background: #10161c !important;
+    border-color: #3b4652 !important;
+  }
+  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .balance {
+    color: #edf2f7 !important;
+    background: #202832 !important;
+    border-color: #394653 !important;
+  }
+  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .notice.info {
+    color: #a9c3ff !important;
+    background: #202e49 !important;
+    border-color: #354d78 !important;
+  }
+}

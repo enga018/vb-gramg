@@ -1179,6 +1179,9 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{margin:0!impo
  flex:0 1 auto!important;min-height:0!important;
  height:auto!important;overflow-y:auto!important;
 }
+
+/* Keep the action overlay's hidden state stronger than its centering rule. */
+#overlay.action-modal-overlay.hidden{display:none!important;}
 </style>
   <link rel="stylesheet" href="./responsive.css?v=20261111-design-system">
 <link rel="stylesheet" href="./theme.css?v=20261111-design-system">
@@ -1769,7 +1772,7 @@ function showPaymentForm(){
   try{
    const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'add-payment',job_card_number:c.id,amount,entry_date:date,note},timeoutMs:false});
    if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save payment.');
-   entries.push(data.entry);deriveCitizens();render();openCitizen(c.id);status('Payment saved. Ledger updated.','info');
+   entries.push(data.entry);deriveCitizens();render();closeCitizenDetail();status('Payment saved. Ledger updated.','success');
   }catch(err){status(err.message||'Could not save payment.','err');}
   finally{busy=false;if($('savePayment')){$('savePayment').disabled=false;$('savePayment').textContent='Save payment';}}
  });
@@ -1949,7 +1952,7 @@ function showAdjustmentForm(action){
   try{
    const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action,job_card_number:c.id,amount,entry_date:date,note},timeoutMs:false});
    if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not save adjustment.');
-   updateEntryInMemory(data.entry);openCitizen(c.id);status((isWaiver?'Charge Waiver':'Refund')+' recorded and ledger recalculated.','success');
+   updateEntryInMemory(data.entry);closeCitizenDetail();status((isWaiver?'Charge Waiver':'Refund')+' recorded and ledger recalculated.','success');
   }catch(err){status(err.message||'Could not save adjustment.','err');}
   finally{busy=false;if($('saveAdjustment')){$('saveAdjustment').disabled=false;$('saveAdjustment').textContent=title;}}
  });
@@ -1978,7 +1981,7 @@ async function executeFullPayment(){
   entries=entries.filter(row=>String(row.job_card_number)!==String(c.id)).concat(refreshed.data.entries||[]);
   deriveCitizens();
   render();
-  currentCitizen=citizens.find(item=>item.id===c.id)||c;
+  closeCitizenDetail();
   status('Full payment recorded. Contribution table updated.','success');
  }catch(err){status(err.message||'Could not record full payment.','err');}
  finally{busy=false;}

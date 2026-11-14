@@ -942,8 +942,8 @@ supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){
  const modal=document.getElementById('fto-import-modal'),frame=document.getElementById('fto-import-frame');
  const open=document.getElementById('open-fto-import'),close=document.getElementById('close-fto-import');
  if(!modal||!frame||!open||!close)return;
- function showImport(url){frame.src=url;if(typeof modal.showModal==='function')modal.showModal();else modal.setAttribute('open','');}
- window.openFtoImportForRevision=function(ftoNumber){showImport('./fto-import.html?embedded=1&revise='+encodeURIComponent(String(ftoNumber||'')));};
+ function showImport(url){frame.src='about:blank';if(typeof modal.showModal==='function'&&!modal.open)modal.showModal();else if(typeof modal.showModal!=='function')modal.setAttribute('open','');requestAnimationFrame(function(){frame.src=url;});}
+ window.openFtoImportForRevision=function(ftoNumber){var number=String(ftoNumber||'').trim();if(!number)return;var url=new URL('./fto-import.html',window.location.href);url.searchParams.set('embedded','1');url.searchParams.set('revise',number);url.searchParams.set('_revision_session',String(Date.now()));showImport(url.href);};
  open.addEventListener('click',()=>{showImport('./fto-import.html?embedded=1');});
  close.addEventListener('click',()=>modal.close());
  modal.addEventListener('click',event=>{if(event.target===modal)modal.close()});

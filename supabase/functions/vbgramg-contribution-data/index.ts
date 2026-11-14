@@ -185,7 +185,9 @@ Deno.serve(async(req:Request)=>{
    const {data:misState,error:misStateError}=await admin.from("vbgramg_mis_state").select("active_import_id").eq("singleton",true).maybeSingle();
    if(misStateError)throw misStateError;
    if(!misState?.active_import_id)throw new Error("There is no active MIS import.");
+   const lookupStarted=performance.now();
    const {data:lookupCache,error:lookupError}=await admin.from("vbgramg_mis_contribution_lookup").select("payload").eq("import_id",misState.active_import_id).maybeSingle();
+   queryTimings["applicant_cache"]=Number((performance.now()-lookupStarted).toFixed(1));
    if(lookupError)throw lookupError;
    const applicantsByCard=lookupCache?.payload?.applicants_by_job_card;
    if(!applicantsByCard||typeof applicantsByCard!=="object"||Array.isArray(applicantsByCard))throw new Error("Applicant lookup is not ready. Reload Contribution and try Export again.");
@@ -193,11 +195,17 @@ Deno.serve(async(req:Request)=>{
   }
   if(action==="list-summary"){
    const summaryStarted=performance.now();
+   const queryTimings:Record<string,number>={};
+   const timedSummaryQuery=async(key:string,request:PromiseLike<any>)=>{
+    const started=performance.now();
+    try{return await request;}
+    finally{queryTimings[key]=Number((performance.now()-started).toFixed(1));}
+   };
    const [sqlSummaryResult,exemptionsResult,misStateResult,periodsResult]=await Promise.all([
-    admin.rpc("vbgramg_contribution_financial_summary"),
-    admin.from("vbgramg_contribution_exemptions").select("job_card_number,note,created_at,updated_at").order("job_card_number",{ascending:true}),
-    admin.from("vbgramg_mis_state").select("active_import_id,row_count,source_filename").eq("singleton",true).maybeSingle(),
-    admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status,created_at").order("contribution_month",{ascending:false}).order("created_at",{ascending:false})
+    timedSummaryQuery("financial_summary",admin.rpc("vbgramg_contribution_financial_summary")),
+    timedSummaryQuery("exemptions",admin.from("vbgramg_contribution_exemptions").select("job_card_number,note,created_at,updated_at").order("job_card_number",{ascending:true})),
+    timedSummaryQuery("mis_state",admin.from("vbgramg_mis_state").select("active_import_id,row_count,source_filename").eq("singleton",true).maybeSingle()),
+    timedSummaryQuery("periods",admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,status,created_at").order("contribution_month",{ascending:false}).order("created_at",{ascending:false}))
    ]);
    if(sqlSummaryResult.error)throw sqlSummaryResult.error;
    if(exemptionsResult.error)throw exemptionsResult.error;
@@ -237,7 +245,7 @@ Deno.serve(async(req:Request)=>{
     return {...sql,job_card_number:id,person_name:String(c.person_name||"Unnamed"),exempt:isExempt,charges:isExempt?0:Number(sql.charges)||0,deferred:isExempt?0:Number(sql.deferred)||0,paid:isExempt?0:Number(sql.paid)||0,waived:isExempt?0:Number(sql.waived)||0,returns:isExempt?0:Number(sql.returns)||0,totalCharged:isExempt?0:Number(sql.totalCharged)||0,balance:isExempt?0:Number(sql.balance)||0};
    });
    const payload={approved:true,role:approved.role,summaries,periods:periodsResult.data||[],financial_totals:sqlSummary.totals||{},exemptions:exemptionsResult.data||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:Number(misState.row_count||0)};
-   console.info("[contribution-summary-timing]",JSON.stringify({request_ms:Number((performance.now()-requestStarted).toFixed(1)),total_ms:Number((performance.now()-summaryStarted).toFixed(1)),calculation_source:"postgresql",job_cards:summaries.length,response_bytes:new TextEncoder().encode(JSON.stringify(payload)).length}));
+   console.info("[contribution-summary-timing]",JSON.stringify({request_ms:Number((performance.now()-requestStarted).toFixed(1)),total_ms:Number((performance.now()-summaryStarted).toFixed(1)),query_timings_ms:queryTimings,applicant_cache_hit:Boolean(lookupCache?.payload),calculation_source:"postgresql",job_cards:summaries.length,response_bytes:new TextEncoder().encode(JSON.stringify(payload)).length}));
    return reply(payload);
   }
 

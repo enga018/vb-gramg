@@ -37,6 +37,7 @@ on:
       - "supabase/migrations/20261111110537_create_fto_revision_preview.sql"
       - "tests/fto-revision-fifo-simulation-postgres.sql"
       - "supabase/migrations/20261113180000_add_fto_revision_fifo_rebuild.sql"
+      - "supabase/migrations/20261113190000_extend_fto_revision_snapshot.sql"
       - "tests/fto-revision-fifo-rebuild-postgres.sql"
       - "tests/fto-revision-snapshot-postgres.sql"
       - "supabase/migrations/20261111120000_track_contribution_exemption_intervals.sql"

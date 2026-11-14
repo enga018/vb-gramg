@@ -69,6 +69,31 @@ create table public.vbgramg_contribution_exemption_history (
   ended_at timestamptz
 );
 
+create table public.vbgramg_charge_payment_allocations (
+  id uuid primary key,
+  payment_id uuid not null,
+  charge_id uuid not null,
+  amount numeric(12,2) not null,
+  allocation_source text,
+  confidence text,
+  note text,
+  created_by uuid,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  job_card_number text not null
+);
+create table public.vbgramg_ledger_audit (
+  id uuid primary key,
+  ledger_entry_id uuid,
+  job_card_number text not null,
+  action text not null,
+  actor_user_id uuid,
+  actor_email text,
+  before_data jsonb,
+  after_data jsonb,
+  created_at timestamptz not null default now()
+);
+
 do $$
 begin
   if not exists (select 1 from pg_roles where rolname='anon') then create role anon; end if;
@@ -78,6 +103,7 @@ end
 $$;
 
 \ir ../supabase/migrations/20261111110537_create_fto_revision_preview.sql
+\ir ../supabase/migrations/20261113190000_extend_fto_revision_snapshot.sql
 
 insert into public.vbgramg_fto_batches(id,fto_number,contribution_period)
 values ('00000000-0000-0000-0000-000000000001','TEST-FTOSNAP-001','JAN26');
@@ -111,6 +137,24 @@ insert into public.vbgramg_payment_allocations(
   id,transaction_id,period_id,job_card_number,amount
 ) values
 ('00000000-0000-0000-0000-000000000301','00000000-0000-0000-0000-000000000202','00000000-0000-0000-0000-000000000011','JC-001',20);
+
+insert into public.vbgramg_charge_payment_allocations(
+  id,payment_id,charge_id,amount,job_card_number
+) values (
+  '00000000-0000-0000-0000-000000000701',
+  '00000000-0000-0000-0000-000000000202',
+  '00000000-0000-0000-0000-000000000201',
+  12,'JC-001'
+);
+insert into public.vbgramg_ledger_audit(
+  id,ledger_entry_id,job_card_number,action,before_data,after_data
+) values (
+  '00000000-0000-0000-0000-000000000801',
+  '00000000-0000-0000-0000-000000000204',
+  'JC-001','manual_charge_linked_to_fto',
+  '{"id":"00000000-0000-0000-0000-000000000204"}'::jsonb,
+  '{"reference_numbers":["REF-001"],"note":"FTO-linked"}'::jsonb
+);
 
 insert into public.vbgramg_payment_refund_reconciliations(
   id,payment_id,refund_id,job_card_number,amount
@@ -168,6 +212,19 @@ begin
      or (v_snapshot->'payment_allocations'->0->>'amount')::numeric <> 20
      or v_snapshot->'payment_allocations'->0->>'payment_is_voided' <> 'false' then
     raise exception 'Snapshot payment allocation evidence is incomplete';
+  end if;
+
+  if jsonb_array_length(v_snapshot->'charge_payment_allocations') <> 1
+     or (v_snapshot->'charge_payment_allocations'->0->>'amount')::numeric <> 12
+     or v_snapshot->'charge_payment_allocations'->0->>'charge_period_id'
+       <> '00000000-0000-0000-0000-000000000011' then
+    raise exception 'Snapshot charge-level allocation evidence is incomplete';
+  end if;
+
+  if jsonb_array_length(v_snapshot->'manual_charge_links') <> 1
+     or v_snapshot->'manual_charge_links'->0->>'ledger_entry_id'
+       <> '00000000-0000-0000-0000-000000000204' then
+    raise exception 'Snapshot manual FTO link history is incomplete';
   end if;
 
   if jsonb_array_length(v_snapshot->'payment_refunds') <> 1

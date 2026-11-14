@@ -1322,9 +1322,9 @@ function render(){
  $('prev-button').classList.remove('hidden');$('next-button').classList.remove('hidden');
  const thead=$('contribution-table').querySelector('thead'),tbody=$('contribution-table').querySelector('tbody');thead.replaceChildren();tbody.replaceChildren();
  const head=document.createElement('tr');
- (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Last Contribution','Outstanding','Status']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Remarks'){th.style.textAlign='right';th.className='balance-heading';}head.appendChild(th)});thead.appendChild(head);
+ (isMobile?['Job Card Details']:['Job Card Number','Head of Household','Last Contribution','Outstanding','Status','Actions']).forEach(label=>{const th=document.createElement('th');th.textContent=label;if(label==='Remarks'){th.style.textAlign='right';th.className='balance-heading';}head.appendChild(th)});thead.appendChild(head);
  shown.forEach((c,index)=>{
-  const state=c.exempt?'exempt':c.balance<0?'overpaid':c.balance>0?'due':'settled',tr=document.createElement('tr');tr.className='contribution-row '+state;tr.tabIndex=0;tr.dataset.card=c.id;tr.setAttribute('role','button');tr.setAttribute('aria-label','Open contribution history for '+c.name+' job card '+c.id);
+  const state=c.exempt?'exempt':c.balance<0?'overpaid':c.balance>0?'due':'settled',tr=document.createElement('tr');tr.className='contribution-row '+state;tr.tabIndex=0;tr.dataset.card=c.id;tr.setAttribute('aria-label','Expand actions for '+c.name+' job card '+c.id);
   const cell=(value,cls)=>{const td=document.createElement('td');td.textContent=value;if(cls)td.className=cls;tr.appendChild(td);return td};
   if(isMobile){
    const detail=cell('','mobile-details');
@@ -1352,8 +1352,12 @@ function render(){
    statusTag.textContent=dueAmount<0?'Overpaid':dueAmount>0?'Due':'Settled';
    statusCell.appendChild(statusTag);
    if(c.deferred>0){const deferredTag=document.createElement('span');deferredTag.className='row-status deferred';deferredTag.textContent='Deferred';deferredTag.style.display='inline-flex';deferredTag.style.marginLeft='5px';statusCell.appendChild(deferredTag);}
+   const actionCell=cell('','row-actions-cell');const addRowAction=(label,enabled,callback,primary=false)=>{if(!enabled)return;const button=document.createElement('button');button.type='button';button.className='btn small'+(primary?'':' ghost');button.textContent=label;button.addEventListener('click',ev=>{ev.stopPropagation();callback();});actionCell.appendChild(button);};addRowAction('Record payment',Number(c.balance)>0.001,()=>openCitizenThen(c.id,showPaymentForm),true);addRowAction('Pay in full',Number(c.balance)>0,()=>openCitizenThen(c.id,()=>payInFull()));addRowAction('Waive',appRole==='admin'&&!c.exempt&&Number(c.balance)>0.001,()=>openCitizenThen(c.id,()=>showAdjustmentForm('add-waiver')));addRowAction('Refund',appRole==='admin'&&Number(c.balance)<-0.001,()=>openCitizenThen(c.id,()=>showAdjustmentForm('add-return')));const historyButton=document.createElement('button');historyButton.type='button';historyButton.className='btn ghost small';historyButton.textContent='Transaction History';historyButton.addEventListener('click',ev=>{ev.stopPropagation();openCitizen(c.id);});actionCell.appendChild(historyButton);
   }
-  tr.addEventListener('click',()=>openCitizen(c.id));tr.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();openCitizen(c.id)}});tbody.appendChild(tr);
+  const historyButtonMobile=isMobile?document.createElement('button'):null;
+  if(isMobile){historyButtonMobile.type='button';historyButtonMobile.className='btn ghost small mobile-history-button';historyButtonMobile.textContent='Transaction History';historyButtonMobile.style.marginLeft='auto';historyButtonMobile.style.display='block';historyButtonMobile.addEventListener('click',ev=>{ev.stopPropagation();openCitizen(c.id);});tr.querySelector('.mobile-details').appendChild(historyButtonMobile);}
+  const toggleExpansion=()=>{const existing=tbody.querySelector('tr[data-actions-for="'+CSS.escape(c.id)+'"]');if(existing){existing.remove();tr.setAttribute('aria-expanded','false');return;}tbody.querySelectorAll('tr[data-actions-for]').forEach(row=>row.remove());tbody.querySelectorAll('tr.contribution-row').forEach(row=>row.setAttribute('aria-expanded','false'));const detailRow=document.createElement('tr');detailRow.className='contribution-actions-row';detailRow.dataset.actionsFor=c.id;const detailCell=document.createElement('td');detailCell.colSpan=isMobile?1:6;detailCell.style.padding='12px 14px';detailCell.style.background='var(--surface-muted,#f7f9fc)';const actionWrap=document.createElement('div');actionWrap.className='contribution-inline-actions';const addAction=(label,enabled,callback)=>{if(!enabled)return;const button=document.createElement('button');button.type='button';button.className='btn small'+(label==='Record payment'?'':' ghost');button.textContent=label;button.addEventListener('click',ev=>{ev.stopPropagation();callback();});actionWrap.appendChild(button);};addAction('Record payment',Number(c.balance)>0.001,()=>openCitizenThen(c.id,showPaymentForm));addAction('Pay in full',Number(c.balance)>0,()=>openCitizenThen(c.id,()=>payInFull()));addAction('Waive',appRole==='admin'&&!c.exempt&&Number(c.balance)>0.001,()=>openCitizenThen(c.id,()=>showAdjustmentForm('add-waiver')));addAction('Refund',appRole==='admin'&&Number(c.balance)<-0.001,()=>openCitizenThen(c.id,()=>showAdjustmentForm('add-return')));if(!actionWrap.children.length){const note=document.createElement('span');note.className='muted';note.textContent='No actions available for this job card.';actionWrap.appendChild(note);}detailCell.appendChild(actionWrap);detailRow.appendChild(detailCell);tr.after(detailRow);tr.setAttribute('aria-expanded','true');};
+  if(isMobile){tr.addEventListener('click',toggleExpansion);tr.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();toggleExpansion();}});}else{tr.removeAttribute('tabindex');tr.removeAttribute('aria-label');}tbody.appendChild(tr);
  });
  $('table-wrap').classList.toggle('hidden',list.length===0);$('empty').classList.toggle('hidden',list.length!==0);
  $('count').textContent=list.length.toLocaleString('en-IN')+' job card'+(list.length===1?'':'s')+' matching filters';
@@ -1377,8 +1381,8 @@ function exportOutstandingDueList(){
  const rows=due.map(c=>'<tr><td>'+esc(c.id)+'</td><td>'+esc(c.name||'—')+'</td><td>'+esc(getExportApplicantName(c))+'</td><td class="amount">'+fmt(c.balance)+'</td></tr>').join('');
  const popup=window.open('','_blank');
  if(!popup){status('Allow pop-ups for this site to export the due list.','err');return;}
- const report='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contribution Outstanding Due List</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#172033;margin:28px}h1{font-size:20px;margin:0 0 5px}.meta{color:#667085;font-size:12px;margin-bottom:18px}.summary{display:flex;gap:24px;margin:0 0 18px;font-size:13px}.summary b{font-size:15px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;border-bottom:1px solid #dfe5ee;text-align:left}th{background:#edf2f8;text-transform:uppercase;font-size:10px;letter-spacing:.04em}.amount{text-align:right;white-space:nowrap;font-weight:700}.total td{font-weight:800;border-top:2px solid #667085}@media print{body{margin:12mm}thead{display:table-header-group}tr{break-inside:avoid}}@media(max-width:600px){body{margin:14px;overflow-x:auto}.summary{gap:14px;flex-wrap:wrap}}
-</style></head><body><h1>Contribution Outstanding Due List</h1><div class="meta">VBGRAMG · Generated on '+esc(new Date().toLocaleDateString('en-IN'))+'</div><table><thead><tr><th>Job Card Number</th><th>Head of Household</th><th>Applicant Name</th><th style="text-align:right">Outstanding</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
+ const report='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contribution Outstanding Due List</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#172033;margin:28px}h1{font-size:20px;margin:0 0 5px}.meta{color:#667085;font-size:12px;margin-bottom:18px}.summary{display:flex;gap:24px;margin:0 0 18px;font-size:13px}.summary b{font-size:15px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;border-bottom:1px solid #dfe5ee;text-align:left}th{background:#edf2f8;text-transform:uppercase;font-size:10px;letter-spacing:.04em}.amount{text-align:right;white-space:nowrap;font-weight:700}.total td{font-weight:800;border-top:2px solid #667085}@media print{body{margin:12mm}thead{display:table-header-group}tr{break-inside:avoid}}@media(max-width:600px){body{margin:14px;overflow-x:auto}.summary{gap:14px;flex-wrap:wrap}}' +
+'</style></head><body><h1>Contribution Outstanding Due List</h1><div class="meta">VBGRAMG · Generated on '+esc(new Date().toLocaleDateString('en-IN'))+'</div><table><thead><tr><th>Job Card Number</th><th>Head of Household</th><th>Applicant Name</th><th style="text-align:right">Outstanding</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
  popup.document.open();popup.document.write(report);popup.document.close();popup.focus();popup.print();
 }
 function buildFifoBreakdown(c){
@@ -1417,6 +1421,7 @@ function buildFifoBreakdown(c){
 }
 let citizenDetailRequest=0;
 let citizenDialogOpener=null;
+async function openCitizenThen(id,afterLoad){const loaded=await openCitizen(id);if(loaded&&currentCitizen&&String(currentCitizen.id)===String(id)&&typeof afterLoad==='function')afterLoad();}
 async function openCitizen(id){
  const c=citizens.find(item=>item.id===id);if(!c)return;
  if($("overlay").classList.contains("hidden"))citizenDialogOpener=document.activeElement;
@@ -1432,6 +1437,7 @@ async function openCitizen(id){
  $('overlay').classList.remove('hidden');
  $('closeSheet').focus();
  document.querySelectorAll('#contribution-table tbody tr').forEach(row=>row.classList.toggle('selected',row.dataset.card===c.id));
+ let loaded=false;
  try{
   const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'job-card-details',job_card_number:c.id},deduplicate:true,timeoutMs:45000});
   if(requestId!==citizenDetailRequest||currentCitizen?.id!==c.id)return;
@@ -1447,11 +1453,13 @@ async function openCitizen(id){
   paymentRefundReconciliations=data.payment_refund_reconciliations||[];
   extraCharges=data.extras||[];
   renderCitizenDetail(id);
+  loaded=true;
  }catch(err){
   if(requestId!==citizenDetailRequest||currentCitizen?.id!==c.id)return;
   $('sheetBody').innerHTML='<div class="notice err"><b>Transaction details could not be loaded.</b><p>'+esc(err?.message||'Please check your connection and retry.')+'</p><button class="btn" type="button" id="retryCitizenDetails">Retry loading details</button></div>';
   $('retryCitizenDetails').addEventListener('click',()=>openCitizen(id));
  }
+ return loaded;
 }
 function renderCitizenDetail(id){
  currentCitizen=citizens.find(c=>c.id===id);if(!currentCitizen)return;
@@ -1555,13 +1563,9 @@ function renderCitizenDetail(id){
    if(panel)panel.classList.remove('hidden');
   }
  }));
- $('sheetFooter').innerHTML='<div class="balance"><div class="label">'+(c.balance<0?'Overpaid':'Outstanding')+'</div><div class="amount '+(c.balance<0?'overpaid':c.balance===0?'zero':'owing')+'">'+fmt(Math.abs(Number(c.balance)||0))+'</div></div>'+(c.exempt?'<div class="muted">This job card is exempt from contribution.</div>':'<div class="transaction-actions">'+(Number(c.balance)>0.001?'<button class="btn" type="button" id="addPaymentBtn">Record payment</button>':'')+''+(c.balance>0?'<button class="btn" type="button" id="payFullBtn">Pay in full</button>':'')+(appRole==='admin'&&!c.exempt&&Number(c.balance)>0.001?'<button class="btn ghost" type="button" id="waiveBtn">Waive</button>':'')+(appRole==='admin'&&Number(c.balance)<-0.001?'<button class="btn ghost" type="button" id="returnBtn">Refund</button>':'')+'</div>');
+ $('sheetFooter').innerHTML='<div class="balance"><div class="label">'+(c.balance<0?'Overpaid':'Outstanding')+'</div><div class="amount '+(c.balance<0?'overpaid':c.balance===0?'zero':'owing')+'">'+fmt(Math.abs(Number(c.balance)||0))+'</div></div>';$('sheetFooter').classList.remove('hidden');
  $('overlay').classList.remove('hidden');
  document.querySelectorAll('#contribution-table tbody tr').forEach(row=>row.classList.toggle('selected',row.dataset.card===c.id));
- const addPayment=$('addPaymentBtn');if(addPayment)addPayment.addEventListener('click',showPaymentForm);
- const payFull=$('payFullBtn');if(payFull)payFull.addEventListener('click',payInFull);
- const waive=$('waiveBtn');if(waive)waive.addEventListener('click',()=>showAdjustmentForm('add-waiver'));
- const ret=$('returnBtn');if(ret)ret.addEventListener('click',()=>showAdjustmentForm('add-return'));
 
  document.querySelectorAll('[data-review-allocation]').forEach(btn=>btn.addEventListener('click',()=>showPaymentAllocationForm(btn.dataset.reviewAllocation)));
  document.querySelectorAll('[data-edit-entry]').forEach(btn=>btn.addEventListener('click',()=>showEditForm(btn.dataset.editEntry)));

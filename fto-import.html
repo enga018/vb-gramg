@@ -475,6 +475,7 @@ const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
 const supabaseClient=window.vbgramgSupabase;
 const $=id=>document.getElementById(id);
+const expectedRevisionFto=new URLSearchParams(location.search).get('revise')?.trim()||'';
 const {
  parsePastedTable,isHeaderOrSeparator,jobCardFromRow,villageFromRow,normalizeVillage,
  parseAmount,periodToDate,rawStatus,bytesToHex,sha256
@@ -577,6 +578,8 @@ $('load-table-button').addEventListener('click',async()=>{
  if(!rows.length){status('Paste the copied FTO table first, then select Load table.','error');return}
  const ftoMatch=pasted.match(/FTO\s*No\.?\s*[:：]?\s*([A-Z0-9_-]+)/i);
  $('fto-number').value=ftoMatch&&ftoMatch[1]?ftoMatch[1].trim():'';existingFtoUnchanged=false;existingFtoKnown=false;ftoIdentityMismatch=false;
+ if(expectedRevisionFto&&$('fto-number').value!==expectedRevisionFto){$('table-output').classList.add('hidden');$('import-controls').classList.add('hidden');status('Revision stopped: the pasted table is FTO '+($('fto-number').value||'unknown')+', but you opened Revise for FTO '+expectedRevisionFto+'. Paste the correct FTO table.','error');return;}
+ if(expectedRevisionFto)status('Revision mode · FTO '+expectedRevisionFto+'. Review the detected changes before synchronizing.','success');
  const result=renderPastedTable(rows);
  if(!result){status('No data rows detected. Paste the FTO table including its data.','error');return}
  if(!$('fto-number').value.trim()){status('FTO number was not detected. Paste the official FTO header including its FTO No. before preparing the import.','error');return;}

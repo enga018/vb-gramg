@@ -621,7 +621,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
   <header class="fto-view-modal-header">
    <div><h2 id="fto-view-modal-title">FTO transactions</h2><p id="fto-view-modal-subtitle" class="muted"></p></div>
    <div class="fto-modal-actions">
-    <button id="fto-revise-button" type="button" class="secondary" disabled title="FTO revision workflow will be added later">Revise</button>
+    <button id="fto-revise-button" type="button" class="secondary" disabled>Revise</button>
     <button id="fto-change-period-button" type="button" class="secondary">Change Period</button>
     <button id="fto-view-modal-close" type="button" class="secondary" aria-label="Close transaction details">×</button>
    </div>
@@ -758,6 +758,7 @@ function openFtoViewModal(batch,opener=null){
  $("fto-view-modal-title").textContent="FTO "+String(batch.fto_number||"transactions");
  $("fto-view-modal-subtitle").textContent=String(batch.contribution_period||"No contribution period")+" · "+(batch.transactions||[]).length+" transactions";
  $("fto-view-modal-content").replaceChildren(renderHistoryTransactions(batch));
+ $("fto-revise-button").disabled=!String(batch.fto_number||"").trim();
  $("fto-view-modal-backdrop").classList.remove("hidden");$("fto-view-modal-close").focus();
 }
 function closeFtoViewModal(){
@@ -906,6 +907,7 @@ async function loadFtoHistory(options={}){
  }
 }
 $("fto-change-period-button").addEventListener("click",()=>{if(currentViewingFtoBatch){const batch=currentViewingFtoBatch;closeFtoViewModal();changeFtoPeriod(batch);}});
+$("fto-revise-button").addEventListener("click",()=>{const batch=currentViewingFtoBatch,number=String(batch?.fto_number||"").trim();if(!number)return;if(typeof window.openFtoImportForRevision!=="function"){historyMessage("The FTO import screen is not ready. Reload this page and try again.","error");return;}closeFtoViewModal();window.openFtoImportForRevision(number);});
 $("fto-view-modal-close").addEventListener("click",closeFtoViewModal);
 $("fto-view-modal-backdrop").addEventListener("click",event=>{if(event.target===$("fto-view-modal-backdrop"))closeFtoViewModal();});
 
@@ -940,7 +942,9 @@ supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){
  const modal=document.getElementById('fto-import-modal'),frame=document.getElementById('fto-import-frame');
  const open=document.getElementById('open-fto-import'),close=document.getElementById('close-fto-import');
  if(!modal||!frame||!open||!close)return;
- open.addEventListener('click',()=>{if(!frame.src||frame.src==='about:blank')frame.src='./fto-import.html?embedded=1';if(typeof modal.showModal==='function')modal.showModal();else modal.setAttribute('open','');});
+ function showImport(url){frame.src=url;if(typeof modal.showModal==='function')modal.showModal();else modal.setAttribute('open','');}
+ window.openFtoImportForRevision=function(ftoNumber){showImport('./fto-import.html?embedded=1&revise='+encodeURIComponent(String(ftoNumber||'')));};
+ open.addEventListener('click',()=>{showImport('./fto-import.html?embedded=1');});
  close.addEventListener('click',()=>modal.close());
  modal.addEventListener('click',event=>{if(event.target===modal)modal.close()});
  modal.addEventListener('close',()=>{frame.src='about:blank'});

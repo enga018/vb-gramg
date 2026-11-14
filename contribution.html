@@ -1471,23 +1471,21 @@ function buildFifoBreakdown(c){
 }
 let citizenDetailRequest=0;
 let citizenDialogOpener=null;
-async function openCitizenThen(id,afterLoad,showActionSheet=true){
+async function openCitizenThen(id,afterLoad){
  const loaded=await openCitizen(id,{showLoading:false,renderDetails:false});
  if(!loaded||!currentCitizen||String(currentCitizen.id)!==String(id)||typeof afterLoad!=='function')return;
- if(showActionSheet){
-  const sheet=$('overlay').querySelector('.sheet');
-  sheet.classList.add('action-modal');
-  $('overlay').classList.add('action-modal-overlay');
-  $('overlay').appendChild(sheet);
-  $('sheetTitle').textContent=currentCitizen.id;
-  $('sheetSubtitle').textContent=currentCitizen.name||'Head of household not recorded';
-  $('sheetFooter').classList.add('hidden');
-  $('toggleEditMode').classList.add('hidden');
-  $('sheetBody').replaceChildren();
-  $('overlay').classList.remove('hidden');
-  document.body.classList.add('sheet-open');
-  $('closeSheet').focus();
- }
+ const sheet=$('overlay').querySelector('.sheet');
+ sheet.classList.add('action-modal');
+ $('overlay').classList.add('action-modal-overlay');
+ $('overlay').appendChild(sheet);
+ $('sheetTitle').textContent=currentCitizen.id;
+ $('sheetSubtitle').textContent=currentCitizen.name||'Head of household not recorded';
+ $('sheetFooter').classList.add('hidden');
+ $('toggleEditMode').classList.add('hidden');
+ $('sheetBody').replaceChildren();
+ $('overlay').classList.remove('hidden');
+ document.body.classList.add('sheet-open');
+ $('closeSheet').focus();
  afterLoad();
 }
 async function openCitizen(id,options={}){

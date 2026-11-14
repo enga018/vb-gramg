@@ -98,11 +98,13 @@ Deno.serve(async(req:Request)=>{
  if(!url||!anonKey||!serviceKey)return reply({error:"Server configuration is incomplete."},500);
  const auth=createClient(url,anonKey,{auth:{persistSession:false,autoRefreshToken:false}});
  const authLookupStarted=performance.now();
- const {data:authData,error:authError}=await auth.auth.getUser(token);
- requestStageTimings.auth_user=Number((performance.now()-authLookupStarted).toFixed(1));
- if(authError||!authData.user||!authData.user.email_confirmed_at)return reply({error:"A verified account is required."},401);
+ const {data:claimsData,error:claimsError}=await auth.auth.getClaims(token);
+ requestStageTimings.auth_claims=Number((performance.now()-authLookupStarted).toFixed(1));
+ const claims=claimsData?.claims;
+ if(claimsError||!claims||typeof claims.sub!=="string"||typeof claims.email!=="string"||claims.app_metadata?.email_verified!==true)return reply({error:"A verified account is required."},401);
+ const authData={user:{id:claims.sub,email:claims.email}};
  const admin=createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
- const email=(authData.user.email||"").trim().toLowerCase();
+ const email=claims.email.trim().toLowerCase();
  const approvalLookupStarted=performance.now();
  const {data:approved,error:approvalError}=await admin.from("vbgramg_approved_users").select("email,role").eq("email",email).maybeSingle();
  requestStageTimings.approved_user_lookup=Number((performance.now()-approvalLookupStarted).toFixed(1));

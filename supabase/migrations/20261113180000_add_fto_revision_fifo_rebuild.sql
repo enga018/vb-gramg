@@ -62,6 +62,16 @@ begin
   end if;
 
   if exists (
+    select 1 from (
+      select x.period_order
+      from jsonb_to_recordset(p_periods) as x(period_order integer)
+      group by x.period_order having count(*) > 1
+    ) duplicates
+  ) then
+    raise exception 'Duplicate period order in FIFO rebuild';
+  end if;
+
+  if exists (
     select 1
     from jsonb_to_recordset(p_payments) as x(
       payment_id uuid, amount numeric, payment_date date, created_at timestamptz

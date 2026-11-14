@@ -2372,3 +2372,49 @@ body:has(#desktop-fetch-preview) #desktop-fetch-preview table {
     background: #3b2223 !important;
   }
 }
+
+/* Contribution mobile action panel: keep every action surface readable in dark mode. */
+@media screen and (prefers-color-scheme: dark) {
+  body:has(#contribution-table) .contribution-actions-row td {
+    color: #edf2f7 !important;
+    background: #171d24 !important;
+    border-color: #303a45 !important;
+  }
+  body:has(#contribution-table) .mobile-action-panel {
+    color: #edf2f7 !important;
+    background: #171d24 !important;
+    border-color: #394653 !important;
+    box-shadow: none !important;
+  }
+  body:has(#contribution-table) .mobile-action-panel-head {
+    color: #edf2f7 !important;
+    border-color: #394653 !important;
+  }
+  body:has(#contribution-table) .mobile-action-grid .action-tile {
+    color: #e7edf3 !important;
+    background: #26323d !important;
+    border-color: #43515e !important;
+  }
+  body:has(#contribution-table) .mobile-action-grid .action-tile.primary-action {
+    color: #f3fffb !important;
+    background: #216653 !important;
+    border-color: #32836d !important;
+  }
+  body:has(#contribution-table) .action-tile-icon {
+    color: #edf2f7 !important;
+    background: #3a4855 !important;
+  }
+  body:has(#contribution-table) .mobile-action-grid .primary-action .action-tile-icon {
+    color: #f3fffb !important;
+    background: rgba(255,255,255,.16) !important;
+  }
+  body:has(#contribution-table) .mobile-history-button {
+    color: #e7edf3 !important;
+    background: #26323d !important;
+    border-color: #43515e !important;
+  }
+  body:has(#contribution-table) .mobile-history-button .action-tile-icon {
+    color: #edf2f7 !important;
+    background: #3a4855 !important;
+  }
+}

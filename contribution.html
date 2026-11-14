@@ -1918,7 +1918,7 @@ function showAdjustmentForm(action){
  $('cancelAdjustment').addEventListener('click',closeCitizenDetail);
  $('adjustmentForm').addEventListener('submit',async ev=>{
   ev.preventDefault();if(busy)return;
-  const amount=Number($('adjustAmount').value),date=$('adjustDate').value,note=$('adjustNote').value;
+  const amount=Number($('adjustAmount').value),date=$('adjustDate').value,note=isWaiver?'Charge Waiver':'Refund';
   if(!Number.isFinite(amount)||amount<=0){status('Enter an amount greater than zero.','error');return;}if(isWaiver&&amount>Number(c.balance)+0.001){status('Waiver cannot exceed the current outstanding balance.','error');return;}
   busy=true;$('saveAdjustment').disabled=true;$('saveAdjustment').textContent='Saving…';
   try{

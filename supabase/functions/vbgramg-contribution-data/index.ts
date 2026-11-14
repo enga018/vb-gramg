@@ -181,6 +181,16 @@ Deno.serve(async(req:Request)=>{
    return reply(payload);
   }
 
+  if(action==="export-applicant-lookup"){
+   const {data:misState,error:misStateError}=await admin.from("vbgramg_mis_state").select("active_import_id").eq("singleton",true).maybeSingle();
+   if(misStateError)throw misStateError;
+   if(!misState?.active_import_id)throw new Error("There is no active MIS import.");
+   const {data:lookupCache,error:lookupError}=await admin.from("vbgramg_mis_contribution_lookup").select("payload").eq("import_id",misState.active_import_id).maybeSingle();
+   if(lookupError)throw lookupError;
+   const applicantsByCard=lookupCache?.payload?.applicants_by_job_card;
+   if(!applicantsByCard||typeof applicantsByCard!=="object"||Array.isArray(applicantsByCard))throw new Error("Applicant lookup is not ready. Reload Contribution and try Export again.");
+   return reply({approved:true,active_mis_import_id:misState.active_import_id});
+  }
   if(action==="list-summary"){
    const summaryStarted=performance.now();
    const [sqlSummaryResult,exemptionsResult,misStateResult,periodsResult]=await Promise.all([
@@ -224,9 +234,7 @@ Deno.serve(async(req:Request)=>{
     const id=String(c.job_card_number||"").trim(),isExempt=exempted.has(id);
     const sql=sqlByCard.get(id);
     if(!sql)throw new Error(`Database summary is missing active MIS job card ${id}.`);
-    const applicants=Array.isArray(applicantsByCard[id])?applicantsByCard[id]:[];
-    const latestApplicant=applicants.slice().sort((a,b)=>String(b.applicant_number||"").localeCompare(String(a.applicant_number||""),undefined,{numeric:true})||String(b.applicant_name||"").localeCompare(String(a.applicant_name||"")))[0];
-    return {...sql,job_card_number:id,person_name:String(c.person_name||"Unnamed"),exempt:isExempt,charges:isExempt?0:Number(sql.charges)||0,deferred:isExempt?0:Number(sql.deferred)||0,paid:isExempt?0:Number(sql.paid)||0,waived:isExempt?0:Number(sql.waived)||0,returns:isExempt?0:Number(sql.returns)||0,totalCharged:isExempt?0:Number(sql.totalCharged)||0,balance:isExempt?0:Number(sql.balance)||0,display_applicant:String(latestApplicant?.applicant_name||"").trim()||String(c.person_name||"")};
+    return {...sql,job_card_number:id,person_name:String(c.person_name||"Unnamed"),exempt:isExempt,charges:isExempt?0:Number(sql.charges)||0,deferred:isExempt?0:Number(sql.deferred)||0,paid:isExempt?0:Number(sql.paid)||0,waived:isExempt?0:Number(sql.waived)||0,returns:isExempt?0:Number(sql.returns)||0,totalCharged:isExempt?0:Number(sql.totalCharged)||0,balance:isExempt?0:Number(sql.balance)||0};
    });
    const payload={approved:true,role:approved.role,summaries,periods:periodsResult.data||[],financial_totals:sqlSummary.totals||{},applicants_by_job_card:applicantsByCard,exemptions:exemptionsResult.data||[],active_mis_import_id:misState.active_import_id,active_mis_row_count:Number(misState.row_count||0)};
    console.info("[contribution-summary-timing]",JSON.stringify({request_ms:Number((performance.now()-requestStarted).toFixed(1)),total_ms:Number((performance.now()-summaryStarted).toFixed(1)),calculation_source:"postgresql",job_cards:summaries.length,response_bytes:new TextEncoder().encode(JSON.stringify(payload)).length}));

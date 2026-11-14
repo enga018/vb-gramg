@@ -293,6 +293,70 @@ body.mis-import-open{overflow:hidden}
  #mis-table .mobile-selection-status{width:100%;box-sizing:border-box}
 }
 
+
+/* MIS shared-token theme integration */
+:root{
+ color-scheme:light dark;
+ color:var(--color-text-primary);
+ background:var(--color-bg-canvas);
+ --ink:var(--color-text-primary);
+ --muted:var(--color-text-secondary);
+ --line:var(--color-border);
+ --surface:var(--color-bg-surface);
+ --surface-soft:var(--color-bg-subtle);
+ --accent:var(--color-brand-primary);
+}
+body{background:var(--color-bg-canvas);color:var(--color-text-primary)}
+.topbar,.panel,.stat{background:var(--color-bg-surface);border-color:var(--color-border);color:var(--color-text-primary)}
+.brand h1,h2,.stat strong{color:var(--color-text-primary)}
+.brand p,p,.muted,.stat small{color:var(--color-text-secondary)}
+.header-actions-label,label{color:var(--color-text-secondary)}
+input,select,.mobile-applicant-picker select,#mis-table .desktop-applicant-dropdown{
+ background:var(--color-bg-surface);color:var(--color-text-primary);border-color:var(--color-border-strong)
+}
+input:focus,select:focus{outline-color:color-mix(in srgb,var(--color-focus-ring) 28%,transparent);border-color:var(--color-focus-ring)}
+button,.link-button{background:var(--color-brand-primary);color:var(--color-text-inverse)}
+button:hover,.link-button:hover{background:var(--color-brand-primary-hover)}
+button.secondary,.link-button.secondary{background:var(--color-bg-subtle);color:var(--color-text-primary);border-color:var(--color-border)}
+button.secondary:hover,.link-button.secondary:hover{background:var(--color-bg-muted)}
+button:focus-visible,.link-button:focus-visible{outline-color:var(--color-focus-ring)}
+.status{background:var(--color-bg-subtle);border-color:var(--color-border);color:var(--color-text-secondary)}
+.status.error{background:var(--color-status-danger-bg);border-color:var(--color-border);color:var(--color-status-danger)}
+.status.success{background:var(--color-status-success-bg);border-color:var(--color-border);color:var(--color-status-success)}
+.table-wrap{background:var(--color-bg-surface);border-color:var(--color-border)}
+th{background:var(--color-bg-subtle);color:var(--color-text-secondary);border-color:var(--color-border)}
+th,td{border-bottom-color:var(--color-border)}
+.jobcard-row{background:var(--color-bg-surface);color:var(--color-text-primary)}
+.jobcard-row:hover,.jobcard-row:active{background:var(--color-bg-subtle)}
+.jobcard-row[aria-expanded="true"]{background:var(--color-brand-primary-soft)}
+.applicant-detail td,.mobile-applicant-picker-row td{background:var(--color-bg-subtle);border-bottom-color:var(--color-border)}
+.applicant-detail table{border-color:var(--color-border)}
+.applicant-detail th{background:var(--color-bg-muted)}
+.applicant-detail tbody tr:nth-child(even){background:var(--color-bg-surface)}
+.applicant-detail tbody tr:hover{background:var(--color-bg-subtle)}
+.applicant-detail input[type=checkbox]{accent-color:var(--color-brand-primary)}
+.mobile-selection-status.is-selected{background:var(--color-status-success-bg);color:var(--color-status-success)}
+.mobile-selection-status.is-unselected{background:var(--color-status-warning-bg);color:var(--color-status-warning)}
+#mis-table .mobile-jobcard-number{color:var(--color-text-primary)}
+#mis-table .mobile-jobcard-household{color:var(--color-text-secondary)}
+#mis-table .mobile-applicant-count-badge{background:var(--color-bg-subtle);border-color:var(--color-border);color:var(--color-text-secondary)}
+#mis-table .desktop-applicant-row td{background:var(--color-bg-surface)}
+#mis-table .desktop-applicant-row.group-alt td{background:var(--color-bg-subtle)}
+#mis-table .desktop-applicant-row:hover td{background:var(--color-brand-primary-soft)}
+#mis-table .desktop-applicant-count{background:var(--color-bg-muted);color:var(--color-text-secondary)}
+#mis-table .desktop-applicant-dropdown.no-applicant-selected{border-color:var(--color-status-warning);background:var(--color-status-warning-bg);color:var(--color-status-warning)}
+#mis-table .desktop-applicant-dropdown:focus{outline-color:var(--color-focus-ring)}
+.mis-import-dialog{background:var(--color-bg-canvas);border-color:var(--color-border)}
+.mis-import-dialog-head{background:var(--color-bg-surface);border-bottom-color:var(--color-border)}
+.mis-import-dialog-head strong{color:var(--color-text-primary)}
+.mis-import-frame{background:var(--color-bg-canvas)}
+header .account > button,header .app-header-actions > a,header .app-header-actions > button,header .top-actions > a,header .top-actions > button{
+ background:var(--color-bg-subtle)!important;color:var(--color-text-primary)!important;border-color:var(--color-border)!important
+}
+header .account > button:hover,header .app-header-actions > a:hover,header .app-header-actions > button:hover,header .top-actions > a:hover,header .top-actions > button:hover{
+ background:var(--color-bg-muted)!important;color:var(--color-text-primary)!important
+}
+
 </style>
   <link rel="stylesheet" href="./responsive.css?v=20261111-design-system">
 <link rel="stylesheet" href="./theme.css?v=20261111-design-system">

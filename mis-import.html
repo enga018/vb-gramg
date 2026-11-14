@@ -123,6 +123,15 @@ header .top-actions > button:hover {
 :root{--app-content-width:1440px}
 body>main{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
+
+/* Compact MIS import entry form */
+.paste-box{padding:14px;margin:0 0 14px}
+.paste-box .file-label{margin-bottom:7px}
+.paste-box .hint{margin:4px 0 8px;font-size:.82rem;line-height:1.35}
+.paste-box input[type=file]{display:block;max-width:100%;font:inherit;font-size:.88rem}
+.paste-box textarea{min-height:120px;max-height:42vh;resize:vertical}
+.paste-box #load-table-button{margin-top:10px}
+@media(max-width:700px){.paste-box{padding:12px;margin:0}.paste-box textarea{min-height:112px}}
 </style>
   <link rel="stylesheet" href="./responsive.css?v=20261111-design-system">
 <link rel="stylesheet" href="./theme.css?v=20261111-design-system">
@@ -131,16 +140,13 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 <body>
   <main>
   
-    <p>Paste the copied MIS register and select Analyze and compare. The page filters locally, compares against the active MIS, and shows counts and applicant details. The active MIS changes only after you confirm.</p>
-
     <div class="paste-box">
-      <label class="file-label" for="register-file">Upload saved government register (.mht, .mhtml, .html)</label>
+      <label class="file-label" for="register-file">Upload register file</label>
+      <p class="hint">MHT, MHTML or HTML</p>
       <input id="register-file" type="file" accept=".mht,.mhtml,.html,.htm,text/html,multipart/related" />
-      <p class="hint">Choose the saved Registration Application Register file from Brave. The page extracts the applicant table locally; it does not update active MIS until you analyze, review, and confirm.</p>
       <div id="file-status" class="hint" aria-live="polite"></div>
-      <label class="file-label" for="table-input" style="margin-top:16px">Extracted register table (editable)</label>
-      <textarea id="table-input" rows="8" placeholder="Copy the MIS table, then paste it here…"></textarea>
-      <p class="hint">Original pasted text is retained unchanged. The app filters report headings/deleted applicants locally, maps the government register into the active database columns, and preserves existing Unique IDs when matched.</p>
+      <label class="file-label" for="table-input" style="margin-top:16px">Paste MIS register</label>
+      <textarea id="table-input" rows="5" placeholder="Paste copied table here…"></textarea>
       <button type="button" id="load-table-button">Analyze and compare</button>
     </div>
     <div id="status" class="status" aria-live="polite">Checking administrator access…</div>

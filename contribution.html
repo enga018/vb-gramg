@@ -25,6 +25,37 @@ table{border-collapse:separate;border-spacing:0;width:100%;font-size:.9rem;white
 .citizen{display:flex;align-items:center;gap:12px;padding:13px 15px;margin-bottom:8px;border:1px solid var(--line);border-radius:12px;width:100%;box-sizing:border-box;min-width:0;background:var(--surface);text-align:left;cursor:pointer;transition:background .15s,border-color .15s}.citizen:hover{background:#f6f9ff;border-color:#cbd8f0}.citizen:focus-visible{outline:3px solid rgb(36 87 197 / 25%);outline-offset:2px}.citizen .info{flex:1;min-width:0}.citizen .info b{font-size:.93rem;display:block;font-weight:700;color:var(--ink)}.citizen .info small{font-size:.8rem;color:var(--muted);display:block;margin-top:3px;overflow-wrap:anywhere}.citizen .bal{font-size:.95rem;font-weight:750;white-space:nowrap;flex:none;flex-shrink:0;margin-left:auto;text-align:right;align-self:center;max-width:45%}.dot{width:8px;height:8px;border-radius:50%;flex:none}.dot.paid{background:var(--paid)}.dot.partial{background:var(--partial)}.dot.due{background:var(--due)}
 .badge{display:inline-flex;font-size:.66rem;font-weight:750;padding:4px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.04em}.badge.paid{background:#e6f4ea;color:var(--paid)}.badge.partial{background:#fdf1e3;color:var(--partial)}.badge.due{background:#fdeaea;color:var(--due)}.row-status{display:inline-flex;align-items:center;gap:4px;margin-top:5px;font-size:.7rem;font-weight:800;border-radius:6px;padding:3px 7px;white-space:nowrap}.row-status.overpaid{background:#c7d8ff;color:#1e40af}.row-status.due{background:#f8caca;color:#8f1717}.row-status.exempt{background:#e2e5e9;color:#344054}.row-status.settled{background:#bfe8ca;color:#14532d}.row-status.deferred{background:#ffe09a;color:#754400}
 .notice{padding:11px 13px;border:1px solid #e5eaf2;border-radius:10px;background:#f7f9fc;color:#475467;font-size:.88rem;line-height:1.45;margin:0 0 16px;overflow-wrap:anywhere}.notice.err{background:#fff4f2;border-color:#ffd8d2;color:#a12b20}.notice.info{background:#f7f9fc;border-color:#e5eaf2;color:#475467}.hidden{display:none!important}.empty{padding:24px;text-align:center;color:var(--muted);font-size:.9rem}.count{color:var(--muted);font-size:.84rem;margin:0 0 10px}
+
+/* Reusable compact action modal, visually aligned with the Periods > Create Period dialog. */
+#overlay.action-modal-overlay{padding:16px!important}
+#overlay.action-modal-overlay>.sheet.action-modal{
+ width:min(92vw,440px)!important;max-width:440px!important;
+ height:auto!important;max-height:90vh!important;
+ border:1px solid var(--line)!important;border-radius:16px!important;
+ box-shadow:0 18px 55px rgb(15 23 42 / 22%)!important;
+}
+#overlay>.sheet.action-modal .sheet-head{padding:16px 18px}
+#overlay>.sheet.action-modal .sheet-body{padding:22px!important;overflow:auto}
+#overlay>.sheet.action-modal .sheet-body .notice{margin-bottom:16px}
+#overlay>.sheet.action-modal .sheet-body form{display:grid;gap:14px}
+#overlay>.sheet.action-modal .sheet-body form .field{margin:0}
+#overlay>.sheet.action-modal .sheet-body form .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#overlay>.sheet.action-modal .sheet-body form button{min-height:44px}
+#overlay>.sheet.action-modal .sheet-body form .btn.ghost{margin-left:6px}
+#overlay>.sheet.action-modal .dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+#overlay>.sheet.action-modal .dialog-actions button{min-width:112px;min-height:44px}
+@media(max-width:767px){
+ #overlay.action-modal-overlay{padding:16px!important}
+ #overlay.action-modal-overlay>.sheet.action-modal{
+  width:min(92vw,440px)!important;max-width:440px!important;
+  height:auto!important;max-height:90dvh!important;
+  border:1px solid var(--line)!important;border-radius:16px!important;
+ }
+ #overlay>.sheet.action-modal .sheet-head{padding:14px 16px}
+ #overlay>.sheet.action-modal .sheet-body{padding:18px!important}
+ #overlay>.sheet.action-modal .sheet-body form .grid2{grid-template-columns:1fr}
+}
+
 /* Citizen detail surfaces inherit the active light/dark theme. */
 .overlay{position:fixed;inset:0;background:rgba(15,23,42,.58);z-index:40;display:flex;align-items:center;justify-content:center;padding:16px}.sheet{background:var(--surface);display:flex;flex-direction:column;width:min(100%,1200px);max-width:1200px;height:min(94vh,1000px);max-height:94vh;overflow:hidden;border:1px solid var(--line);border-radius:16px;box-shadow:0 16px 50px rgb(15 23 42 / 18%)}.sheet-head{flex:none;background:var(--surface);padding:16px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px;z-index:2}.sheet-heading{min-width:0;flex:1}.sheet-head-actions{display:flex;align-items:center;gap:8px;flex:none}.sheet-head h2{margin:0;font-size:1.02rem;overflow-wrap:anywhere}.sheet-subtitle{margin-top:3px;color:var(--muted);font-size:.9rem;font-weight:600;overflow-wrap:anywhere}.entry .entry-actions{display:none}.sheet.edit-mode .entry .entry-actions{display:flex}.sheet-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}.sheet-footer{flex:none;background:var(--surface);padding:12px 18px max(12px,env(safe-area-inset-bottom));border-top:1px solid var(--line);box-shadow:0 -4px 14px rgb(23 32 51 / 4%)}.sheet-footer .balance{margin:0 0 10px;padding:12px 14px}.sheet-footer .balance .amount{font-size:clamp(28px,4vw,36px)}.sheet-footer .transaction-actions{margin:0;gap:7px}.sheet-footer .transaction-actions .btn{flex:1 1 auto}.x{background:#f0f3f8;border:1px solid #e0e6ef;width:36px;height:36px;border-radius:10px;font-size:19px;color:#475467;cursor:pointer}.sheet-body{padding:18px}.balance{padding:20px;text-align:center;border:1px solid var(--line);border-radius:12px;background:var(--surface-soft);margin-bottom:14px}.balance .label{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}.balance .amount{font-size:clamp(30px,5vw,38px);font-weight:800;letter-spacing:-1px;margin:3px 0}.balance .amount.owing{color:var(--due)}.balance .amount.zero{color:var(--paid)}.balance .amount.overpaid{color:#1e40af}
 .split{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px}.split>div{flex:1;padding:12px;text-align:center;min-width:0}.split>div+div{border-left:1px solid var(--line)}.split .k{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.split .v{font-size:.95rem;font-weight:700;margin-top:3px;overflow-wrap:anywhere}
@@ -1445,6 +1476,8 @@ async function openCitizenThen(id,afterLoad,showActionSheet=true){
  if(!loaded||!currentCitizen||String(currentCitizen.id)!==String(id)||typeof afterLoad!=='function')return;
  if(showActionSheet){
   const sheet=$('overlay').querySelector('.sheet');
+  sheet.classList.add('action-modal');
+  $('overlay').classList.add('action-modal-overlay');
   $('overlay').appendChild(sheet);
   $('sheetTitle').textContent=currentCitizen.id;
   $('sheetSubtitle').textContent=currentCitizen.name||'Head of household not recorded';
@@ -1460,6 +1493,9 @@ async function openCitizenThen(id,afterLoad,showActionSheet=true){
 async function openCitizen(id,options={}){
  const c=citizens.find(item=>item.id===id);if(!c)return;
  const showLoading=options.showLoading!==false;
+ const activeSheet=$('overlay').querySelector('.sheet');
+ activeSheet?.classList.remove('action-modal');
+ $('overlay').classList.remove('action-modal-overlay');
  if($("overlay").classList.contains("hidden"))citizenDialogOpener=document.activeElement;
  currentCitizen=c;
  const requestId=++citizenDetailRequest;
@@ -1690,7 +1726,7 @@ function showPaymentForm(){
  $('sheetFooter').classList.add('hidden');
  const c=currentCitizen;if(!c)return;
  $('sheetBody').innerHTML='<div class="notice info">Record a payment against this full job card. The amount is added to the ledger; it does not delete or alter earlier charges.</div><form id="paymentForm"><div class="field"><label for="paymentAmount">Payment amount (₹)</label><input id="paymentAmount" type="number" min="0.01" max="'+Number(c.balance).toFixed(2)+'" step="0.01" required inputmode="decimal"></div><div class="grid2"><div class="field"><label for="paymentDate">Payment date</label><input id="paymentDate" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div><div class="field"><label>Method</label><input value="Cash" readonly aria-readonly="true"></div></div><button class="btn" type="submit" id="savePayment">Save payment</button> <button class="btn ghost" type="button" id="cancelPayment">Cancel</button></form>';
- $('cancelPayment').addEventListener('click',()=>openCitizen(c.id));
+ $('cancelPayment').addEventListener('click',closeCitizenDetail);
  $('paymentForm').addEventListener('submit',async ev=>{
   ev.preventDefault();if(busy)return;
   const amount=Number($('paymentAmount').value),date=$('paymentDate').value,note="Cash";
@@ -1870,7 +1906,7 @@ function showAdjustmentForm(action){
  const c=currentCitizen;if(!c)return;
  const isWaiver=action==="add-waiver",title=isWaiver?"Charge Waiver":"Refund";
  $('sheetBody').innerHTML='<div class="notice info">'+(isWaiver?'A waiver reduces the outstanding balance and is recorded as a separate ledger entry.':'A refund records money returned to the household and increases the outstanding balance.')+'</div><form id="adjustmentForm"><div class="field"><label for="adjustAmount">Amount (₹)</label><input id="adjustAmount" type="number" min="0.01" max="' +(isWaiver?Number(c.balance).toFixed(2):10000000)+'" step="0.01" required inputmode="decimal"></div><div class="grid2"><div class="field"><label for="adjustDate">Date</label><input id="adjustDate" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div><div class="field"><label for="adjustNote">Note</label><input id="adjustNote" maxlength="200" value="'+(isWaiver?'Charge Waiver':'Refund')+'"></div></div><button class="btn" id="saveAdjustment" type="submit">'+title+'</button> <button class="btn ghost" id="cancelAdjustment" type="button">Cancel</button></form>';
- $('cancelAdjustment').addEventListener('click',()=>openCitizen(c.id));
+ $('cancelAdjustment').addEventListener('click',closeCitizenDetail);
  $('adjustmentForm').addEventListener('submit',async ev=>{
   ev.preventDefault();if(busy)return;
   const amount=Number($('adjustAmount').value),date=$('adjustDate').value,note=$('adjustNote').value;
@@ -1886,7 +1922,17 @@ function showAdjustmentForm(action){
 }
 async function payInFull(){
  const c=currentCitizen;if(!c||busy||c.balance<=0)return;
- if(!window.confirm('Record a payment of '+fmt(c.balance)+' to settle this job card?'))return;
+ $('sheetFooter').classList.add('hidden');
+ $('sheetTitle').textContent='Confirm full payment';
+ $('sheetSubtitle').textContent=c.id+' · '+(c.name||'Head of household');
+ $('sheetBody').innerHTML='<div class="notice info">You are about to record a payment that settles the full outstanding balance for this job card.</div><div class="balance"><div class="label">Payment amount</div><div class="amount owing">'+fmt(c.balance)+'</div></div><div class="dialog-actions"><button class="btn" type="button" id="confirmFullPayment">Confirm payment</button><button class="btn ghost" type="button" id="cancelFullPayment">Cancel</button></div>';
+ $('cancelFullPayment').addEventListener('click',closeCitizenDetail);
+ $('confirmFullPayment').addEventListener('click',()=>executeFullPayment());
+}
+async function executeFullPayment(){
+ const c=currentCitizen;if(!c||busy||c.balance<=0)return;
+ $('confirmFullPayment').disabled=true;
+ $('confirmFullPayment').textContent='Processing…';
  busy=true;
  try{
   const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:"pay-in-full",job_card_number:c.id,entry_date:new Date().toISOString().slice(0,10)},timeoutMs:false});

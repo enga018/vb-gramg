@@ -218,6 +218,7 @@ jobs:
           createdb vbgramg_fto_fifo_simulation_test
           PGDATABASE=vbgramg_fto_fifo_simulation_test psql -v ON_ERROR_STOP=1 -f tests/fto-revision-fifo-simulation-postgres.sql
       - name: Run FTO full FIFO rebuild PostgreSQL tests
+        if: hashFiles('tests/fto-revision-fifo-rebuild-postgres.sql') != ''
         run: |
           createdb vbgramg_fto_fifo_rebuild_test
           PGDATABASE=vbgramg_fto_fifo_rebuild_test psql -v ON_ERROR_STOP=1 -f tests/fto-revision-fifo-rebuild-postgres.sql

@@ -81,6 +81,24 @@ begin
 end
 $$;
 
+-- Duplicate FIFO order values must be rejected rather than tie-broken by UUID.
+do $
+begin
+  begin
+    perform public.vbgramg_simulate_fifo_rebuild(
+      '[
+        {"period_id":"00000000-0000-0000-0000-000000000001","period_order":1,"eligible_charges":10,"linked_waivers":0},
+        {"period_id":"00000000-0000-0000-0000-000000000002","period_order":1,"eligible_charges":10,"linked_waivers":0}
+      ]'::jsonb,
+      '[]'::jsonb,'[]'::jsonb,false
+    );
+    raise exception 'Duplicate period order unexpectedly accepted';
+  exception when raise_exception then
+    if sqlerrm = 'Duplicate period order unexpectedly accepted' then raise; end if;
+  end;
+end
+$;
+
 -- Exempt cards receive no allocation proposal.
 do $$
 declare v_result jsonb;

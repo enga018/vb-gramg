@@ -132,6 +132,22 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 .paste-box textarea{min-height:120px;max-height:42vh;resize:vertical}
 .paste-box #load-table-button{margin-top:10px}
 @media(max-width:700px){.paste-box{padding:12px;margin:0}.paste-box textarea{min-height:112px}}
+
+/* Responsive MIS comparison: table on desktop, readable change cards on mobile. */
+.diff-mobile-cards{display:grid;gap:10px;margin-top:12px}
+.diff-change-card{padding:13px;border:1px solid #334155;border-radius:12px;background:#1b232d;color:#e2e8f0}
+.diff-card-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.diff-card-job{font-weight:750;overflow-wrap:anywhere;margin-bottom:9px}
+.diff-card-field{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid #334155;font-size:.9rem}
+.diff-card-field span,.diff-card-previous span{color:#aab6c5}
+.diff-card-field strong{text-align:right;overflow-wrap:anywhere}
+.diff-card-previous{margin-top:9px;padding:9px;border-radius:8px;background:#111820}
+.diff-card-previous p{margin:5px 0 0;overflow-wrap:anywhere}
+.diff-added .diff-card-heading strong{color:#6ee7b7}
+.diff-deleted .diff-card-heading strong{color:#fca5a5}
+.diff-updated .diff-card-heading strong{color:#fcd34d}
+@media(min-width:701px){.diff-mobile-cards{display:none!important}}
+
 </style>
   <link rel="stylesheet" href="./responsive.css?v=20261111-design-system">
 <link rel="stylesheet" href="./theme.css?v=20261111-design-system">
@@ -163,9 +179,10 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
       <div class="table-wrap diff-table-wrap">
         <table class="diff-table">
           <thead><tr><th>Change</th><th>Job Card No.</th><th>Head of Household</th><th>Applicant Name</th><th>Applicant No.</th><th>Previous details (updated only)</th></tr></thead>
-          <tbody id="diff-table-body"><tr><td colspan="6">No changes to display.</td></tr></tbody>
+          <tbody id="diff-table-body"><tr><td colspan="6">No applicant changes detected.</td></tr></tbody>
         </table>
       </div>
+      <div id="diff-mobile-cards" class="diff-mobile-cards" hidden></div>
       <div id="diff-pager" class="mobile-table-pager" hidden><button id="diff-prev" class="secondary" type="button">Previous</button><span id="diff-page-label"></span><button id="diff-next" class="secondary" type="button">Next</button></div>
       <div class="diff-actions">
         <button id="apply-changes-button" type="button">Confirm and apply changes</button>
@@ -520,27 +537,63 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
     let diffPage=0;const diffPageSize=10;
     function renderDiffTable(diff) {
       const body=document.getElementById('diff-table-body');
-      body.replaceChildren();
+      const cards=document.getElementById('diff-mobile-cards');
+      body.replaceChildren();cards.replaceChildren();
       const entries=[
         ...diff.added.map(item=>({type:'Added',item,previous:null})),
         ...diff.deleted.map(item=>({type:'Deleted',item,previous:null})),
         ...diff.updated.map(change=>({type:'Updated',item:change.after||{},previous:change.before||{}}))
       ];
-      if(!entries.length){document.getElementById('diff-pager').hidden=true;const row=document.createElement('tr');const cell=document.createElement('td');cell.colSpan=6;cell.textContent='No applicant changes detected.';row.appendChild(cell);body.appendChild(row);return;}
-      const isMobile=window.matchMedia('(max-width: 700px)').matches,totalPages=Math.max(1,Math.ceil(entries.length/diffPageSize));diffPage=Math.min(diffPage,totalPages-1);const start=isMobile?diffPage*diffPageSize:0,visibleEntries=isMobile?entries.slice(start,start+diffPageSize):entries;
+      const isMobile=window.matchMedia('(max-width: 700px)').matches;
+      document.querySelector('.diff-table-wrap').hidden=isMobile||!entries.length;
+      cards.hidden=!isMobile||!entries.length;
+      if(!entries.length){
+        document.getElementById('diff-pager').hidden=true;
+        const row=document.createElement('tr'),cell=document.createElement('td');
+        cell.colSpan=6;cell.textContent='No applicant changes detected.';row.appendChild(cell);body.appendChild(row);
+        return;
+      }
+      const totalPages=Math.max(1,Math.ceil(entries.length/diffPageSize));
+      diffPage=Math.min(diffPage,totalPages-1);
+      const start=isMobile?diffPage*diffPageSize:0;
+      const visibleEntries=isMobile?entries.slice(start,start+diffPageSize):entries;
       visibleEntries.forEach(entry=>{
-        const item=entry.item||{},row=document.createElement('tr');
-        addDiffCell(row,entry.type);
-        addDiffCell(row,item.jobCardNumber);
-        addDiffCell(row,item.household);
-        addDiffCell(row,item.applicantName);
+        const item=entry.item||{};
+        const row=document.createElement('tr');
+        addDiffCell(row,entry.type);addDiffCell(row,item.jobCardNumber);
+        addDiffCell(row,item.household);addDiffCell(row,item.applicantName);
         addDiffCell(row,item.applicantNo);
         addDiffCell(row,entry.previous?applicantLabel(entry.previous):'—');
         body.appendChild(row);
+        if(isMobile){
+          const card=document.createElement('article');
+          card.className='diff-change-card diff-'+entry.type.toLowerCase();
+          const heading=document.createElement('div');heading.className='diff-card-heading';
+          const status=document.createElement('strong');status.textContent=entry.type;
+          heading.appendChild(status);card.appendChild(heading);
+          const job=document.createElement('div');job.className='diff-card-job';job.textContent=item.jobCardNumber||'Job card not available';card.appendChild(job);
+          const addField=(label,value)=>{
+            const line=document.createElement('div');line.className='diff-card-field';
+            const name=document.createElement('span');name.textContent=label;
+            const val=document.createElement('strong');val.textContent=value==null||value===''?'—':String(value);
+            line.append(name,val);card.appendChild(line);
+          };
+          addField('Head of household',item.household);
+          addField('Applicant name',item.applicantName);
+          addField('Applicant no.',item.applicantNo);
+          if(entry.previous){
+            const previous=document.createElement('div');previous.className='diff-card-previous';
+            const label=document.createElement('span');label.textContent='Previous details';
+            const value=document.createElement('p');value.textContent=applicantLabel(entry.previous);
+            previous.append(label,value);card.appendChild(previous);
+          }
+          cards.appendChild(card);
+        }
       });
       document.getElementById('diff-pager').hidden=!isMobile||entries.length<=diffPageSize;
       document.getElementById('diff-page-label').textContent='Page '+(diffPage+1)+' of '+totalPages;
-      document.getElementById('diff-prev').disabled=diffPage<=0;document.getElementById('diff-next').disabled=diffPage>=totalPages-1;
+      document.getElementById('diff-prev').disabled=diffPage<=0;
+      document.getElementById('diff-next').disabled=diffPage>=totalPages-1;
     }
     function showComparison(diff) {
       diffPage=0;

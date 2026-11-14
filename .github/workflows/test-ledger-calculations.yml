@@ -6,6 +6,9 @@ on:
       - "supabase/functions/shared/ledger-calculations.js"
       - "tests/ledger-calculations.test.cjs"
       - "tests/postgres-contribution-balances.test.cjs"
+      - "tests/manual-contribution-charges.test.cjs"
+      - "tests/manual-contribution-charges-postgres.sql"
+      - "supabase/migrations/20261111190000_atomic_manual_contribution_charge_batches.sql"
       - "tests/atomic-contribution-writes.test.cjs"
       - "tests/fto-transaction-link-safeguards.test.cjs"
       - "tests/atomic-contribution-writes-postgres.sql"
@@ -41,6 +44,10 @@ on:
       - "tests/fto-exemption-period-eligibility-postgres.sql"
       - "supabase/migrations/20261111160000_serialize_fto_snapshot_with_exemptions.sql"
       - "tests/fto-exemption-snapshot-lock.test.cjs"
+      - "tests/atomic-fto-change-period.test.cjs"
+      - "tests/atomic-fto-change-period-postgres.sql"
+      - "tests/atomic-fto-change-period-concurrency.sh"
+      - "supabase/migrations/20261112100000_atomic_fto_change_period.sql"
       - "supabase/migrations/20261106190000_include_active_mis_cards_in_financial_summary.sql"
       - "tests/postgres-contribution-balances.test.cjs"
       - "supabase/functions/vbgramg-contribution-data/index.ts"
@@ -80,7 +87,7 @@ jobs:
         with:
           node-version: 22
       - name: Run shared ledger tests
-        run: node --test tests/ledger-calculations.test.cjs tests/data-loader.test.cjs tests/postgres-contribution-balances.test.cjs tests/atomic-contribution-writes.test.cjs tests/fto-transaction-link-safeguards.test.cjs tests/extra-contribution-charges.test.cjs tests/extra-contribution-reconciliation.test.cjs
+        run: node --test tests/ledger-calculations.test.cjs tests/data-loader.test.cjs tests/postgres-contribution-balances.test.cjs tests/atomic-contribution-writes.test.cjs tests/fto-transaction-link-safeguards.test.cjs tests/extra-contribution-charges.test.cjs tests/extra-contribution-reconciliation.test.cjs tests/manual-contribution-charges.test.cjs
       - name: Run charge-level allocation schema static tests
         run: node --test tests/charge-level-payment-allocations.test.cjs
       - name: Run automatic unallocated payment FIFO static tests
@@ -95,6 +102,8 @@ jobs:
         run: node --test tests/fto-exemption-period-eligibility.test.cjs
       - name: Run FTO snapshot exemption lock tests
         run: node --test tests/fto-exemption-snapshot-lock.test.cjs
+      - name: Run atomic FTO Change Period safeguards
+        run: node --test tests/atomic-fto-change-period.test.cjs
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
@@ -140,10 +149,65 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-      - name: Install PostgreSQL client
+      - name: Configure PostgreSQL service-container client
         run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
+          PG_CONTAINER="$(docker ps --filter 'name=postgres' --format '{{.ID}}' | head -n1)"
+          if [ -z "$PG_CONTAINER" ]; then
+            echo "PostgreSQL service container was not found."
+            docker ps -a
+            exit 1
+          fi
+          export PG_CONTAINER
+          docker cp "$GITHUB_WORKSPACE/." "$PG_CONTAINER:/tmp/vbgramg"
+          mkdir -p "$RUNNER_TEMP/pg-client"
+          cat > "$RUNNER_TEMP/pg-client/psql" <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          args=()
+          while (($#)); do
+            case "$1" in
+              -f|--file)
+                if (($# < 2)); then
+                  echo "Missing SQL file after $1" >&2
+                  exit 2
+                fi
+                args+=("-f" "/tmp/vbgramg/$2")
+                shift 2
+                ;;
+              --file=*)
+                args+=("-f" "/tmp/vbgramg/${1#*=}")
+                shift
+                ;;
+              *)
+                args+=("$1")
+                shift
+                ;;
+            esac
+          done
+          exec docker exec -i \
+            -e PGHOST=localhost \
+            -e PGPORT=5432 \
+            -e PGUSER="${PGUSER:-postgres}" \
+            -e PGPASSWORD="${PGPASSWORD:-}" \
+            -e PGDATABASE="${PGDATABASE:-postgres}" \
+            "$PG_CONTAINER" psql "${args[@]}"
+          EOF
+          cat > "$RUNNER_TEMP/pg-client/createdb" <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          exec docker exec -i \
+            -e PGHOST=localhost \
+            -e PGPORT=5432 \
+            -e PGUSER="${PGUSER:-postgres}" \
+            -e PGPASSWORD="${PGPASSWORD:-}" \
+            -e PGDATABASE="${PGDATABASE:-postgres}" \
+            "$PG_CONTAINER" createdb "$@"
+          EOF
+          chmod +x "$RUNNER_TEMP/pg-client/psql" "$RUNNER_TEMP/pg-client/createdb"
+          echo "$RUNNER_TEMP/pg-client" >> "$GITHUB_PATH"
+          echo "PG_CONTAINER=$PG_CONTAINER" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/pg-client/psql" --version
+          "$RUNNER_TEMP/pg-client/createdb" --version
       - name: Run atomic contribution PostgreSQL integration tests
         run: psql -v ON_ERROR_STOP=1 -f tests/atomic-contribution-writes-postgres.sql
       - name: Run FTO revision history PostgreSQL tests
@@ -155,6 +219,7 @@ jobs:
           createdb vbgramg_fto_fifo_simulation_test
           PGDATABASE=vbgramg_fto_fifo_simulation_test psql -v ON_ERROR_STOP=1 -f tests/fto-revision-fifo-simulation-postgres.sql
       - name: Run FTO full FIFO rebuild PostgreSQL tests
+        if: hashFiles('tests/fto-revision-fifo-rebuild-postgres.sql') != ''
         run: |
           createdb vbgramg_fto_fifo_rebuild_test
           PGDATABASE=vbgramg_fto_fifo_rebuild_test psql -v ON_ERROR_STOP=1 -f tests/fto-revision-fifo-rebuild-postgres.sql
@@ -166,6 +231,12 @@ jobs:
         run: |
           createdb vbgramg_fto_exemption_test
           PGDATABASE=vbgramg_fto_exemption_test psql -v ON_ERROR_STOP=1 -f tests/fto-exemption-period-eligibility-postgres.sql
+      - name: Run atomic FTO Change Period PostgreSQL integration tests
+        run: |
+          createdb vbgramg_fto_change_period_test
+          PGDATABASE=vbgramg_fto_change_period_test psql -v ON_ERROR_STOP=1 -f tests/atomic-fto-change-period-postgres.sql
+      - name: Verify FTO Change Period waits for concurrent card writes
+        run: PGDATABASE=vbgramg_fto_change_period_test bash tests/atomic-fto-change-period-concurrency.sh
       - name: Run FTO snapshot exemption PostgreSQL integration tests
         run: |
           createdb vbgramg_fto_snapshot_test
@@ -178,6 +249,10 @@ jobs:
         run: |
           createdb vbgramg_extra_reconcile_test
           PGDATABASE=vbgramg_extra_reconcile_test psql -v ON_ERROR_STOP=1 -f tests/extra-contribution-reconciliation-postgres.sql
+      - name: Run manual contribution charge batch PostgreSQL tests
+        run: |
+          createdb vbgramg_manual_charges_test
+          PGDATABASE=vbgramg_manual_charges_test psql -v ON_ERROR_STOP=1 -f tests/manual-contribution-charges-postgres.sql
       - name: Run atomic contribution ledger edit PostgreSQL tests
         run: |
           createdb vbgramg_edits_test

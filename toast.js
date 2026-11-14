@@ -2,29 +2,95 @@
 (function () {
   var timer = null;
   var host = null;
-  function ensureHost() {
-    if (host && host.isConnected) return host;
-    host = document.getElementById("app-toast");
-    if (host) return host;
+
+  function ensureStyles() {
+    if (document.getElementById("app-toast-styles")) return;
+
     var style = document.createElement("style");
     style.id = "app-toast-styles";
-    style.textContent = "#app-toast{position:fixed;z-index:10000;left:50%;bottom:24px;transform:translate(-50%,16px);width:max-content;max-width:calc(100vw - 28px);padding:12px 16px;border:1px solid #d9e1eb;border-radius:12px;background:#fff;color:#273449;font:600 14px/1.45 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;box-shadow:0 10px 30px rgba(23,32,51,.18);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s ease,transform .18s ease,visibility .18s}#app-toast.show{opacity:1;visibility:visible;transform:translate(-50%,0)}#app-toast.success{background:#effaf3;border-color:#bfe6cc;color:#17663a}#app-toast.error{background:#fff0ed;border-color:#f3c5bd;color:#9b2c20}#app-toast.warning{background:#fff8e9;border-color:#f1d59f;color:#805b2c}#app-toast.info{background:#f3f7fd;border-color:#d9e5f5;color:#344b70}@media(max-width:600px){#app-toast{bottom:16px;width:calc(100vw - 28px);text-align:center}}";
+    style.textContent = `
+      #app-toast {
+        position: fixed;
+        z-index: 10000;
+        left: 50%;
+        bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+        transform: translate(-50%, 12px);
+        width: min(560px, calc(100vw - 28px));
+        box-sizing: border-box;
+        padding: 12px 16px;
+        border: 1px solid var(--color-border, #d9e1eb);
+        border-radius: 12px;
+        background: var(--color-bg-surface-raised, #fff);
+        color: var(--color-text-primary, #273449);
+        font: 600 14px/1.45 var(--font-family-sans, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+        box-shadow: var(--shadow-md, 0 10px 30px rgba(23,32,51,.18));
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity .18s ease, transform .18s ease, visibility .18s;
+        overflow-wrap: anywhere;
+      }
+      #app-toast.show {
+        opacity: 1;
+        visibility: visible;
+        transform: translate(-50%, 0);
+      }
+      #app-toast.success {
+        background: var(--color-status-success-bg, #effaf3);
+        border-color: var(--color-status-success, #bfe6cc);
+        color: var(--color-status-success, #17663a);
+      }
+      #app-toast.error {
+        background: var(--color-status-danger-bg, #fff0ed);
+        border-color: var(--color-status-danger, #f3c5bd);
+        color: var(--color-status-danger, #9b2c20);
+      }
+      #app-toast.warning {
+        background: var(--color-status-warning-bg, #fff8e9);
+        border-color: var(--color-status-warning, #f1d59f);
+        color: var(--color-status-warning, #805b2c);
+      }
+      #app-toast.info {
+        background: var(--color-status-info-bg, #f3f7fd);
+        border-color: var(--color-status-info, #d9e5f5);
+        color: var(--color-status-info, #344b70);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #app-toast { transition: none; transform: translate(-50%, 0); }
+      }
+    `;
     document.head.appendChild(style);
+  }
+
+  function ensureHost() {
+    ensureStyles();
+    if (host && host.isConnected) return host;
+
+    host = document.getElementById("app-toast");
+    if (host) return host;
+
     host = document.createElement("div");
     host.id = "app-toast";
-    host.setAttribute("role", "status");
-    host.setAttribute("aria-live", "polite");
-    host.setAttribute("aria-atomic", "true");
     document.body.appendChild(host);
     return host;
   }
+
   window.showToast = function (message, type, duration) {
     if (message == null || String(message).trim() === "") return;
+
     var node = ensureHost();
+    var kind = ["success", "error", "warning", "info"].indexOf(type) >= 0 ? type : "info";
+
     node.textContent = String(message);
-    node.className = (type || "info");
+    node.className = kind;
     node.classList.add("show");
+    node.setAttribute("role", kind === "error" ? "alert" : "status");
+    node.setAttribute("aria-live", kind === "error" ? "assertive" : "polite");
+    node.setAttribute("aria-atomic", "true");
+
     window.clearTimeout(timer);
-    timer = window.setTimeout(function () { node.classList.remove("show"); }, Number(duration) > 0 ? Number(duration) : (String(message).length > 120 ? 5000 : 3200));
+    timer = window.setTimeout(function () {
+      node.classList.remove("show");
+    }, Number(duration) > 0 ? Number(duration) : (String(message).length > 120 ? 5000 : 3200));
   };
 })();

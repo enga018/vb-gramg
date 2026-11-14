@@ -94,6 +94,7 @@ GRANT SELECT, INSERT ON public.vbgramg_charge_ledger TO service_role;
 GRANT SELECT, INSERT ON public.vbgramg_ledger_audit TO service_role;
 
 \ir ../supabase/migrations/20261106181317_record_contribution_transaction.sql
+\ir ../supabase/migrations/20261112150000_limit_cash_payment_to_outstanding_balance.sql
 \ir ../supabase/migrations/20261107034818_atomic_bulk_bank_payment.sql
 CREATE TABLE public.vbgramg_fto_batches (
   id uuid PRIMARY KEY,
@@ -358,10 +359,30 @@ BEGIN
   END IF;
 
   SELECT count(*) INTO audit_before FROM public.vbgramg_ledger_audit WHERE job_card_number='MZ-CASH';
+  SELECT count(*) INTO before_count FROM public.vbgramg_charge_ledger WHERE job_card_number='MZ-CASH' AND entry_type='payment';
   r := public.vbgramg_record_contribution_transaction('MZ-CASH','cash_payment',150,'2026-11-06','Cash',gen_random_uuid(),'tester@example.invalid');
-  IF NOT (r->>'ok')::boolean OR (r->'entry'->>'amount')::numeric <> 150 OR (r->>'balance_after')::numeric <> -50 THEN
-    RAISE EXCEPTION 'Cash overpayment behaviour failed: %', r;
+  IF (r->>'ok')::boolean OR (r->>'status')::integer <> 400
+     OR r->>'error' <> 'Payment cannot exceed the current outstanding balance.' THEN
+    RAISE EXCEPTION 'Cash overpayment was not rejected: %', r;
   END IF;
+  SELECT count(*) INTO after_count FROM public.vbgramg_charge_ledger WHERE job_card_number='MZ-CASH' AND entry_type='payment';
+  IF after_count <> before_count THEN RAISE EXCEPTION 'Rejected overpayment wrote a ledger row.'; END IF;
+
+  r := public.vbgramg_record_contribution_transaction('MZ-CASH','cash_payment',60,'2026-11-06','Cash',gen_random_uuid(),'tester@example.invalid');
+  IF NOT (r->>'ok')::boolean OR (r->'entry'->>'amount')::numeric <> 60 OR (r->>'balance_after')::numeric <> 40 THEN
+    RAISE EXCEPTION 'Valid partial cash payment failed: %', r;
+  END IF;
+
+  r := public.vbgramg_record_contribution_transaction('MZ-CASH','cash_payment',50,'2026-11-06','Cash',gen_random_uuid(),'tester@example.invalid');
+  IF (r->>'ok')::boolean OR (r->>'status')::integer <> 400 THEN
+    RAISE EXCEPTION 'Cash payment exceeding the remaining balance was not rejected: %', r;
+  END IF;
+
+  r := public.vbgramg_record_contribution_transaction('MZ-CASH','cash_payment',40,'2026-11-06','Cash',gen_random_uuid(),'tester@example.invalid');
+  IF NOT (r->>'ok')::boolean OR (r->>'balance_after')::numeric <> 0 THEN
+    RAISE EXCEPTION 'Final exact-balance cash payment failed: %', r;
+  END IF;
+
   SELECT count(*) INTO audit_after FROM public.vbgramg_ledger_audit WHERE job_card_number='MZ-CASH';
   IF audit_after <> audit_before THEN RAISE EXCEPTION 'Cash payment unexpectedly created an audit row'; END IF;
 

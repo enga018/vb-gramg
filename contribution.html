@@ -1471,7 +1471,8 @@ function renderCitizenDetail(id){
  $('sheetFooter').classList.remove('hidden');
  const activeSheet=$('overlay').querySelector('.sheet');
  activeSheet.classList.remove('edit-mode');
- $('toggleEditMode').classList.add('hidden');
+ $('toggleEditMode').classList.remove('hidden');
+ $('toggleEditMode').textContent='Edit';
  $('toggleEditMode').setAttribute('aria-pressed','false');
  const chronological=[...c.ledger].sort((a,b)=>{const deferredA=Boolean(a.is_deferred),deferredB=Boolean(b.is_deferred);if(deferredA!==deferredB)return deferredA?1:-1;const dateA=String(a.entry_date||'').slice(0,10),dateB=String(b.entry_date||'').slice(0,10);if(!dateA&&!dateB)return String(a.created_at||'').localeCompare(String(b.created_at||''));if(!dateA)return 1;if(!dateB)return -1;return dateA.localeCompare(dateB)||String(a.created_at||'').localeCompare(String(b.created_at||''));});
  const activeApplicants=(Array.isArray(applicantsByCard[c.id])?applicantsByCard[c.id]:[]).slice().sort((a,b)=>String(a.applicant_number||"").localeCompare(String(b.applicant_number||""),undefined,{numeric:true})||String(a.applicant_name||"").localeCompare(String(b.applicant_name||"")));

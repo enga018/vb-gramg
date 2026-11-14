@@ -53,7 +53,7 @@ test("Record Payment is limited to the outstanding balance in PostgreSQL and the
   assert.ok(cashCapSql.includes("IF v_amount > GREATEST(0, v_balance) + 0.001"));
   assert.ok(cashCapSql.includes("Payment cannot exceed the current outstanding balance."));
   assert.ok(cashCapSql.includes("pg_advisory_xact_lock"));
-  assert.ok(html.includes("Number(c.balance)>0.001?"), "Record Payment must be gated by a positive outstanding balance");
+  assert.match(html, /Number\\(c\\.balance\\)\\s*>\\s*0\\.001\\s*\\?/, "Record Payment must be gated by a positive outstanding balance");
   assert.ok(html.includes('id="addPaymentBtn"'), "Record Payment action must be present");
   assert.ok(html.includes("Record payment"), "Record Payment action must retain its label");
   assert.ok(html.includes("max=\"'+Number(c.balance).toFixed(2)+'\""));
@@ -197,8 +197,8 @@ test("Extra contribution history exposes a direct edit action using its dedicate
 });
 
 test("Citizen transaction history exposes only the agreed balance-based actions", () => {
-  assert.ok(html.includes('id="addPaymentBtn"'));
-  assert.ok(html.includes("Record payment"));
+  assert.match(html, /id=["']addPaymentBtn["']/);
+  assert.match(html, /Record payment/);
   assert.match(html, /id="payFullBtn">Pay in full/);
   assert.match(html, /id="waiveBtn">Waive/);
   assert.match(html, /id="returnBtn">Refund/);

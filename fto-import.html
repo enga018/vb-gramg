@@ -852,7 +852,15 @@ async function lookupFtoBatch(){
    existingFtoKnown=true;
    if(data.identity_mismatch){ftoIdentityMismatch=true;existingFtoUnchanged=false;status('FTO number conflict: this number is already saved, but none of the pasted reference numbers match its saved transactions. Check the FTO header and paste the correct FTO. Synchronization is disabled.','error');updateImportButton();return;}
    ftoIdentityMismatch=false;
-   if(data.unchanged){existingFtoUnchanged=true;$('import-controls').classList.add('hidden');status('Already imported — no changes detected. Saved contribution period: '+data.batch.contribution_period+'. No synchronization is needed.','success');return;}
+   if(data.unchanged){
+    existingFtoUnchanged=true;
+    alreadyImportedReferences=new Set((data.unchanged_references||[]).map(String));
+    $('import-controls').classList.remove('hidden');
+    status('Government FTO data is unchanged. You can still change the divisor or multiplier to recalculate the saved contribution charges. Review the new amounts before synchronizing.','success');
+    await buildImportGroups();
+    updateImportButton();
+    return;
+   }
    existingFtoUnchanged=false;const changeCount=Number(data.changed_count||0);const changedRefs=data.changed_references||[];
    alreadyImportedReferences=new Set((data.unchanged_references||[]).map(String));
    const changedSet=new Set(changedRefs);$('parsed-table').querySelectorAll('tbody tr').forEach(tr=>tr.classList.toggle('changed-transaction',changedSet.has(tr.dataset.reference||'')));

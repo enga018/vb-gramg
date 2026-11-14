@@ -62,6 +62,8 @@ on:
       - "tests/new-waiver-period-allocation-postgres.sql"
       - "tests/new-waiver-period-allocation.test.cjs"
       - "tests/voided-payment-allocation-safeguards.test.cjs"
+      - "supabase/migrations/20261114190000_enforce_refund_aware_payment_allocations.sql"
+      - "tests/refund-aware-payment-allocation-postgres.sql"
       - "supabase/migrations/20261109100000_ignore_voided_payment_allocations.sql"
       - "js/data-loader.js"
       - ".github/workflows/test-ledger-calculations.yml"
@@ -268,5 +270,9 @@ jobs:
         run: |
           createdb vbgramg_voided_payment_test
           PGDATABASE=vbgramg_voided_payment_test psql -v ON_ERROR_STOP=1 -f tests/voided-payment-allocation-safeguards-postgres.sql
+      - name: Run refund-aware payment allocation guard PostgreSQL tests
+        run: |
+          createdb vbgramg_refund_guard_test
+          PGDATABASE=vbgramg_refund_guard_test psql -v ON_ERROR_STOP=1 -f tests/refund-aware-payment-allocation-postgres.sql
       - name: Verify per-job-card advisory lock serializes concurrent writes
         run: bash tests/atomic-contribution-writes-concurrency.sh

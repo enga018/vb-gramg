@@ -1461,16 +1461,28 @@ function getExportApplicantName(c){
  )[0];
  return String(latestApplicant?.applicant_name||latestApplicant?.name||'').trim()||'—';
 }
-function exportOutstandingDueList(){
+async function exportOutstandingDueList(){
+ const button=$("exportDueBtn");
+ if(button){button.disabled=true;button.textContent="Preparing…";}
+ try{
+  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"export-applicant-lookup"},timeoutMs:false});
+  if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||"Could not load applicant names for export.");
+  applicantsByCard=data.applicants_by_job_card||{};
+ }catch(err){
+  status(err.message||"Could not prepare the due-list export.","error");
+  if(button){button.disabled=false;button.textContent="Export";}
+  return;
+ }
  const due=citizens.filter(c=>!c.exempt&&Number(c.balance)>0)
   .sort((a,b)=>jobCardSuffixNumber(a.id)-jobCardSuffixNumber(b.id)||a.id.localeCompare(b.id,undefined,{numeric:true})||a.name.localeCompare(b.name));
- if(!due.length){status('There are no job cards with outstanding contribution.','info');return;}
+ if(!due.length){status('There are no job cards with outstanding contribution.','info');if(button){button.disabled=false;button.textContent='Export';}return;}
  const rows=due.map(c=>'<tr><td>'+esc(c.id)+'</td><td>'+esc(c.name||'—')+'</td><td>'+esc(getExportApplicantName(c))+'</td><td class="amount">'+fmt(c.balance)+'</td></tr>').join('');
  const popup=window.open('','_blank');
- if(!popup){status('Allow pop-ups for this site to export the due list.','err');return;}
+ if(!popup){status('Allow pop-ups for this site to export the due list.','err');if(button){button.disabled=false;button.textContent='Export';}return;}
  const report='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contribution Outstanding Due List</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#172033;margin:28px}h1{font-size:20px;margin:0 0 5px}.meta{color:#667085;font-size:12px;margin-bottom:18px}.summary{display:flex;gap:24px;margin:0 0 18px;font-size:13px}.summary b{font-size:15px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;border-bottom:1px solid #dfe5ee;text-align:left}th{background:#edf2f8;text-transform:uppercase;font-size:10px;letter-spacing:.04em}.amount{text-align:right;white-space:nowrap;font-weight:700}.total td{font-weight:800;border-top:2px solid #667085}@media print{body{margin:12mm}thead{display:table-header-group}tr{break-inside:avoid}}@media(max-width:600px){body{margin:14px;overflow-x:auto}.summary{gap:14px;flex-wrap:wrap}}' +
 '</style></head><body><h1>Contribution Outstanding Due List</h1><div class="meta">VBGRAMG · Generated on '+esc(new Date().toLocaleDateString('en-IN'))+'</div><table><thead><tr><th>Job Card Number</th><th>Head of Household</th><th>Applicant Name</th><th style="text-align:right">Outstanding</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
  popup.document.open();popup.document.write(report);popup.document.close();popup.focus();popup.print();
+ if(button){button.disabled=false;button.textContent="Export";}
 }
 function buildFifoBreakdown(c){
  if(!c||c.exempt)return '';
@@ -2023,7 +2035,7 @@ async function load(){
   if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||'Could not load contribution data.');
   if(window.VBGRAMGCache)window.VBGRAMGCache.setUser(sessionData.session.user.id);
   const assignmentStarted=performance.now();
-  appRole=String(data.role||"");periods=Array.isArray(data.periods)?data.periods:[];$("manualChargeBtn").classList.toggle("hidden",appRole!=="admin");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");$("auditHistoryBtn").classList.toggle("hidden",appRole!=="admin");$("exportDueBtn").classList.remove("hidden");entries=[];summaryByCard=new Map((data.summaries||[]).map(row=>[String(row.job_card_number||'').trim(),row]));paymentAllocations=[];paymentRefundReconciliations=[];extraCharges=[];citizenRegistry=(data.summaries||[]).map(row=>({job_card_number:row.job_card_number,person_name:row.person_name}));applicantsByCard=data.applicants_by_job_card||{};exemptions=data.exemptions||[];
+  appRole=String(data.role||"");periods=Array.isArray(data.periods)?data.periods:[];$("manualChargeBtn").classList.toggle("hidden",appRole!=="admin");$("bulkPaymentBtn").classList.toggle("hidden",appRole!=="admin");$("manageExemptionsBtn").classList.toggle("hidden",appRole!=="admin");$("auditHistoryBtn").classList.toggle("hidden",appRole!=="admin");$("exportDueBtn").classList.remove("hidden");entries=[];summaryByCard=new Map((data.summaries||[]).map(row=>[String(row.job_card_number||'').trim(),row]));paymentAllocations=[];paymentRefundReconciliations=[];extraCharges=[];citizenRegistry=(data.summaries||[]).map(row=>({job_card_number:row.job_card_number,person_name:row.person_name}));applicantsByCard={};exemptions=data.exemptions||[];
   recordStartupStage("assign_response_data_ms",assignmentStarted);
   if(window.VBGRAMG_CONTRIBUTION_STAGE)window.VBGRAMG_CONTRIBUTION_STAGE('Building contribution summaries…');
   const deriveStarted=performance.now();deriveCitizens();recordStartupStage("derive_citizens_total_ms",deriveStarted);renderExemptions();

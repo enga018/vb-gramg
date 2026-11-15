@@ -241,8 +241,14 @@ async function buildOfficialRows(html:string,admin:ReturnType<typeof createClien
   // Headings are in a separate report table; applicant data starts after the serial-number and village-summary rows.
   headerAt=-1;
  }else{
-  const diagnostics={tableStats:parsedTables.map(x=>({index:x.index,rows:x.rows.length})),firstRows:parsedTables.map(x=>({index:x.index,rows:x.rows.slice(0,4).map(row=>row.length)}))};
-  console.error("Official MIS header table diagnostics",JSON.stringify(diagnostics));
+  const headingTerms=["Head of Household","Caste","Name of Applicant","Father/Husband Name","Job-card number","Job Card Number","Job-card issue date","Job Card Verified"];
+  const rawHeadingSnippets=headingTerms.map(term=>{
+   const at=html.toLowerCase().indexOf(term.toLowerCase());
+   return {term,found:at>=0,snippet:at>=0?html.slice(Math.max(0,at-500),Math.min(html.length,at+900)).replace(/\\s+/g," ").slice(0,1400):""};
+  });
+  const tableMarkup=parsedTables.map(x=>({index:x.index,opening:x.table.slice(0,500).replace(/\\s+/g," "),closing:x.table.slice(-300).replace(/\\s+/g," ")}));
+  const diagnostics={tableStats:parsedTables.map(x=>({index:x.index,rows:x.rows.length})),firstRows:parsedTables.map(x=>({index:x.index,rows:x.rows.slice(0,4).map(row=>row.length)})),rawHeadingSnippets,tableMarkup};
+  console.error("Official MIS raw heading markup diagnostics",JSON.stringify(diagnostics));
   throw new Error("Could not identify the official register headings in any report table. No data changed.");
  }
  // The heading table is separate from the large applicant table. The data table begins with

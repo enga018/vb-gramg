@@ -153,7 +153,7 @@ DECLARE
 BEGIN
   IF TG_TABLE_NAME = 'vbgramg_charge_ledger' THEN
     IF TG_OP <> 'INSERT' THEN
-      PERFORM public.vbgramg_reconcile_period_auto_close(OLD.period_id);
+      IF OLD.period_id IS NOT NULL THEN PERFORM public.vbgramg_reconcile_period_auto_close(OLD.period_id); END IF;
       IF OLD.entry_type = 'payment' THEN
         FOR v_period_id IN
           SELECT DISTINCT a.period_id FROM public.vbgramg_payment_allocations a WHERE a.transaction_id = OLD.id
@@ -165,7 +165,7 @@ BEGIN
       END IF;
     END IF;
     IF TG_OP <> 'DELETE' THEN
-      PERFORM public.vbgramg_reconcile_period_auto_close(NEW.period_id);
+      IF NEW.period_id IS NOT NULL THEN PERFORM public.vbgramg_reconcile_period_auto_close(NEW.period_id); END IF;
       IF NEW.entry_type = 'payment' THEN
         FOR v_period_id IN
           SELECT DISTINCT a.period_id FROM public.vbgramg_payment_allocations a WHERE a.transaction_id = NEW.id

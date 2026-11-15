@@ -201,13 +201,37 @@ async function buildOfficialRows(html:string,admin:ReturnType<typeof createClien
  for(let i=0;i<rows.length&&headerAt<0;i++)for(let span=1;span<=4&&i+span<=rows.length;span++){const win=rows.slice(i,i+span),width=Math.max(...win.map(r=>r.length));const merged=Array.from({length:width},(_,c)=>{for(const r of win){const v=norm(r[c]);if(v&&!/^\d+$/.test(v))return v;}return "";});if(hasJob(merged)&&hasName(merged)){sourceHeader=merged;headerAt=i+span-1;break;}}
  if(headerAt<0)throw new Error("Could not identify official register column headings.");
  if(rows[headerAt+1]&&rows[headerAt+1].filter(v=>norm(v)).length>=5&&rows[headerAt+1].filter(v=>/^\d{1,2}$/.test(norm(v))).length===rows[headerAt+1].filter(v=>norm(v)).length)headerAt++;
- const si={household:col(sourceHeader,["head of household","head of household name"]),name:col(sourceHeader,["name of applicant","applicant name"]),job:col(sourceHeader,["job card number","jobcard number"]),remarks:col(sourceHeader,["reasons if job card not issued any other remarks","reasons if job card not issued","remarks"])};
+ const si={
+  household:col(sourceHeader,["head of household","head of household name"]),
+  caste:col(sourceHeader,["caste"]),
+  name:col(sourceHeader,["name of applicant","applicant name"]),
+  father:col(sourceHeader,["father husband name","father name","husband name"]),
+  gender:col(sourceHeader,["gender"]), age:col(sourceHeader,["age"]),
+  receipt:col(sourceHeader,["date of receipt of application request for registration","date of receipt of application"]),
+  job:col(sourceHeader,["job card number","jobcard number"]),
+  issue:col(sourceHeader,["job card issue date"]),
+  remarks:col(sourceHeader,["reasons if job card not issued any other remarks","reasons if job card not issued","remarks"]),
+  disabled:col(sourceHeader,["disabled"]), minority:col(sourceHeader,["minority"]),
+  verified:col(sourceHeader,["job card verified on date"])
+ };
  if([si.household,si.name,si.job].some(i=>i<0))throw new Error("Official register is missing required household, applicant or job-card columns.");
  const {data:state,error:se}=await admin.from("vbgramg_mis_state").select("active_import_id").eq("singleton",true).maybeSingle();if(se)throw se;if(!state?.active_import_id)throw new Error("No active MIS baseline exists.");
  const active=await readImportRows(admin,state.active_import_id),oldHeader=active[0]?.row_data?.map(norm)||[];
  if(!oldHeader.length)throw new Error("Could not read the active MIS header.");
  const serial=oldHeader.findIndex(v=>/^sl\.?\s*no\.?$|^s\.?\s*no\.?$/i.test(v)),targetHeader=oldHeader.filter((_,i)=>i!==serial),old=active.map(x=>x.row_data.filter((_,i)=>i!==serial));
- const ti={job:col(targetHeader,["job card number","jobcard number"]),jc:col(targetHeader,["jc no","jc number"]),house:col(targetHeader,["head of household","head of household name"]),name:col(targetHeader,["name of applicant","applicant name"]),no:col(targetHeader,["applicant no","applicant no."]),uid:col(targetHeader,["unique id"])};
+ const ti={
+  job:col(targetHeader,["job card number","jobcard number"]), jc:col(targetHeader,["jc no","jc number"]),
+  house:col(targetHeader,["head of household","head of household name"]),
+  caste:col(targetHeader,["caste"]), name:col(targetHeader,["name of applicant","applicant name"]),
+  father:col(targetHeader,["father husband name","father name","husband name"]),
+  gender:col(targetHeader,["gender"]), age:col(targetHeader,["age"]),
+  receipt:col(targetHeader,["date of receipt of application request for registration","date of receipt of application"]),
+  issue:col(targetHeader,["job card issue date"]),
+  remarks:col(targetHeader,["reasons if job card not issued any other remarks","reasons if job card not issued","remarks"]),
+  disabled:col(targetHeader,["disabled"]), minority:col(targetHeader,["minority"]),
+  verified:col(targetHeader,["job card verified on date"]),
+  no:col(targetHeader,["applicant no","applicant no."]), uid:col(targetHeader,["unique id"])
+ };
  if([ti.job,ti.house,ti.name,ti.no,ti.uid].some(i=>i<0))throw new Error("Active MIS is missing required matching columns.");
  const matches=new Map<string,{no:string;uid:string}[]>(),maxNo=new Map<string,number>();
  for(const r of old.slice(1)){const card=norm(r[ti.job]);if(!card)continue;const nm=cleanApplicant(r[ti.name]),no=norm(r[ti.no]),uid=norm(r[ti.uid]);if(nm){const k=card.toLowerCase()+"|"+nm,a=matches.get(k)||[];a.push({no,uid});matches.set(k,a);}const n=Number(no);if(no&&Number.isFinite(n))maxNo.set(card,Math.max(maxNo.get(card)||0,n));}
@@ -219,7 +243,14 @@ async function buildOfficialRows(html:string,admin:ReturnType<typeof createClien
  const q=matches.get(card.toLowerCase()+"|"+cleanApplicant(name))||[],match=q.shift();if(match&&!match.uid){review.push("Matched applicant has no Unique ID: "+card+" · "+name);continue;}
  let no=match?.no||"";if(!no){no=String((maxNo.get(card)||0)+(next.get(card)||0)+1);next.set(card,(next.get(card)||0)+1);}
  let uid=match?.uid||"";if(uid&&used.has(uid)){review.push("Duplicate Unique ID: "+uid);continue;}if(!uid)uid=crypto.randomUUID();used.add(uid);
- const out=targetHeader.map(()=>"");out[ti.job]=card;if(ti.jc>=0)out[ti.jc]=card.split("/").pop();out[ti.house]=house;out[ti.name]=name.replace(/\*/g,"").trim();out[ti.no]=no;out[ti.uid]=uid;output.push(out);
+ const out=targetHeader.map(()=>"");
+  const copy=(targetIndex:number,sourceIndex:number)=>{if(targetIndex>=0&&sourceIndex>=0)out[targetIndex]=norm(r[sourceIndex]);};
+  out[ti.job]=card;if(ti.jc>=0)out[ti.jc]=card.split("/").pop();
+  out[ti.house]=house;out[ti.name]=name.replace(/\*/g,"").trim();
+  copy(ti.caste,si.caste);copy(ti.father,si.father);copy(ti.gender,si.gender);copy(ti.age,si.age);
+  copy(ti.receipt,si.receipt);copy(ti.issue,si.issue);copy(ti.remarks,si.remarks);
+  copy(ti.disabled,si.disabled);copy(ti.minority,si.minority);copy(ti.verified,si.verified);
+  out[ti.no]=no;out[ti.uid]=uid;output.push(out);
  }
  if(review.length)throw new Error("MIS parsing paused: "+review.length+" uncertain row(s). No data changed. First issue: "+review[0]);
  if(output.length<2||output.length>100001)throw new Error("Parsed applicant count is outside the permitted range.");

@@ -434,35 +434,23 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 
     document.getElementById('fetch-official-mis-button').addEventListener('click', async function () {
       if (!currentUser || currentRole !== 'admin') { setStatus('Administrator access is required.', 'error'); return; }
-      if (pendingImportId) { setStatus('Confirm or cancel the pending comparison first.', 'error'); return; }
+      if (pendingImportId) { setStatus('Update or cancel the pending MIS preview first.', 'error'); return; }
       const button = this;
       const fetchStatus = document.getElementById('official-fetch-status');
       button.disabled = true;
-      fetchStatus.textContent = 'Fetching the official New Serchhip North register…';
+      fetchStatus.textContent = 'Fetching and processing the official Government MIS on the server…';
       try {
-        const { data, error } = await supabaseClient.functions.invoke('vbgramg-mis-source-test', { body: {} });
-        if (error) {
-          let message = error.message || 'Official report fetch failed.';
-          try { const detail = error.context && await error.context.json(); if (detail && detail.error) message = detail.error; } catch (_) {}
-          throw new Error(message);
-        }
-        if (!data || data.fetchSucceeded !== true || !data.html) {
-          throw new Error((data && data.error) || 'The official report could not be retrieved.');
-        }
-        if (!data.reportHeadingFound || !data.villageNameFound || data.httpStatus !== 200) {
-          throw new Error('The retrieved page did not pass the official report and village checks.');
-        }
-        const extracted = extractRegisterTableFromHtml(data.html);
-        tableInput.value = extracted.tsv;
-        importedFileName = 'Official Registration Application Register — New Serchhip North';
-        pastedTableLoaded = false;
-        importedRows = [];
-        document.getElementById('diff-panel').classList.add('hidden');
-        fetchStatus.textContent = 'Retrieved ' + Math.max(0, extracted.rowCount - 1).toLocaleString() + ' source row(s). Starting the existing comparison…';
-        loadTableButton.click();
+        const result = await invokeImport({ action: 'official-fetch' });
+        if (!result || result.success !== true || !result.importId) throw new Error('The server did not prepare an MIS update.');
+        importedFileName = result.sourceFilename || 'Official Government MIS';
+        pendingImportId = result.importId;
+        pendingComparison = result;
+        showComparison(result);
+        fetchStatus.textContent = 'Government report processed on the server. ' + Number(result.parsedApplicantCount || 0).toLocaleString() + ' active applicant record(s) prepared. The browser did not parse or receive the raw HTML.';
+        setStatus('Official MIS processed. Review the changes summary, then select Update MIS. The active database has not changed yet.', 'success');
       } catch (error) {
         fetchStatus.textContent = 'Fetch failed: ' + (error && error.message ? error.message : String(error));
-        setStatus('Official MIS fetch failed. The active MIS has not been changed.', 'error');
+        setStatus('Official MIS sync preparation failed. The active MIS has not been changed.', 'error');
       } finally {
         button.disabled = false;
       }
@@ -650,12 +638,13 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
       renderDiffTable(diff);
       document.getElementById('diff-panel').classList.remove('hidden');
       const hasChanges = diff.added.length > 0 || diff.deleted.length > 0 || diff.updated.length > 0;
-      document.querySelector('.diff-actions').classList.toggle('hidden', !hasChanges);
-      document.getElementById('apply-changes-button').disabled = !hasChanges;
-      document.getElementById('cancel-changes-button').disabled = !hasChanges;
+      document.querySelector('.diff-actions').classList.remove('hidden');
+      document.getElementById('apply-changes-button').disabled = false;
+      document.getElementById('apply-changes-button').textContent = hasChanges ? 'Update MIS' : 'Update Sync Time';
+      document.getElementById('cancel-changes-button').disabled = false;
       document.getElementById('diff-intro').textContent = hasChanges
-        ? 'Current applicants: ' + diff.oldCount + '. Prepared applicants: ' + diff.newCount + '. Review the changes below before applying.'
-        : 'No changes detected. The active MIS is already up to date; no import or cancellation is needed.';
+        ? 'Government MIS is the source of truth. Review the detected changes, then update the active database.'
+        : 'No data changes detected. Select Update Sync Time to record a successful sync without changing applicant data.';
     }
 
     document.getElementById('apply-changes-button').addEventListener('click', async function () {

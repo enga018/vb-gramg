@@ -154,9 +154,27 @@ BEGIN
   IF TG_TABLE_NAME = 'vbgramg_charge_ledger' THEN
     IF TG_OP <> 'INSERT' THEN
       PERFORM public.vbgramg_reconcile_period_auto_close(OLD.period_id);
+      IF OLD.entry_type = 'payment' THEN
+        FOR v_period_id IN
+          SELECT DISTINCT a.period_id FROM public.vbgramg_payment_allocations a WHERE a.transaction_id = OLD.id
+          UNION
+          SELECT DISTINCT c.period_id FROM public.vbgramg_charge_payment_allocations ca
+          JOIN public.vbgramg_charge_ledger c ON c.id = ca.charge_id
+          WHERE ca.payment_id = OLD.id
+        LOOP PERFORM public.vbgramg_reconcile_period_auto_close(v_period_id); END LOOP;
+      END IF;
     END IF;
     IF TG_OP <> 'DELETE' THEN
       PERFORM public.vbgramg_reconcile_period_auto_close(NEW.period_id);
+      IF NEW.entry_type = 'payment' THEN
+        FOR v_period_id IN
+          SELECT DISTINCT a.period_id FROM public.vbgramg_payment_allocations a WHERE a.transaction_id = NEW.id
+          UNION
+          SELECT DISTINCT c.period_id FROM public.vbgramg_charge_payment_allocations ca
+          JOIN public.vbgramg_charge_ledger c ON c.id = ca.charge_id
+          WHERE ca.payment_id = NEW.id
+        LOOP PERFORM public.vbgramg_reconcile_period_auto_close(v_period_id); END LOOP;
+      END IF;
     END IF;
   ELSIF TG_TABLE_NAME IN ('vbgramg_payment_allocations','vbgramg_waiver_period_allocations') THEN
     IF TG_OP <> 'INSERT' THEN

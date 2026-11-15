@@ -445,7 +445,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
         importedFileName = result.sourceFilename || 'Official Government MIS';
         pendingImportId = result.importId;
         pendingComparison = result;
-        showComparison(result);
+        showComparison(result, true);
         fetchStatus.textContent = 'Government report processed on the server. ' + Number(result.parsedApplicantCount || 0).toLocaleString() + ' active applicant record(s) prepared. The browser did not parse or receive the raw HTML.';
         setStatus('Official MIS processed. Review the changes summary, then select Update MIS. The active database has not changed yet.', 'success');
       } catch (error) {
@@ -627,7 +627,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
       document.getElementById('diff-prev').disabled=diffPage<=0;
       document.getElementById('diff-next').disabled=diffPage>=totalPages-1;
     }
-    function showComparison(diff) {
+    function showComparison(diff, allowNoChangeSync) {
       diffPage=0;
       pendingComparison = diff;
       document.getElementById('diff-added-count').textContent = diff.added.length;
@@ -638,13 +638,16 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
       renderDiffTable(diff);
       document.getElementById('diff-panel').classList.remove('hidden');
       const hasChanges = diff.added.length > 0 || diff.deleted.length > 0 || diff.updated.length > 0;
-      document.querySelector('.diff-actions').classList.remove('hidden');
-      document.getElementById('apply-changes-button').disabled = false;
-      document.getElementById('apply-changes-button').textContent = hasChanges ? 'Update MIS' : 'Update Sync Time';
-      document.getElementById('cancel-changes-button').disabled = false;
+      const canApply = hasChanges || allowNoChangeSync === true;
+      document.querySelector('.diff-actions').classList.toggle('hidden', !canApply);
+      document.getElementById('apply-changes-button').disabled = !canApply;
+      document.getElementById('apply-changes-button').textContent = hasChanges
+        ? (allowNoChangeSync ? 'Update MIS' : 'Confirm and apply changes')
+        : 'Update Sync Time';
+      document.getElementById('cancel-changes-button').disabled = !canApply;
       document.getElementById('diff-intro').textContent = hasChanges
-        ? 'Government MIS is the source of truth. Review the detected changes, then update the active database.'
-        : 'No data changes detected. Select Update Sync Time to record a successful sync without changing applicant data.';
+        ? (allowNoChangeSync ? 'Government MIS is the source of truth. Review the detected changes, then update the active database.' : 'Current applicants: ' + diff.oldCount + '. Prepared applicants: ' + diff.newCount + '. Review the changes below before applying.')
+        : (allowNoChangeSync ? 'No data changes detected. Select Update Sync Time to record a successful sync without changing applicant data.' : 'No changes detected. The active MIS is already up to date; no import is needed.');
     }
 
     document.getElementById('apply-changes-button').addEventListener('click', async function () {

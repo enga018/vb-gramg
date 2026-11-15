@@ -124,6 +124,12 @@ header .top-actions > button:hover {
 body>main{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 
+/* Official fetch is primary; manual file import stays available as a collapsed fallback. */
+.manual-import{margin-top:16px;border-top:1px solid #334155;padding-top:14px}
+.manual-import summary{cursor:pointer;font-weight:650;color:inherit;list-style-position:inside}
+.manual-import-content{padding-top:14px}
+.manual-import-content #load-table-button{margin-top:12px}
+
 /* Compact MIS import entry form */
 .paste-box{padding:14px;margin:0 0 14px}
 .paste-box .file-label{margin-bottom:7px}
@@ -159,13 +165,17 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
     <div class="paste-box">
       <button type="button" id="fetch-official-mis-button">Fetch Official MIS</button>
       <div id="official-fetch-status" class="hint" aria-live="polite"></div>
-      <label class="file-label" for="register-file">Upload register file</label>
-      <p class="hint">MHT, MHTML or HTML</p>
-      <input id="register-file" type="file" accept=".mht,.mhtml,.html,.htm,text/html,multipart/related" />
-      <div id="file-status" class="hint" aria-live="polite"></div>
-      <label class="file-label" for="table-input" style="margin-top:16px">Paste MIS register</label>
-      <textarea id="table-input" rows="5" placeholder="Paste copied table here…"></textarea>
-      <button type="button" id="load-table-button">Analyze and compare</button>
+      <details class="manual-import">
+        <summary>Manual Import (Fallback)</summary>
+        <div class="manual-import-content">
+          <label class="file-label" for="register-file">Upload register file</label>
+          <p class="hint">MHT, MHTML or HTML</p>
+          <input id="register-file" type="file" accept=".mht,.mhtml,.html,.htm,text/html,multipart/related" />
+          <div id="file-status" class="hint" aria-live="polite"></div>
+          <button type="button" id="load-table-button">Analyze uploaded file</button>
+        </div>
+      </details>
+      <textarea id="table-input" rows="5" aria-hidden="true" tabindex="-1" style="display:none"></textarea>
     </div>
     <div id="status" class="status" aria-live="polite">Checking administrator access…</div>
     <section id="diff-panel" class="diff-panel hidden" aria-live="polite">
@@ -478,9 +488,10 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
         document.getElementById('diff-panel').classList.add('hidden');
         fileStatus.textContent = '';
         setStatus('Extracted ' + Math.max(0, extracted.rowCount - 1).toLocaleString() + ' table row(s) from "' + file.name + '". Review the extracted text, then select Analyze and compare. The active MIS remains unchanged.', 'success');
+        loadTableButton.click();
       } catch (error) {
         fileStatus.textContent = '';
-        setStatus('Could not extract the saved report: ' + (error && error.message ? error.message : String(error)) + '. You can still paste a copied table below. No database changes have been made.', 'error');
+        setStatus('Could not extract the saved report: ' + (error && error.message ? error.message : String(error)) + '. No database changes have been made.', 'error');
       }
     });
 
@@ -492,7 +503,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
       document.getElementById('diff-panel').classList.add('hidden');
       pendingComparison = null;
       const parsedRows = parsePastedTable(tableInput.value);
-      if (!parsedRows.length) { setStatus('Paste the copied MIS table first.', 'error'); loadTableButton.disabled = false; return; }
+      if (!parsedRows.length) { setStatus('Upload a Government MIS register file first.', 'error'); loadTableButton.disabled = false; return; }
       if (parsedRows.length > 100000) { setStatus('The pasted MIS exceeds the 100,000-row limit.', 'error'); loadTableButton.disabled = false; return; }
       let importId = null;
       try {

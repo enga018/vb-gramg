@@ -191,7 +191,16 @@ function cleanApplicant(v:unknown){return norm(v).replace(/\*/g,"").normalize("N
 async function buildOfficialRows(html:string,admin:ReturnType<typeof createClient>){
  if(new TextEncoder().encode(html).length>8_000_000||!html.toLowerCase().includes("registration application register")||!/NEW\s*SERCHHIP\s*North/i.test(html))throw new Error("Official report or village validation failed.");
  const tables=[...html.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)].map(m=>m[1]);
- const parsedTables=tables.map((table,index)=>({index,table,rows:parseHtmlRows(table)}));
+ const parsedTables=tables.map((table,index)=>{
+  // This Government report writes its column headings directly inside the table,
+  // before the first <tr>. Capture those leading cells as row zero.
+  const firstRow=table.search(/<tr\\b/i);
+  const leadingMarkup=firstRow>=0?table.slice(0,firstRow):table;
+  const leadingCells=[...leadingMarkup.matchAll(/<t[dh]\\b[^>]*>([\\s\\S]*?)<\\/t[dh]>/gi)].map(cell=>cellText(cell[1]));
+  const parsedRows=parseHtmlRows(table);
+  const rows=leadingCells.length>=10?[leadingCells,...parsedRows]:parsedRows;
+  return {index,table,rows};
+ });
  const label=(v:unknown)=>hkey(v).replace(/\bno\b/g,"number");
  const headerAliases=[
   ["sl no","s no"],["head of household","head of household name"],["caste"],
@@ -236,24 +245,14 @@ async function buildOfficialRows(html:string,admin:ReturnType<typeof createClien
  const rows=selectedData?.rows||[];
  if(!table){const diagnostics={htmlBytes:new TextEncoder().encode(html).length,tableCount:tables.length,tableStats:parsedTables.map(x=>({index:x.index,rows:x.rows.length})),hasRegisterTitle:/registration application register/i.test(html),hasVillage:/NEW\s*SERCHHIP\s*North/i.test(html)};console.error("Official MIS table diagnostics",JSON.stringify(diagnostics));throw new Error("Could not identify the official applicant register table. HTML bytes: "+diagnostics.htmlBytes+"; tables: "+tables.length+".");}
  if(rows.length<2){const diagnostics={htmlBytes:new TextEncoder().encode(html).length,tableCount:tables.length,selectedTable:selectedData?.index??-1,selectedRows:rows.length};console.error("Official MIS incomplete HTML diagnostics",JSON.stringify(diagnostics));throw new Error("Official register returned incomplete HTML (selected table rows: "+rows.length+"; HTML bytes: "+diagnostics.htmlBytes+"). No data changed.");}
- let headerAt=-1;
- if(headerTableIndex>=0){
-  // Headings are in a separate report table; applicant data starts after the serial-number and village-summary rows.
-  headerAt=-1;
- }else{
-  const headingTerms=["Head of Household","Caste","Name of Applicant","Father/Husband Name","Job-card number","Job Card Number","Job-card issue date","Job Card Verified"];
-  const rawHeadingSnippets=headingTerms.map(term=>{
-   const at=html.toLowerCase().indexOf(term.toLowerCase());
-   return {term,found:at>=0,snippet:at>=0?html.slice(Math.max(0,at-500),Math.min(html.length,at+900)).replace(/\\s+/g," ").slice(0,1400):""};
-  });
-  const tableMarkup=parsedTables.map(x=>({index:x.index,opening:x.table.slice(0,500).replace(/\\s+/g," "),closing:x.table.slice(-300).replace(/\\s+/g," ")}));
-  const diagnostics={tableStats:parsedTables.map(x=>({index:x.index,rows:x.rows.length})),firstRows:parsedTables.map(x=>({index:x.index,rows:x.rows.slice(0,4).map(row=>row.length)})),rawHeadingSnippets,tableMarkup};
-  console.error("Official MIS raw heading markup diagnostics",JSON.stringify(diagnostics));
-  throw new Error("Could not identify the official register headings in any report table. No data changed.");
+ if(headerTableIndex<0||headerTableIndex!==selectedData?.index){
+  const diagnostics={tableStats:parsedTables.map(x=>({index:x.index,rows:x.rows.length,firstRowCells:x.rows[0]?.length||0}))};
+  console.error("Official MIS heading detection diagnostics",JSON.stringify(diagnostics));
+  throw new Error("Could not identify the official register headings in the applicant table. No data changed.");
  }
- // The heading table is separate from the large applicant table. The data table begins with
- // a 15-position numbering row and a village/count summary row; applicant records follow.
- headerAt=1;
+ // The heading is the leading cell group (row 0); then come the column-number
+ // row (row 1), village/count summary (row 2), and applicant records (row 3 onward).
+ const headerAt=2;
  const sourceColumnCount=sourceHeader.length;
  if(sourceColumnCount<14||sourceColumnCount>15)throw new Error("Official register heading count is unexpected ("+sourceColumnCount+"). No data changed.");
  if(sourceHeader.length===15&&!norm(sourceHeader[14]))sourceHeader=sourceHeader.slice(0,14);

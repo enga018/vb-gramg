@@ -32,10 +32,11 @@ Deno.serve(async (req: Request) => {
 
     const html = await response.text();
     const bytesReceived = new TextEncoder().encode(html).length;
-    const title = html.match(/<title[^>]*>([\\s\\S]*?)<\\/title>/i)?.[1]?.replace(/<[^>]*>/g, "").trim() ?? null;
-    const reportHeadingFound = /Registration Application Register/i.test(html);
-    const villageNameFound = /NEW\\s*SERCHHIP\\s*North/i.test(html);
-    if (bytesReceived > 8_000_000 || !reportHeadingFound || !villageNameFound || !/<table[\\s>]/i.test(html)) {
+    const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
+    const title = titleMatch?.[1]?.replace(/<[^>]*>/g, "").trim() ?? null;
+    const reportHeadingFound = html.toLowerCase().includes("registration application register");
+    const villageNameFound = /NEW\s*SERCHHIP\s*North/i.test(html);
+    if (bytesReceived > 8_000_000 || !reportHeadingFound || !villageNameFound || !/<table[\s>]/i.test(html)) {
       return Response.json({
         fetchSucceeded: false,
         httpStatus: response.status,
@@ -57,7 +58,7 @@ Deno.serve(async (req: Request) => {
       title,
       reportHeadingFound,
       villageNameFound,
-      tableRowTags: (html.match(/<tr\\b/gi) ?? []).length,
+      tableRowTags: (html.match(/<tr\b/gi) ?? []).length,
       html,
       databaseChanged: false,
     }, { headers: { ...corsHeaders, "Cache-Control": "no-store" } });

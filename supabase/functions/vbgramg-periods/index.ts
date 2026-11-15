@@ -53,7 +53,7 @@ Deno.serve(async (req: Request) => {
       return reply(req, { approved: true, periods: data || [] });
     }
     if (action === "list") {
-      const { data, error } = await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,days,status,created_at,updated_at,closed_at").order("contribution_month", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false });
+      const { data, error } = await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,days,status,created_at,updated_at,closed_at,reopened_at").order("contribution_month", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false });
       if (error) throw error;
       const periodRows = data || [];
       // PostgREST normally caps each response at 1,000 rows. Paginate every
@@ -124,9 +124,9 @@ Deno.serve(async (req: Request) => {
     if (action === "delete") {
       const deleteId = clean(body.id, 64);
       if (!deleteId) return reply(req, { error: "A period ID is required." }, 400);
-      const { data: existing, error: readError } = await admin.from("vbgramg_periods").select("id,period_name").eq("id", deleteId).maybeSingle();
+      const { data: existing, error: readError } = await admin.from("vbgramg_periods").select("id,period_name,status").eq("id", deleteId).eq("status","open").maybeSingle();
       if (readError) throw readError;
-      if (!existing) return reply(req, { error: "Period not found." }, 404);
+      if (!existing) return reply(req, { error: "Only open periods can be deleted. Automatically closed periods must be reopened first." }, 409);
       const checks = await Promise.all([
         // Non-voided ledger entries block deletion. Deferred entries still count unless formally voided.
         admin.from("vbgramg_charge_ledger").select("id", { count: "exact", head: true }).eq("period_id", deleteId).or("is_voided.is.null,is_voided.eq.false"),
@@ -143,14 +143,17 @@ Deno.serve(async (req: Request) => {
       return reply(req, { approved: true, deleted: true, periodName: existing.period_name });
     }
     const id = clean(body.id, 64);
-    if (["close", "reopen", "update"].includes(action)) {
+    if (["reopen", "update"].includes(action)) {
       if (!id) return reply(req, { error: "A period ID is required." }, 400);
       const { data: existing, error: readError } = await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,days,status").eq("id", id).maybeSingle();
       if (readError) throw readError;
       if (!existing) return reply(req, { error: "Period not found." }, 404);
       let patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
-      if (action === "close") patch = { ...patch, status: "closed", closed_at: new Date().toISOString() };
-      if (action === "reopen") patch = { ...patch, status: "open", closed_at: null };
+      if (action === "reopen") {
+        if (approved.role !== "admin") return reply(req, { error: "Only administrators can reopen a period." }, 403);
+        if (existing.status !== "closed") return reply(req, { error: "Only a closed period can be reopened." }, 409);
+        patch = { ...patch, status: "open", closed_at: null, reopened_at: new Date().toISOString() };
+      }
       if (action === "update") {
         const daysRaw = body.days === null || body.days === "" || body.days === undefined ? null : Number(body.days);
         if (daysRaw !== null && (!Number.isInteger(daysRaw) || daysRaw < 1 || daysRaw > 365)) return reply(req, { error: "Days must be a whole number from 1 to 365, or blank." }, 400);

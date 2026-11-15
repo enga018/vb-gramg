@@ -191,19 +191,66 @@ function cleanApplicant(v:unknown){return norm(v).replace(/\*/g,"").normalize("N
 async function buildOfficialRows(html:string,admin:ReturnType<typeof createClient>){
  if(new TextEncoder().encode(html).length>8_000_000||!html.toLowerCase().includes("registration application register")||!/NEW\s*SERCHHIP\s*North/i.test(html))throw new Error("Official report or village validation failed.");
  const tables=[...html.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)].map(m=>m[1]);
- const tableStats=tables.map((t,index)=>({index,rows:parseHtmlRows(t).length,hasJob:/job\s*card\s*number|jobcard\s*number/i.test(cellText(t)),hasApplicant:/name\s*of\s*applicant|applicant\s*name/i.test(cellText(t))}));
- const selectedIndex=tableStats.find(x=>x.hasJob&&x.hasApplicant)?.index;
- const table=selectedIndex!==undefined?tables[selectedIndex]:(tables[4]&&parseHtmlRows(tables[4]).length>10?tables[4]:"");
- if(!table){const diagnostics={htmlBytes:new TextEncoder().encode(html).length,tableCount:tables.length,tableStats,hasRegisterTitle:/registration application register/i.test(html),hasVillage:/NEW\s*SERCHHIP\s*North/i.test(html)};console.error("Official MIS table diagnostics",JSON.stringify(diagnostics));throw new Error("Could not identify the official applicant register table. HTML bytes: "+diagnostics.htmlBytes+"; tables: "+tables.length+".");}
- const rows=parseHtmlRows(table);
- if(rows.length<2){const diagnostics={htmlBytes:new TextEncoder().encode(html).length,tableCount:tables.length,selectedTable:selectedIndex??4,selectedRows:rows.length,tableStats,hasRegisterTitle:/registration application register/i.test(html),hasVillage:/NEW\s*SERCHHIP\s*North/i.test(html),markup:{trOpen:(table.match(/<tr\b/gi)||[]).length,trClose:(table.match(/<\/tr\s*>/gi)||[]).length,tdOpen:(table.match(/<td\b/gi)||[]).length,tdClose:(table.match(/<\/td\s*>/gi)||[]).length,thOpen:(table.match(/<th\b/gi)||[]).length,thClose:(table.match(/<\/th\s*>/gi)||[]).length,tbodyOpen:(table.match(/<tbody\b/gi)||[]).length,tbodyClose:(table.match(/<\/tbody\s*>/gi)||[]).length,tableOpen:(table.match(/<table\b/gi)||[]).length,tableClose:(table.match(/<\/table\s*>/gi)||[]).length},tagSample:(table.match(/<[^>]{1,100}>/g)||[]).slice(0,80)};console.error("Official MIS incomplete HTML diagnostics",JSON.stringify(diagnostics));throw new Error("Official register returned incomplete HTML (selected table rows: "+rows.length+"; row tags: "+diagnostics.markup.trOpen+"; cell tags: "+(diagnostics.markup.tdOpen+diagnostics.markup.thOpen)+"; HTML bytes: "+diagnostics.htmlBytes+"). No data changed.");}
+ const parsedTables=tables.map((table,index)=>({index,table,rows:parseHtmlRows(table)}));
  const label=(v:unknown)=>hkey(v).replace(/\bno\b/g,"number");
- const hasJob=(r:string[])=>r.some(v=>{const k=label(v);return k.includes("job card number")||k.includes("jobcard number")||k==="job card"||k==="jc number"||k==="jc no";});
- const hasName=(r:string[])=>r.some(v=>{const k=label(v);return k.includes("name of applicant")||k.includes("applicant name")||k==="name applicant";});
- let headerAt=-1, sourceHeader:string[]=[];
- for(let i=0;i<rows.length&&headerAt<0;i++)for(let span=1;span<=4&&i+span<=rows.length;span++){const win=rows.slice(i,i+span),width=Math.max(...win.map(r=>r.length));const merged=Array.from({length:width},(_,c)=>{for(const r of win){const v=norm(r[c]);if(v&&!/^\d+$/.test(v))return v;}return "";});if(hasJob(merged)&&hasName(merged)){sourceHeader=merged;headerAt=i+span-1;break;}}
- if(headerAt<0){const candidateRows=rows.map((r,index)=>({index,cells:r.length,values:r.map(v=>hkey(v)).filter(Boolean)})).filter(r=>r.values.some(v=>v.includes("job")||v.includes("applicant")||v.includes("household"))).slice(0,12);const structureRows=rows.slice(0,10).map((r,index)=>({index,cells:r.map((value,cellIndex)=>({cellIndex,length:norm(value).length,isHeader:/^(sl\.?\s*no\.?|head of household|caste|name of applicant|applicant name|father\/husband name|father name|husband name|gender|sex|age|date of receipt|job card number|jobcard number|job card issue date|remarks|disabled|minority|job card verified on date)$/i.test(norm(value)),tagKind:(()=>{const block=[...table.matchAll(/<tr\b[^>]*>([\s\S]*?)(?=<tr\b|$)/gi)][index]?.[1]||"";const tags=[...block.matchAll(/<t([dh])\b[^>]*>/gi)];return tags[cellIndex]?.[1]?.toLowerCase()==="h"?"th":"td";})()}))}));console.error("Official MIS header detection diagnostics",JSON.stringify({parsedRows:rows.length,firstTenRowStructure:structureRows,candidateRows}));throw new Error("Could not identify official register column headings (parsed rows: "+rows.length+"). Header candidates: "+JSON.stringify(candidateRows));}
- if(rows[headerAt+1]&&rows[headerAt+1].filter(v=>norm(v)).length>=5&&rows[headerAt+1].filter(v=>/^\d{1,2}$/.test(norm(v))).length===rows[headerAt+1].filter(v=>norm(v)).length)headerAt++;
+ const headerAliases=[
+  ["sl no","s no"],["head of household","head of household name"],["caste"],
+  ["name of applicant","applicant name"],["father husband name","father name","husband name"],
+  ["gender","sex"],["age"],["date of receipt of application request for registration","date of receipt of application"],
+  ["job card number","jobcard number"],["job card issue date"],
+  ["reasons if job card not issued any other remarks","reasons if job card not issued","remarks"],
+  ["disabled"],["minority"],["job card verified on date"]
+ ];
+ const headerScore=(row:string[])=>{
+  const keys=row.map(label);
+  const matches=headerAliases.filter(aliases=>keys.some(key=>aliases.some(alias=>key===alias||key.includes(alias)))).length;
+  const hasJob=keys.some(key=>key.includes("job card number")||key.includes("jobcard number"));
+  const hasName=keys.some(key=>key.includes("name of applicant")||key.includes("applicant name"));
+  const hasHouse=keys.some(key=>key.includes("head of household"));
+  return {matches,hasJob,hasName,hasHouse};
+ };
+ let sourceHeader:string[]=[];
+ let headerTableIndex=-1;
+ let headerEndRow=-1;
+ for(const candidate of parsedTables){
+  const rows=candidate.rows;
+  for(let i=0;i<Math.min(rows.length,12);i++){
+   for(let span=1;span<=3&&i+span<=rows.length;span++){
+    const win=rows.slice(i,i+span),width=Math.max(...win.map(row=>row.length));
+    const merged=Array.from({length:width},(_,column)=>{
+     for(const row of win){const value=norm(row[column]);if(value&&!/^\d+$/.test(value))return value;}
+     return "";
+    });
+    const score=headerScore(merged);
+    if(score.matches>=6&&score.hasJob&&score.hasName&&score.hasHouse){
+     sourceHeader=merged;headerTableIndex=candidate.index;headerEndRow=i+span-1;break;
+    }
+   }
+   if(headerTableIndex>=0)break;
+  }
+  if(headerTableIndex>=0)break;
+ }
+ const dataCandidates=parsedTables.filter(candidate=>candidate.rows.length>100);
+ const selectedData=dataCandidates.sort((a,b)=>b.rows.length-a.rows.length)[0];
+ const table=selectedData?.table||"";
+ const rows=selectedData?.rows||[];
+ if(!table){const diagnostics={htmlBytes:new TextEncoder().encode(html).length,tableCount:tables.length,tableStats:parsedTables.map(x=>({index:x.index,rows:x.rows.length})),hasRegisterTitle:/registration application register/i.test(html),hasVillage:/NEW\s*SERCHHIP\s*North/i.test(html)};console.error("Official MIS table diagnostics",JSON.stringify(diagnostics));throw new Error("Could not identify the official applicant register table. HTML bytes: "+diagnostics.htmlBytes+"; tables: "+tables.length+".");}
+ if(rows.length<2){const diagnostics={htmlBytes:new TextEncoder().encode(html).length,tableCount:tables.length,selectedTable:selectedData?.index??-1,selectedRows:rows.length};console.error("Official MIS incomplete HTML diagnostics",JSON.stringify(diagnostics));throw new Error("Official register returned incomplete HTML (selected table rows: "+rows.length+"; HTML bytes: "+diagnostics.htmlBytes+"). No data changed.");}
+ let headerAt=-1;
+ if(headerTableIndex>=0){
+  // Headings are in a separate report table; applicant data starts after the serial-number and village-summary rows.
+  headerAt=-1;
+ }else{
+  const diagnostics={tableStats:parsedTables.map(x=>({index:x.index,rows:x.rows.length})),firstRows:parsedTables.map(x=>({index:x.index,rows:x.rows.slice(0,4).map(row=>row.length)}))};
+  console.error("Official MIS header table diagnostics",JSON.stringify(diagnostics));
+  throw new Error("Could not identify the official register headings in any report table. No data changed.");
+ }
+ // The heading table is separate from the large applicant table. The data table begins with
+ // a 15-position numbering row and a village/count summary row; applicant records follow.
+ headerAt=1;
+ const sourceColumnCount=sourceHeader.length;
+ if(sourceColumnCount<14||sourceColumnCount>15)throw new Error("Official register heading count is unexpected ("+sourceColumnCount+"). No data changed.");
+ if(sourceHeader.length===15&&!norm(sourceHeader[14]))sourceHeader=sourceHeader.slice(0,14);
  const si={
   household:col(sourceHeader,["head of household","head of household name"]),
   caste:col(sourceHeader,["caste"]),

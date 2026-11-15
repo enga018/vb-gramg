@@ -65,8 +65,9 @@ Deno.serve(async (req: Request) => {
           for (let offset = 0; ; offset += 1000) {
             const { data: rows, error: usageError } = await admin
               .from("vbgramg_charge_ledger")
-              .select("period_id")
+              .select("period_id,is_voided")
               .not("period_id", "is", null)
+              .or("is_voided.is.null,is_voided.eq.false")
               .range(offset, offset + 999);
             if (usageError) throw usageError;
             for (const row of rows || []) if (row.period_id) ids.push(String(row.period_id));
@@ -127,8 +128,8 @@ Deno.serve(async (req: Request) => {
       if (readError) throw readError;
       if (!existing) return reply(req, { error: "Period not found." }, 404);
       const checks = await Promise.all([
-        // Any ledger entry blocks deletion, regardless of voided/deferred status.
-        admin.from("vbgramg_charge_ledger").select("id", { count: "exact", head: true }).eq("period_id", deleteId),
+        // Non-voided ledger entries block deletion. Deferred entries still count unless formally voided.
+        admin.from("vbgramg_charge_ledger").select("id", { count: "exact", head: true }).eq("period_id", deleteId).or("is_voided.is.null,is_voided.eq.false"),
         admin.from("vbgramg_payment_allocations").select("id", { count: "exact", head: true }).eq("period_id", deleteId),
         admin.from("vbgramg_contribution_extras").select("id", { count: "exact", head: true }).eq("period_id", deleteId),
         admin.from("vbgramg_fto_batches").select("id", { count: "exact", head: true }).eq("period_id", deleteId),
@@ -136,7 +137,7 @@ Deno.serve(async (req: Request) => {
       ]);
       const failed = checks.find(x => x.error);
       if (failed) throw failed.error;
-      if (checks.some(x => (x.count || 0) > 0)) return reply(req, { error: "Cannot delete " + existing.period_name + ": ledger history or linked operational records exist. Close the period instead." }, 409);
+      if (checks.some(x => (x.count || 0) > 0)) return reply(req, { error: "Cannot delete " + existing.period_name + ": active or deferred charges, or linked operational records exist. Close the period instead." }, 409);
       const { error: deleteError } = await admin.from("vbgramg_periods").delete().eq("id", deleteId);
       if (deleteError) throw deleteError;
       return reply(req, { approved: true, deleted: true, periodName: existing.period_name });

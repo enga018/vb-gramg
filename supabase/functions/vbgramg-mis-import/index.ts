@@ -194,9 +194,9 @@ async function buildOfficialRows(html:string,admin:ReturnType<typeof createClien
  const parsedTables=tables.map((table,index)=>{
   // This Government report writes its column headings directly inside the table,
   // before the first <tr>. Capture those leading cells as row zero.
-  const firstRow=table.search(/<tr\\b/i);
+  const firstRow=table.search(/<tr\b/i);
   const leadingMarkup=firstRow>=0?table.slice(0,firstRow):table;
-  const leadingCells=[...leadingMarkup.matchAll(/<t[dh]\\b[^>]*>([\\s\\S]*?)<\\/t[dh]>/gi)].map(cell=>cellText(cell[1]));
+  const leadingCells=[...leadingMarkup.matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(cell=>cellText(cell[1]));
   const parsedRows=parseHtmlRows(table);
   const rows=leadingCells.length>=10?[leadingCells,...parsedRows]:parsedRows;
   return {index,table,rows};

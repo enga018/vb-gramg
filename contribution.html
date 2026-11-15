@@ -1685,7 +1685,7 @@ function renderCitizenDetail(id){
    ?'<div class="entry-actions">'+(isPayment?'<button class="btn ghost small" type="button" data-review-allocation="'+esc(e.id)+'">Review allocation</button>':'')+(isExtra?(linkedExtra&&linkedExtra.period_id?'<button class="btn ghost small" type="button" data-edit-extra="'+esc(linkedExtra.period_id)+'">Edit</button>':''):isFtoEntry?'<span class="muted">Revise in FTO</span>':'<button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button>')+'</div>'
    :'';
   return '<div class="entry '+entryClass+'"'+(e.is_voided?' data-voided-entry="true"':'')+(isPayment?' data-payment-toggle role="button" tabindex="0" aria-expanded="false" title="Tap to view payment allocation details"':'')+'><div class="desc"><b>'+esc(label)+(e.is_voided?' · Removed from current FTO snapshot':(isExtra&&extraReason?' · '+esc(extraReason):type!=='charge'&&displayNote?' · '+esc(displayNote):''))+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+(refundReconciliation?'<div class="payment-allocation-note">Matched to payment · '+fmt(refundReconciliation.amount)+' (not a period allocation)</div>':'')+allocationDetails+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+entryActions+'</div>';
- }).join('');;
+ }).join('');
  const lines=renderEntries(sorted);
  const voidedLines=renderEntries(voidedSorted);
  const voidedHistory=appRole==='admin'&&voidedSorted.length

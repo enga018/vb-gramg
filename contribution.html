@@ -1613,8 +1613,9 @@ function renderCitizenDetail(id){
  const chronological=[...c.ledger].sort((a,b)=>{const deferredA=Boolean(a.is_deferred),deferredB=Boolean(b.is_deferred);if(deferredA!==deferredB)return deferredA?1:-1;const dateA=String(a.entry_date||'').slice(0,10),dateB=String(b.entry_date||'').slice(0,10);if(!dateA&&!dateB)return String(a.created_at||'').localeCompare(String(b.created_at||''));if(!dateA)return 1;if(!dateB)return -1;return dateA.localeCompare(dateB)||String(a.created_at||'').localeCompare(String(b.created_at||''));});
  const activeApplicants=(Array.isArray(applicantsByCard[c.id])?applicantsByCard[c.id]:[]).slice().sort((a,b)=>String(a.applicant_number||"").localeCompare(String(b.applicant_number||""),undefined,{numeric:true})||String(a.applicant_name||"").localeCompare(String(b.applicant_name||"")));
  const normalizeName=value=>String(value||"").normalize("NFKC").replace(/\s+/g," ").trim().toLocaleLowerCase();
- const sorted=[...chronological];
- const lines=sorted.map(e=>{
+ const sorted=chronological.filter(e=>!e.is_voided);
+ const voidedSorted=chronological.filter(e=>Boolean(e.is_voided));
+ const renderEntries=items=>items.map(e=>{
   const type=e.entry_type, amount=Number(e.amount)||0, isPayment=type==='payment';
   const isExtra=window.VBGRAMGCharges.isExtraChargeEntry(e);
   // Formula-generated charge labels come from the contribution period, never the note.
@@ -1684,8 +1685,13 @@ function renderCitizenDetail(id){
    ?'<div class="entry-actions">'+(isPayment?'<button class="btn ghost small" type="button" data-review-allocation="'+esc(e.id)+'">Review allocation</button>':'')+(isExtra?(linkedExtra&&linkedExtra.period_id?'<button class="btn ghost small" type="button" data-edit-extra="'+esc(linkedExtra.period_id)+'">Edit</button>':''):isFtoEntry?'<span class="muted">Revise in FTO</span>':'<button class="btn ghost small" type="button" data-edit-entry="'+esc(e.id)+'">Edit</button>')+'</div>'
    :'';
   return '<div class="entry '+entryClass+'"'+(e.is_voided?' data-voided-entry="true"':'')+(isPayment?' data-payment-toggle role="button" tabindex="0" aria-expanded="false" title="Tap to view payment allocation details"':'')+'><div class="desc"><b>'+esc(label)+(e.is_voided?' · Removed from current FTO snapshot':(isExtra&&extraReason?' · '+esc(extraReason):type!=='charge'&&displayNote?' · '+esc(displayNote):''))+'</b>'+(transactionDate?'<small>'+esc(transactionDate)+'</small>':'')+(refundReconciliation?'<div class="payment-allocation-note">Matched to payment · '+fmt(refundReconciliation.amount)+' (not a period allocation)</div>':'')+allocationDetails+'</div><div class="amt '+(isPayment?'payment':'')+'">'+(isPayment?'−':'')+fmt(amount)+'</div>'+entryActions+'</div>';
- }).join('');
- $('sheetBody').innerHTML=(c.exempt?'<div class="notice info"><b>Exempt job card.</b> Its contribution records and payment allocations are retained, but excluded from active balances.</div>':'')+'<div class="section-title">Ledger transactions · oldest first</div>'+(lines||'<div class="empty">No ledger entries.</div>');
+ });
+ const lines=renderEntries(sorted);
+ const voidedLines=renderEntries(voidedSorted);
+ const voidedHistory=appRole==='admin'&&voidedSorted.length
+  ?'<details class="voided-history" style="margin-top:16px;border:1px solid var(--line,#ddd);border-radius:10px;padding:10px 12px"><summary style="cursor:pointer;font-weight:600">Voided transactions ('+voidedSorted.length+')</summary><div style="margin-top:12px">'+voidedLines+'</div></details>'
+  :'';
+ $('sheetBody').innerHTML=(c.exempt?'<div class="notice info"><b>Exempt job card.</b> Its contribution records and payment allocations are retained, but excluded from active balances.</div>':'')+'<div class="section-title">Ledger transactions · oldest first</div>'+(lines||'<div class="empty">No active ledger transactions.</div>')+voidedHistory;
  document.querySelectorAll('[data-fifo-toggle]').forEach(toggle=>toggle.addEventListener('click',()=>{
   const wasOpen=toggle.getAttribute('aria-expanded')==='true';
   document.querySelectorAll('[data-fifo-toggle]').forEach(other=>{

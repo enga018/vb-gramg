@@ -157,6 +157,8 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
   <main>
   
     <div class="paste-box">
+      <button type="button" id="fetch-official-mis-button">Fetch Official MIS</button>
+      <div id="official-fetch-status" class="hint" aria-live="polite"></div>
       <label class="file-label" for="register-file">Upload register file</label>
       <p class="hint">MHT, MHTML or HTML</p>
       <input id="register-file" type="file" accept=".mht,.mhtml,.html,.htm,text/html,multipart/related" />
@@ -429,6 +431,48 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
       const tsv = rows.map(row => row.map(value => value.replace(/\t/g, ' ').replace(/\r?\n/g, ' ')).join('\t')).join('\n');
       return { tsv, rowCount: rows.length, cellCount: Math.max(...rows.map(row => row.length)), title: doc.title || 'Saved register' };
     }
+
+    document.getElementById('fetch-official-mis-button').addEventListener('click', async function () {
+      if (!currentUser || currentRole !== 'admin') { setStatus('Administrator access is required.', 'error'); return; }
+      if (pendingImportId) { setStatus('Confirm or cancel the pending comparison first.', 'error'); return; }
+      const button = this;
+      const fetchStatus = document.getElementById('official-fetch-status');
+      button.disabled = true;
+      fetchStatus.textContent = 'Fetching the official New Serchhip North register…';
+      try {
+        const { data, error } = await supabaseClient.functions.invoke('vbgramg-mis-source-test', { body: {} });
+        if (error) {
+          let message = error.message || 'Official report fetch failed.';
+          try { const detail = error.context && await error.context.json(); if (detail && detail.error) message = detail.error; } catch (_) {}
+          throw new Error(message);
+        }
+        if (!data || data.fetchSucceeded !== true || !data.html) {
+          throw new Error((data && data.error) || 'The official report could not be retrieved.');
+        }
+        if (!data.reportHeadingFound || !data.villageNameFound || data.httpStatus !== 200) {
+          throw new Error('The retrieved page did not pass the official report and village checks.');
+        }
+        const extracted = extractRegisterTableFromHtml(data.html);
+        tableInput.value = extracted.tsv;
+        importedFileName = 'Official Registration Application Register — New Serchhip North';
+        pastedTableLoaded = false;
+        importedRows = [];
+        document.getElementById('diff-panel').classList.add('hidden');
+        fetchStatus.textContent = 'Retrieved ' + Math.max(0, extracted.rowCount - 1).toLocaleString() + ' source row(s). Starting the existing comparison…';
+        loadTableButton.click();
+      } catch (error) {
+        fetchStatus.textContent = 'Fetch failed: ' + (error && error.message ? error.message : String(error));
+        setStatus('Official MIS fetch failed. The active MIS has not been changed.', 'error');
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    window.addEventListener('message', function (event) {
+      if (event.origin !== window.location.origin || !event.data || event.data.type !== 'vbgramg-start-official-mis-fetch') return;
+      const button = document.getElementById('fetch-official-mis-button');
+      if (button && !button.disabled) button.click();
+    });
 
     registerFileInput.addEventListener('change', async function () {
       const file = registerFileInput.files && registerFileInput.files[0];

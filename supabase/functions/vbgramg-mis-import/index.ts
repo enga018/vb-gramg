@@ -287,7 +287,7 @@ Deno.serve(async (req: Request) => {
 
 
     if (action === "official-fetch") {
-      const response = await fetch(OFFICIAL_REPORT_URL, { method:"GET", redirect:"follow", headers:{"User-Agent":"VBGRAMG-MIS-Reader/1.0","Accept":"text/html"}, signal:AbortSignal.timeout(30000) });
+      const response = await fetch(OFFICIAL_REPORT_URL, { method:"GET", redirect:"follow", headers:{"User-Agent":"VBGRAMG-MIS-Reader/1.0","Accept":"text/html,application/xhtml+xml","Accept-Encoding":"identity","Cache-Control":"no-cache","Pragma":"no-cache"}, signal:AbortSignal.timeout(30000) });
       if (!response.ok) return reply({error:"Government MIS returned HTTP "+response.status+". No data changed."},502);
       const built = await buildOfficialRows(await response.text(), admin);
       const filename = "Official Registration Application Register — New Serchhip North";

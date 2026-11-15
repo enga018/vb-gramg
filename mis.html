@@ -387,7 +387,7 @@ header .account > button:hover,header .app-header-actions > a:hover,header .app-
 <main>
 <div id="app-panel" class="hidden">
 <section class="panel">
-<div class="page-panel-actions"><button id="desktop-fetch-button" class="secondary hidden" type="button" title="Fetch the official MIS register automatically">Fetch Official MIS</button><button id="import-link" class="secondary hidden" type="button">Import</button></div>
+<div class="page-panel-actions"><button id="desktop-fetch-button" class="secondary hidden" type="button" title="Fetch the official MIS register automatically">Fetch Official MIS</button></div>
 <div class="meta"><div class="stat"><small>Total Job Card</small><strong id="total-jobcards">—</strong></div><div class="stat"><small>Total Application</small><strong id="total-applicants">—</strong></div><div class="stat"><small>Demand</small><strong id="total-demand">—</strong></div><div class="stat"><small>Unwilling</small><strong id="total-unwilling">—</strong></div><div class="stat"><small>Last Updated</small><strong id="updated-at">—</strong></div></div>
 <div class="toolbar"><div class="search"><label for="search-input">Search job cards or applicants</label><input id="search-input" type="search" placeholder="Job card, household or applicant"></div><div class="filter-control"><label for="selection-filter">Selection status</label><select id="selection-filter"><option value="all">All job cards</option><option value="selected">Selected</option><option value="none">None selected</option></select></div><span id="result-count" class="muted"></span></div>
 <div id="data-status" class="status" aria-live="polite">Loading MIS data…</div>
@@ -432,8 +432,7 @@ async function verifyAccess(user){
  if(seq!==loadSequence)return false;
  if(error||!data||data.approved!==true){await supabaseClient.auth.signOut();window.location.replace('./');return false}
  if(window.VBGRAMGCache)window.VBGRAMGCache.setUser(user.id);
- currentRole=data.role;$('import-link').classList.toggle('hidden',currentRole!=='admin');
- $('desktop-fetch-button').classList.toggle('hidden',currentRole!=='admin');
+ currentRole=data.role;$('desktop-fetch-button').classList.toggle('hidden',currentRole!=='admin');
  $('app-panel').classList.remove('hidden');
  await loadData();return true;
 }
@@ -495,12 +494,8 @@ function bindMisImportFrameKeyboard(){
 }
 $("mis-import-frame").addEventListener("load",bindMisImportFrameKeyboard);
 function closeMisImportModal(){
- $("mis-import-modal").classList.add("hidden");document.body.classList.remove("mis-import-open");$("import-link").focus();
+ $("mis-import-modal").classList.add("hidden");document.body.classList.remove("mis-import-open");$("desktop-fetch-button").focus();
 }
-$("import-link").addEventListener("click",()=>{
- if(currentRole!=="admin"){status($("data-status"),"Administrator access is required to import MIS.","error");return}
- openMisImportModal();
-});
 $("close-mis-import").addEventListener("click",closeMisImportModal);
 $("mis-import-modal").addEventListener("click",event=>{if(event.target===$("mis-import-modal"))closeMisImportModal();});
 document.addEventListener("keydown",event=>{

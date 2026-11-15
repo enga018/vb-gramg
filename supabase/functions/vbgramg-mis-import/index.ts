@@ -191,9 +191,12 @@ function cleanApplicant(v:unknown){return norm(v).replace(/\*/g,"").normalize("N
 async function buildOfficialRows(html:string,admin:ReturnType<typeof createClient>){
  if(new TextEncoder().encode(html).length>8_000_000||!html.toLowerCase().includes("registration application register")||!/NEW\s*SERCHHIP\s*North/i.test(html))throw new Error("Official report or village validation failed.");
  const tables=[...html.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)].map(m=>m[1]);
- const table=tables.find(t=>{const x=cellText(t).toLowerCase();return x.includes("job card number")&&(x.includes("name of applicant")||x.includes("applicant name"));})||(tables[4]&&parseHtmlRows(tables[4]).length>10?tables[4]:"");
- if(!table)throw new Error("Could not identify the official applicant register table.");
- const rows=parseHtmlRows(table);if(rows.length<2)throw new Error("Official applicant register contains too few rows.");
+ const tableStats=tables.map((t,index)=>({index,rows:parseHtmlRows(t).length,hasJob:/job\s*card\s*number|jobcard\s*number/i.test(cellText(t)),hasApplicant:/name\s*of\s*applicant|applicant\s*name/i.test(cellText(t))}));
+ const selectedIndex=tableStats.find(x=>x.hasJob&&x.hasApplicant)?.index;
+ const table=selectedIndex!==undefined?tables[selectedIndex]:(tables[4]&&parseHtmlRows(tables[4]).length>10?tables[4]:"");
+ if(!table){const diagnostics={htmlBytes:new TextEncoder().encode(html).length,tableCount:tables.length,tableStats,hasRegisterTitle:/registration application register/i.test(html),hasVillage:/NEW\s*SERCHHIP\s*North/i.test(html)};console.error("Official MIS table diagnostics",JSON.stringify(diagnostics));throw new Error("Could not identify the official applicant register table. HTML bytes: "+diagnostics.htmlBytes+"; tables: "+tables.length+".");}
+ const rows=parseHtmlRows(table);
+ if(rows.length<2){const diagnostics={htmlBytes:new TextEncoder().encode(html).length,tableCount:tables.length,selectedTable:selectedIndex??4,selectedRows:rows.length,tableStats,hasRegisterTitle:/registration application register/i.test(html),hasVillage:/NEW\s*SERCHHIP\s*North/i.test(html),pageText:cellText(html).slice(0,500)};console.error("Official MIS incomplete HTML diagnostics",JSON.stringify(diagnostics));throw new Error("Official register returned incomplete HTML (selected table rows: "+rows.length+"; tables: "+tables.length+"; HTML bytes: "+diagnostics.htmlBytes+"). No data changed.");}
  const label=(v:unknown)=>hkey(v).replace(/\bno\b/g,"number");
  const hasJob=(r:string[])=>r.some(v=>{const k=label(v);return k.includes("job card number")||k.includes("jobcard number")||k==="job card"||k==="jc number"||k==="jc no";});
  const hasName=(r:string[])=>r.some(v=>{const k=label(v);return k.includes("name of applicant")||k.includes("applicant name")||k==="name applicant";});

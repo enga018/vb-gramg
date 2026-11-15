@@ -137,7 +137,7 @@ Deno.serve(async (req: Request) => {
       ]);
       const failed = checks.find(x => x.error);
       if (failed) throw failed.error;
-      if (checks.some(x => (x.count || 0) > 0)) return reply(req, { error: "Cannot delete " + existing.period_name + ": active or deferred charges, or linked operational records exist. Close the period instead." }, 409);
+      if (checks.some(x => (x.count || 0) > 0)) return reply(req, { error: "Cannot delete " + existing.period_name + ": active charges or linked operational records exist. Void charges first, or close a completed period instead." }, 409);
       const { error: deleteError } = await admin.from("vbgramg_periods").delete().eq("id", deleteId);
       if (deleteError) throw deleteError;
       return reply(req, { approved: true, deleted: true, periodName: existing.period_name });

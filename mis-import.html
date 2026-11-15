@@ -468,6 +468,12 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
       }
     });
 
+    window.addEventListener('message', function (event) {
+      if (event.origin !== window.location.origin || !event.data || event.data.type !== 'vbgramg-start-official-mis-fetch') return;
+      const button = document.getElementById('fetch-official-mis-button');
+      if (button && !button.disabled) button.click();
+    });
+
     registerFileInput.addEventListener('change', async function () {
       const file = registerFileInput.files && registerFileInput.files[0];
       if (!file) { fileStatus.textContent = ''; return; }

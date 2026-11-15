@@ -190,9 +190,9 @@ function col(header:unknown[],aliases:string[]){const keys=header.map(hkey);let 
 function cleanApplicant(v:unknown){return norm(v).replace(/\*/g,"").normalize("NFKC").toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu," ").trim();}
 async function buildOfficialRows(html:string,admin:ReturnType<typeof createClient>){
  if(new TextEncoder().encode(html).length>8_000_000||!html.toLowerCase().includes("registration application register")||!/NEW\s*SERCHHIP\s*North/i.test(html))throw new Error("Official report or village validation failed.");
- const tables=[...html.matchAll(/<table\\b[^>]*>([\\s\\S]*?)<\\/table>/gi)].map(m=>m[1]);
+ const tables=[...html.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)].map(m=>m[1]);
  const parsedTables=tables.map((table,index)=>({index,table,rows:parseHtmlRows(table)}));
- const label=(v:unknown)=>hkey(v).replace(/\\bno\\b/g,"number");
+ const label=(v:unknown)=>hkey(v).replace(/\bno\b/g,"number");
  const headerAliases=[
   ["sl no","s no"],["head of household","head of household name"],["caste"],
   ["name of applicant","applicant name"],["father husband name","father name","husband name"],
@@ -218,7 +218,7 @@ async function buildOfficialRows(html:string,admin:ReturnType<typeof createClien
    for(let span=1;span<=3&&i+span<=rows.length;span++){
     const win=rows.slice(i,i+span),width=Math.max(...win.map(row=>row.length));
     const merged=Array.from({length:width},(_,column)=>{
-     for(const row of win){const value=norm(row[column]);if(value&&!/^\\d+$/.test(value))return value;}
+     for(const row of win){const value=norm(row[column]);if(value&&!/^\d+$/.test(value))return value;}
      return "";
     });
     const score=headerScore(merged);
@@ -234,7 +234,7 @@ async function buildOfficialRows(html:string,admin:ReturnType<typeof createClien
  const selectedData=dataCandidates.sort((a,b)=>b.rows.length-a.rows.length)[0];
  const table=selectedData?.table||"";
  const rows=selectedData?.rows||[];
- if(!table){const diagnostics={htmlBytes:new TextEncoder().encode(html).length,tableCount:tables.length,tableStats:parsedTables.map(x=>({index:x.index,rows:x.rows.length})),hasRegisterTitle:/registration application register/i.test(html),hasVillage:/NEW\\s*SERCHHIP\\s*North/i.test(html)};console.error("Official MIS table diagnostics",JSON.stringify(diagnostics));throw new Error("Could not identify the official applicant register table. HTML bytes: "+diagnostics.htmlBytes+"; tables: "+tables.length+".");}
+ if(!table){const diagnostics={htmlBytes:new TextEncoder().encode(html).length,tableCount:tables.length,tableStats:parsedTables.map(x=>({index:x.index,rows:x.rows.length})),hasRegisterTitle:/registration application register/i.test(html),hasVillage:/NEW\s*SERCHHIP\s*North/i.test(html)};console.error("Official MIS table diagnostics",JSON.stringify(diagnostics));throw new Error("Could not identify the official applicant register table. HTML bytes: "+diagnostics.htmlBytes+"; tables: "+tables.length+".");}
  if(rows.length<2){const diagnostics={htmlBytes:new TextEncoder().encode(html).length,tableCount:tables.length,selectedTable:selectedData?.index??-1,selectedRows:rows.length};console.error("Official MIS incomplete HTML diagnostics",JSON.stringify(diagnostics));throw new Error("Official register returned incomplete HTML (selected table rows: "+rows.length+"; HTML bytes: "+diagnostics.htmlBytes+"). No data changed.");}
  let headerAt=-1;
  if(headerTableIndex>=0){

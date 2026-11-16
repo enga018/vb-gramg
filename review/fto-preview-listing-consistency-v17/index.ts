@@ -381,6 +381,18 @@ Deno.serve(async (req: Request) => {
         }
       };
       await Promise.all(Array.from({ length: Math.min(2, detailUrls.length) }, () => worker()));
+      if (includeExactRows) {
+        const finalMisSnapshot = await loadActiveMisJobCards();
+        if (finalMisSnapshot.activeImportId !== misSnapshot?.activeImportId ||
+            finalMisSnapshot.misUpdatedAt !== misSnapshot?.misUpdatedAt) {
+          return Response.json({
+            success: false,
+            error: "The active MIS changed while this batch was being scanned. Discard this preview and restart from a fresh MIS snapshot.",
+            listingChanged: false,
+            databaseChanged: true,
+          }, { status: 409, headers: corsHeaders });
+        }
+      }
       return Response.json({
         success: true, databaseChanged: false,
         output: includeExactRows ? "exact_match_import_preview" : misSnapshot ? "per_fto_match_details" : "aggregate_counts_only", mode,

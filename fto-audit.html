@@ -80,14 +80,13 @@
     startBtn.textContent = mode === "source" ? "Audit running..." : "Source audit";
     matchBtn.textContent = mode === "mis-match" ? "Matching MIS..." : "Exact MIS matching audit";
     statusEl.textContent = mode === "mis-match"
-      ? "Loading the active MIS Job Card Number list and current government FTO listing..."
-      : "Reading the current government FTO listing...";
+      ? "Loading one government listing snapshot and the active MIS..."
+      : "Loading one government listing snapshot...";
     progressEl.value = 0;
     progressEl.max = 1;
-    countEl.textContent = "Preparing first batch...";
+    countEl.textContent = "Preparing audit snapshot...";
     const totals = emptyTotals(mode);
-    let offset = 0;
-    let expectedCount = null;
+    let expectedCount = 0;
     let batchesCompleted = 0;
     let testedPages = 0;
     let listingFingerprint = null;
@@ -96,46 +95,47 @@
     let uniqueMisJobCards = null;
 
     try {
-      while (true) {
-        statusEl.textContent = "Testing FTOs " + (offset + 1) + " to " + (offset + BATCH_SIZE) + "...";
-        const url = new URL(ENDPOINT);
-        url.searchParams.set("key", KEY);
-        if (mode !== "source") url.searchParams.set("mode", mode);
-        url.searchParams.set("offset", String(offset));
-        url.searchParams.set("limit", String(BATCH_SIZE));
-        const response = await fetch(url.toString(), { method: "GET", cache: "no-store" });
-        let data;
-        try { data = await response.json(); }
-        catch { throw new Error("The audit endpoint did not return valid JSON (HTTP " + response.status + ")."); }
+      const manifestUrl = new URL(ENDPOINT);
+      manifestUrl.searchParams.set("key", KEY);
+      manifestUrl.searchParams.set("mode", mode === "mis-match" ? "manifest-mis-match" : "manifest");
+      const manifestResponse = await fetch(manifestUrl.toString(), { method: "GET", cache: "no-store" });
+      const manifest = await manifestResponse.json();
+      if (!manifestResponse.ok || !manifest.success || !Array.isArray(manifest.detailUrls)) {
+        throw new Error("Could not create the audit snapshot: " + JSON.stringify(manifest));
+      }
+      const detailUrls = manifest.detailUrls;
+      expectedCount = Number(manifest.listingCandidateCount);
+      if (!Number.isInteger(expectedCount) || expectedCount !== detailUrls.length || expectedCount < 1) {
+        throw new Error("The government listing snapshot returned an invalid FTO count.");
+      }
+      listingFingerprint = manifest.listingFingerprint || null;
+      activeImportId = manifest.activeImportId || null;
+      misUpdatedAt = manifest.misUpdatedAt || null;
+      uniqueMisJobCards = manifest.uniqueMisJobCards ?? null;
+      if (mode === "mis-match" && (!activeImportId || !uniqueMisJobCards)) {
+        throw new Error("The active MIS snapshot could not be verified.");
+      }
+      progressEl.max = expectedCount;
+      statusEl.textContent = "Snapshot ready. Auditing " + expectedCount + " FTOs...";
+      for (let offset = 0; offset < expectedCount; offset += BATCH_SIZE) {
+        if (stopRequested) break;
+        const urls = detailUrls.slice(offset, offset + BATCH_SIZE);
+        statusEl.textContent = "Testing FTOs " + (offset + 1) + " to " + (offset + urls.length) + "...";
+        const batchUrl = new URL(ENDPOINT);
+        batchUrl.searchParams.set("key", KEY);
+        batchUrl.searchParams.set("mode", mode === "mis-match" ? "batch-mis-match" : "batch-source");
+        batchUrl.searchParams.set("urls", JSON.stringify(urls));
+        const response = await fetch(batchUrl.toString(), { method: "GET", cache: "no-store" });
+        const data = await response.json();
         if (!response.ok || !data.success) {
           throw new Error("Batch at offset " + offset + " failed: " + JSON.stringify(data));
         }
-
-        const currentCount = Number(data.listingCandidateCount);
-        if (!Number.isFinite(currentCount) || currentCount < 0) {
-          throw new Error("The endpoint returned an invalid listing count.");
+        if (mode === "mis-match" && (data.activeImportId !== activeImportId || data.misUpdatedAt !== misUpdatedAt)) {
+          throw new Error("The active MIS changed during the audit. Restart to match against one MIS snapshot.");
         }
-        if (expectedCount === null) {
-          expectedCount = currentCount;
-          listingFingerprint = data.listingFingerprint || null;
-          activeImportId = data.activeImportId || null;
-          misUpdatedAt = data.misUpdatedAt || null;
-          uniqueMisJobCards = data.uniqueMisJobCards ?? null;
-          progressEl.max = Math.max(1, expectedCount);
-        } else {
-          if (currentCount !== expectedCount || (data.listingFingerprint || null) !== listingFingerprint) {
-            throw new Error("The government FTO listing changed during the audit. Restart for a consistent snapshot.");
-          }
-          if (mode === "mis-match" && (data.activeImportId !== activeImportId || data.misUpdatedAt !== misUpdatedAt)) {
-            throw new Error("The active MIS changed during the audit. Restart to match against one MIS snapshot.");
-          }
-        }
-
-        batchesCompleted += 1;
+        batchesCompleted++;
         testedPages += Number(data.testedPages || 0);
-        for (const key of Object.keys(totals)) {
-          totals[key] += Number((data.totals && data.totals[key]) || 0);
-        }
+        for (const key of Object.keys(totals)) totals[key] += Number((data.totals && data.totals[key]) || 0);
         progressEl.value = Math.min(testedPages, expectedCount);
         countEl.textContent = testedPages + " of " + expectedCount + " FTO detail pages tested";
         resultEl.textContent = JSON.stringify({
@@ -147,18 +147,11 @@
           testedPages,
           ...totals
         }, null, 2);
-
-        if (data.nextOffset === null || offset + BATCH_SIZE >= expectedCount) break;
-        offset = Number(data.nextOffset);
-        if (stopRequested) {
-          statusEl.textContent = "Stopped after the current batch. Partial results are shown below.";
-          return;
-        }
       }
-
-      statusEl.textContent = mode === "mis-match"
-        ? "Exact MIS matching complete: " + testedPages + " of " + expectedCount + " FTOs tested."
-        : "Source audit complete: " + testedPages + " of " + expectedCount + " FTOs tested.";
+      statusEl.textContent = stopRequested
+        ? "Stopped after the current batch. Partial results are shown below."
+        : (mode === "mis-match" ? "Exact MIS matching complete: " : "Source audit complete: ") +
+          testedPages + " of " + expectedCount + " FTOs tested.";
     } catch (error) {
       statusEl.textContent = "Audit stopped: " + error.message;
     } finally {

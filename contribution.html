@@ -1226,10 +1226,20 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{margin:0!impo
  #contribution-table tbody td.outstanding-cell{text-align:right;white-space:nowrap}
  #contribution-table tbody td.status-cell{white-space:normal}
 }
-/* Restore consistent separation between action controls. */
+/* Desktop row actions: enforce visible separation independent of table-cell gap behavior. */
+@media (min-width:768px){
+ #contribution-table tbody td.row-actions-cell{
+  column-gap:0!important;
+ }
+ #contribution-table tbody td.row-actions-cell .btn{
+  margin-right:12px!important;
+ }
+ #contribution-table tbody td.row-actions-cell .btn:last-child{
+  margin-right:0!important;
+ }
+}
+/* Keep page-level action buttons visibly separated on desktop and mobile. */
 .page-panel-actions{display:flex!important;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px!important}
-#contribution-table tbody td.row-actions-cell{column-gap:12px!important}
-#contribution-table tbody td.row-actions-cell .btn+.btn{margin-left:0!important}
 @media(max-width:767px){
  .mobile-action-grid{gap:8px!important}
  .mobile-action-grid .action-tile{margin:0!important}

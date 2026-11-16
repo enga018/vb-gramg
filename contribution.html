@@ -1448,6 +1448,7 @@ function render(){
  shown.forEach((c,index)=>{
   const state=c.exempt?'exempt':c.balance<0?'overpaid':c.balance>0?'due':'settled',tr=document.createElement('tr');tr.className='contribution-row '+state;tr.dataset.card=c.id;
   const cell=(value,cls)=>{const td=document.createElement('td');td.textContent=value;if(cls)td.className=cls;tr.appendChild(td);return td};
+  let mobileActionsButton=null;
   if(isMobile){
    const detail=cell('','mobile-details');
    detail.style.display='grid';detail.style.gridTemplateColumns='minmax(0,1fr)';detail.style.alignItems='center';detail.style.gap='7px';detail.style.minWidth='0';
@@ -1464,7 +1465,7 @@ function render(){
    amountGroup.appendChild(primary);
    if(c.deferred>0){const deferred=document.createElement('small');deferred.className='mobile-deferred';deferred.textContent='Deferred '+fmt(c.deferred);amountGroup.appendChild(deferred);}
    summaryLine.appendChild(amountGroup);detail.appendChild(summaryLine);
-   const mobileActionsButton=document.createElement('button');mobileActionsButton.type='button';mobileActionsButton.className='btn ghost small mobile-row-actions-toggle';mobileActionsButton.textContent='Actions';detail.appendChild(mobileActionsButton);
+   mobileActionsButton=document.createElement('button');mobileActionsButton.type='button';mobileActionsButton.className='btn ghost small mobile-row-actions-toggle';mobileActionsButton.textContent='Actions';detail.appendChild(mobileActionsButton);
   }else{   cell(c.id,'jobcard');cell(c.name+(c.exempt?' · EXEMPT':''),'person');
    cell(String(c.latest_contribution_period||'').trim()||'—','last-contribution-cell');
    const dueAmount=Number(c.balance)||0;

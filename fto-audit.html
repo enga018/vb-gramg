@@ -27,13 +27,14 @@
 <body>
 <main>
   <h1>VBGRAMG - Government FTO listing audit</h1>
-  <p class="muted">Read-only diagnostic. It fetches the current government FTO listing and checks detail pages in batches of five. It does not read or change the VBGRAMG database.</p>
+  <p class="muted">Read-only diagnostic. Both audits fetch the current government FTO listing in batches of five. The exact-match audit reads active MIS Job Card Numbers but never writes to the database or displays personal records.</p>
   <div class="panel">
     <p id="status">Ready to start.</p>
     <progress id="progress" value="0" max="1"></progress>
     <p id="count" class="muted">No FTOs tested yet.</p>
     <div class="actions">
-      <button id="start" type="button">Start full audit</button>
+      <button id="start" type="button">Run source health audit</button>
+      <button id="match" type="button">Run exact MIS matching audit</button>
       <button id="stop" type="button" disabled>Stop after current batch</button>
     </div>
     <div class="warning">Keep this tab open until the audit completes. Each batch re-reads the government listing. If the listing count changes during the run, the audit stops so that the results are not misleading.</div>
@@ -52,38 +53,54 @@
   const countEl = document.getElementById("count");
   const resultEl = document.getElementById("result");
   const startBtn = document.getElementById("start");
+  const matchBtn = document.getElementById("match");
   const stopBtn = document.getElementById("stop");
   let stopRequested = false;
   let running = false;
 
-  const emptyTotals = () => ({
-    successfulPages: 0, httpFailures: 0, fetchFailures: 0,
-    parseFailures: 0, transactions: 0, processed: 0,
-    rejected: 0, deferred: 0, zeroTransactionPages: 0
-  });
+  const emptyTotals = (mode) => {
+    const base = { successfulPages: 0, httpFailures: 0, fetchFailures: 0,
+      parseFailures: 0, transactions: 0, processed: 0,
+      rejected: 0, deferred: 0, zeroTransactionPages: 0 };
+    if (mode === "mis-match") Object.assign(base, {
+      exactMatches: 0, nonMatches: 0, exactProcessed: 0, exactRejected: 0,
+      exactDeferred: 0, nonMatchProcessed: 0, nonMatchRejected: 0,
+      nonMatchDeferred: 0, ftosWithExactMatches: 0, ftosZeroExactMatches: 0
+    });
+    return base;
+  };
 
-  async function runAudit() {
+  async function runAudit(mode) {
     if (running) return;
     running = true;
     stopRequested = false;
     startBtn.disabled = true;
+    matchBtn.disabled = true;
     stopBtn.disabled = false;
-    startBtn.textContent = "Audit running...";
-    statusEl.textContent = "Reading the current government FTO listing...";
+    startBtn.textContent = mode === "source" ? "Audit running..." : "Source audit";
+    matchBtn.textContent = mode === "mis-match" ? "Matching MIS..." : "Exact MIS matching audit";
+    statusEl.textContent = mode === "mis-match"
+      ? "Loading the active MIS Job Card Number list and current government FTO listing..."
+      : "Reading the current government FTO listing...";
     progressEl.value = 0;
     progressEl.max = 1;
     countEl.textContent = "Preparing first batch...";
-    const totals = emptyTotals();
+    const totals = emptyTotals(mode);
     let offset = 0;
     let expectedCount = null;
     let batchesCompleted = 0;
     let testedPages = 0;
+    let listingFingerprint = null;
+    let activeImportId = null;
+    let misUpdatedAt = null;
+    let uniqueMisJobCards = null;
 
     try {
       while (true) {
         statusEl.textContent = "Testing FTOs " + (offset + 1) + " to " + (offset + BATCH_SIZE) + "...";
         const url = new URL(ENDPOINT);
         url.searchParams.set("key", KEY);
+        if (mode !== "source") url.searchParams.set("mode", mode);
         url.searchParams.set("offset", String(offset));
         url.searchParams.set("limit", String(BATCH_SIZE));
         const response = await fetch(url.toString(), { method: "GET", cache: "no-store" });
@@ -100,9 +117,18 @@
         }
         if (expectedCount === null) {
           expectedCount = currentCount;
+          listingFingerprint = data.listingFingerprint || null;
+          activeImportId = data.activeImportId || null;
+          misUpdatedAt = data.misUpdatedAt || null;
+          uniqueMisJobCards = data.uniqueMisJobCards ?? null;
           progressEl.max = Math.max(1, expectedCount);
-        } else if (currentCount !== expectedCount) {
-          throw new Error("The government listing changed during the audit (was " + expectedCount + ", now " + currentCount + "). Restart the audit for a consistent run.");
+        } else {
+          if (currentCount !== expectedCount || (data.listingFingerprint || null) !== listingFingerprint) {
+            throw new Error("The government FTO listing changed during the audit. Restart for a consistent snapshot.");
+          }
+          if (mode === "mis-match" && (data.activeImportId !== activeImportId || data.misUpdatedAt !== misUpdatedAt)) {
+            throw new Error("The active MIS changed during the audit. Restart to match against one MIS snapshot.");
+          }
         }
 
         batchesCompleted += 1;
@@ -113,7 +139,10 @@
         progressEl.value = Math.min(testedPages, expectedCount);
         countEl.textContent = testedPages + " of " + expectedCount + " FTO detail pages tested";
         resultEl.textContent = JSON.stringify({
+          auditMode: mode,
           listingCandidateCount: expectedCount,
+          listingFingerprint,
+          ...(mode === "mis-match" ? { activeImportId, misUpdatedAt, uniqueMisJobCards } : {}),
           batchesCompleted,
           testedPages,
           ...totals
@@ -127,18 +156,23 @@
         }
       }
 
-      statusEl.textContent = "Audit complete: " + testedPages + " of " + expectedCount + " FTOs tested.";
+      statusEl.textContent = mode === "mis-match"
+        ? "Exact MIS matching complete: " + testedPages + " of " + expectedCount + " FTOs tested."
+        : "Source audit complete: " + testedPages + " of " + expectedCount + " FTOs tested.";
     } catch (error) {
       statusEl.textContent = "Audit stopped: " + error.message;
     } finally {
       running = false;
       startBtn.disabled = false;
+      matchBtn.disabled = false;
       stopBtn.disabled = true;
-      startBtn.textContent = "Run audit again";
+      startBtn.textContent = "Run source health audit";
+      matchBtn.textContent = "Run exact MIS matching audit";
     }
   }
 
-  startBtn.addEventListener("click", runAudit);
+  startBtn.addEventListener("click", () => runAudit("source"));
+  matchBtn.addEventListener("click", () => runAudit("mis-match"));
   stopBtn.addEventListener("click", () => {
     stopRequested = true;
     stopBtn.disabled = true;

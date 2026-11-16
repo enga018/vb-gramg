@@ -102,7 +102,8 @@ Deno.serve(async (req: Request) => {
       }
 
       const activeCharges = ledger.filter((row: Record<string, unknown>) =>
-        row.is_voided !== true && row.is_deferred !== true
+        row.is_voided !== true && row.is_deferred !== true &&
+        !(row.entry_type === "charge" && String(row.note || "").trim() === "Return")
       );
       const deferredCharges = ledger.filter((row: Record<string, unknown>) =>
         row.is_voided !== true && row.is_deferred === true

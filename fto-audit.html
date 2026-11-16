@@ -94,6 +94,7 @@
     let misUpdatedAt = null;
     let uniqueMisJobCards = null;
     const ftoResults = [];
+    const nonMatchingRows = [];
 
     try {
       const manifestUrl = new URL(ENDPOINT);
@@ -140,7 +141,21 @@
           throw new Error("The active MIS changed during the audit. Restart to match against one MIS snapshot.");
         }
         batchesCompleted++;
-        if (mode === "mis-match" && Array.isArray(data.ftoResults)) ftoResults.push(...data.ftoResults);
+        if (mode === "mis-match") {
+          if (!Array.isArray(data.ftoResults) || data.ftoResults.length !== urls.length) {
+            throw new Error("The matching batch did not return one diagnostic result per FTO.");
+          }
+          ftoResults.push(...data.ftoResults);
+          for (const fto of data.ftoResults) {
+            for (const row of (fto.nonMatchingRows || [])) {
+              nonMatchingRows.push({
+                ftoNumber: fto.ftoNumber,
+                signatoryDate: fto.signatoryDate,
+                ...row
+              });
+            }
+          }
+        }
         testedPages += Number(data.testedPages || 0);
         for (const key of Object.keys(totals)) totals[key] += Number((data.totals && data.totals[key]) || 0);
         progressEl.value = Math.min(testedPages, expectedCount);
@@ -151,7 +166,9 @@
           listingFingerprint,
           ...(mode === "mis-match" ? {
             activeImportId, misUpdatedAt, uniqueMisJobCards,
-            matchingFtos: ftoResults.filter(item => Number(item.exactMatches) > 0)
+            matchingFtos: ftoResults.filter(item => Number(item.exactMatches) > 0),
+            nonMatchingRowCount: nonMatchingRows.length,
+            nonMatchingRows
           } : {}),
           batchesCompleted,
           testedPages,

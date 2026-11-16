@@ -274,6 +274,7 @@ Deno.serve(async (req: Request) => {
       const includeExactRows = mode === "batch-import-preview";
       const effectiveDetailUrls = [...detailUrls] as string[];
       const listingChanges = new Map<number, string>();
+      let listingAdditions: string[] = [];
       if (includeExactRows) {
         const expectedFingerprint = url.searchParams.get("listingFingerprint");
         if (!expectedFingerprint) return Response.json({ success: false, error: "Missing original listing fingerprint for import preview." }, { status: 400, headers: corsHeaders });
@@ -289,6 +290,15 @@ Deno.serve(async (req: Request) => {
           const ftoNumber = String(candidate.listingRow[3] || "").trim();
           if (ftoNumber) currentByFto.set(ftoNumber, candidate);
         }
+        let snapshotFtoNumbers: unknown;
+        try { snapshotFtoNumbers = JSON.parse(url.searchParams.get("snapshotFtoNumbers") || "[]"); }
+        catch { return Response.json({ success: false, error: "Invalid original FTO number snapshot." }, { status: 400, headers: corsHeaders }); }
+        if (!Array.isArray(snapshotFtoNumbers) || snapshotFtoNumbers.length < 1 || snapshotFtoNumbers.length > 1000 ||
+            snapshotFtoNumbers.some(value => typeof value !== "string" || !value.trim())) {
+          return Response.json({ success: false, error: "A complete original FTO number snapshot is required." }, { status: 400, headers: corsHeaders });
+        }
+        const originalFtoSet = new Set(snapshotFtoNumbers.map(value => String(value).trim()));
+        listingAdditions = [...currentByFto.keys()].filter(ftoNumber => !originalFtoSet.has(ftoNumber));
         for (let i = 0; i < detailUrls.length; i++) {
           const originalRow = listingRows[i] as string[];
           const ftoNumber = String(originalRow[3] || "").trim();
@@ -376,7 +386,7 @@ Deno.serve(async (req: Request) => {
         output: includeExactRows ? "exact_match_import_preview" : misSnapshot ? "per_fto_match_details" : "aggregate_counts_only", mode,
         ...(misSnapshot ? { ftoResults, activeImportId: misSnapshot.activeImportId, misUpdatedAt: misSnapshot.misUpdatedAt,
           misRowCount: misSnapshot.misRowCount, uniqueMisJobCards: misSnapshot.cards.size } : {}),
-        testedPages: detailUrls.length, totals, elapsedMs: Date.now() - started,
+        testedPages: detailUrls.length, ...(includeExactRows ? { listingAdditions } : {}), totals, elapsedMs: Date.now() - started,
       }, { headers: { ...corsHeaders, "Cache-Control": "no-store" } });
     } catch (error) {
       return Response.json({ success: false, stage: "batch", error: error instanceof Error ? error.message : "Unknown error",

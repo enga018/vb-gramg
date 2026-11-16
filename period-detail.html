@@ -115,7 +115,7 @@ function render(data){
   {label:"Charge",render:r=>'<span class="money">'+fmtMoney(r.amount)+'</span>'},
   {label:"Date",render:r=>esc(fmtDate(r.entry_date||r.created_at))},
   {label:"FTO reference",render:r=>{const refs=Array.isArray(r.reference_numbers)?r.reference_numbers:[];return esc(refs.join(", ")||"—")}},
-  {label:"Status",render:r=>{const returned=r.entry_type==="charge"&&String(r.note||"").trim()==="Return";const status=r.is_voided?"Voided":returned?"Returned":r.is_deferred?"Deferred":"Recorded";return '<span class="pill '+(r.is_voided||returned?"voided":r.is_deferred?"deferred":"")'">'+status+"</span>"}}
+  {label:"Status",render:r=>{const returned=r.entry_type==="charge"&&String(r.note||"").trim()==="Return";const status=r.is_voided?"Voided":returned?"Returned":r.is_deferred?"Deferred":"Recorded";return '<span class="pill '+(r.is_voided||returned?"voided":r.is_deferred?"deferred":"")+'">'+status+"</span>"}}
  ],"No contribution records are linked to this period.");
  $("fto-count").textContent=batches.length+" batches · "+transactions.length+" current transactions";
  const ftoRows=batches.map(batch=>{

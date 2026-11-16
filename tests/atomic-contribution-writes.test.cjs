@@ -53,11 +53,11 @@ test("Cash payments remain recordable at zero balance and may exceed outstanding
   assert.match(cashPaymentSql, /v_entry_type := 'payment'/);
   assert.match(cashPaymentSql, /pg_advisory_xact_lock/);
   assert.doesNotMatch(cashPaymentSql, /Payment cannot exceed the current outstanding balance/);
-  assert.doesNotMatch(cashPaymentSql, /IF v_amount > GREATEST\(0, v_balance\)/);
-  // Record Payment remains available for every non-exempt card, regardless of balance.
+  const cashCase = cashPaymentSql.slice(cashPaymentSql.indexOf("WHEN 'cash_payment' THEN"), cashPaymentSql.indexOf("WHEN 'pay_in_full' THEN"));
+  assert.doesNotMatch(cashCase, /IF v_amount >/);
   assert.match(html, /function showPaymentForm\(\)/);
   assert.match(html, /addRowAction\('Record payment',!c\.exempt/);
-  assert.doesNotMatch(html, /max=\\"'\\+Number\\(c\\.balance\\)\\.toFixed\\(2\\)\\+'\\"/);
+  assert.doesNotMatch(html, /id="paymentAmount"[^>]*max=/);
   assert.doesNotMatch(html, /amount>Number\(c\.balance\)\+0\.001/);
   assert.doesNotMatch(html, /Payment cannot exceed the current outstanding balance\./);
   assert.match(html, /isWaiver\?Number\(c\.balance\)\.toFixed\(2\):10000000/);
@@ -66,7 +66,7 @@ test("Cash payments remain recordable at zero balance and may exceed outstanding
   assert.ok(sqlTest.includes("Zero-balance cash payment failed"));
   assert.ok(sqlTest.includes("Cash overpayment was not accepted"));
   assert.ok(sqlTest.includes("Valid partial cash payment failed"));
-});
+});;
 
 test("Ledger insert and audit insert are in the same database function transaction", () => {
   const insertLedger = sql.indexOf("INSERT INTO public.vbgramg_charge_ledger");

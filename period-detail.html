@@ -12,8 +12,8 @@
 :root{color-scheme:light;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f3f6fb;--ink:#172033;--muted:#667085;--line:#e3e8f0;--surface:#fff;--soft:#f7f9fc}
 *{box-sizing:border-box}html,body{margin:0;padding:0}body{min-height:100vh;padding:20px;background:#f3f6fb;color:var(--ink);line-height:1.45;-webkit-font-smoothing:antialiased}
 main{width:min(100%,1440px);margin:0 auto;padding-bottom:44px;min-width:0}
-.topbar,.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:0 4px 18px rgb(23 32 51 / 4%)}
-.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;margin-bottom:16px;flex-wrap:wrap}
+.period-topbar,.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:0 4px 18px rgb(23 32 51 / 4%)}
+.period-topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;margin-bottom:16px;flex-wrap:wrap}
 .panel{padding:clamp(16px,2.5vw,26px);margin-bottom:14px;min-width:0}
 h1{margin:0;font-size:1.35rem;letter-spacing:-.03em}h2{margin:0;font-size:1.05rem;letter-spacing:-.02em}
 .muted{color:var(--muted);font-size:.85rem}.period-meta{margin-top:5px}
@@ -38,7 +38,7 @@ tbody tr:last-child td{border-bottom:0}
 .money{font-variant-numeric:tabular-nums;white-space:nowrap}
 .hidden{display:none!important}
 @media(max-width:767px){
- body{padding:10px}.topbar{padding:13px;border-radius:13px}.panel{padding:14px;border-radius:13px}
+ body{padding:10px}.period-topbar{padding:13px;border-radius:13px}.panel{padding:14px;border-radius:13px}
  .stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.stat{padding:11px}.stat .value{font-size:1.12rem}
  .table-wrap{overflow:visible;border:0;background:transparent}
  table,tbody,tr,td{display:block;width:100%}thead{display:none}
@@ -52,7 +52,7 @@ tbody tr:last-child td{border-bottom:0}
 </head>
 <body>
 <main>
-<header class="topbar">
+<header class="period-topbar">
 <div><h1 id="period-title">Period detail</h1><div class="muted period-meta" id="period-meta">Loading period…</div></div>
 <button id="back-button" type="button">← All periods</button>
 </header>

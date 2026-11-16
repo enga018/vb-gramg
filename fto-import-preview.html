@@ -72,11 +72,16 @@ async function run(){
    const group=candidates.slice(offset,offset+BATCH_SIZE);
    $("status").textContent="Scanning FTOs "+(offset+1)+"–"+(offset+group.length)+" of "+expected+"...";
    const u=new URL(ENDPOINT);u.searchParams.set("key",KEY);u.searchParams.set("mode","batch-import-preview");
-   u.searchParams.set("urls",JSON.stringify(group.map(x=>x.detailUrl)));
-   u.searchParams.set("listingRows",JSON.stringify(group.map(x=>x.listingRow)));
-   u.searchParams.set("listingFingerprint",manifest.listingFingerprint);
-   u.searchParams.set("snapshotFtoNumbers",JSON.stringify(candidates.map(x=>String(x.listingRow[3]||"").trim())));
-   const response=await fetch(u,{cache:"no-store",headers:{"x-fto-preview-key":accessCode}});const data=await response.json();
+   const response=await fetch(u,{
+    method:"POST",cache:"no-store",
+    headers:{"Content-Type":"application/json","x-fto-preview-key":accessCode},
+    body:JSON.stringify({
+     urls:group.map(x=>x.detailUrl),
+     listingRows:group.map(x=>x.listingRow),
+     listingFingerprint:manifest.listingFingerprint,
+     snapshotFtoNumbers:candidates.map(x=>String(x.listingRow[3]||"").trim())
+    })
+   });const data=await response.json();
    if(!response.ok||!data.success)throw new Error("Batch at offset "+offset+" failed: "+JSON.stringify(data));
    if(data.activeImportId!==manifest.activeImportId||data.misUpdatedAt!==manifest.misUpdatedAt)throw new Error("Active MIS changed during the preview. Restart from a fresh snapshot.");
    if(!Array.isArray(data.ftoResults)||data.ftoResults.length!==group.length)throw new Error("The batch did not return a complete FTO result set.");

@@ -1191,6 +1191,18 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{margin:0!impo
  @keyframes paymentSheetSlideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 }
 
+/* Contribution table: only explicit controls are interactive; keep Actions at the far right. */
+#contribution-table tbody tr.contribution-row{cursor:default!important}
+#contribution-table tbody tr.contribution-row:hover,
+#contribution-table tbody tr.contribution-row:hover td{background:#fff!important}
+#contribution-table tbody tr.contribution-row button{cursor:pointer}
+@media(min-width:768px){
+ #contribution-table thead th:last-child{text-align:right!important}
+ #contribution-table tbody td.row-actions-cell{
+  justify-content:flex-end!important;
+  text-align:right!important;
+ }
+}
 /* Desktop Contribution table: reserve enough room for one-line actions.
    Job-card rows are informational; mobile actions use a dedicated Actions control. */
 @media (min-width:768px){

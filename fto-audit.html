@@ -93,6 +93,7 @@
     let activeImportId = null;
     let misUpdatedAt = null;
     let uniqueMisJobCards = null;
+    const ftoResults = [];
 
     try {
       const manifestUrl = new URL(ENDPOINT);
@@ -103,7 +104,11 @@
       if (!manifestResponse.ok || !manifest.success || !Array.isArray(manifest.detailUrls)) {
         throw new Error("Could not create the audit snapshot: " + JSON.stringify(manifest));
       }
-      const detailUrls = manifest.detailUrls;
+      const ftoCandidates = manifest.ftoCandidates;
+      if (!Array.isArray(ftoCandidates) || ftoCandidates.length !== manifest.listingCandidateCount) {
+        throw new Error("The audit snapshot did not include complete FTO listing details. Reload the page and try again.");
+      }
+      const detailUrls = ftoCandidates.map(item => item.detailUrl);
       expectedCount = Number(manifest.listingCandidateCount);
       if (!Number.isInteger(expectedCount) || expectedCount !== detailUrls.length || expectedCount < 1) {
         throw new Error("The government listing snapshot returned an invalid FTO count.");
@@ -125,6 +130,7 @@
         batchUrl.searchParams.set("key", KEY);
         batchUrl.searchParams.set("mode", mode === "mis-match" ? "batch-mis-match" : "batch-source");
         batchUrl.searchParams.set("urls", JSON.stringify(urls));
+        batchUrl.searchParams.set("listingRows", JSON.stringify(ftoCandidates.slice(offset, offset + urls.length).map(item => item.listingRow)));
         const response = await fetch(batchUrl.toString(), { method: "GET", cache: "no-store" });
         const data = await response.json();
         if (!response.ok || !data.success) {
@@ -134,6 +140,7 @@
           throw new Error("The active MIS changed during the audit. Restart to match against one MIS snapshot.");
         }
         batchesCompleted++;
+        if (mode === "mis-match" && Array.isArray(data.ftoResults)) ftoResults.push(...data.ftoResults);
         testedPages += Number(data.testedPages || 0);
         for (const key of Object.keys(totals)) totals[key] += Number((data.totals && data.totals[key]) || 0);
         progressEl.value = Math.min(testedPages, expectedCount);
@@ -142,7 +149,10 @@
           auditMode: mode,
           listingCandidateCount: expectedCount,
           listingFingerprint,
-          ...(mode === "mis-match" ? { activeImportId, misUpdatedAt, uniqueMisJobCards } : {}),
+          ...(mode === "mis-match" ? {
+            activeImportId, misUpdatedAt, uniqueMisJobCards,
+            matchingFtos: ftoResults.filter(item => Number(item.exactMatches) > 0)
+          } : {}),
           batchesCompleted,
           testedPages,
           ...totals

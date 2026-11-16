@@ -13,6 +13,7 @@ const htmlFiles = [
   "contribution.html",
   "demand.html",
   "periods.html",
+  "period-detail.html",
 ];
 
 const failures = [];

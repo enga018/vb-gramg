@@ -15,6 +15,7 @@ on:
       - "contribution.html"
       - "demand.html"
       - "periods.html"
+      - "period-detail.html"
 
 permissions:
   contents: read

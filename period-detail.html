@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f3f6fb">
+<title>Period detail — VBGRAMG</title>
+<link rel="stylesheet" href="./responsive.css?v=20261111-design-system">
+<link rel="stylesheet" href="./theme.css?v=20261111-design-system">
+<link rel="stylesheet" href="./button-system.css?v=20261113-buttons">
+<style>
+:root{color-scheme:light;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f3f6fb;--ink:#172033;--muted:#667085;--line:#e3e8f0;--surface:#fff;--soft:#f7f9fc}
+*{box-sizing:border-box}html,body{margin:0;padding:0}body{min-height:100vh;padding:20px;background:#f3f6fb;color:var(--ink);line-height:1.45;-webkit-font-smoothing:antialiased}
+main{width:min(100%,1440px);margin:0 auto;padding-bottom:44px;min-width:0}
+.topbar,.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:0 4px 18px rgb(23 32 51 / 4%)}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;margin-bottom:16px;flex-wrap:wrap}
+.panel{padding:clamp(16px,2.5vw,26px);margin-bottom:14px;min-width:0}
+h1{margin:0;font-size:1.35rem;letter-spacing:-.03em}h2{margin:0;font-size:1.05rem;letter-spacing:-.02em}
+.muted{color:var(--muted);font-size:.85rem}.period-meta{margin-top:5px}
+button{font:inherit;font-weight:650;min-height:42px;padding:9px 14px;border:1px solid #cbd5e1;border-radius:10px;background:#e2e8f0;color:#0f172a;cursor:pointer}
+button:hover{background:#d7e0ec}button:focus-visible{outline:3px solid rgb(36 87 197 / 25%);outline-offset:2px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.stat{min-width:0;padding:14px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.stat .label{display:block;color:var(--muted);font-size:.76rem;font-weight:650;margin-bottom:6px}
+.stat .value{display:block;font-size:1.25rem;font-weight:780;letter-spacing:-.025em;overflow-wrap:anywhere}
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:13px}
+.table-wrap{max-width:100%;overflow:auto;border:1px solid var(--line);border-radius:12px;background:#fff}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th,td{padding:11px 12px;text-align:left;vertical-align:top;border-bottom:1px solid #e8edf4;overflow-wrap:anywhere}
+th{background:#edf2f8;color:#475467;font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+.empty{padding:22px;text-align:center;color:var(--muted)}
+.status{padding:11px 13px;border:1px solid var(--line);border-radius:10px;background:var(--soft);color:#475467;white-space:pre-wrap}
+.pill{display:inline-flex;padding:3px 8px;border-radius:99px;background:#eaf8ef;color:#17663a;font-size:.74rem;font-weight:750;white-space:nowrap}
+.pill.closed,.pill.deferred,.pill.voided{background:#f0f2f5;color:#667085}
+.pill.rejected{background:#fff1ef;color:#a12b20}
+.pill.other{background:#fff7e6;color:#925f08}
+.money{font-variant-numeric:tabular-nums;white-space:nowrap}
+.hidden{display:none!important}
+@media(max-width:767px){
+ body{padding:10px}.topbar{padding:13px;border-radius:13px}.panel{padding:14px;border-radius:13px}
+ .stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.stat{padding:11px}.stat .value{font-size:1.12rem}
+ .table-wrap{overflow:visible;border:0;background:transparent}
+ table,tbody,tr,td{display:block;width:100%}thead{display:none}
+ tbody tr:not(:has(.empty)){padding:11px 12px;margin-bottom:9px;border:1px solid var(--line);border-radius:12px;background:#fff}
+ tbody td{display:grid;grid-template-columns:minmax(92px,34%) minmax(0,1fr);gap:8px;padding:5px 0;border:0}
+ tbody td:before{content:attr(data-label);color:var(--muted);font-size:.74rem;font-weight:700}
+ tbody tr:has(.empty){display:block}
+ .empty{display:block}
+}
+</style>
+</head>
+<body>
+<main>
+<header class="topbar">
+<div><h1 id="period-title">Period detail</h1><div class="muted period-meta" id="period-meta">Loading period…</div></div>
+<button id="back-button" type="button">← All periods</button>
+</header>
+<div id="page-status" class="status">Loading period details…</div>
+<section id="detail-content" class="hidden">
+<section class="panel">
+<div class="section-head"><h2>Overview</h2><span id="period-status" class="pill">—</span></div>
+<div class="stats">
+<div class="stat"><span class="label">Active charge records</span><span class="value" id="stat-records">0</span></div>
+<div class="stat"><span class="label">Total charges</span><span class="value money" id="stat-charges">₹0</span></div>
+<div class="stat"><span class="label">FTO batches</span><span class="value" id="stat-batches">0</span></div>
+<div class="stat"><span class="label">Deferred charges</span><span class="value" id="stat-deferred">0</span></div>
+</div>
+<p class="muted" id="period-created"></p>
+</section>
+<section class="panel">
+<div class="section-head"><h2>Contribution records</h2><span class="muted" id="contribution-count"></span></div>
+<div class="table-wrap"><table><thead><tr><th>Job Card</th><th>Applicant</th><th>Charge</th><th>Date</th><th>FTO reference</th><th>Status</th></tr></thead><tbody id="contribution-body"><tr><td class="empty" colspan="6">Loading…</td></tr></tbody></table></div>
+</section>
+<section class="panel">
+<div class="section-head"><h2>FTO history</h2><span class="muted" id="fto-count"></span></div>
+<div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Imported / checked</th><th>Transactions</th><th>Processed</th><th>Rejected</th><th>Deferred</th><th>Other</th></tr></thead><tbody id="fto-body"><tr><td class="empty" colspan="7">Loading…</td></tr></tbody></table></div>
+</section>
+</section>
+</main>
+<script src="./js/supabase-client.js?v=20261104b"></script>
+<script src="./js/data-loader.js?v=20261104b"></script>
+<script src="./js/cache.js?v=20261106b"></script>
+<script src="./toast.js?v=20261103"></script>
+<script src="./navigation.js?v=20261105-unified-header"></script>
+<script>
+const $=id=>document.getElementById(id);
+const params=new URLSearchParams(location.search);
+const periodId=params.get("id")||"";
+const esc=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+const fmtMoney=value=>"₹"+(Number(value)||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtDate=value=>{if(!value)return"—";const date=new Date(value);return Number.isNaN(date.getTime())?"—":date.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})};
+function showError(message){$("page-status").textContent=message;$("page-status").classList.remove("hidden");$("detail-content").classList.add("hidden")}
+function renderTableRows(target,rows,columns,emptyText){
+ const body=$(target);body.replaceChildren();
+ if(!rows.length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=columns.length;td.className="empty";td.textContent=emptyText;body.appendChild(tr);tr.appendChild(td);return}
+ for(const row of rows){const tr=document.createElement("tr");for(const column of columns){const td=document.createElement("td");td.dataset.label=column.label;td.innerHTML=column.render(row);tr.appendChild(td)}body.appendChild(tr)}
+}
+function render(data){
+ const p=data.period,s=data.summary||{},batches=data.fto_batches||[],transactions=data.fto_transactions||[],contributions=data.contributions||[];
+ $("period-title").textContent=p.period_name||"Period detail";
+ const month=p.contribution_month||p.period_date;
+ const monthLabel=month?new Date(month+"T00:00:00Z").toLocaleDateString("en-IN",{month:"long",year:"numeric",timeZone:"UTC"}):"Legacy period";
+ $("period-meta").textContent=monthLabel+" · "+(p.days?String(p.days)+" days":"Days not specified")+" · ID "+p.id;
+ const badge=$("period-status");badge.textContent=p.status==="open"?"Open":"Closed";badge.className="pill"+(p.status==="closed"?" closed":"");
+ $("stat-records").textContent=Number(s.charge_records||0).toLocaleString("en-IN");
+ $("stat-charges").textContent=fmtMoney(s.total_charges);
+ $("stat-batches").textContent=Number(s.fto_batches||0).toLocaleString("en-IN");
+ $("stat-deferred").textContent=Number(s.deferred_records||0).toLocaleString("en-IN");
+ $("period-created").textContent="Created "+(p.created_at?new Date(p.created_at).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}):"date unavailable")+(p.closed_at?" · Closed "+fmtDate(p.closed_at):"");
+ $("contribution-count").textContent=contributions.length+" records";
+ renderTableRows("contribution-body",contributions,[
+  {label:"Job Card",render:r=>"<strong>"+esc(r.job_card_number||"—")+"</strong>"},
+  {label:"Applicant",render:r=>esc(r.applicant_name||r.fto_applicant_name||r.person_name||"—")},
+  {label:"Charge",render:r=>'<span class="money">'+fmtMoney(r.amount)+'</span>'},
+  {label:"Date",render:r=>esc(fmtDate(r.entry_date||r.created_at))},
+  {label:"FTO reference",render:r=>{const refs=Array.isArray(r.reference_numbers)?r.reference_numbers:[];return esc(refs.join(", ")||"—")}},
+  {label:"Status",render:r=>{const returned=r.entry_type==="charge"&&String(r.note||"").trim()==="Return";const status=r.is_voided?"Voided":returned?"Returned":r.is_deferred?"Deferred":"Recorded";return '<span class="pill '+(r.is_voided||returned?"voided":r.is_deferred?"deferred":"")+'">'+status+"</span>"}}
+ ],"No contribution records are linked to this period.");
+ $("fto-count").textContent=batches.length+" batches · "+transactions.length+" current transactions";
+ const ftoRows=batches.map(batch=>{
+  const txs=transactions.filter(tx=>String(tx.batch_id)===String(batch.id));
+  const count={processed:0,rejected:0,deferred:0,other:0};
+  for(const tx of txs){const status=String(tx.status||"").trim().toLowerCase();if(status==="processed")count.processed++;else if(status==="rejected")count.rejected++;else if(!status||status==="blank"||status==="deferred")count.deferred++;else count.other++}
+  return {...batch,_count:count,_total:txs.length};
+ });
+ renderTableRows("fto-body",ftoRows,[
+  {label:"FTO number",render:r=>"<strong>"+esc(r.fto_number)+"</strong>"},
+  {label:"Imported / checked",render:r=>esc(fmtDate(r.first_imported_at||r.last_checked_at))+"<div class='muted'>Last checked: "+esc(fmtDate(r.last_checked_at))+"</div>"},
+  {label:"Transactions",render:r=>String(r._total)},
+  {label:"Processed",render:r=>String(r._count.processed)},
+  {label:"Rejected",render:r=>String(r._count.rejected)},
+  {label:"Deferred",render:r=>String(r._count.deferred)},
+  {label:"Other",render:r=>String(r._count.other)}
+ ],"No FTO batches are linked to this period.");
+ $("page-status").classList.add("hidden");$("detail-content").classList.remove("hidden");
+}
+async function load(){
+ if(!periodId){showError("No period was selected. Return to All Periods and choose a period.");return}
+ if(!/^[0-9a-f-]{36}$/i.test(periodId)){showError("The period link is invalid.");return}
+ let client;try{client=await window.VBGRAMG_SUPABASE_READY}catch(error){showError(error.message||"Could not initialise the database connection.");return}
+ const {data:sessionData,error:sessionError}=await client.auth.getSession();
+ if(sessionError||!sessionData.session){location.replace("./");return}
+ try{
+  const access=await window.VBGRAMGData.request("vbgramg-app-access",{body:{}});
+  if(!access||access.approved!==true)throw new Error("App access was denied.");
+  const result=await window.VBGRAMGData.request("vbgramg-periods",{body:{action:"detail",id:periodId},timeoutMs:false});
+  if(!result||result.approved!==true)throw new Error(result?.error||"Could not load period details.");
+  if(window.VBGRAMGCache)window.VBGRAMGCache.setUser(sessionData.session.user.id);
+  render(result);
+ }catch(error){showError(error.message||"Could not load period details.")}
+}
+$("back-button").addEventListener("click",()=>{location.href="./periods.html"});
+load();
+</script>
+</body>
+</html>

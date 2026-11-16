@@ -52,6 +52,90 @@ Deno.serve(async (req: Request) => {
       if (error) throw error;
       return reply(req, { approved: true, periods: data || [] });
     }
+    if (action === "detail") {
+      const periodId = clean(body.id, 64);
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(periodId)) {
+        return reply(req, { error: "A valid period ID is required." }, 400);
+      }
+      const { data: period, error: periodError } = await admin.from("vbgramg_periods")
+        .select("id,period_name,period_date,contribution_month,days,status,created_at,updated_at,closed_at,reopened_at")
+        .eq("id", periodId).maybeSingle();
+      if (periodError) throw periodError;
+      if (!period) return reply(req, { error: "Period not found." }, 404);
+
+      const ledger: Record<string, unknown>[] = [];
+      for (let offset = 0; ; offset += 1000) {
+        const { data: rows, error } = await admin.from("vbgramg_charge_ledger")
+          .select("id,job_card_number,person_name,applicant_name,applicant_number,entry_type,amount,charge_period,period_id,entry_date,note,reference_numbers,is_deferred,is_voided,fto_applicant_name,created_at")
+          .eq("period_id", periodId)
+          .in("entry_type", ["charge", "other_charge", "sanitationFee"])
+          .order("entry_date", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false })
+          .range(offset, offset + 999);
+        if (error) throw error;
+        ledger.push(...(rows || []));
+        if (!rows || rows.length < 1000) break;
+      }
+
+      const { data: batches, error: batchError } = await admin.from("vbgramg_fto_batches")
+        .select("id,fto_number,contribution_period,ledger_charge_period,period_id,village_scope,first_imported_at,last_checked_at,created_by,notes,calculation_divisor,calculation_multiplier")
+        .eq("period_id", periodId)
+        .order("last_checked_at", { ascending: false, nullsFirst: false })
+        .order("first_imported_at", { ascending: false });
+      if (batchError) throw batchError;
+
+      const ftoTransactions: Record<string, unknown>[] = [];
+      const batchIds = (batches || []).map((batch: Record<string, unknown>) => String(batch.id));
+      for (let base = 0; base < batchIds.length; base += 100) {
+        const ids = batchIds.slice(base, base + 100);
+        for (let offset = 0; ; offset += 1000) {
+          const { data: rows, error } = await admin.from("vbgramg_fto_transactions")
+            .select("id,batch_id,reference_no,job_card_number,person_name,status,calculated_charge,processed_date,transaction_date,is_current,is_in_scope,updated_at,rejection_reason")
+            .in("batch_id", ids)
+            .eq("is_current", true)
+            .order("fto_number", { ascending: true })
+            .order("reference_no", { ascending: true })
+            .range(offset, offset + 999);
+          if (error) throw error;
+          ftoTransactions.push(...(rows || []));
+          if (!rows || rows.length < 1000) break;
+        }
+      }
+
+      const activeCharges = ledger.filter((row: Record<string, unknown>) =>
+        row.is_voided !== true && row.is_deferred !== true
+      );
+      const deferredCharges = ledger.filter((row: Record<string, unknown>) =>
+        row.is_voided !== true && row.is_deferred === true
+      );
+      const sum = (rows: Record<string, unknown>[]) =>
+        rows.reduce((total, row) => total + (Number(row.amount) || 0), 0);
+      const statusCounts: Record<string, number> = { processed: 0, rejected: 0, deferred: 0, other: 0 };
+      for (const tx of ftoTransactions) {
+        const status = String(tx.status || "").trim().toLowerCase();
+        if (status === "processed") statusCounts.processed++;
+        else if (status === "rejected") statusCounts.rejected++;
+        else if (!status || status === "blank" || status === "deferred") statusCounts.deferred++;
+        else statusCounts.other++;
+      }
+      return reply(req, {
+        approved: true,
+        period,
+        summary: {
+          charge_records: activeCharges.length,
+          total_charges: Number(sum(activeCharges).toFixed(2)),
+          deferred_records: deferredCharges.length,
+          deferred_amount: Number(sum(deferredCharges).toFixed(2)),
+          voided_records: ledger.filter((row: Record<string, unknown>) => row.is_voided === true).length,
+          fto_batches: (batches || []).length,
+          fto_transactions: ftoTransactions.length,
+          fto_status_counts: statusCounts
+        },
+        contributions: ledger,
+        fto_batches: batches || [],
+        fto_transactions: ftoTransactions
+      });
+    }
     if (action === "list") {
       const { data, error } = await admin.from("vbgramg_periods").select("id,period_name,period_date,contribution_month,days,status,created_at,updated_at,closed_at,reopened_at").order("contribution_month", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false });
       if (error) throw error;

@@ -74,7 +74,7 @@ tbody tr:last-child td{border-bottom:0}
 </section>
 <section class="panel">
 <div class="section-head"><h2>FTO history</h2><span class="muted" id="fto-count"></span></div>
-<div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Imported / checked</th><th>Transactions</th><th>Processed</th><th>Rejected</th><th>Deferred</th></tr></thead><tbody id="fto-body"><tr><td class="empty" colspan="6">Loading…</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Imported / checked</th><th>Transactions</th><th>Processed</th><th>Rejected</th><th>Deferred</th><th>Other</th></tr></thead><tbody id="fto-body"><tr><td class="empty" colspan="7">Loading…</td></tr></tbody></table></div>
 </section>
 </section>
 </main>
@@ -109,7 +109,6 @@ function render(data){
  $("stat-deferred").textContent=Number(s.deferred_records||0).toLocaleString("en-IN");
  $("period-created").textContent="Created "+(p.created_at?new Date(p.created_at).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}):"date unavailable")+(p.closed_at?" · Closed "+fmtDate(p.closed_at):"");
  $("contribution-count").textContent=contributions.length+" records";
- const batchById=new Map(batches.map(batch=>[String(batch.id),batch]));
  renderTableRows("contribution-body",contributions,[
   {label:"Job Card",render:r=>"<strong>"+esc(r.job_card_number||"—")+"</strong>"},
   {label:"Applicant",render:r=>esc(r.applicant_name||r.fto_applicant_name||r.person_name||"—")},
@@ -118,12 +117,11 @@ function render(data){
   {label:"FTO reference",render:r=>{const refs=Array.isArray(r.reference_numbers)?r.reference_numbers:[];return esc(refs.join(", ")||"—")}},
   {label:"Status",render:r=>{const status=r.is_voided?"Voided":r.is_deferred?"Deferred":"Recorded";return '<span class="pill '+(r.is_voided?"voided":r.is_deferred?"deferred":"")+'">'+status+"</span>"}}
  ],"No contribution records are linked to this period.");
- const statusCounts=s.fto_status_counts||{};
  $("fto-count").textContent=batches.length+" batches · "+transactions.length+" current transactions";
  const ftoRows=batches.map(batch=>{
   const txs=transactions.filter(tx=>String(tx.batch_id)===String(batch.id));
-  const count={processed:0,rejected:0,deferred:0};
-  for(const tx of txs){const status=String(tx.status||"").trim().toLowerCase();if(status==="processed")count.processed++;else if(status==="rejected")count.rejected++;else count.deferred++}
+  const count={processed:0,rejected:0,deferred:0,other:0};
+  for(const tx of txs){const status=String(tx.status||"").trim().toLowerCase();if(status==="processed")count.processed++;else if(status==="rejected")count.rejected++;else if(!status||status==="blank"||status==="deferred")count.deferred++;else count.other++}
   return {...batch,_count:count,_total:txs.length};
  });
  renderTableRows("fto-body",ftoRows,[
@@ -132,7 +130,8 @@ function render(data){
   {label:"Transactions",render:r=>String(r._total)},
   {label:"Processed",render:r=>String(r._count.processed)},
   {label:"Rejected",render:r=>String(r._count.rejected)},
-  {label:"Deferred",render:r=>String(r._count.deferred)}
+  {label:"Deferred",render:r=>String(r._count.deferred)},
+  {label:"Other",render:r=>String(r._count.other)}
  ],"No FTO batches are linked to this period.");
  $("page-status").classList.add("hidden");$("detail-content").classList.remove("hidden");
 }

@@ -1495,26 +1495,28 @@ function getExportApplicantName(c){
 }
 async function exportOutstandingDueList(){
  const button=$("exportDueBtn");
+ // Open the print window synchronously during the button click. Opening it
+ // after the applicant lookup await can be blocked by the browser popup policy.
+ const popup=window.open("","_blank");
+ if(!popup){status('Allow pop-ups for this site to export the due list.','err');return;}
  if(button){button.disabled=true;button.textContent="Preparing…";}
  try{
   const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"export-applicant-lookup"},timeoutMs:false});
   if(error||!data||data.approved!==true||data.error)throw new Error((data&&data.error)||(error&&error.message)||"Could not load applicant names for export.");
   applicantsByCard=data.applicants_by_job_card||{};
+  const due=citizens.filter(c=>!c.exempt&&Number(c.balance)>0)
+   .sort((a,b)=>jobCardSuffixNumber(a.id)-jobCardSuffixNumber(b.id)||a.id.localeCompare(b.id,undefined,{numeric:true})||a.name.localeCompare(b.name));
+  if(!due.length){popup.close();status('There are no job cards with outstanding contribution.','info');return;}
+  const totalOutstanding=due.reduce((sum,c)=>sum+Math.max(0,Number(c.balance)||0),0);
+  const rows=due.map(c=>'<tr><td>'+esc(c.id)+'</td><td>'+esc(c.name||'—')+'</td><td>'+esc(getExportApplicantName(c))+'</td><td class="amount">'+fmt(c.balance)+'</td></tr>').join('');
+  const report='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contribution Outstanding Due List</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#172033;margin:28px}h1{font-size:20px;margin:0 0 5px}.meta{color:#667085;font-size:12px;margin-bottom:18px}.summary{display:flex;gap:28px;flex-wrap:wrap;margin:0 0 18px;font-size:13px}.summary span{display:block;color:#667085}.summary b{display:block;margin-top:3px;font-size:16px;color:#172033}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;border-bottom:1px solid #dfe5ee;text-align:left}th{background:#edf2f8;text-transform:uppercase;font-size:10px;letter-spacing:.04em}.amount{text-align:right;white-space:nowrap;font-weight:700}.total td{font-weight:800;border-top:2px solid #667085;border-bottom:0}.total .amount{font-size:13px}@media print{body{margin:12mm}thead{display:table-header-group}tr{break-inside:avoid}}@media(max-width:600px){body{margin:14px;overflow-x:auto}.summary{gap:14px}}</style></head><body><h1>Contribution Outstanding Due List</h1><div class="meta">VBGRAMG · Generated on '+esc(new Date().toLocaleDateString('en-IN'))+'</div><div class="summary"><div><span>Outstanding job cards</span><b>'+due.length.toLocaleString('en-IN')+'</b></div><div><span>Total outstanding</span><b>'+fmt(totalOutstanding)+'</b></div></div><table><thead><tr><th>Job Card Number</th><th>Head of Household</th><th>Applicant Name</th><th style="text-align:right">Outstanding</th></tr></thead><tbody>'+rows+'<tr class="total"><td colspan="3">Total outstanding ('+due.length.toLocaleString('en-IN')+' job cards)</td><td class="amount">'+fmt(totalOutstanding)+'</td></tr></tbody></table></body></html>';
+  popup.document.open();popup.document.write(report);popup.document.close();popup.focus();popup.print();
  }catch(err){
+  try{popup.close();}catch(_){}
   status(err.message||"Could not prepare the due-list export.","error");
+ }finally{
   if(button){button.disabled=false;button.textContent="Export";}
-  return;
  }
- const due=citizens.filter(c=>!c.exempt&&Number(c.balance)>0)
-  .sort((a,b)=>jobCardSuffixNumber(a.id)-jobCardSuffixNumber(b.id)||a.id.localeCompare(b.id,undefined,{numeric:true})||a.name.localeCompare(b.name));
- if(!due.length){status('There are no job cards with outstanding contribution.','info');if(button){button.disabled=false;button.textContent='Export';}return;}
- const totalOutstanding=due.reduce((sum,c)=>sum+Math.max(0,Number(c.balance)||0),0);
- const rows=due.map(c=>'<tr><td>'+esc(c.id)+'</td><td>'+esc(c.name||'—')+'</td><td>'+esc(getExportApplicantName(c))+'</td><td class="amount">'+fmt(c.balance)+'</td></tr>').join('');
- const popup=window.open('','_blank');
- if(!popup){status('Allow pop-ups for this site to export the due list.','err');if(button){button.disabled=false;button.textContent='Export';}return;}
- const report='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contribution Outstanding Due List</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#172033;margin:28px}h1{font-size:20px;margin:0 0 5px}.meta{color:#667085;font-size:12px;margin-bottom:18px}.summary{display:flex;gap:28px;flex-wrap:wrap;margin:0 0 18px;font-size:13px}.summary span{display:block;color:#667085}.summary b{display:block;margin-top:3px;font-size:16px;color:#172033}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;border-bottom:1px solid #dfe5ee;text-align:left}th{background:#edf2f8;text-transform:uppercase;font-size:10px;letter-spacing:.04em}.amount{text-align:right;white-space:nowrap;font-weight:700}.total td{font-weight:800;border-top:2px solid #667085;border-bottom:0}.total .amount{font-size:13px}@media print{body{margin:12mm}thead{display:table-header-group}tr{break-inside:avoid}}@media(max-width:600px){body{margin:14px;overflow-x:auto}.summary{gap:14px}}</style></head><body><h1>Contribution Outstanding Due List</h1><div class="meta">VBGRAMG · Generated on '+esc(new Date().toLocaleDateString('en-IN'))+'</div><div class="summary"><div><span>Outstanding job cards</span><b>'+due.length.toLocaleString('en-IN')+'</b></div><div><span>Total outstanding</span><b>'+fmt(totalOutstanding)+'</b></div></div><table><thead><tr><th>Job Card Number</th><th>Head of Household</th><th>Applicant Name</th><th style="text-align:right">Outstanding</th></tr></thead><tbody>'+rows+'<tr class="total"><td colspan="3">Total outstanding ('+due.length.toLocaleString('en-IN')+' job cards)</td><td class="amount">'+fmt(totalOutstanding)+'</td></tr></tbody></table></body></html>';
- popup.document.open();popup.document.write(report);popup.document.close();popup.focus();popup.print();
- if(button){button.disabled=false;button.textContent="Export";}
 }
 function buildFifoBreakdown(c){
  if(!c||c.exempt)return '';

@@ -93,7 +93,6 @@ Deno.serve(async (req: Request) => {
             .select("id,batch_id,reference_no,job_card_number,person_name,status,calculated_charge,processed_date,transaction_date,is_current,is_in_scope,updated_at,rejection_reason")
             .in("batch_id", ids)
             .eq("is_current", true)
-            .order("fto_number", { ascending: true })
             .order("reference_no", { ascending: true })
             .range(offset, offset + 999);
           if (error) throw error;

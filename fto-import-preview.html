@@ -67,7 +67,7 @@ async function run(){
   const candidates=manifest.ftoCandidates,expected=Number(manifest.listingCandidateCount);
   if(!expected||candidates.length!==expected||!manifest.activeImportId||!manifest.misUpdatedAt)throw new Error("Listing or active MIS snapshot is incomplete.");
   $("progress").max=expected;
-  const ftoResults=[];let tested=0,batches=0;
+  const ftoResults=[];let tested=0,batches=0;const listingAdditions=[];
   for(let offset=0;offset<expected;offset+=BATCH_SIZE){
    const group=candidates.slice(offset,offset+BATCH_SIZE);
    $("status").textContent="Scanning FTOs "+(offset+1)+"–"+(offset+group.length)+" of "+expected+"...";
@@ -75,14 +75,19 @@ async function run(){
    u.searchParams.set("urls",JSON.stringify(group.map(x=>x.detailUrl)));
    u.searchParams.set("listingRows",JSON.stringify(group.map(x=>x.listingRow)));
    u.searchParams.set("listingFingerprint",manifest.listingFingerprint);
+   u.searchParams.set("snapshotFtoNumbers",JSON.stringify(candidates.map(x=>String(x.listingRow[3]||"").trim())));
    const response=await fetch(u,{cache:"no-store",headers:{"x-fto-preview-key":accessCode}});const data=await response.json();
    if(!response.ok||!data.success)throw new Error("Batch at offset "+offset+" failed: "+JSON.stringify(data));
    if(data.activeImportId!==manifest.activeImportId||data.misUpdatedAt!==manifest.misUpdatedAt)throw new Error("Active MIS changed during the preview. Restart from a fresh snapshot.");
    if(!Array.isArray(data.ftoResults)||data.ftoResults.length!==group.length)throw new Error("The batch did not return a complete FTO result set.");
-   ftoResults.push(...data.ftoResults);tested+=data.testedPages;batches++;
+   ftoResults.push(...data.ftoResults);
+   if(Array.isArray(data.listingAdditions)) for(const number of data.listingAdditions) if(!listingAdditions.includes(number)) listingAdditions.push(number);
+   tested+=data.testedPages;batches++;
    $("progress").value=tested;$("count").textContent=tested+" of "+expected+" FTO detail pages scanned";
   }
   const matchingFtos=ftoResults.filter(x=>Number(x.exactMatches)>0);
+  const listingChanges=ftoResults.filter(x=>x.listingChanged);
+  const pageErrors=ftoResults.filter(x=>x.pageError);
   const matchingRows=matchingFtos.flatMap(x=>(x.matchingRows||[]).map(row=>({ftoNumber:x.ftoNumber,signatoryDate:x.signatoryDate,...row})));
   const nonMatchingRows=ftoResults.flatMap(x=>(x.nonMatchingRows||[]).map(row=>({ftoNumber:x.ftoNumber,signatoryDate:x.signatoryDate,...row})));
   const statusCounts={processed:0,rejected:0,deferred:0};
@@ -95,12 +100,12 @@ async function run(){
    auditMode:"import-preview",databaseChanged:false,listingCandidateCount:expected,listingFingerprint:manifest.listingFingerprint,
    activeImportId:manifest.activeImportId,misUpdatedAt:manifest.misUpdatedAt,uniqueMisJobCards:manifest.uniqueMisJobCards,
    batchesCompleted:batches,testedPages:tested,ftoCountWithExactMatches:matchingFtos.length,
-   exactMatchingTransactionCount:matchingRows.length,statusCounts,
+   listingChanges,pageErrors,listingAdditions,exactMatchingTransactionCount:matchingRows.length,statusCounts,
    nonMatchingRowCount:nonMatchingRows.length,duplicateExactJobCardRows:duplicateJobCardRows,duplicateReferenceCount,
    matchingFtos,matchingRows,nonMatchingRows
   };
   render(finalPayload);
-  $("status").textContent="Preview complete — "+matchingRows.length+" exact matching rows from "+matchingFtos.length+" FTOs. No database changes made.";
+  $("status").textContent="Preview complete — "+matchingRows.length+" exact matching rows from "+matchingFtos.length+" FTOs. "+listingChanges.length+" changed FTOs, "+listingAdditions.length+" newly listed FTOs and "+pageErrors.length+" page errors need review. No database changes made.";
   download.disabled=false;
  }catch(e){$("status").textContent="Preview stopped: "+e.message;}
  finally{start.disabled=false;}
@@ -124,7 +129,7 @@ function render(p){
   listingCandidateCount:p.listingCandidateCount,testedPages:p.testedPages,activeImportId:p.activeImportId,misUpdatedAt:p.misUpdatedAt,
   exactMatchingTransactionCount:p.exactMatchingTransactionCount,statusCounts:p.statusCounts,
   nonMatchingRowCount:p.nonMatchingRowCount,duplicateExactJobCardRows:p.duplicateExactJobCardRows,
-  duplicateReferenceCount:p.duplicateReferenceCount,databaseChanged:p.databaseChanged
+  duplicateReferenceCount:p.duplicateReferenceCount,listingChanges:p.listingChanges,listingAdditions:p.listingAdditions,pageErrors:p.pageErrors,databaseChanged:p.databaseChanged
  },null,2);
  $("results").hidden=false;
 }

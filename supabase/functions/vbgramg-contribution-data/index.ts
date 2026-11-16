@@ -195,9 +195,7 @@ Deno.serve(async(req:Request)=>{
    const {data:misState,error:misStateError}=await admin.from("vbgramg_mis_state").select("active_import_id").eq("singleton",true).maybeSingle();
    if(misStateError)throw misStateError;
    if(!misState?.active_import_id)throw new Error("There is no active MIS import.");
-   const lookupStarted=performance.now();
    const {data:lookupCache,error:lookupError}=await admin.from("vbgramg_mis_contribution_lookup").select("payload").eq("import_id",misState.active_import_id).maybeSingle();
-   queryTimings["applicant_cache"]=Number((performance.now()-lookupStarted).toFixed(1));
    if(lookupError)throw lookupError;
    const applicantsByCard=lookupCache?.payload?.applicants_by_job_card;
    if(!applicantsByCard||typeof applicantsByCard!=="object"||Array.isArray(applicantsByCard))throw new Error("Applicant lookup is not ready. Reload Contribution and try Export again.");

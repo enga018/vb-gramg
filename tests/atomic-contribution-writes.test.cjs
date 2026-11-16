@@ -5,7 +5,7 @@ const path = require("node:path");
 
 const read = relative => fs.readFileSync(path.join(__dirname, "..", relative), "utf8");
 const sql = read("supabase/migrations/20261106181317_record_contribution_transaction.sql");
-const cashCapSql = read("supabase/migrations/20261112150000_limit_cash_payment_to_outstanding_balance.sql");
+const cashPaymentSql = read("supabase/migrations/20261116100000_allow_zero_balance_and_cash_overpayments.sql");
 const html = read("contribution.html");
 const sqlTest = read("tests/atomic-contribution-writes-postgres.sql");
 const bulkSql = read("supabase/migrations/20261107034818_atomic_bulk_bank_payment.sql");
@@ -49,22 +49,23 @@ test("Operation-specific limits and validation match the current Edge Function r
   assert.doesNotMatch(sql, /p_operation IN \('waiver', 'return'\)[\s\S]{0,160}10000000/);
 });
 
-test("Record Payment is limited to the outstanding balance in PostgreSQL and the UI", () => {
-  assert.ok(cashCapSql.includes("IF v_amount > GREATEST(0, v_balance) + 0.001"));
-  assert.ok(cashCapSql.includes("Payment cannot exceed the current outstanding balance."));
-  assert.ok(cashCapSql.includes("pg_advisory_xact_lock"));
-  // The current UI builds controls dynamically rather than using fixed button IDs.
+test("Cash payments remain recordable at zero balance and may exceed outstanding", () => {
+  assert.match(cashPaymentSql, /v_entry_type := 'payment'/);
+  assert.match(cashPaymentSql, /pg_advisory_xact_lock/);
+  assert.doesNotMatch(cashPaymentSql, /Payment cannot exceed the current outstanding balance/);
+  assert.doesNotMatch(cashPaymentSql, /IF v_amount > GREATEST\(0, v_balance\)/);
   assert.match(html, /function showPaymentForm\(\)/);
-  assert.match(html, /max=\"'\+Number\(c\.balance\)\.toFixed\(2\)\+'\"/);
-  assert.match(html, /amount>Number\(c\.balance\)\+0\.001/);
-  assert.match(html, /Payment cannot exceed the current outstanding balance\./);
+  assert.match(html, /addRowAction\('Record payment',!c\.exempt/);
+  assert.doesNotMatch(html, /id="paymentAmount"[^>]*max=/);
+  assert.doesNotMatch(html, /amount>Number\(c\.balance\)\+0\.001/);
+  assert.doesNotMatch(html, /Payment cannot exceed the current outstanding balance\./);
   assert.match(html, /isWaiver\?Number\(c\.balance\)\.toFixed\(2\):10000000/);
   assert.match(html, /isWaiver&&amount>Number\(c\.balance\)\+0\.001/);
   assert.match(html, /Waiver cannot exceed the current outstanding balance\./);
-  assert.ok(sqlTest.includes("Cash overpayment was not rejected"));
+  assert.ok(sqlTest.includes("Zero-balance cash payment failed"));
+  assert.ok(sqlTest.includes("Cash overpayment was not accepted"));
   assert.ok(sqlTest.includes("Valid partial cash payment failed"));
-  assert.ok(sqlTest.includes("Final exact-balance cash payment failed"));
-});
+});;
 
 test("Ledger insert and audit insert are in the same database function transaction", () => {
   const insertLedger = sql.indexOf("INSERT INTO public.vbgramg_charge_ledger");
@@ -198,7 +199,7 @@ test("Extra contribution history exposes a direct edit action using its dedicate
 
 test("Citizen transaction history exposes only the agreed balance-based actions", () => {
   // Action buttons are created from the current balance and role at render time.
-  assert.match(html, /addRowAction\('Record payment',Number\(c\.balance\)>0\.001/);
+  assert.match(html, /addRowAction\('Record payment',!c\.exempt/);
   assert.match(html, /addRowAction\('Pay in full',Number\(c\.balance\)>0/);
   assert.match(html, /addRowAction\('Waive',appRole==='admin'&&!c\.exempt&&Number\(c\.balance\)>0\.001/);
   assert.match(html, /addRowAction\('Refund',appRole==='admin'&&Number\(c\.balance\)<-0\.001/);

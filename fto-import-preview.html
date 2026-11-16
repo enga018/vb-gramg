@@ -14,6 +14,7 @@ h1{font-size:23px;margin:0 0 8px}.muted{color:#64748b;font-size:14px;line-height
 button{border:0;border-radius:8px;padding:11px 16px;font:inherit;font-weight:650;cursor:pointer}
 #start{background:#1d4ed8;color:white}#download{background:#e2e8f0;color:#172033}
 button:disabled{opacity:.5;cursor:not-allowed}progress{width:100%;height:18px}
+input[type=password]{width:min(100%,360px);padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}
 #status{font-weight:650}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f1f5f9;padding:12px;border-radius:8px;font-size:12px;max-height:360px;overflow:auto}
 table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:9px 8px;border-bottom:1px solid #e2e8f0;vertical-align:top}th{color:#475569;font-weight:650}
 .table-wrap{overflow-x:auto}.notice{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;font-size:14px;line-height:1.5}
@@ -26,7 +27,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;p
 <p class="muted">Read-only preview of government FTO transaction rows that exactly match the active MIS Job Card Number. No batches, transactions or Contribution charges are created.</p>
 <div class="panel">
 <div class="notice">All exact MIS matches are included regardless of status: Processed, Rejected and Deferred. Nonmatching rows are kept separately as exceptions and excluded from the matching-row dataset. The government listing is revalidated during the scan; the active MIS snapshot must remain unchanged.</div>
-<div class="actions"><button id="start">Run full import preview</button><button id="download" disabled>Download preview JSON</button></div>
+<div class="actions"><input id="accessCode" type="password" autocomplete="off" placeholder="Preview access code" aria-label="Preview access code"><button id="start">Run full import preview</button><button id="download" disabled>Download preview JSON</button></div>
 <p id="status">Ready.</p><progress id="progress" value="0" max="1"></progress>
 <p id="count" class="muted">No preview run yet.</p>
 <div class="kpis" id="kpis" hidden></div>
@@ -53,6 +54,8 @@ $("download").addEventListener("click",()=>{
  URL.revokeObjectURL(a.href);
 });
 async function run(){
+ const accessCode=$("accessCode").value.trim();
+ if(!accessCode){$("status").textContent="Enter the preview access code first.";return;}
  const start=$("start"),download=$("download");
  start.disabled=true;download.disabled=true;finalPayload=null;
  $("results").hidden=true;$("kpis").hidden=true;$("status").textContent="Loading current government listing and active MIS...";
@@ -72,7 +75,7 @@ async function run(){
    u.searchParams.set("urls",JSON.stringify(group.map(x=>x.detailUrl)));
    u.searchParams.set("listingRows",JSON.stringify(group.map(x=>x.listingRow)));
    u.searchParams.set("listingFingerprint",manifest.listingFingerprint);
-   const response=await fetch(u,{cache:"no-store"});const data=await response.json();
+   const response=await fetch(u,{cache:"no-store",headers:{"x-fto-preview-key":accessCode}});const data=await response.json();
    if(!response.ok||!data.success)throw new Error("Batch at offset "+offset+" failed: "+JSON.stringify(data));
    if(data.activeImportId!==manifest.activeImportId||data.misUpdatedAt!==manifest.misUpdatedAt)throw new Error("Active MIS changed during the preview. Restart from a fresh snapshot.");
    if(!Array.isArray(data.ftoResults)||data.ftoResults.length!==group.length)throw new Error("The batch did not return a complete FTO result set.");

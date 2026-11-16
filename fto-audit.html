@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8fafc">
+  <title>VBGRAMG - Government FTO Audit</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { margin: 0; background: #f8fafc; color: #172033; }
+    main { width: min(760px, calc(100% - 32px)); margin: 36px auto; }
+    h1 { font-size: 23px; margin: 0 0 8px; }
+    p { line-height: 1.5; }
+    .muted { color: #64748b; font-size: 14px; }
+    .panel { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-top: 18px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0; }
+    button { border: 0; border-radius: 8px; padding: 11px 16px; font: inherit; font-weight: 600; cursor: pointer; }
+    #start { background: #1d4ed8; color: white; }
+    #stop { background: #e2e8f0; color: #172033; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    progress { width: 100%; height: 18px; }
+    #status { font-weight: 600; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f1f5f9; padding: 14px; border-radius: 8px; font-size: 13px; }
+    .warning { color: #92400e; background: #fffbeb; border: 1px solid #fde68a; padding: 10px 12px; border-radius: 8px; font-size: 14px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>VBGRAMG - Government FTO listing audit</h1>
+  <p class="muted">Read-only diagnostic. It fetches the current government FTO listing and checks detail pages in batches of five. It does not read or change the VBGRAMG database.</p>
+  <div class="panel">
+    <p id="status">Ready to start.</p>
+    <progress id="progress" value="0" max="1"></progress>
+    <p id="count" class="muted">No FTOs tested yet.</p>
+    <div class="actions">
+      <button id="start" type="button">Start full audit</button>
+      <button id="stop" type="button" disabled>Stop after current batch</button>
+    </div>
+    <div class="warning">Keep this tab open until the audit completes. Each batch re-reads the government listing. If the listing count changes during the run, the audit stops so that the results are not misleading.</div>
+    <h2 style="font-size:17px;margin-top:22px">Audit totals</h2>
+    <pre id="result">No audit has run yet.</pre>
+  </div>
+</main>
+<script>
+(() => {
+  "use strict";
+  const ENDPOINT = "https://trtzhafgvqosjwrgckty.supabase.co/functions/v1/vbgramg-fto-list-audit";
+  const KEY = "ftoaudit-2026-11-16-7b8f3d91c2e64a0b";
+  const BATCH_SIZE = 5;
+  const statusEl = document.getElementById("status");
+  const progressEl = document.getElementById("progress");
+  const countEl = document.getElementById("count");
+  const resultEl = document.getElementById("result");
+  const startBtn = document.getElementById("start");
+  const stopBtn = document.getElementById("stop");
+  let stopRequested = false;
+  let running = false;
+
+  const emptyTotals = () => ({
+    successfulPages: 0, httpFailures: 0, fetchFailures: 0,
+    parseFailures: 0, transactions: 0, processed: 0,
+    rejected: 0, deferred: 0, zeroTransactionPages: 0
+  });
+
+  async function runAudit() {
+    if (running) return;
+    running = true;
+    stopRequested = false;
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    startBtn.textContent = "Audit running...";
+    statusEl.textContent = "Reading the current government FTO listing...";
+    progressEl.value = 0;
+    progressEl.max = 1;
+    countEl.textContent = "Preparing first batch...";
+    const totals = emptyTotals();
+    let offset = 0;
+    let expectedCount = null;
+    let batchesCompleted = 0;
+    let testedPages = 0;
+
+    try {
+      while (true) {
+        statusEl.textContent = "Testing FTOs " + (offset + 1) + " to " + (offset + BATCH_SIZE) + "...";
+        const url = new URL(ENDPOINT);
+        url.searchParams.set("key", KEY);
+        url.searchParams.set("offset", String(offset));
+        url.searchParams.set("limit", String(BATCH_SIZE));
+        const response = await fetch(url.toString(), { method: "GET", cache: "no-store" });
+        let data;
+        try { data = await response.json(); }
+        catch { throw new Error("The audit endpoint did not return valid JSON (HTTP " + response.status + ")."); }
+        if (!response.ok || !data.success) {
+          throw new Error("Batch at offset " + offset + " failed: " + JSON.stringify(data));
+        }
+
+        const currentCount = Number(data.listingCandidateCount);
+        if (!Number.isFinite(currentCount) || currentCount < 0) {
+          throw new Error("The endpoint returned an invalid listing count.");
+        }
+        if (expectedCount === null) {
+          expectedCount = currentCount;
+          progressEl.max = Math.max(1, expectedCount);
+        } else if (currentCount !== expectedCount) {
+          throw new Error("The government listing changed during the audit (was " + expectedCount + ", now " + currentCount + "). Restart the audit for a consistent run.");
+        }
+
+        batchesCompleted += 1;
+        testedPages += Number(data.testedPages || 0);
+        for (const key of Object.keys(totals)) {
+          totals[key] += Number((data.totals && data.totals[key]) || 0);
+        }
+        progressEl.value = Math.min(testedPages, expectedCount);
+        countEl.textContent = testedPages + " of " + expectedCount + " FTO detail pages tested";
+        resultEl.textContent = JSON.stringify({
+          listingCandidateCount: expectedCount,
+          batchesCompleted,
+          testedPages,
+          ...totals
+        }, null, 2);
+
+        if (data.nextOffset === null || offset + BATCH_SIZE >= expectedCount) break;
+        offset = Number(data.nextOffset);
+        if (stopRequested) {
+          statusEl.textContent = "Stopped after the current batch. Partial results are shown below.";
+          return;
+        }
+      }
+
+      statusEl.textContent = "Audit complete: " + testedPages + " of " + expectedCount + " FTOs tested.";
+    } catch (error) {
+      statusEl.textContent = "Audit stopped: " + error.message;
+    } finally {
+      running = false;
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      startBtn.textContent = "Run audit again";
+    }
+  }
+
+  startBtn.addEventListener("click", runAudit);
+  stopBtn.addEventListener("click", () => {
+    stopRequested = true;
+    stopBtn.disabled = true;
+    statusEl.textContent = "Stop requested. Finishing the current batch...";
+  });
+})();
+</script>
+</body>
+</html>

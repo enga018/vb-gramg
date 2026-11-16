@@ -26,7 +26,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;p
 <h1>VBGRAMG — Government FTO import preview</h1>
 <p class="muted">Read-only preview of government FTO transaction rows that exactly match the active MIS Job Card Number. No batches, transactions or Contribution charges are created.</p>
 <div class="panel">
-<div class="notice">All exact MIS matches are included regardless of status: Processed, Rejected and Deferred. Nonmatching rows are kept separately as exceptions and excluded from the matching-row dataset. The government listing is revalidated during the scan; the active MIS snapshot must remain unchanged.</div>
+<div class="notice">All exact MIS matches are included regardless of status: Processed, Rejected and Deferred. Nonmatching rows are kept separately as exceptions and excluded from the matching-row dataset. The government listing is revalidated during the scan; the active MIS snapshot must remain unchanged. Before running, configure the Edge Function secret <code>FTO_IMPORT_PREVIEW_KEY</code> in Supabase and enter the same code below.</div>
 <div class="actions"><input id="accessCode" type="password" autocomplete="off" placeholder="Preview access code" aria-label="Preview access code"><button id="start">Run full import preview</button><button id="download" disabled>Download preview JSON</button></div>
 <p id="status">Ready.</p><progress id="progress" value="0" max="1"></progress>
 <p id="count" class="muted">No preview run yet.</p>

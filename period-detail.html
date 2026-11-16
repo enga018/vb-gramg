@@ -73,6 +73,10 @@ tbody tr:last-child td{border-bottom:0}
 <div class="table-wrap"><table><thead><tr><th>Job Card</th><th>Applicant</th><th>Charge</th><th>Date</th><th>FTO reference</th><th>Status</th></tr></thead><tbody id="contribution-body"><tr><td class="empty" colspan="6">Loading…</td></tr></tbody></table></div>
 </section>
 <section class="panel">
+<div class="section-head"><h2>Unallocated charges</h2><span class="muted" id="allocation-count"></span></div>
+<div class="table-wrap"><table><thead><tr><th>Job Card</th><th>Charge total</th><th>Allocated</th><th>Waived</th><th>Remaining</th><th>Status</th></tr></thead><tbody id="allocation-body"><tr><td class="empty" colspan="6">Loading…</td></tr></tbody></table></div>
+</section>
+<section class="panel">
 <div class="section-head"><h2>FTO history</h2><span class="muted" id="fto-count"></span></div>
 <div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Imported / checked</th><th>Transactions</th><th>Processed</th><th>Rejected</th><th>Deferred</th><th>Other</th></tr></thead><tbody id="fto-body"><tr><td class="empty" colspan="7">Loading…</td></tr></tbody></table></div>
 </section>
@@ -118,6 +122,16 @@ function render(data){
   {label:"Status",render:r=>{const returned=r.entry_type==="charge"&&String(r.note||"").trim()==="Return";const status=r.is_voided?"Voided":returned?"Returned":r.is_deferred?"Deferred":"Recorded";return '<span class="pill '+(r.is_voided||returned?"voided":r.is_deferred?"deferred":"")+'">'+status+"</span>"}}
  ],"No contribution records are linked to this period.");
  $("fto-count").textContent=batches.length+" batches · "+transactions.length+" current transactions";
+ const allocationRows=data.allocation_status||[];
+ $("allocation-count").textContent=allocationRows.length+" job cards";
+ renderTableRows("allocation-body",allocationRows,[
+  {label:"Job Card",render:r=>"<strong>"+esc(r.job_card_number)+"</strong>"},
+  {label:"Charge total",render:r=>'<span class="money">'+fmtMoney(r.charge_total)+'</span>'},
+  {label:"Allocated",render:r=>'<span class="money">'+fmtMoney(r.allocated_amount)+'</span>'},
+  {label:"Waived",render:r=>'<span class="money">'+fmtMoney(r.waived_amount)+'</span>'},
+  {label:"Remaining",render:r=>'<strong class="money">'+fmtMoney(r.remaining_amount)+'</strong>'},
+  {label:"Status",render:r=>'<span class="pill other">'+esc(r.status)+'</span>'}
+ ],"All eligible charges in this period are fully allocated or waived.");
  const ftoRows=batches.map(batch=>{
   const txs=transactions.filter(tx=>String(tx.batch_id)===String(batch.id));
   const count={processed:0,rejected:0,deferred:0,other:0};

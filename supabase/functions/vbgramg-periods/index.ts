@@ -101,6 +101,161 @@ Deno.serve(async (req: Request) => {
         }
       }
 
+      // Build a read-only, refund-aware allocation summary for each job card.
+      const eligibleCharges = ledger.filter((row: Record<string, unknown>) =>
+        row.is_voided !== true && row.is_deferred !== true &&
+        ["charge", "other_charge", "sanitationFee"].includes(String(row.entry_type)) &&
+        !(row.entry_type === "charge" && String(row.note || "").trim() === "Return")
+      );
+      const chargeIds = eligibleCharges.map(row => String(row.id)).filter(Boolean);
+      const { data: legacyPeriodAllocations, error: legacyAllocationError } = await admin
+        .from("vbgramg_payment_allocations")
+        .select("id,transaction_id,period_id,job_card_number,amount,confidence")
+        .eq("period_id", periodId);
+      if (legacyAllocationError) throw legacyAllocationError;
+
+      let chargeLevelPeriodAllocations: Record<string, unknown>[] = [];
+      if (chargeIds.length) {
+        for (let base = 0; base < chargeIds.length; base += 500) {
+          const ids = chargeIds.slice(base, base + 500);
+          const { data: rows, error } = await admin
+            .from("vbgramg_charge_payment_allocations")
+            .select("id,payment_id,charge_id,amount,confidence")
+            .in("charge_id", ids);
+          if (error) throw error;
+          chargeLevelPeriodAllocations.push(...(rows || []));
+        }
+      }
+
+      const paymentIds = [...new Set([
+        ...(legacyPeriodAllocations || []).map((row: Record<string, unknown>) => String(row.transaction_id)),
+        ...chargeLevelPeriodAllocations.map(row => String(row.payment_id))
+      ].filter(Boolean))];
+      let paymentRows: Record<string, unknown>[] = [];
+      let allLegacyAllocations: Record<string, unknown>[] = [];
+      let allChargeLevelAllocations: Record<string, unknown>[] = [];
+      let refundRows: Record<string, unknown>[] = [];
+      if (paymentIds.length) {
+        for (let base = 0; base < paymentIds.length; base += 500) {
+          const ids = paymentIds.slice(base, base + 500);
+          const [payments, legacy, chargeLevel, refunds] = await Promise.all([
+            admin.from("vbgramg_charge_ledger").select("id,amount,is_voided,entry_type").in("id", ids),
+            admin.from("vbgramg_payment_allocations").select("id,transaction_id,period_id,job_card_number,amount,confidence").in("transaction_id", ids),
+            admin.from("vbgramg_charge_payment_allocations").select("id,payment_id,charge_id,amount,confidence").in("payment_id", ids),
+            admin.from("vbgramg_payment_refund_reconciliations").select("payment_id,refund_id,amount").in("payment_id", ids)
+          ]);
+          for (const result of [payments, legacy, chargeLevel, refunds]) if (result.error) throw result.error;
+          paymentRows.push(...(payments.data || []));
+          allLegacyAllocations.push(...(legacy.data || []));
+          allChargeLevelAllocations.push(...(chargeLevel.data || []));
+          refundRows.push(...(refunds.data || []));
+        }
+      }
+      const refundIds = [...new Set(refundRows.map(row => String(row.refund_id || "")).filter(Boolean))];
+      let activeRefundIds = new Set<string>();
+      if (refundIds.length) {
+        for (let base = 0; base < refundIds.length; base += 500) {
+          const { data: rows, error } = await admin.from("vbgramg_charge_ledger")
+            .select("id,is_voided,entry_type").in("id", refundIds.slice(base, base + 500));
+          if (error) throw error;
+          for (const row of rows || []) if (row.entry_type === "refund" && row.is_voided !== true) activeRefundIds.add(String(row.id));
+        }
+      }
+
+      const paymentById = new Map(paymentRows.map(row => [String(row.id), row]));
+      const chargeById = new Map(eligibleCharges.map(row => [String(row.id), row]));
+      const chargeLevelPaymentIds = new Set(allChargeLevelAllocations.map(row => String(row.payment_id)));
+      const effectiveByCard = new Map<string, number>();
+      const globalByPayment = new Map<string, number>();
+      const refundByPayment = new Map<string, number>();
+      for (const row of refundRows) {
+        if (!activeRefundIds.has(String(row.refund_id))) continue;
+        const key = String(row.payment_id);
+        refundByPayment.set(key, (refundByPayment.get(key) || 0) + (Number(row.amount) || 0));
+      }
+      const effectiveAllocations: { paymentId: string; jobCard: string; amount: number; periodId: string }[] = [];
+      for (const row of allLegacyAllocations) {
+        const paymentId = String(row.transaction_id), payment = paymentById.get(paymentId);
+        if (chargeLevelPaymentIds.has(paymentId) || row.confidence !== "confirmed" ||
+            !payment || payment.entry_type !== "payment" || payment.is_voided === true) continue;
+        const amount = Number(row.amount) || 0;
+        globalByPayment.set(paymentId, (globalByPayment.get(paymentId) || 0) + amount);
+        effectiveAllocations.push({ paymentId, jobCard: String(row.job_card_number || ""), amount, periodId: String(row.period_id || "") });
+      }
+      for (const row of allChargeLevelAllocations) {
+        const paymentId = String(row.payment_id), payment = paymentById.get(paymentId);
+        const charge = chargeById.get(String(row.charge_id));
+        // Fetch charge rows outside this period to calculate the payment-wide refund ratio.
+        if (!payment || payment.entry_type !== "payment" || payment.is_voided === true || row.confidence !== "confirmed") continue;
+        const amount = Number(row.amount) || 0;
+        globalByPayment.set(paymentId, (globalByPayment.get(paymentId) || 0) + amount);
+        effectiveAllocations.push({
+          paymentId,
+          jobCard: String(charge?.job_card_number || ""),
+          amount,
+          periodId: String(charge?.period_id || "")
+        });
+      }
+      // Charge-level allocations for other periods are needed in the refund denominator.
+      const chargeLevelOtherPaymentIds = [...chargeLevelPaymentIds].filter(id => paymentById.has(id));
+      const globalChargeRows = chargeLevelOtherPaymentIds.length
+        ? allChargeLevelAllocations
+        : [];
+      // allChargeLevelAllocations above is payment-wide; legacy rows are excluded
+      // whenever that payment has moved to charge-level allocation.
+      for (const row of effectiveAllocations) {
+        if (row.periodId !== periodId || !row.jobCard) continue;
+        const total = globalByPayment.get(row.paymentId) || 0;
+        const refund = refundByPayment.get(row.paymentId) || 0;
+        const factor = total > 0 ? Math.max(total - refund, 0) / total : 0;
+        effectiveByCard.set(row.jobCard, (effectiveByCard.get(row.jobCard) || 0) + row.amount * factor);
+      }
+
+      const { data: waiverAllocations, error: waiverAllocationError } = await admin
+        .from("vbgramg_waiver_period_allocations")
+        .select("waiver_id,job_card_number,amount")
+        .eq("period_id", periodId);
+      if (waiverAllocationError) throw waiverAllocationError;
+      const waiverIds = [...new Set((waiverAllocations || []).map((row: Record<string, unknown>) => String(row.waiver_id || "")).filter(Boolean))];
+      let activeWaiverIds = new Set<string>();
+      if (waiverIds.length) {
+        for (let base = 0; base < waiverIds.length; base += 500) {
+          const { data: rows, error } = await admin.from("vbgramg_charge_ledger")
+            .select("id,is_voided,entry_type").in("id", waiverIds.slice(base, base + 500));
+          if (error) throw error;
+          for (const row of rows || []) if (["charge_waiver", "forgive"].includes(String(row.entry_type)) && row.is_voided !== true) activeWaiverIds.add(String(row.id));
+        }
+      }
+      const waivedByCard = new Map<string, number>();
+      for (const row of waiverAllocations || []) {
+        if (!activeWaiverIds.has(String(row.waiver_id))) continue;
+        const card = String(row.job_card_number || "");
+        waivedByCard.set(card, (waivedByCard.get(card) || 0) + (Number(row.amount) || 0));
+      }
+      const allocationByJobCard = new Map<string, { charge_total: number; allocated_amount: number; waived_amount: number }>();
+      for (const charge of eligibleCharges) {
+        const card = String(charge.job_card_number || "");
+        if (!card) continue;
+        const current = allocationByJobCard.get(card) || { charge_total: 0, allocated_amount: 0, waived_amount: 0 };
+        current.charge_total += Number(charge.amount) || 0;
+        allocationByJobCard.set(card, current);
+      }
+      const allocationStatus = [...allocationByJobCard.entries()].map(([job_card_number, values]) => {
+        const allocated = effectiveByCard.get(job_card_number) || 0;
+        const waived = waivedByCard.get(job_card_number) || 0;
+        const remaining = Math.max(values.charge_total - allocated - waived, 0);
+        const status = remaining <= 0.005 ? "Fully allocated" : allocated > 0.005 ? "Partially allocated" : "Not allocated";
+        return {
+          job_card_number,
+          charge_total: Number(values.charge_total.toFixed(2)),
+          allocated_amount: Number(allocated.toFixed(2)),
+          waived_amount: Number(waived.toFixed(2)),
+          remaining_amount: Number(remaining.toFixed(2)),
+          status
+        };
+      }).filter(row => row.remaining_amount > 0.005)
+        .sort((a, b) => a.job_card_number.localeCompare(b.job_card_number));
+
       const activeCharges = ledger.filter((row: Record<string, unknown>) =>
         row.is_voided !== true && row.is_deferred !== true &&
         !(row.entry_type === "charge" && String(row.note || "").trim() === "Return")
@@ -132,6 +287,7 @@ Deno.serve(async (req: Request) => {
           fto_status_counts: statusCounts
         },
         contributions: ledger,
+        allocation_status: allocationStatus,
         fto_batches: batches || [],
         fto_transactions: ftoTransactions
       });

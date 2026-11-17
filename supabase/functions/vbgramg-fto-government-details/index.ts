@@ -11,6 +11,28 @@ const corsHeaders = {
 function reply(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Cache-Control": "no-store" } });
 }
+async function readJsonBody(req: Request, maxBytes: number) {
+  const declaredLength = Number(req.headers.get("Content-Length") || 0);
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) throw new Error("Request body is too large.");
+  if (!req.body) throw new Error("Request body is empty.");
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new Error("Request body is too large.");
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
 function decodeHtml(value: string) {
   return value.replace(/&amp;/gi, "&").replace(/&quot;/gi, '"').replace(/&#39;/gi, "'")
     .replace(/&nbsp;/gi, " ").replace(/&#(\d+);?/g, (_, n) => String.fromCodePoint(Number(n)))
@@ -68,11 +90,14 @@ async function loadActiveMisIndex(admin: any) {
   const uniqueCol = col("unique id", "unique applicant id");
   if (jobCol < 0 || nameCol < 0) throw new Error("Active MIS is missing Job Card Number or Name of Applicant columns.");
   const byCard = new Map<string, { applicantName: string; applicantNumber: string; applicantUniqueId: string }[]>();
+  const activeCards = new Set<string>();
   for (const record of records.slice(1)) {
     const row = Array.isArray(record.row_data) ? record.row_data : [];
     const card = String(row[jobCol] || "").trim().toUpperCase();
     const name = String(row[nameCol] || "").trim();
-    if (!card || !name) continue;
+    if (!card) continue;
+    activeCards.add(card);
+    if (!name) continue;
     if (!byCard.has(card)) byCard.set(card, []);
     byCard.get(card)!.push({
       applicantName: name,
@@ -80,23 +105,20 @@ async function loadActiveMisIndex(admin: any) {
       applicantUniqueId: uniqueCol >= 0 ? String(row[uniqueCol] || "").trim() : ""
     });
   }
-  const { data: exemptions, error: exemptionError } = await admin.from("vbgramg_contribution_exemptions")
-    .select("job_card_number");
-  if (exemptionError) throw new Error("Could not load Contribution exemption list.");
   return {
     importId: state.active_import_id,
     misUpdatedAt: state.updated_at,
     rowCount: Number(state.row_count) || records.length - 1,
     byCard,
-    exemptCards: new Set((exemptions || []).map((r: any) => String(r.job_card_number || "").trim().toUpperCase()))
+    activeCards
   };
 }
 function matchTransactionToMis(tx: Record<string, string>, index: Awaited<ReturnType<typeof loadActiveMisIndex>>) {
   const card = String(tx.jobCardNumber || "").trim().toUpperCase();
-  const applicants = index.byCard.get(card);
-  if (!card || !applicants?.length) return { misMatchStatus: "not_in_active_mis", misApplicant: null, misCandidates: [] };
+  const applicants = index.byCard.get(card) || [];
+  if (!card || !index.activeCards.has(card)) return { misMatchStatus: "not_in_active_mis", misApplicant: null, misCandidates: [] };
   const person = String(tx.personName || "").trim();
-  if (!person) return { misMatchStatus: "applicant_review", misApplicant: null, misCandidates: applicants.map(a => ({ ...a, matchPercentage: 0 })) };
+  if (!person || !applicants.length) return { misMatchStatus: "applicant_review", misApplicant: null, misCandidates: applicants.map(a => ({ ...a, matchPercentage: 0 })) };
   const ranked = applicants.map(a => ({ ...a, matchPercentage: applicantNameScore(person, a.applicantName) }))
     .sort((a, b) => b.matchPercentage - a.matchPercentage || a.applicantName.localeCompare(b.applicantName));
   const exact = ranked.filter(a => normalizeApplicantIdentity(a.applicantName) === normalizeApplicantIdentity(person));
@@ -107,6 +129,16 @@ function base64UrlToBytes(value: string) {
   if (!/^[A-Za-z0-9_-]+$/.test(value) || value.length > 2_000_000) throw new Error("Invalid or oversized manifest token.");
   const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - value.length % 4) % 4);
   const binary = atob(padded); return Uint8Array.from(binary, c => c.charCodeAt(0));
+}
+async function makeImportPreviewToken(serviceKey: string, userId: string, payload: Record<string, unknown>) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("VBGRAMG-FTO-IMPORT-PREVIEW-v1:" + serviceKey));
+  const key = await crypto.subtle.importKey("raw", digest, { name: "AES-GCM" }, false, ["encrypt"]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const clear = new TextEncoder().encode(JSON.stringify({ v: 1, exp: Date.now() + 15 * 60 * 1000, userId, ...payload }));
+  const encrypted = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, clear));
+  const bytes = new Uint8Array(iv.length + encrypted.length); bytes.set(iv); bytes.set(encrypted, iv.length);
+  let binary = ""; for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 async function openManifest(token: string, serviceKey: string) {
   const bytes = base64UrlToBytes(token);
@@ -148,7 +180,7 @@ function extractVillage(value: string, jobCardNumber: string) {
   return String(value || "").replace(jobCardNumber, " ").replace(/[()\[\]{}]/g, " ")
     .replace(/\s+/g, " ").replace(/^[\s,;:.-]+|[\s,;:.-]+$/g, "").trim();
 }
-async function getPage(url: string) {
+async function getPage(url: string, ftoNumber: string) {
   const parsed = new URL(url);
   if (parsed.hostname !== "vbgramgrep.dord.gov.in" || parsed.pathname.toLowerCase() !== "/vbgramg/fto/fto_trasction_dtl.aspx" || !parsed.searchParams.has("payload"))
     throw new Error("A manifest entry failed Government URL validation.");
@@ -193,6 +225,8 @@ async function getPage(url: string) {
     const village = extractVillage(jobCell, jobCardNumber);
     const sourceRow = header.map((name, index) => ({ name, value: row[index] || "" }));
     transactions.push({
+      // Bind each parsed transaction to its parent FTO for the signed import contract.
+      ftoNumber,
       // Keep the established preview keys while exposing the exact import contract.
       jobCardNumber,
       referenceNumber,
@@ -227,7 +261,7 @@ Deno.serve(async (req: Request) => {
   const auth = createClient(supabaseUrl, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: claimsData, error: claimsError } = await auth.auth.getClaims(bearer);
   const claims = claimsData?.claims;
-  if (claimsError || !claims || typeof claims.email !== "string" || claims.app_metadata?.email_verified !== true)
+  if (claimsError || !claims || typeof claims.sub !== "string" || typeof claims.email !== "string" || claims.app_metadata?.email_verified !== true)
     return reply({ error: "A verified account is required." }, 401);
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: approved, error: approvalError } = await admin.from("vbgramg_approved_users")
@@ -235,7 +269,7 @@ Deno.serve(async (req: Request) => {
   if (approvalError) return reply({ error: "Could not verify app access." }, 500);
   if (!approved || approved.role !== "admin") return reply({ error: "Only an approved VBGRAMG administrator can fetch Government FTO details." }, 403);
   try {
-    const body = await req.json();
+    const body = await readJsonBody(req, 2_200_000);
     const token = String(body.manifestToken || "");
     const requested = Array.isArray(body.ftoNumbers) ? body.ftoNumbers.map((v: unknown) => String(v || "").trim()).filter(Boolean) : [];
     if (!token || requested.length < 1 || requested.length > 5 || new Set(requested.map(v => v.toUpperCase())).size !== requested.length)
@@ -251,8 +285,7 @@ Deno.serve(async (req: Request) => {
       if (!candidate) throw new Error("Requested FTO is not part of this Government listing manifest.");
       return candidate;
     });
-    // Revalidate eligibility at request time: new FTOs, or imported FTOs with a
-    // current blank/Deferred transaction. No writes are performed here.
+    // Revalidate eligibility at request time. Imported FTOs are never re-fetched.
     const { data: batches, error: batchError } = await admin.from("vbgramg_fto_batches")
       .select("id,fto_number").in("fto_number", selected.map(item => item.ftoNumber));
     if (batchError) throw new Error("Could not verify imported FTO history.");
@@ -264,24 +297,17 @@ Deno.serve(async (req: Request) => {
     const inspectionByNumber = new Map((inspectionRows || []).map(row => [
       String(row.fto_number_normalized).trim().toUpperCase(), String(row.classification)
     ]));
-    const batchIds = [...imported.values()];
-    const deferredIds = new Set<string>();
-    for (let start = 0; start < batchIds.length; start += 500) {
-      const { data: txs, error } = await admin.from("vbgramg_fto_transactions").select("batch_id")
-        .eq("is_current", true).in("status", ["blank", "deferred"]).in("batch_id", batchIds.slice(start, start + 500));
-      if (error) throw new Error("Could not verify Deferred transaction status.");
-      for (const tx of txs || []) deferredIds.add(String(tx.batch_id));
-    }
     for (const item of selected) {
       const normalized = item.ftoNumber.trim().toUpperCase();
       const classification = inspectionByNumber.get(normalized);
-      if (classification === "COMPLETE" || classification === "OUT_OF_SCOPE") {
-        throw new Error("This FTO has already been inspected and is permanently excluded from future detail fetching.");
+      if (imported.has(normalized)) {
+        throw new Error("This FTO has already been imported and is permanently excluded from automatic detail fetching.");
       }
-      const batchId = imported.get(normalized);
-      if (!classification && batchId && !deferredIds.has(batchId)) {
-        throw new Error("An already-imported FTO is no longer Deferred and cannot be re-fetched in this run.");
+      if (classification === "OUT_OF_SCOPE") {
+        throw new Error("This FTO was inspected and has no transactions matching an Active MIS Job Card. It is permanently excluded.");
       }
+      // COMPLETE means inspected and eligible, not imported. Allow a fresh
+      // detail fetch so an unimported FTO can receive a new preview token.
     }
     const misIndex = await loadActiveMisIndex(admin);
     const results: Record<string, unknown>[] = [];
@@ -290,18 +316,19 @@ Deno.serve(async (req: Request) => {
       while (cursor < selected.length) {
         const item = selected[cursor++];
         try {
-          const detail = await getPage(item.detailUrl);
+          const detail = await getPage(item.detailUrl, item.ftoNumber);
           if (detail.kind === "ok") {
             const transactions = detail.transactions.map(tx => {
               const match = matchTransactionToMis(tx, misIndex);
-              const exempt = misIndex.exemptCards.has(String(tx.jobCardNumber || "").trim().toUpperCase());
-              return { ...tx, ftoNumber: item.ftoNumber, ...match, contributionExempt: exempt };
+              return { ...tx, ftoNumber: item.ftoNumber, ...match };
             });
-            const inScope = transactions.filter(tx => tx.misMatchStatus !== "not_in_active_mis");
-            const matchingCards = new Set(inScope.map(tx => String(tx.jobCardNumber || "").trim().toUpperCase()).filter(Boolean));
-            const deferredInScope = inScope.filter(tx => tx.normalizedStatus === "blank").length;
-            const classification = matchingCards.size === 0 ? "OUT_OF_SCOPE" :
-              deferredInScope > 0 ? "RECHECK_REQUIRED" : "COMPLETE";
+            // Eligibility is based only on whether a transaction's full Job Card Number
+            // exists in the reviewed Active MIS. Retain every transaction in the FTO,
+            // including unmatched rows, for later review during Contribution charge creation.
+            const matchingTransactions = transactions.filter(tx => tx.misMatchStatus !== "not_in_active_mis");
+            const matchingCards = new Set(matchingTransactions.map(tx => String(tx.jobCardNumber || "").trim().toUpperCase()).filter(Boolean));
+            const deferredInScope = matchingTransactions.filter(tx => tx.normalizedStatus === "blank").length;
+            const classification = matchingCards.size === 0 ? "OUT_OF_SCOPE" : "COMPLETE";
             const { error: stateWriteError } = await admin.from("vbgramg_fto_inspection_state").upsert({
               fto_number_normalized: item.ftoNumber.trim().toUpperCase(),
               fto_number: item.ftoNumber.trim(),
@@ -313,11 +340,19 @@ Deno.serve(async (req: Request) => {
               updated_at: new Date().toISOString()
             }, { onConflict: "fto_number_normalized" });
             if (stateWriteError) throw new Error("Could not save FTO inspection state.");
-            results.push({ ftoNumber: item.ftoNumber, inspectionClassification: classification,
-              matchingJobCardCount: matchingCards.size, deferredInScopeCount: deferredInScope,
+            const result: Record<string, unknown> = { ftoNumber: item.ftoNumber, inspectionClassification: classification,
+              matchingJobCardCount: matchingCards.size, importableTransactionCount: transactions.length,
+              deferredInScopeCount: deferredInScope,
               signatoryDate: item.listingRow[5] || "", listingTransactionCount: Number(item.listingRow[6] || 0),
               listingAmount: Number(item.listingRow[7] || 0), listingRow: item.listingRow,
-              listingHeaders: item.listingHeaders || [], ...detail, transactions });
+              listingHeaders: item.listingHeaders || [], ...detail, transactions };
+            if (!imported.has(item.ftoNumber.trim().toUpperCase()) && matchingCards.size > 0) {
+              result.importPreviewToken = await makeImportPreviewToken(serviceKey, claims.sub, {
+                activeImportId: misIndex.importId, misUpdatedAt: misIndex.misUpdatedAt,
+                ftoNumber: item.ftoNumber, rows: transactions
+              });
+            }
+            results.push(result);
           } else {
             results.push({ ftoNumber: item.ftoNumber, signatoryDate: item.listingRow[5] || "", listingTransactionCount: Number(item.listingRow[6] || 0), listingAmount: Number(item.listingRow[7] || 0), listingRow: item.listingRow, listingHeaders: item.listingHeaders || [], ...detail });
           }

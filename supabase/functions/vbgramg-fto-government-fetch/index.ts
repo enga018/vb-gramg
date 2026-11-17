@@ -158,28 +158,9 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Recheck FTOs with current Deferred/blank transactions, even though their
-    // batch records already exist. Page reads to avoid PostgREST truncation.
-    const deferredBatchIds = new Set<string>();
-    for (let offset = 0; ; offset += 1000) {
-      const { data: txs, error: txError } = await admin.from("vbgramg_fto_transactions")
-        .select("batch_id").eq("is_current", true).in("status", ["blank", "deferred"])
-        .order("batch_id", { ascending: true }).range(offset, offset + 999);
-      if (txError) throw new Error("Could not identify Deferred FTOs for rechecking: " + txError.message);
-      for (const tx of txs || []) if (tx.batch_id) deferredBatchIds.add(String(tx.batch_id));
-      if (!txs || txs.length < 1000) break;
-    }
-    const deferredNumbers = new Set<string>();
-    const ids = [...deferredBatchIds];
-    for (let start = 0; start < ids.length; start += 500) {
-      const { data: batches, error: deferredError } = await admin.from("vbgramg_fto_batches")
-        .select("fto_number").in("id", ids.slice(start, start + 500));
-      if (deferredError) throw new Error("Could not load Deferred FTO identifiers: " + deferredError.message);
-      for (const batch of batches || []) {
-        const number = String(batch.fto_number || "").trim().toUpperCase();
-        if (number) deferredNumbers.add(number);
-      }
-    }
+    // Inspection is separate from import. COMPLETE but unimported FTOs remain
+    // available so a fresh secure preview token can be issued if an earlier one expired.
+    // OUT_OF_SCOPE FTOs are permanently skipped; imported FTOs are excluded above.
     const { data: inspectionRows, error: inspectionError } = await admin
       .from("vbgramg_fto_inspection_state")
       .select("fto_number_normalized,classification,last_inspected_at");
@@ -187,16 +168,10 @@ Deno.serve(async (req: Request) => {
     const inspectionByNumber = new Map((inspectionRows || []).map((row: any) => [
       String(row.fto_number_normalized || "").trim().toUpperCase(), String(row.classification || "")
     ]));
-    const shouldInspect = (item: { ftoNumber: string }) => {
-      const classification = inspectionByNumber.get(item.ftoNumber.trim().toUpperCase());
-      return !classification || classification === "RECHECK_REQUIRED";
-    };
-    const skippedInspectedFtos = newFtos.filter(item => !shouldInspect(item));
-    const eligibleNewFtos = newFtos.filter(shouldInspect);
-    const deferredFtos = alreadyImported.filter(item =>
-      inspectionByNumber.get(item.ftoNumber.trim().toUpperCase()) === "RECHECK_REQUIRED" ||
-      (!inspectionByNumber.has(item.ftoNumber.trim().toUpperCase()) && deferredNumbers.has(item.ftoNumber.trim().toUpperCase()))
-    );
+    const isOutOfScope = (item: { ftoNumber: string }) =>
+      inspectionByNumber.get(item.ftoNumber.trim().toUpperCase()) === "OUT_OF_SCOPE";
+    const skippedInspectedFtos = newFtos.filter(isOutOfScope);
+    const eligibleNewFtos = newFtos.filter(item => !isOutOfScope(item));
     const manifestToken = await makeManifestToken(serviceKey, candidates.map(({ detailUrl, ftoNumber, listingRow, listingHeaders }) => ({ detailUrl, ftoNumber, listingRow, listingHeaders })));
     const fingerprintBytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(candidates.map(item => item.detailUrl).join("\n")));
     const listingFingerprint = [...new Uint8Array(fingerprintBytes)].map(value => value.toString(16).padStart(2, "0")).join("");
@@ -214,12 +189,10 @@ Deno.serve(async (req: Request) => {
       listingFingerprint,
       manifestToken,
       manifestExpiresInSeconds: 2700,
-      deferredFtos,
-      deferredCount: deferredFtos.length,
       newFtos: eligibleNewFtos,
       alreadyImported,
       unrecognized,
-      message: "Government listing fetched and compared with imported history. Secure detail manifest prepared; no detail pages were fetched and no database records were changed.",
+      message: "Government listing fetched and compared with imported history. Imported and out-of-scope FTOs were excluded; eligible unimported FTOs are ready for inspection or import retry.",
     });
   } catch (error) {
     return reply({ error: error instanceof Error ? error.message : "Government listing fetch failed.", databaseChanged: false }, 502);

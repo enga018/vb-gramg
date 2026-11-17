@@ -30,7 +30,9 @@ function discoverCandidates(html: string, baseUrl: string) {
     for (const row of table[1].matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)) {
       const href = row[1].match(/<a\b[^>]*href\s*=\s*["']([^"']*fto_trasction_dtl\.aspx\?payload=[^"']+)["'][^>]*>/i)?.[1];
       if (!href) continue;
-      const detailUrl = new URL(decodeHtml(href), baseUrl).toString();
+      const detail = new URL(decodeHtml(href), baseUrl);
+      if (detail.hostname !== "vbgramgrep.dord.gov.in" || detail.pathname.toLowerCase() !== "/vbgramg/fto/fto_trasction_dtl.aspx" || !detail.searchParams.has("payload")) continue;
+      const detailUrl = detail.toString();
       if (seen.has(detailUrl)) continue;
       seen.add(detailUrl);
       const listingRow = [...row[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(cell => textOf(cell[1]));
@@ -80,12 +82,51 @@ Deno.serve(async (req: Request) => {
       signal: AbortSignal.timeout(20000),
     });
     const html = await response.text();
-    if (!response.ok) return reply({ error: "Government listing request failed.", government_http_status: response.status }, 502);
+    if (!response.ok) return reply({ error: "Government listing request failed.", government_http_status: response.status, databaseChanged: false }, 502);
+    if (new URL(response.url).hostname !== "vbgramgrep.dord.gov.in") return reply({ error: "The Government listing redirected to an unexpected host. No data was saved.", databaseChanged: false }, 502);
     const pageText = textOf(html);
     if (!/FTO\s+First\s+Signatory/i.test(pageText)) return reply({ error: "The response did not validate as the Government FTO listing. No data was saved." }, 502);
     const candidates = discoverCandidates(html, response.url);
-    if (!candidates.length) return reply({ error: "No FTO detail links were found in the Government listing. No data was saved." }, 502);
-    const fingerprintBytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(candidates.map(item => item.detailUrl).join("\n")));
+    if (!candidates.length) return reply({ error: "No valid FTO detail links were found in the Government listing. No data was saved.", databaseChanged: false }, 502);
+
+    // Read only the imported FTO identifiers. Page the query to avoid silently
+    // truncating history when the database grows beyond PostgREST's row limit.
+    const existingNumbers = new Set<string>();
+    for (let offset = 0; ; offset += 1000) {
+      const { data: batches, error: batchError } = await admin
+        .from("vbgramg_fto_batches")
+        .select("fto_number")
+        .order("fto_number", { ascending: true })
+        .range(offset, offset + 999);
+      if (batchError) throw new Error("Could not compare Government FTOs with imported history: " + batchError.message);
+      for (const batch of batches || []) {
+        const normalized = String(batch.fto_number || "").trim().toUpperCase();
+        if (normalized) existingNumbers.add(normalized);
+      }
+      if (!batches || batches.length < 1000) break;
+    }
+
+    const newFtos: { ftoNumber: string; listingRow: string[] }[] = [];
+    const alreadyImported: { ftoNumber: string; listingRow: string[] }[] = [];
+    const unrecognized: { ftoNumber: string; listingRow: string[] }[] = [];
+    const seenNumbers = new Set<string>();
+    for (const candidate of candidates) {
+      const ftoNumber = String(candidate.ftoNumber || "").trim();
+      const normalized = ftoNumber.toUpperCase();
+      const item = { ftoNumber, listingRow: candidate.listingRow };
+      if (!normalized) {
+        unrecognized.push(item);
+      } else if (seenNumbers.has(normalized)) {
+        // Repeated FTO numbers in the listing are not new import candidates.
+        alreadyImported.push(item);
+      } else {
+        seenNumbers.add(normalized);
+        if (existingNumbers.has(normalized)) alreadyImported.push(item);
+        else newFtos.push(item);
+      }
+    }
+
+    const fingerprintBytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(candidates.map(item => item.detailUrl).join("\\n")));
     const listingFingerprint = [...new Uint8Array(fingerprintBytes)].map(value => value.toString(16).padStart(2, "0")).join("");
     return reply({
       success: true,
@@ -93,9 +134,14 @@ Deno.serve(async (req: Request) => {
       source: "government",
       fetchedAt: new Date().toISOString(),
       listingCandidateCount: candidates.length,
+      newCount: newFtos.length,
+      alreadyImportedCount: alreadyImported.length,
+      unrecognizedCount: unrecognized.length,
       listingFingerprint,
-      candidates,
-      message: "Government listing fetched and validated. No FTO detail pages were fetched and no database records were changed.",
+      newFtos,
+      alreadyImported,
+      unrecognized,
+      message: "Government listing fetched and compared with imported FTO history. No detail pages were fetched and no database records were changed.",
     });
   } catch (error) {
     return reply({ error: error instanceof Error ? error.message : "Government listing fetch failed.", databaseChanged: false }, 502);

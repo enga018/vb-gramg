@@ -25,9 +25,9 @@ button{font:inherit;font-weight:650;border:1px solid transparent;border-radius:1
 <section class="panel" id="access-panel"><h2>Administrator access</h2><p>Sign in with an approved VBGRAMG administrator account.</p><div id="access-status" class="status">Checking your session…</div></section>
 <section class="panel" id="app-panel" hidden>
 <div class="notice"><strong>Read-only comparison.</strong> This fetches the Government listing and compares it with imported history and saved inspection results. Imported FTOs and FTOs with no Active MIS Job Card matches are permanently skipped. No Contribution periods or charges are created.</div>
-<div class="actions"><button id="fetch-button" type="button">Fetch Government FTO listing</button><button id="details-button" type="button" disabled>Fetch new FTO details</button></div>
+<div class="actions"><button id="fetch-button" type="button">Refresh Government listing</button><button id="details-button" type="button" disabled>Fetch new FTO details</button></div>
 <div id="details-panel" class="panel" hidden><h2>Transaction preview</h2><p class="section-note">Successful inspections save only the FTO inspection classification. FTO transaction history and Contribution records are not changed.</p><p id="details-progress" class="section-note">Ready.</p><div class="notice" style="margin:10px 0">Import records Government transaction history only. It does not calculate Contribution charges or assign a Contribution period.</div><button id="import-button" type="button" disabled>Import new FTO history</button><div id="import-status" class="status">Complete the detail preview before importing.</div><progress id="details-progressbar" max="1" value="0" style="width:100%;height:18px"></progress><div id="details-validation" class="stats" hidden></div><div id="details-results" class="table-wrap"></div></div>
-<div id="fetch-status" class="status">Ready. Select Fetch to contact the Government website.</div>
+<div id="fetch-status" class="status" aria-live="polite">Opening the Government listing…</div>
 <div id="results" hidden>
 <div class="stats">
 <div class="stat"><small>New FTOs</small><strong id="new-count">—</strong></div>
@@ -55,7 +55,7 @@ button{font:inherit;font-weight:650;border:1px solid transparent;border-radius:1
 (function(){
 "use strict";
 const $=id=>document.getElementById(id),client=window.vbgramgSupabase;
-let authSequence=0, manifestToken="", detailQueue=[], detailResults=[], misSnapshot=null, importedFtoNumbers=new Set();
+let authSequence=0, manifestToken="", detailQueue=[], detailResults=[], misSnapshot=null, importedFtoNumbers=new Set(), listingStarted=false;
 function status(id,message,type){const el=$(id);el.textContent=message;el.className="status"+(type?" "+type:"");}
 async function verifyAccess(user){
  const seq=++authSequence;
@@ -68,6 +68,7 @@ async function verifyAccess(user){
   return;
  }
  $("access-panel").hidden=true;$("app-panel").hidden=false;
+ if(!listingStarted){listingStarted=true;queueMicrotask(()=>$("fetch-button").click());}
 }
 client.auth.onAuthStateChange((event,session)=>{
  if(event==="SIGNED_OUT"){authSequence++;window.location.replace("./");}
@@ -319,7 +320,7 @@ $("fetch-button").addEventListener("click",async()=>{
   $("results").hidden=false;
   status("fetch-status",data.message+" This workflow fetches eligible unimported FTOs only; imported and out-of-scope FTOs are never rechecked. Listing fingerprint: "+data.listingFingerprint,"success");
  }catch(error){status("fetch-status",error.message||"Government fetch failed.","error");}
- finally{button.disabled=false;button.textContent="Fetch Government FTO listing";}
+ finally{button.disabled=false;button.textContent="Refresh Government listing";}
 });
 })();
 </script>

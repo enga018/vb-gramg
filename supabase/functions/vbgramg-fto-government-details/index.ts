@@ -203,6 +203,13 @@ Deno.serve(async (req: Request) => {
       .select("id,fto_number").in("fto_number", selected.map(item => item.ftoNumber));
     if (batchError) throw new Error("Could not verify imported FTO history.");
     const imported = new Map((batches || []).map(row => [String(row.fto_number).trim().toUpperCase(), String(row.id)]));
+    const { data: inspectionRows, error: inspectionError } = await admin.from("vbgramg_fto_inspection_state")
+      .select("fto_number_normalized,classification")
+      .in("fto_number_normalized", selected.map(item => item.ftoNumber.trim().toUpperCase()));
+    if (inspectionError) throw new Error("Could not verify persistent FTO inspection state.");
+    const inspectionByNumber = new Map((inspectionRows || []).map(row => [
+      String(row.fto_number_normalized).trim().toUpperCase(), String(row.classification)
+    ]));
     const batchIds = [...imported.values()];
     const deferredIds = new Set<string>();
     for (let start = 0; start < batchIds.length; start += 500) {
@@ -212,8 +219,15 @@ Deno.serve(async (req: Request) => {
       for (const tx of txs || []) deferredIds.add(String(tx.batch_id));
     }
     for (const item of selected) {
-      const batchId = imported.get(item.ftoNumber.trim().toUpperCase());
-      if (batchId && !deferredIds.has(batchId)) throw new Error("An already-imported FTO is no longer Deferred and cannot be re-fetched in this run.");
+      const normalized = item.ftoNumber.trim().toUpperCase();
+      const classification = inspectionByNumber.get(normalized);
+      if (classification === "COMPLETE" || classification === "OUT_OF_SCOPE") {
+        throw new Error("This FTO has already been inspected and is permanently excluded from future detail fetching.");
+      }
+      const batchId = imported.get(normalized);
+      if (!classification && batchId && !deferredIds.has(batchId)) {
+        throw new Error("An already-imported FTO is no longer Deferred and cannot be re-fetched in this run.");
+      }
     }
     const misIndex = await loadActiveMisIndex(admin);
     const results: Record<string, unknown>[] = [];
@@ -229,7 +243,27 @@ Deno.serve(async (req: Request) => {
               const exempt = misIndex.exemptCards.has(String(tx.jobCardNumber || "").trim().toUpperCase());
               return { ...tx, ...match, contributionExempt: exempt };
             });
-            results.push({ ftoNumber: item.ftoNumber, signatoryDate: item.listingRow[5] || "", listingTransactionCount: Number(item.listingRow[6] || 0), listingAmount: Number(item.listingRow[7] || 0), listingRow: item.listingRow, listingHeaders: item.listingHeaders || [], ...detail, transactions });
+            const inScope = transactions.filter(tx => tx.misMatchStatus !== "not_in_active_mis");
+            const matchingCards = new Set(inScope.map(tx => String(tx.jobCardNumber || "").trim().toUpperCase()).filter(Boolean));
+            const deferredInScope = inScope.filter(tx => tx.status === "deferred").length;
+            const classification = matchingCards.size === 0 ? "OUT_OF_SCOPE" :
+              deferredInScope > 0 ? "RECHECK_REQUIRED" : "COMPLETE";
+            const { error: stateWriteError } = await admin.from("vbgramg_fto_inspection_state").upsert({
+              fto_number_normalized: item.ftoNumber.trim().toUpperCase(),
+              fto_number: item.ftoNumber.trim(),
+              classification,
+              last_inspected_at: new Date().toISOString(),
+              matching_job_card_count: matchingCards.size,
+              deferred_transaction_count: deferredInScope,
+              transaction_count: transactions.length,
+              updated_at: new Date().toISOString()
+            }, { onConflict: "fto_number_normalized" });
+            if (stateWriteError) throw new Error("Could not save FTO inspection state.");
+            results.push({ ftoNumber: item.ftoNumber, inspectionClassification: classification,
+              matchingJobCardCount: matchingCards.size, deferredInScopeCount: deferredInScope,
+              signatoryDate: item.listingRow[5] || "", listingTransactionCount: Number(item.listingRow[6] || 0),
+              listingAmount: Number(item.listingRow[7] || 0), listingRow: item.listingRow,
+              listingHeaders: item.listingHeaders || [], ...detail, transactions });
           } else {
             results.push({ ftoNumber: item.ftoNumber, signatoryDate: item.listingRow[5] || "", listingTransactionCount: Number(item.listingRow[6] || 0), listingAmount: Number(item.listingRow[7] || 0), listingRow: item.listingRow, listingHeaders: item.listingHeaders || [], ...detail });
           }

@@ -8,7 +8,6 @@ const corsHeaders = {
   "Content-Type": "application/json",
 };
 const AUDIT_URL = "https://trtzhafgvqosjwrgckty.supabase.co/functions/v1/vbgramg-fto-list-audit";
-const DIAGNOSTIC_KEY = "ftoaudit-2026-11-16-7b8f3d91c2e64a0b";
 const EXPECTED = [
   { ftoNumber: "2207001000SSPAYREQ25082026114", count: 297 },
   { ftoNumber: "2207001000SSPAYREQ25082026117", count: 54 },
@@ -48,9 +47,10 @@ async function sha256(value: string) {
 }
 async function auditRequest(mode: string, body?: Record<string, unknown>, previewKey?: string) {
   const url = new URL(AUDIT_URL);
-  url.searchParams.set("key", DIAGNOSTIC_KEY);
+  const diagnosticKey = Deno.env.get("FTO_AUDIT_DIAGNOSTIC_KEY");
+  if (!diagnosticKey) throw new Error("FTO audit diagnostic secret is not configured.");
   url.searchParams.set("mode", mode);
-  const headers: Record<string, string> = { "Cache-Control": "no-store" };
+  const headers: Record<string, string> = { "Cache-Control": "no-store", "x-fto-diagnostic-key": diagnosticKey };
   const init: RequestInit = { method: "GET", headers, cache: "no-store" };
   if (body) {
     headers["Content-Type"] = "application/json";

@@ -26,21 +26,35 @@ function textOf(value: string) {
 function discoverCandidates(html: string, baseUrl: string) {
   const candidates: { detailUrl: string; listingRow: string[]; listingHeaders: string[]; ftoNumber: string }[] = [];
   const seen = new Set<string>();
-  for (const table of html.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)) {
-    const tableRows = [...table[1].matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)];
-    const headerMatch = tableRows.find(row => /<th\b/i.test(row[1]) && !/<a\b/i.test(row[1]));
-    const listingHeaders = headerMatch
-      ? [...headerMatch[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(cell => textOf(cell[1]))
-      : [];
-    for (const row of tableRows) {
-      const href = row[1].match(/<a\b[^>]*href\s*=\s*["']([^"']*fto_trasction_dtl\.aspx\?payload=[^"']+)["'][^>]*>/i)?.[1];
+  for (const table of html.matchAll(/<table\\b[^>]*>([\\s\\S]*?)<\\/table>/gi)) {
+    const tableRows = [...table[1].matchAll(/<tr\\b[^>]*>([\\s\\S]*?)<\\/tr>/gi)];
+    const cellValues = (rowHtml: string) =>
+      [...rowHtml.matchAll(/<t[dh]\\b[^>]*>([\\s\\S]*?)<\\/t[dh]>/gi)].map(cell => textOf(cell[1]));
+    const dataRowIndexes = tableRows
+      .map((row, index) => ({ row, index }))
+      .filter(({ row }) => /<a\\b[^>]*href\\s*=\\s*["'][^"']*fto_trasction_dtl\\.aspx\\?payload=/i.test(row[1]));
+    for (const { row, index } of dataRowIndexes) {
+      const href = row[1].match(/<a\\b[^>]*href\\s*=\\s*["']([^"']*fto_trasction_dtl\\.aspx\\?payload=[^"']+)["'][^>]*>/i)?.[1];
       if (!href) continue;
       const detail = new URL(decodeHtml(href), baseUrl);
       if (detail.hostname !== "vbgramgrep.dord.gov.in" || detail.pathname.toLowerCase() !== "/vbgramg/fto/fto_trasction_dtl.aspx" || !detail.searchParams.has("payload")) continue;
       const detailUrl = detail.toString();
       if (seen.has(detailUrl)) continue;
       seen.add(detailUrl);
-      const listingRow = [...row[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(cell => textOf(cell[1]));
+      const listingRow = cellValues(row[1]);
+      // Some Government ASP.NET grids render header cells as <td>, not <th>.
+      // Search backward from the first data row for a non-link row with the
+      // same number of cells; do not assume a particular header tag.
+      let listingHeaders: string[] = [];
+      for (let prior = index - 1; prior >= 0; prior--) {
+        const priorHtml = tableRows[prior][1];
+        if (/<a\\b/i.test(priorHtml)) continue;
+        const values = cellValues(priorHtml);
+        if (values.length === listingRow.length && values.some(value => /[A-Za-z]/.test(value))) {
+          listingHeaders = values;
+          break;
+        }
+      }
       candidates.push({ detailUrl, listingRow, listingHeaders, ftoNumber: String(listingRow[3] || "").trim() });
     }
   }

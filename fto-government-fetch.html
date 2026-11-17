@@ -320,7 +320,7 @@ $("fetch-button").addEventListener("click",async()=>{
   $("results").hidden=false;
   status("fetch-status",data.message+" This workflow fetches eligible unimported FTOs only; imported and out-of-scope FTOs are never rechecked. Listing fingerprint: "+data.listingFingerprint,"success");
  }catch(error){status("fetch-status",error.message||"Government fetch failed.","error");}
- finally{button.disabled=false;button.textContent="Fetch Government FTO listing";}
+ finally{button.disabled=false;button.textContent="Refresh Government listing";}
 });
 })();
 </script>

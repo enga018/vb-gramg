@@ -184,7 +184,7 @@ function extractVillage(value: string, jobCardNumber: string) {
   return String(value || "").replace(jobCardNumber, " ").replace(/[()\[\]{}]/g, " ")
     .replace(/\s+/g, " ").replace(/^[\s,;:.-]+|[\s,;:.-]+$/g, "").trim();
 }
-async function getPage(url: string) {
+async function getPage(url: string, ftoNumber: string) {
   const parsed = new URL(url);
   if (parsed.hostname !== "vbgramgrep.dord.gov.in" || parsed.pathname.toLowerCase() !== "/vbgramg/fto/fto_trasction_dtl.aspx" || !parsed.searchParams.has("payload"))
     throw new Error("A manifest entry failed Government URL validation.");
@@ -229,6 +229,8 @@ async function getPage(url: string) {
     const village = extractVillage(jobCell, jobCardNumber);
     const sourceRow = header.map((name, index) => ({ name, value: row[index] || "" }));
     transactions.push({
+      // Bind each parsed transaction to its parent FTO for the signed import contract.
+      ftoNumber,
       // Keep the established preview keys while exposing the exact import contract.
       jobCardNumber,
       referenceNumber,
@@ -318,7 +320,7 @@ Deno.serve(async (req: Request) => {
       while (cursor < selected.length) {
         const item = selected[cursor++];
         try {
-          const detail = await getPage(item.detailUrl);
+          const detail = await getPage(item.detailUrl, item.ftoNumber);
           if (detail.kind === "ok") {
             const transactions = detail.transactions.map(tx => {
               const match = matchTransactionToMis(tx, misIndex);

@@ -131,8 +131,7 @@ async function runDetailBatches(numbers){
     {label:"Rejected count",expected:numberAt(10),actual:statusCounts.rejected},
     {label:"Processed amount",expected:numberAt(9),actual:processedAmount},
     {label:"Rejected amount",expected:numberAt(11),actual:rejectedAmount},
-    {label:"Total amount",expected:numberAt(7),actual:totalAmount},
-    {label:"Total processed amount",expected:numberAt(12),actual:processedAmount}
+    {label:"Total amount",expected:numberAt(7),actual:totalAmount}
    ].map(x=>({...x,known:x.expected!==null,matches:x.expected!==null&&Math.abs(x.expected-x.actual)<0.005}));
    const listingMismatches=listingChecks.filter(x=>x.known&&!x.matches);
    const listingUnavailable=listingChecks.filter(x=>!x.known);
@@ -157,6 +156,7 @@ async function runDetailBatches(numbers){
    if(check){
     const notes=[];
     notes.push("Parsed "+check.txs.length+" detail rows (informational; Government 'No of Transaction' [6] is not treated as detail-row count).");
+    if(Array.isArray(item.listingRow)&&item.listingRow.length>12)notes.push("Government field [12] (Total Processed Amount) is displayed in the source listing but excluded from amount reconciliation pending clarification of its relationship to transaction statuses.");
     for(const result of check.listingMismatches)notes.push(result.label+" mismatch: Government "+result.expected+", parsed "+result.actual+".");
     if(check.listingUnavailable.length)notes.push("Government summary fields unavailable: "+check.listingUnavailable.map(x=>x.label).join(", ")+".");
     if(check.duplicateRefs)notes.push(check.duplicateRefs+" duplicate Reference Number(s).");

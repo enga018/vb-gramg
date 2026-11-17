@@ -93,7 +93,7 @@ test("Previously inspected eligible FTOs reuse saved rows and detect stale Activ
 test("Stale saved inspections cannot be imported and are clearly shown in the UI", () => {
   assert.match(page, /staleInspections\.length>0/);
   assert.match(page, /STALE INSPECTION — Active MIS has changed/);
-  assert.match(page, /Prepare eligible FTOs for import \("\+newFtoCount"\+\)/);
+  assert.match(page, /Prepare eligible FTOs for import \("\+newFtoCount\+"\)/);
 });
 
 test("Inspection writes and batch inserts serialize on the normalized FTO identity", () => {

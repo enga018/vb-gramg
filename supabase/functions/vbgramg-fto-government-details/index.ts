@@ -145,7 +145,7 @@ Deno.serve(async (req: Request) => {
         const item = selected[cursor++];
         try {
           const detail = await getPage(item.detailUrl);
-          results.push({ ftoNumber: item.ftoNumber, listingRow: item.listingRow, ...detail });
+          results.push({ ftoNumber: item.ftoNumber, signatoryDate: item.listingRow[5] || "", listingTransactionCount: Number(item.listingRow[6] || 0), listingAmount: Number(item.listingRow[7] || 0), listingRow: item.listingRow, ...detail });
         } catch (error) {
           results.push({ ftoNumber: item.ftoNumber, kind: "fetch_failure", error: "Government detail request failed. Retry this FTO." });
         }

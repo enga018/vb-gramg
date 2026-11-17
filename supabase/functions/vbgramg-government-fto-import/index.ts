@@ -165,7 +165,10 @@ Deno.serve(async (req: Request) => {
     for (const spec of EXPECTED) {
       const live = livePreview.ftoResults.find((x: Record<string, any>) => x.ftoNumber === spec.ftoNumber);
       const uploaded = payload.ftos.find((x: Record<string, any>) => x.ftoNumber === spec.ftoNumber);
-      if (!live || live.listingChanged || live.pageError || Number(live.exactMatches) !== spec.count ||
+      if (!live || live.listingChanged || live.pageError ||
+          Number(live.transactionCount) !== spec.count || Number(live.exactMatches) !== spec.count ||
+          Number(live.nonMatches) !== 0 || Number(live.rejected) !== spec.count ||
+          Number(live.processed) !== 0 || Number(live.deferred) !== 0 ||
           Number(live.duplicateExactJobCardRows) !== 0 || !Array.isArray(live.matchingRows) ||
           live.matchingRows.length !== spec.count || !uploaded || !Array.isArray(uploaded.rows)) {
         return reply({ error: "Live Government verification failed for " + spec.ftoNumber + ". Generate a fresh preview." }, 409);

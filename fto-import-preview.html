@@ -104,6 +104,11 @@ async function run(){
   finalPayload={
    auditMode:"import-preview",databaseChanged:false,listingCandidateCount:expected,listingFingerprint:manifest.listingFingerprint,
    activeImportId:manifest.activeImportId,misUpdatedAt:manifest.misUpdatedAt,uniqueMisJobCards:manifest.uniqueMisJobCards,
+   sourceSnapshot:{
+    listingFingerprint:manifest.listingFingerprint,
+    snapshotFtoNumbers:candidates.map(x=>String(x.listingRow[3]||"").trim()),
+    candidates:candidates.map(x=>({detailUrl:x.detailUrl,listingRow:x.listingRow}))
+   },
    batchesCompleted:batches,testedPages:tested,ftoCountWithExactMatches:matchingFtos.length,
    listingChanges,pageErrors,listingAdditions,exactMatchingTransactionCount:matchingRows.length,statusCounts,
    nonMatchingRowCount:nonMatchingRows.length,duplicateExactJobCardRows:duplicateJobCardRows,duplicateReferenceCount,

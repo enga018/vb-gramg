@@ -111,11 +111,33 @@ async function runDetailBatches(numbers){
    const missingAmounts=txs.filter(tx=>!String(tx.amount||"").trim()).length;
    const statusCounts={processed:0,rejected:0,deferred:0,unknown:0};
    for(const tx of txs){const status=String(tx.status||"").toLowerCase();if(status in statusCounts && status!=="unknown")statusCounts[status]++;else statusCounts.unknown++;}
-   const expected=Number(item.listingTransactionCount);
-   const countKnown=Number.isFinite(expected)&&expected>=0;
-   const countMatches=countKnown&&expected===txs.length;
-   const warnings=(!countKnown?1:0)+(countKnown&&!countMatches?1:0)+(duplicateRefs>0?1:0)+(missingJobCards>0?1:0)+(missingReferences>0?1:0)+(missingAmounts>0?1:0)+(statusCounts.unknown>0?1:0);
-   return {item,txs,duplicateRefs,missingJobCards,missingReferences,missingAmounts,statusCounts,countKnown,expected,countMatches,warnings};
+   const listing=Array.isArray(item.listingRow)?item.listingRow:[];
+   const numberAt=(index)=>{
+    const raw=String(listing[index]??"").trim();
+    if(!raw)return null;
+    const parsed=Number(raw.replace(/,/g,"").replace(/[^0-9.-]/g,""));
+    return Number.isFinite(parsed)?parsed:null;
+   };
+   const sumAmount=(rows)=>rows.reduce((sum,tx)=>{
+    const raw=String(tx.amount??"").trim();
+    const value=raw?Number(raw.replace(/,/g,"").replace(/[^0-9.-]/g,"")):NaN;
+    return sum+(Number.isFinite(value)?value:0);
+   },0);
+   const processedRows=txs.filter(tx=>String(tx.status||"").toLowerCase()==="processed");
+   const rejectedRows=txs.filter(tx=>String(tx.status||"").toLowerCase()==="rejected");
+   const processedAmount=sumAmount(processedRows),rejectedAmount=sumAmount(rejectedRows),totalAmount=sumAmount(txs);
+   const listingChecks=[
+    {label:"Processed count",expected:numberAt(8),actual:statusCounts.processed},
+    {label:"Rejected count",expected:numberAt(10),actual:statusCounts.rejected},
+    {label:"Processed amount",expected:numberAt(9),actual:processedAmount},
+    {label:"Rejected amount",expected:numberAt(11),actual:rejectedAmount},
+    {label:"Total amount",expected:numberAt(7),actual:totalAmount},
+    {label:"Total processed amount",expected:numberAt(12),actual:processedAmount}
+   ].map(x=>({...x,known:x.expected!==null,matches:x.expected!==null&&Math.abs(x.expected-x.actual)<0.005}));
+   const listingMismatches=listingChecks.filter(x=>x.known&&!x.matches);
+   const listingUnavailable=listingChecks.filter(x=>!x.known);
+   const warnings=(listingMismatches.length>0?1:0)+(listingUnavailable.length>0?1:0)+(duplicateRefs>0?1:0)+(missingJobCards>0?1:0)+(missingReferences>0?1:0)+(missingAmounts>0?1:0)+(statusCounts.unknown>0?1:0);
+   return {item,txs,duplicateRefs,missingJobCards,missingReferences,missingAmounts,statusCounts,listingChecks,listingMismatches,listingUnavailable,warnings};
   });
   const passed=checks.filter(x=>x.warnings===0).length;
   const warningCount=checks.filter(x=>x.warnings>0).length;
@@ -134,17 +156,14 @@ async function runDetailBatches(numbers){
    const heading=document.createElement("h3");heading.textContent=item.ftoNumber+" — "+(item.signatoryDate?"Signatory date: "+item.signatoryDate+" · ":"")+(item.kind==="ok"?"Loaded "+item.transactions.length+" transactions":item.kind);section.append(heading);
    if(check){
     const notes=[];
-    notes.push(check.countKnown?(check.countMatches?"Transaction count matches listing ("+check.expected+").":"Count mismatch: listing "+check.expected+", parsed "+check.txs.length+"."):"Listing transaction count unavailable.");
+    notes.push("Parsed "+check.txs.length+" detail rows (informational; Government 'No of Transaction' [6] is not treated as detail-row count).");
+    for(const result of check.listingMismatches)notes.push(result.label+" mismatch: Government "+result.expected+", parsed "+result.actual+".");
+    if(check.listingUnavailable.length)notes.push("Government summary fields unavailable: "+check.listingUnavailable.map(x=>x.label).join(", ")+".");
     if(check.duplicateRefs)notes.push(check.duplicateRefs+" duplicate Reference Number(s).");
     if(check.missingJobCards)notes.push(check.missingJobCards+" transaction(s) have no Job Card Number.");
     if(check.missingReferences)notes.push(check.missingReferences+" transaction(s) have no Reference Number.");
     if(check.missingAmounts)notes.push(check.missingAmounts+" transaction(s) have no parsed amount.");
     if(check.statusCounts.unknown)notes.push(check.statusCounts.unknown+" transaction(s) have an unrecognized status (not counted as Deferred).");
-    if(check.countKnown&&!check.countMatches&&Array.isArray(item.listingRow)){
-     const headers=Array.isArray(item.listingHeaders)?item.listingHeaders:[];
-     notes.push("Government listing fields: "+item.listingRow.map((v,i)=>((headers[i]||("Column "+(i+1)))+" ["+i+"]: "+(v||"—"))).join(" | "));
-     notes.push("Transaction-count comparison currently uses cell [6]; its header is: "+(headers[6]||"not captured")+". This mapping remains unverified.");
-    }
     const note=document.createElement("p");note.className="section-note";note.textContent=(check.warnings===0?"PASS — ":"WARNING — ")+notes.join(" ");section.append(note);
    }
    if(item.kind==="ok"){

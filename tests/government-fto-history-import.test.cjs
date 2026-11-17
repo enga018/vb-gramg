@@ -16,11 +16,12 @@ test("Government detail parser binds every transaction to its parent FTO", () =>
   assert.match(details, /getPage\(item\.detailUrl, item\.ftoNumber\)/);
 });
 
-test("Eligibility is based on Active MIS Job Card presence and retains every FTO row", () => {
+test("Eligibility is based on Active MIS Job Card presence and only matching rows enter FTO History", () => {
   assert.match(details, /const matchingTransactions = transactions\.filter\(tx => tx\.misMatchStatus !== "not_in_active_mis"\)/);
   assert.match(details, /const matchingCards = new Set\(matchingTransactions\.map/);
-  assert.match(details, /importableTransactionCount: transactions\.length/);
-  assert.match(details, /rows: transactions/);
+  assert.match(details, /importableTransactionCount: matchingTransactions\.length/);
+  assert.match(details, /transactions: matchingTransactions, validationTransactions: transactions/);
+  assert.match(details, /rows: matchingTransactions/);
   assert.doesNotMatch(details, /village.*(?:filter|eligible|scope)/i);
 });
 
@@ -59,6 +60,8 @@ test("SQL independently validates normalized Active MIS matching and duplicate p
   assert.match(migration, /upper\(btrim\(b\.fto_number\)\) = upper\(v_fto_number\)/i);
   assert.match(migration, /v_reference = any\(v_seen_refs\)/i);
   assert.match(migration, /if not v_fto_has_active_mis_match then/i);
+  assert.match(migration, /if v_is_in_scope then[\\s\\S]*?insert into public\\.vbgramg_fto_transactions/i);
+  assert.match(migration, /transaction_count\\x27, v_fto_transaction_count/i);
 });
 
 test("Fetcher permanently excludes imported and out-of-scope FTOs without Deferred rechecks", () => {
@@ -71,7 +74,8 @@ test("Frontend chunks by FTO count and byte size, and warns about partial comple
   assert.match(page, /candidate\.length>50/);
   assert.match(page, /maxBytes=8_000_000/);
   assert.match(page, /Earlier successful requests remain imported/);
-  assert.match(page, /Unmatched rows included for later review/);
+  assert.match(page, /Unmatched Government rows excluded \(not stored\)/);
+  assert.match(page, /Only Active MIS-matched transaction rows will be imported/);
   assert.match(page, /refresh the Government listing and FTO History before attempting another import/i);
 });
 

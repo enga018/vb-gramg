@@ -73,6 +73,7 @@ function validate(doc){
  if(Number(doc.listingCandidateCount)!==371||Number(doc.testedPages)!==371)throw Error("The preview does not match the complete 371-page Government FTO audit.");
  if(Number(doc.exactMatchingTransactionCount)!==1101||Number(doc.ftoCountWithExactMatches)!==10)throw Error("The preview's overall exact-match audit totals do not match the reviewed file.");
  if(Number(doc.statusCounts?.rejected)!==354||Number(doc.nonMatchingRowCount)!==31283)throw Error("The preview's status or nonmatching-row totals do not match the reviewed audit.");
+ if(!doc.sourceSnapshot||!Array.isArray(doc.sourceSnapshot.candidates)||doc.sourceSnapshot.candidates.length!==371||!Array.isArray(doc.sourceSnapshot.snapshotFtoNumbers)||doc.sourceSnapshot.snapshotFtoNumbers.length!==371||doc.sourceSnapshot.listingFingerprint!==doc.listingFingerprint)throw Error("The preview is missing the complete Government listing snapshot. Generate a fresh preview.");
  if(!Array.isArray(doc.matchingRows))throw Error("The preview does not contain matching transaction rows.");
  const target=new Map(EXPECTED.map(x=>[x.ftoNumber,[]]));
  for(const row of doc.matchingRows){if(target.has(String(row.ftoNumber)))target.get(String(row.ftoNumber)).push(row);}
@@ -100,7 +101,7 @@ function validate(doc){
  if(allRefs.size!==354||allCards.size!==354)throw Error("The combined preview does not contain 354 unique references and Job Cards.");
  const expectedRefs=ftos.reduce((n,x)=>n+x.rows.length,0);
  if(expectedRefs!==354)throw Error("The combined row count is not 354.");
- return {previewMeta:{activeImportId:String(doc.activeImportId),misUpdatedAt:String(doc.misUpdatedAt),listingFingerprint:String(doc.listingFingerprint||""),testedPages:Number(doc.testedPages),listingCandidateCount:Number(doc.listingCandidateCount),auditMode:String(doc.auditMode),databaseChanged:doc.databaseChanged===true,exactMatchingTransactionCount:Number(doc.exactMatchingTransactionCount),ftoCountWithExactMatches:Number(doc.ftoCountWithExactMatches),rejectedStatusCount:Number(doc.statusCounts?.rejected),nonMatchingRowCount:Number(doc.nonMatchingRowCount),duplicateExactJobCardRows:Number(doc.duplicateExactJobCardRows),duplicateReferenceCount:Number(doc.duplicateReferenceCount),pageErrorsCount:doc.pageErrors.length,listingChangesCount:doc.listingChanges.length,listingAdditionsCount:doc.listingAdditions.length},ftos};
+ return {sourceSnapshot:doc.sourceSnapshot,previewMeta:{activeImportId:String(doc.activeImportId),misUpdatedAt:String(doc.misUpdatedAt),listingFingerprint:String(doc.listingFingerprint||""),testedPages:Number(doc.testedPages),listingCandidateCount:Number(doc.listingCandidateCount),auditMode:String(doc.auditMode),databaseChanged:doc.databaseChanged===true,exactMatchingTransactionCount:Number(doc.exactMatchingTransactionCount),ftoCountWithExactMatches:Number(doc.ftoCountWithExactMatches),rejectedStatusCount:Number(doc.statusCounts?.rejected),nonMatchingRowCount:Number(doc.nonMatchingRowCount),duplicateExactJobCardRows:Number(doc.duplicateExactJobCardRows),duplicateReferenceCount:Number(doc.duplicateReferenceCount),pageErrorsCount:doc.pageErrors.length,listingChangesCount:doc.listingChanges.length,listingAdditionsCount:doc.listingAdditions.length},ftos};
 }
 function render(payload){
  const host=$("fto-list");host.replaceChildren();

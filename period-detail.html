@@ -35,7 +35,13 @@ tbody tr:last-child td{border-bottom:0}
 .pill.closed,.pill.deferred,.pill.voided{background:#f0f2f5;color:#667085}
 .pill.rejected{background:#fff1ef;color:#a12b20}
 .pill.other{background:#fff7e6;color:#925f08}
+.contribution-filters{display:grid;grid-template-columns:minmax(220px,1fr) minmax(160px,220px) auto;align-items:end;gap:10px;margin:-2px 0 12px}
+.filter-field{display:grid;gap:5px;color:var(--muted);font-size:.76rem;font-weight:650}
+.filter-field input,.filter-field select{width:100%;min-height:40px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:var(--ink);font:inherit;font-weight:450}
+.filter-field input:focus,.filter-field select:focus{outline:3px solid rgb(36 87 197 / 18%);border-color:#7395d0}
+#contribution-visible-count{padding-bottom:10px;white-space:nowrap}
 .money{font-variant-numeric:tabular-nums;white-space:nowrap}
+@media(max-width:767px){.contribution-filters{grid-template-columns:1fr 1fr}.filter-field:first-child{grid-column:1/-1}#contribution-visible-count{grid-column:1/-1;padding:0}}
 .hidden{display:none!important}
 @media(max-width:767px){
  body{padding:10px}.period-topbar{padding:13px;border-radius:13px}.panel{padding:14px;border-radius:13px}
@@ -70,6 +76,11 @@ tbody tr:last-child td{border-bottom:0}
 </section>
 <section class="panel">
 <div class="section-head"><h2>Contribution records</h2><span class="muted" id="contribution-count"></span></div>
+<div class="contribution-filters" aria-label="Filter contribution records">
+ <label class="filter-field"><span>Search records</span><input id="contribution-search" type="search" placeholder="Job Card, applicant or FTO reference"></label>
+ <label class="filter-field"><span>Status</span><select id="contribution-status"><option value="all">All statuses</option><option value="recorded">Recorded</option><option value="deferred">Deferred</option><option value="voided">Voided</option><option value="returned">Returned</option></select></label>
+ <span class="muted" id="contribution-visible-count" aria-live="polite"></span>
+</div>
 <div class="table-wrap"><table><thead><tr><th>Job Card</th><th>Applicant</th><th>Charge</th><th>Date</th><th>FTO reference</th><th>Status</th></tr></thead><tbody id="contribution-body"><tr><td class="empty" colspan="6">Loading…</td></tr></tbody></table></div>
 </section>
 <section class="panel">
@@ -112,15 +123,37 @@ function render(data){
  $("stat-batches").textContent=Number(s.fto_batches||0).toLocaleString("en-IN");
  $("stat-deferred").textContent=Number(s.deferred_records||0).toLocaleString("en-IN");
  $("period-created").textContent="Created "+(p.created_at?new Date(p.created_at).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}):"date unavailable")+(p.closed_at?" · Closed "+fmtDate(p.closed_at):"");
+ const contributionStatus=row=>row.is_voided?"voided":(row.entry_type==="charge"&&String(row.note||"").trim()==="Return")?"returned":row.is_deferred?"deferred":"recorded";
+ const contributionLabel=status=>({voided:"Voided",returned:"Returned",deferred:"Deferred",recorded:"Recorded"}[status]||"Recorded");
+ const contributionCounts={all:contributions.length,recorded:0,deferred:0,voided:0,returned:0};
+ for(const row of contributions)contributionCounts[contributionStatus(row)]++;
  $("contribution-count").textContent=contributions.length+" records";
- renderTableRows("contribution-body",contributions,[
-  {label:"Job Card",render:r=>"<strong>"+esc(r.job_card_number||"—")+"</strong>"},
-  {label:"Applicant",render:r=>esc(r.applicant_name||r.fto_applicant_name||r.person_name||"—")},
-  {label:"Charge",render:r=>'<span class="money">'+fmtMoney(r.amount)+'</span>'},
-  {label:"Date",render:r=>esc(fmtDate(r.entry_date||r.created_at))},
-  {label:"FTO reference",render:r=>{const refs=Array.isArray(r.reference_numbers)?r.reference_numbers:[];return esc(refs.join(", ")||"—")}},
-  {label:"Status",render:r=>{const returned=r.entry_type==="charge"&&String(r.note||"").trim()==="Return";const status=r.is_voided?"Voided":returned?"Returned":r.is_deferred?"Deferred":"Recorded";return '<span class="pill '+(r.is_voided||returned?"voided":r.is_deferred?"deferred":"")+'">'+status+"</span>"}}
- ],"No contribution records are linked to this period.");
+ for(const [value,count] of Object.entries(contributionCounts)){
+  const option=$("contribution-status").querySelector('option[value="'+value+'"]');
+  if(option)option.textContent=(value==="all"?"All statuses":contributionLabel(value))+" ("+count+")";
+ }
+ const renderContributions=()=>{
+  const query=$("contribution-search").value.trim().toLowerCase();
+  const status=$("contribution-status").value;
+  const visible=contributions.filter(row=>{
+   const rowStatus=contributionStatus(row);
+   const refs=Array.isArray(row.reference_numbers)?row.reference_numbers.join(" "):"";
+   const haystack=[row.job_card_number,row.applicant_name,row.fto_applicant_name,row.person_name,refs].join(" ").toLowerCase();
+   return (status==="all"||rowStatus===status)&&(!query||haystack.includes(query));
+  });
+  $("contribution-visible-count").textContent="Showing "+visible.length+" of "+contributions.length;
+  renderTableRows("contribution-body",visible,[
+   {label:"Job Card",render:r=>"<strong>"+esc(r.job_card_number||"—")+"</strong>"},
+   {label:"Applicant",render:r=>esc(r.applicant_name||r.fto_applicant_name||r.person_name||"—")},
+   {label:"Charge",render:r=>'<span class="money">'+fmtMoney(r.amount)+'</span>'},
+   {label:"Date",render:r=>esc(fmtDate(r.entry_date||r.created_at))},
+   {label:"FTO reference",render:r=>{const refs=Array.isArray(r.reference_numbers)?r.reference_numbers:[];return esc(refs.join(", ")||"—")}},
+   {label:"Status",render:r=>{const status=contributionStatus(r);return '<span class="pill '+(status==="voided"||status==="returned"?"voided":status==="deferred"?"deferred":"")+'">'+contributionLabel(status)+"</span>"}}
+  ],"No contribution records match these filters.");
+ };
+ $("contribution-search").addEventListener("input",renderContributions);
+ $("contribution-status").addEventListener("change",renderContributions);
+ renderContributions();
  $("fto-count").textContent=batches.length+" batches · "+transactions.length+" current transactions";
  const allocationRows=data.allocation_status||[];
  $("allocation-count").textContent=allocationRows.length+" job cards";

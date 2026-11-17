@@ -106,39 +106,9 @@ async function runDetailBatches(numbers){
   const failed=detailResults.filter(x=>x.kind!=="ok");
   const checks=successful.map(item=>{
    const txs=Array.isArray(item.transactions)?item.transactions:[];
-   const refs=txs.map(tx=>String(tx.referenceNumber||"").trim()).filter(Boolean);
-   const duplicateRefs=refs.length-new Set(refs.map(v=>v.toUpperCase())).size;
-   const missingJobCards=txs.filter(tx=>!String(tx.jobCardNumber||"").trim()).length;
-   const missingReferences=txs.filter(tx=>!String(tx.referenceNumber||"").trim()).length;
-   const missingAmounts=txs.filter(tx=>!String(tx.amountToBeCredited||"").trim() || !String(tx.creditAmount||"").trim()).length;
    const statusCounts={processed:0,rejected:0,deferred:0,unknown:0};
    for(const tx of txs){const status=String(tx.status||"").toLowerCase();if(status in statusCounts && status!=="unknown")statusCounts[status]++;else statusCounts.unknown++;}
-   const listing=Array.isArray(item.listingRow)?item.listingRow:[];
-   const numberAt=(index)=>{
-    const raw=String(listing[index]??"").trim();
-    if(!raw)return null;
-    const parsed=Number(raw.replace(/,/g,"").replace(/[^0-9.-]/g,""));
-    return Number.isFinite(parsed)?parsed:null;
-   };
-   const sumAmount=(rows)=>rows.reduce((sum,tx)=>{
-    const raw=String(tx.amount??"").trim();
-    const value=raw?Number(raw.replace(/,/g,"").replace(/[^0-9.-]/g,"")):NaN;
-    return sum+(Number.isFinite(value)?value:0);
-   },0);
-   const processedRows=txs.filter(tx=>String(tx.status||"").toLowerCase()==="processed");
-   const rejectedRows=txs.filter(tx=>String(tx.status||"").toLowerCase()==="rejected");
-   const processedAmount=sumAmount(processedRows),rejectedAmount=sumAmount(rejectedRows),totalAmount=sumAmount(txs);
-   const listingChecks=[
-    {label:"Processed count",expected:numberAt(8),actual:statusCounts.processed},
-    {label:"Rejected count",expected:numberAt(10),actual:statusCounts.rejected},
-    {label:"Processed amount",expected:numberAt(9),actual:processedAmount},
-    {label:"Rejected amount",expected:numberAt(11),actual:rejectedAmount},
-    {label:"Total amount",expected:numberAt(7),actual:totalAmount}
-   ].map(x=>({...x,known:x.expected!==null,matches:x.expected!==null&&Math.abs(x.expected-x.actual)<0.005}));
-   const listingMismatches=listingChecks.filter(x=>x.known&&!x.matches);
-   const listingUnavailable=listingChecks.filter(x=>!x.known);
-   const warnings=(listingMismatches.length>0?1:0)+(listingUnavailable.length>0?1:0)+(duplicateRefs>0?1:0)+(missingJobCards>0?1:0)+(missingReferences>0?1:0)+(missingAmounts>0?1:0)+(statusCounts.unknown>0?1:0);
-   return {item,txs,duplicateRefs,missingJobCards,missingReferences,missingAmounts,statusCounts,listingChecks,listingMismatches,listingUnavailable,warnings};
+   return {item,txs,statusCounts,warnings:item.backendValidated===true?0:1};
   });
   const passed=checks.filter(x=>x.warnings===0).length;
   const warningCount=checks.filter(x=>x.warnings>0).length;
@@ -164,7 +134,7 @@ async function runDetailBatches(numbers){
    if(tx.misMatchStatus in misCounts){misCounts[tx.misMatchStatus]++;if(card)uniqueCards[tx.misMatchStatus].add(card);}
   }
   const misHeading=document.createElement("h3");misHeading.textContent="Active MIS matching · read-only";validation.append(misHeading);
-  const misNote=document.createElement("p");misNote.className="section-note";misNote.textContent="Counts below show unique Job Cards, not transaction rows. Transactions remain visible even when their Job Card is absent from the current Active MIS.";validation.append(misNote);
+  const misNote=document.createElement("p");misNote.className="section-note";misNote.textContent="Counts below show unique Job Cards, not transaction rows. Only Active MIS Job Cards are included in the import preview. Out-of-scope transaction details are not retained.";validation.append(misNote);
   addStat("Matched Job Cards",uniqueCards.matched.size);
   addStat("Applicant review Job Cards",uniqueCards.applicant_review.size);
   addStat("Outside Active MIS / not found",uniqueCards.not_in_active_mis.size);
@@ -177,7 +147,7 @@ async function runDetailBatches(numbers){
   for(const item of detailResults){
    const section=document.createElement("section");section.style.margin="14px 0";
    const check=checks.find(x=>x.item===item);
-   const heading=document.createElement("h3");heading.textContent=item.ftoNumber+" — "+(item.signatoryDate?"Signatory date: "+item.signatoryDate+" · ":"")+(item.kind==="ok"?"Loaded "+item.transactions.length+" transaction rows · "+Number(item.importableTransactionCount||0)+" rows included in import · "+(item.inspectionClassification||"inspected"):item.kind);section.append(heading);
+   const heading=document.createElement("h3");heading.textContent=item.ftoNumber+" — "+(item.signatoryDate?"Signatory date: "+item.signatoryDate+" · ":"")+(item.kind==="ok"?"Loaded "+Number(item.governmentTransactionCount||0)+" Government rows · "+Number(item.importableTransactionCount||0)+" matching rows stored · "+Number(item.unmatchedTransactionCount||0)+" unmatched (count only) · "+(item.inspectionClassification||"inspected"):item.kind);section.append(heading);
    if(check){
     const notes=[];
     notes.push("Parsed "+check.txs.length+" detail rows (informational; Government 'No of Transaction' [6] is not treated as detail-row count).");
@@ -245,10 +215,10 @@ $("import-button").addEventListener("click",async()=>{
  if(!eligible.length){status("import-status","There are no eligible, unimported FTOs in this preview.","error");return;}
  if(eligible.some(item=>!item.importPreviewToken)){status("import-status","A server-issued import preview is missing. Fetch and review FTO details again.","error");return;}
  const transactionCount=eligible.reduce((n,item)=>n+Number(item.importableTransactionCount||0),0);
- const unmatchedRows=eligible.reduce((n,item)=>n+(Array.isArray(item.transactions)?item.transactions.filter(tx=>tx.misMatchStatus==="not_in_active_mis").length:0),0);
+ const unmatchedRows=eligible.reduce((n,item)=>n+Number(item.unmatchedTransactionCount||0),0);
  const chunks=buildImportChunks(eligible);
  if(!chunks.length)return;
- const confirmation="Import "+eligible.length+" eligible FTO(s) and "+transactionCount+" Government transaction row(s) into FTO History?\n\nOut of scope and skipped: "+outOfScope.length+" FTO(s).\nUnmatched rows included for later review: "+unmatchedRows+". All transaction rows in eligible FTOs are retained.\nImport requests: "+chunks.length+" (maximum 50 FTOs per request).\n\nEach request is atomic. If a later request fails, earlier successful requests remain imported. No Contribution period, charges or ledger entries will be created. Continue?";
+ const confirmation="Import "+eligible.length+" eligible FTO(s) and "+transactionCount+" Government transaction row(s) into FTO History?\n\nOut of scope and skipped: "+outOfScope.length+" FTO(s).\nUnmatched rows excluded from storage (aggregate count only): "+unmatchedRows+". Only Active MIS-matching transaction details are stored.\nImport requests: "+chunks.length+" (maximum 50 FTOs per request).\n\nEach request is atomic. If a later request fails, earlier successful requests remain imported. No Contribution period, charges or ledger entries will be created. Continue?";
  if(!window.confirm(confirmation))return;
  button.disabled=true;button.textContent="Importing…";
  let completedBatches=0,completedFtos=0,completedRows=0;

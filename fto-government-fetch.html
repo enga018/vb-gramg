@@ -103,7 +103,7 @@ async function runDetailBatches(numbers){
   target.replaceChildren();
   for(const item of detailResults){
    const section=document.createElement("section");section.style.margin="14px 0";
-   const heading=document.createElement("h3");heading.textContent=item.ftoNumber+" — "+(item.kind==="ok"?"Loaded "+item.transactions.length+" transactions":item.kind);section.append(heading);
+   const heading=document.createElement("h3");heading.textContent=item.ftoNumber+" — "+(item.signatoryDate?"Signatory date: "+item.signatoryDate+" · ":"")+(item.kind==="ok"?"Loaded "+item.transactions.length+" transactions":item.kind);section.append(heading);
    if(item.kind==="ok"){
     const table=document.createElement("table"),thead=document.createElement("thead"),trh=document.createElement("tr");
     ["Job Card Number","Reference Number","Status","Amount","Village","Person"].forEach(v=>{const th=document.createElement("th");th.textContent=v;trh.append(th);});

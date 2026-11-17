@@ -336,9 +336,9 @@ Deno.serve(async (req: Request) => {
               const match = matchTransactionToMis(tx, misIndex);
               return { ...tx, ftoNumber: item.ftoNumber, ...match };
             });
-            // Eligibility is based only on whether a transaction's full Job Card Number
-            // exists in the reviewed Active MIS. Retain every transaction in the FTO,
-            // including unmatched rows, for later review during Contribution charge creation.
+            // An FTO is eligible when at least one transaction's full Job Card Number
+            // exists in the reviewed Active MIS. Only those matching rows enter FTO History.
+            // Keep the complete inspection payload separately for source reconciliation.
             const matchingTransactions = transactions.filter(tx => tx.misMatchStatus !== "not_in_active_mis");
             const matchingCards = new Set(matchingTransactions.map(tx => String(tx.jobCardNumber || "").trim().toUpperCase()).filter(Boolean));
             const deferredInScope = matchingTransactions.filter(tx => tx.normalizedStatus === "blank").length;
@@ -362,7 +362,7 @@ Deno.serve(async (req: Request) => {
                 last_inspected_at: new Date().toISOString(),
                 matching_job_card_count: matchingCards.size,
                 deferred_transaction_count: deferredInScope,
-                transaction_count: transactions.length,
+                transaction_count: matchingTransactions.length,
                 updated_at: new Date().toISOString()
               }, { onConflict: "fto_number_normalized" });
               if (stateWriteError) throw new Error("Could not save FTO inspection state.");
@@ -382,19 +382,20 @@ Deno.serve(async (req: Request) => {
             const listingRow = hasSavedTransactions && Array.isArray(savedData.listingRow) ? savedData.listingRow : item.listingRow;
             const listingHeaders = hasSavedTransactions && Array.isArray(savedData.listingHeaders) ? savedData.listingHeaders : (item.listingHeaders || []);
             const result: Record<string, unknown> = { ftoNumber: item.ftoNumber, inspectionClassification: classification,
-              matchingJobCardCount: matchingCards.size, importableTransactionCount: transactions.length,
+              matchingJobCardCount: matchingCards.size, importableTransactionCount: matchingTransactions.length,
+              excludedTransactionCount: transactions.length - matchingTransactions.length,
               deferredInScopeCount: deferredInScope,
               inspectionSnapshotStale: hasSavedTransactions && !savedSnapshotIsCurrent,
               inspectionSnapshotInspectedAt: hasSavedTransactions ? (savedInspection?.last_inspected_at || null) : null,
               signatoryDate: hasSavedTransactions ? (savedData.signatoryDate || "") : (item.listingRow[5] || ""),
               listingTransactionCount: hasSavedTransactions ? Number(savedData.listingTransactionCount || 0) : Number(item.listingRow[6] || 0),
               listingAmount: hasSavedTransactions ? Number(savedData.listingAmount || 0) : Number(item.listingRow[7] || 0),
-              listingRow, listingHeaders, kind: "ok", transactions };
+              listingRow, listingHeaders, kind: "ok", transactions: matchingTransactions, validationTransactions: transactions };
             if (!imported.has(item.ftoNumber.trim().toUpperCase()) && matchingCards.size > 0 && savedSnapshotIsCurrent) {
               result.importPreviewToken = await makeImportPreviewToken(serviceKey, claims.sub, {
                 activeImportId: hasSavedTransactions ? savedData.activeImportId : misIndex.importId,
                 misUpdatedAt: hasSavedTransactions ? savedData.misUpdatedAt : misIndex.misUpdatedAt,
-                ftoNumber: item.ftoNumber, rows: transactions
+                ftoNumber: item.ftoNumber, rows: matchingTransactions
               });
             }
             results.push(result);

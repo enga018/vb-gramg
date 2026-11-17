@@ -97,6 +97,9 @@ begin
   end if;
 
   perform pg_advisory_xact_lock(hashtext('vbgramg_government_rejected_fto_import'));
+  -- Prevent a concurrent manual FTO write from racing the global reference checks.
+  lock table public.vbgramg_fto_batches in share row exclusive mode;
+  lock table public.vbgramg_fto_transactions in share row exclusive mode;
 
   select active_import_id, updated_at
     into v_active_import_id, v_mis_updated_at

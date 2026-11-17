@@ -90,11 +90,14 @@ async function loadActiveMisIndex(admin: any) {
   const uniqueCol = col("unique id", "unique applicant id");
   if (jobCol < 0 || nameCol < 0) throw new Error("Active MIS is missing Job Card Number or Name of Applicant columns.");
   const byCard = new Map<string, { applicantName: string; applicantNumber: string; applicantUniqueId: string }[]>();
+  const activeCards = new Set<string>();
   for (const record of records.slice(1)) {
     const row = Array.isArray(record.row_data) ? record.row_data : [];
     const card = String(row[jobCol] || "").trim().toUpperCase();
     const name = String(row[nameCol] || "").trim();
-    if (!card || !name) continue;
+    if (!card) continue;
+    activeCards.add(card);
+    if (!name) continue;
     if (!byCard.has(card)) byCard.set(card, []);
     byCard.get(card)!.push({
       applicantName: name,
@@ -110,15 +113,16 @@ async function loadActiveMisIndex(admin: any) {
     misUpdatedAt: state.updated_at,
     rowCount: Number(state.row_count) || records.length - 1,
     byCard,
+    activeCards,
     exemptCards: new Set((exemptions || []).map((r: any) => String(r.job_card_number || "").trim().toUpperCase()))
   };
 }
 function matchTransactionToMis(tx: Record<string, string>, index: Awaited<ReturnType<typeof loadActiveMisIndex>>) {
   const card = String(tx.jobCardNumber || "").trim().toUpperCase();
-  const applicants = index.byCard.get(card);
-  if (!card || !applicants?.length) return { misMatchStatus: "not_in_active_mis", misApplicant: null, misCandidates: [] };
+  const applicants = index.byCard.get(card) || [];
+  if (!card || !index.activeCards.has(card)) return { misMatchStatus: "not_in_active_mis", misApplicant: null, misCandidates: [] };
   const person = String(tx.personName || "").trim();
-  if (!person) return { misMatchStatus: "applicant_review", misApplicant: null, misCandidates: applicants.map(a => ({ ...a, matchPercentage: 0 })) };
+  if (!person || !applicants.length) return { misMatchStatus: "applicant_review", misApplicant: null, misCandidates: applicants.map(a => ({ ...a, matchPercentage: 0 })) };
   const ranked = applicants.map(a => ({ ...a, matchPercentage: applicantNameScore(person, a.applicantName) }))
     .sort((a, b) => b.matchPercentage - a.matchPercentage || a.applicantName.localeCompare(b.applicantName));
   const exact = ranked.filter(a => normalizeApplicantIdentity(a.applicantName) === normalizeApplicantIdentity(person));

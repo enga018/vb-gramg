@@ -48,10 +48,13 @@ async function openImportPreviewToken(token: string, serviceKey: string) {
   if (payload?.v !== 1 || !Number.isFinite(payload.exp) || payload.exp < Date.now() ||
       typeof payload.userId !== "string" || typeof payload.activeImportId !== "string" ||
       typeof payload.misUpdatedAt !== "string" || typeof payload.ftoNumber !== "string" ||
-      !Array.isArray(payload.rows) || payload.rows.length < 1 || payload.rows.length > 20000) {
+      !Array.isArray(payload.rows) || payload.rows.length < 1 || payload.rows.length > 20000 ||
+      !Number.isInteger(payload.governmentTransactionCount) || payload.governmentTransactionCount < payload.rows.length ||
+      !Number.isInteger(payload.unmatchedTransactionCount) || payload.unmatchedTransactionCount < 0 ||
+      payload.governmentTransactionCount !== payload.rows.length + payload.unmatchedTransactionCount) {
     throw new Error("Import preview has expired or is invalid. Fetch and review FTO details again.");
   }
-  return payload as { v:number; exp:number; userId:string; activeImportId:string; misUpdatedAt:string; ftoNumber:string; rows:any[] };
+  return payload as { v:number; exp:number; userId:string; activeImportId:string; misUpdatedAt:string; ftoNumber:string; governmentTransactionCount:number; unmatchedTransactionCount:number; rows:any[] };
 }
 
 Deno.serve(async (req: Request) => {
@@ -92,7 +95,8 @@ Deno.serve(async (req: Request) => {
       activeImportId = preview.activeImportId; misUpdatedAt = preview.misUpdatedAt;
       if (preview.rows.some((row:any) => String(row?.ftoNumber || "").trim().toUpperCase() !== number))
         return reply({ error: "A signed preview contains an inconsistent FTO number." }, 400);
-      ftos.push({ ftoNumber: preview.ftoNumber, rows: preview.rows });
+      ftos.push({ ftoNumber: preview.ftoNumber, governmentTransactionCount: preview.governmentTransactionCount,
+        unmatchedTransactionCount: preview.unmatchedTransactionCount, rows: preview.rows });
     }
     const payload = { activeImportId, misUpdatedAt, sourceSha256: null, ftos };
     const { data, error } = await admin.rpc("vbgramg_import_government_fto_history", { p_payload: payload, p_actor: claims.sub });

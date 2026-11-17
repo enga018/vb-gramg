@@ -152,10 +152,40 @@ async function openManifest(token: string, serviceKey: string) {
   return manifest as { v: number; exp: number; candidates: { detailUrl: string; ftoNumber: string; listingRow: string[]; listingHeaders?: string[] }[] };
 }
 function parseGovernmentAmount(value: string) {
-  const cleaned = String(value || "").replace(/[₹,\s]/g, "").replace(/[^\d.-]/g, "");
-  if (!cleaned) return "";
-  const amount = Number(cleaned);
+  const raw = String(value || "").trim().replace(/[₹,\s]/g, "");
+  if (!raw || !/^\d+(?:\.\d+)?$/.test(raw)) return "";
+  const amount = Number(raw);
   return Number.isFinite(amount) && amount >= 0 ? String(amount) : "";
+}
+function validateGovernmentTransactions(transactions: Record<string, any>[], listingRow: string[]) {
+  const errors: string[] = [];
+  const refs = new Set<string>();
+  for (let index = 0; index < transactions.length; index++) {
+    const tx = transactions[index], label = "Government row " + (index + 1);
+    if (!tx.jobCardNumber) errors.push(label + ": missing or invalid Job Card Number.");
+    if (!tx.referenceNumber) errors.push(label + ": missing Reference Number.");
+    const ref = String(tx.referenceNumber || "").trim().toUpperCase();
+    if (ref && refs.has(ref)) errors.push(label + ": duplicate Reference Number " + ref + ".");
+    if (ref) refs.add(ref);
+    if (!tx.amountToBeCredited) errors.push(label + ": missing or invalid Amount to be Credited.");
+    if (!tx.creditAmount) errors.push(label + ": missing or invalid Credit Amount.");
+    if (tx.normalizedStatus === "other") errors.push(label + ": unrecognized Government status.");
+  }
+  const sum = (rows: Record<string, any>[]) => rows.reduce((n, tx) => n + Number(tx.amountToBeCredited || 0), 0);
+  const countAt = (i: number) => { const v=String(listingRow[i]??"").replace(/,/g,"").trim(); return /^\d+$/.test(v)?Number(v):null; };
+  const amountAt = (i: number) => { const v=String(listingRow[i]??"").replace(/[₹,\s]/g,""); return /^\d+(?:\.\d+)?$/.test(v)?Number(v):null; };
+  const checks = [
+    {label:"Processed count",expected:countAt(8),actual:transactions.filter(tx=>tx.normalizedStatus==="processed").length},
+    {label:"Rejected count",expected:countAt(10),actual:transactions.filter(tx=>tx.normalizedStatus==="rejected").length},
+    {label:"Processed amount",expected:amountAt(9),actual:sum(transactions.filter(tx=>tx.normalizedStatus==="processed"))},
+    {label:"Rejected amount",expected:amountAt(11),actual:sum(transactions.filter(tx=>tx.normalizedStatus==="rejected"))},
+    {label:"Total amount",expected:amountAt(7),actual:sum(transactions)}
+  ];
+  for (const c of checks) {
+    if (c.expected===null) errors.push("Government listing "+c.label+" is missing or invalid.");
+    else if (Math.abs(c.expected-c.actual)>=0.005) errors.push("Government listing "+c.label+" does not reconcile with detail rows.");
+  }
+  return errors;
 }
 function parseGovernmentDate(value: string) {
   const text = String(value || "").trim();
@@ -218,7 +248,14 @@ async function getPage(url: string, ftoNumber: string) {
     const jobCell = row[job] || "";
     const jobCardNumber = extractJobCard(jobCell);
     const referenceNumber = (row[reference] || "").trim();
-    if (!jobCardNumber || !referenceNumber) continue;
+    if (!jobCardNumber || !referenceNumber) {
+      transactions.push({ ftoNumber, jobCardNumber, referenceNumber,
+        normalizedStatus: normalizeGovernmentStatus((row[status] || "").trim()),
+        amountToBeCredited: parseGovernmentAmount(row[amountToBeCredited] || ""),
+        creditAmount: parseGovernmentAmount(row[creditAmount] || ""),
+        sourceRow: header.map((name, index) => ({ name, value: row[index] || "" })) });
+      continue;
+    }
     const rawStatus = (row[status] || "").trim();
     const normalizedStatus = normalizeGovernmentStatus(rawStatus);
     const personName = (row[applicant >= 0 ? applicant : primaryHolder] || "").trim();
@@ -322,9 +359,15 @@ Deno.serve(async (req: Request) => {
               const match = matchTransactionToMis(tx, misIndex);
               return { ...tx, ftoNumber: item.ftoNumber, ...match };
             });
-            // Eligibility is based only on whether a transaction's full Job Card Number
-            // exists in the reviewed Active MIS. Retain every transaction in the FTO,
-            // including unmatched rows, for later review during Contribution charge creation.
+            const validationErrors = validateGovernmentTransactions(transactions, item.listingRow || []);
+            if (validationErrors.length) {
+              results.push({ ftoNumber: item.ftoNumber, kind: "validation_failure", validationErrors,
+                governmentTransactionCount: transactions.length, listingRow: item.listingRow, listingHeaders: item.listingHeaders || [] });
+              continue;
+            }
+            // Keep only Job Cards present in Active MIS; applicant-name mismatches remain reviewable.
+            const governmentTransactionCount = transactions.length;
+            const unmatchedTransactionCount = transactions.filter(tx => tx.misMatchStatus === "not_in_active_mis").length;
             const matchingTransactions = transactions.filter(tx => tx.misMatchStatus !== "not_in_active_mis");
             const matchingCards = new Set(matchingTransactions.map(tx => String(tx.jobCardNumber || "").trim().toUpperCase()).filter(Boolean));
             const deferredInScope = matchingTransactions.filter(tx => tx.normalizedStatus === "blank").length;
@@ -336,20 +379,21 @@ Deno.serve(async (req: Request) => {
               last_inspected_at: new Date().toISOString(),
               matching_job_card_count: matchingCards.size,
               deferred_transaction_count: deferredInScope,
-              transaction_count: transactions.length,
+              transaction_count: governmentTransactionCount,
               updated_at: new Date().toISOString()
             }, { onConflict: "fto_number_normalized" });
             if (stateWriteError) throw new Error("Could not save FTO inspection state.");
-            const result: Record<string, unknown> = { ftoNumber: item.ftoNumber, inspectionClassification: classification,
-              matchingJobCardCount: matchingCards.size, importableTransactionCount: transactions.length,
+            const result: Record<string, unknown> = { ftoNumber: item.ftoNumber, backendValidated: true, inspectionClassification: classification,
+              matchingJobCardCount: matchingCards.size, importableTransactionCount: matchingTransactions.length,
+              governmentTransactionCount, unmatchedTransactionCount,
               deferredInScopeCount: deferredInScope,
               signatoryDate: item.listingRow[5] || "", listingTransactionCount: Number(item.listingRow[6] || 0),
               listingAmount: Number(item.listingRow[7] || 0), listingRow: item.listingRow,
-              listingHeaders: item.listingHeaders || [], ...detail, transactions };
+              listingHeaders: item.listingHeaders || [], ...detail, transactions: matchingTransactions };
             if (!imported.has(item.ftoNumber.trim().toUpperCase()) && matchingCards.size > 0) {
               result.importPreviewToken = await makeImportPreviewToken(serviceKey, claims.sub, {
                 activeImportId: misIndex.importId, misUpdatedAt: misIndex.misUpdatedAt,
-                ftoNumber: item.ftoNumber, rows: transactions
+                ftoNumber: item.ftoNumber, governmentTransactionCount, unmatchedTransactionCount, rows: matchingTransactions
               });
             }
             results.push(result);

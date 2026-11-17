@@ -119,7 +119,7 @@ async function openManifest(token: string, serviceKey: string) {
   return manifest as { v: number; exp: number; candidates: { detailUrl: string; ftoNumber: string; listingRow: string[]; listingHeaders?: string[] }[] };
 }
 function parseGovernmentAmount(value: string) {
-  const cleaned = String(value || "").replace(/[₹,\\s]/g, "").replace(/[^\\d.-]/g, "");
+  const cleaned = String(value || "").replace(/[₹,\s]/g, "").replace(/[^\d.-]/g, "");
   if (!cleaned) return "";
   const amount = Number(cleaned);
   return Number.isFinite(amount) && amount >= 0 ? String(amount) : "";
@@ -127,9 +127,9 @@ function parseGovernmentAmount(value: string) {
 function parseGovernmentDate(value: string) {
   const text = String(value || "").trim();
   if (!text) return "";
-  const match = text.match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})$/);
+  const match = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
   if (match) return `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
-  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(text)) return text;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
   return "";
 }
 function normalizeGovernmentStatus(value: string) {
@@ -140,12 +140,12 @@ function normalizeGovernmentStatus(value: string) {
   return "other";
 }
 function extractJobCard(value: string) {
-  const match = String(value || "").match(/\\bMZ-\\d{2}-(?:\\d{3}-){2,3}\\d{3}\\/\\d+(?:-[A-Z]+)?\\b/i);
+  const match = String(value || "").match(/\bMZ-\d{2}-(?:\d{3}-){2,3}\d{3}\/\d+(?:-[A-Z]+)?\b/i);
   return match ? match[0].toUpperCase() : "";
 }
 function extractVillage(value: string, jobCardNumber: string) {
-  return String(value || "").replace(jobCardNumber, " ").replace(/[()\\[\\]{}]/g, " ")
-    .replace(/\\s+/g, " ").replace(/^[\\s,;:.-]+|[\\s,;:.-]+$/g, "").trim();
+  return String(value || "").replace(jobCardNumber, " ").replace(/[()\[\]{}]/g, " ")
+    .replace(/\s+/g, " ").replace(/^[\s,;:.-]+|[\s,;:.-]+$/g, "").trim();
 }
 async function getPage(url: string) {
   const parsed = new URL(url);
@@ -162,8 +162,8 @@ async function getPage(url: string) {
   if (new URL(response.url).hostname !== "vbgramgrep.dord.gov.in") return { kind: "redirect_failure", rows: [] as any[] };
   const tableRows = rowsOf(html);
   const pageText = textOf(html);
-  const header = tableRows.find(row => row.some(cell => /job\\s*card\\s*no/i.test(cell)) && row.some(cell => /reference\\s*no/i.test(cell)));
-  if (!header || !/FTO\\s+Transaction\\s+Details/i.test(pageText)) return { kind: "parse_failure", rows: [] as any[] };
+  const header = tableRows.find(row => row.some(cell => /job\s*card\s*no/i.test(cell)) && row.some(cell => /reference\s*no/i.test(cell)));
+  if (!header || !/FTO\s+Transaction\s+Details/i.test(pageText)) return { kind: "parse_failure", rows: [] as any[] };
   const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const names = header.map(normalize);
   const find = (...exactNames: string[]) => names.findIndex(name => exactNames.includes(name));
@@ -294,7 +294,7 @@ Deno.serve(async (req: Request) => {
             const transactions = detail.transactions.map(tx => {
               const match = matchTransactionToMis(tx, misIndex);
               const exempt = misIndex.exemptCards.has(String(tx.jobCardNumber || "").trim().toUpperCase());
-              return { ...tx, ...match, contributionExempt: exempt };
+              return { ...tx, ftoNumber: item.ftoNumber, ...match, contributionExempt: exempt };
             });
             const inScope = transactions.filter(tx => tx.misMatchStatus !== "not_in_active_mis");
             const matchingCards = new Set(inScope.map(tx => String(tx.jobCardNumber || "").trim().toUpperCase()).filter(Boolean));

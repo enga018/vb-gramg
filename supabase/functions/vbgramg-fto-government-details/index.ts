@@ -25,6 +25,83 @@ function rowsOf(html: string) {
     .map(m => [...m[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(c => textOf(c[1])))
     .filter(row => row.some(Boolean));
 }
+function normalizeApplicantName(value: unknown) {
+  return String(value || "").normalize("NFKC").replace(/\s+/g, " ").trim().toLocaleLowerCase();
+}
+function normalizeApplicantIdentity(value: unknown) {
+  return normalizeApplicantName(value).replace(/[^\p{L}\p{N}]+/gu, "");
+}
+function applicantNameScore(left: unknown, right: unknown) {
+  const a = normalizeApplicantIdentity(left), b = normalizeApplicantIdentity(right);
+  if (!a || !b) return 0;
+  const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let diagonal = prev[0]; prev[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const above = prev[j];
+      prev[j] = Math.min(prev[j] + 1, prev[j - 1] + 1, diagonal + (a[i - 1] === b[j - 1] ? 0 : 1));
+      diagonal = above;
+    }
+  }
+  return Math.round((1 - prev[b.length] / Math.max(a.length, b.length)) * 1000) / 10;
+}
+async function loadActiveMisIndex(admin: any) {
+  const { data: state, error: stateError } = await admin.from("vbgramg_mis_state")
+    .select("active_import_id,row_count,source_filename").eq("singleton", true).maybeSingle();
+  if (stateError) throw new Error("Could not load Active MIS state.");
+  if (!state?.active_import_id) throw new Error("There is no Active MIS import. Load Active MIS before matching FTO transactions.");
+  const records: any[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await admin.from("vbgramg_mis_rows").select("row_number,row_data")
+      .eq("import_id", state.active_import_id).order("row_number", { ascending: true }).range(offset, offset + 999);
+    if (error) throw new Error("Could not load Active MIS applicant records.");
+    records.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  if (!records.length) throw new Error("Active MIS contains no rows.");
+  const header = Array.isArray(records[0].row_data)
+    ? records[0].row_data.map((v: unknown) => String(v || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()) : [];
+  const col = (...names: string[]) => header.findIndex((v: string) => names.includes(v));
+  const jobCol = col("job card number", "jobcard number");
+  const nameCol = col("name of applicant", "applicant name");
+  const numberCol = col("applicant no", "applicant number");
+  const uniqueCol = col("unique id", "unique applicant id");
+  if (jobCol < 0 || nameCol < 0) throw new Error("Active MIS is missing Job Card Number or Name of Applicant columns.");
+  const byCard = new Map<string, { applicantName: string; applicantNumber: string; applicantUniqueId: string }[]>();
+  for (const record of records.slice(1)) {
+    const row = Array.isArray(record.row_data) ? record.row_data : [];
+    const card = String(row[jobCol] || "").trim().toUpperCase();
+    const name = String(row[nameCol] || "").trim();
+    if (!card || !name) continue;
+    if (!byCard.has(card)) byCard.set(card, []);
+    byCard.get(card)!.push({
+      applicantName: name,
+      applicantNumber: numberCol >= 0 ? String(row[numberCol] || "").trim() : "",
+      applicantUniqueId: uniqueCol >= 0 ? String(row[uniqueCol] || "").trim() : ""
+    });
+  }
+  const { data: exemptions, error: exemptionError } = await admin.from("vbgramg_contribution_exemptions")
+    .select("job_card_number");
+  if (exemptionError) throw new Error("Could not load Contribution exemption list.");
+  return {
+    importId: state.active_import_id,
+    rowCount: Number(state.row_count) || records.length - 1,
+    byCard,
+    exemptCards: new Set((exemptions || []).map((r: any) => String(r.job_card_number || "").trim().toUpperCase()))
+  };
+}
+function matchTransactionToMis(tx: Record<string, string>, index: Awaited<ReturnType<typeof loadActiveMisIndex>>) {
+  const card = String(tx.jobCardNumber || "").trim().toUpperCase();
+  const applicants = index.byCard.get(card);
+  if (!card || !applicants?.length) return { misMatchStatus: "not_in_active_mis", misApplicant: null, misCandidates: [] };
+  const person = String(tx.personName || "").trim();
+  if (!person) return { misMatchStatus: "applicant_review", misApplicant: null, misCandidates: applicants.map(a => ({ ...a, matchPercentage: 0 })) };
+  const ranked = applicants.map(a => ({ ...a, matchPercentage: applicantNameScore(person, a.applicantName) }))
+    .sort((a, b) => b.matchPercentage - a.matchPercentage || a.applicantName.localeCompare(b.applicantName));
+  const exact = ranked.filter(a => normalizeApplicantIdentity(a.applicantName) === normalizeApplicantIdentity(person));
+  if (exact.length === 1) return { misMatchStatus: "matched", misApplicant: exact[0], misCandidates: ranked.slice(0, 3) };
+  return { misMatchStatus: "applicant_review", misApplicant: null, misCandidates: ranked.slice(0, 3) };
+}
 function base64UrlToBytes(value: string) {
   if (!/^[A-Za-z0-9_-]+$/.test(value) || value.length > 2_000_000) throw new Error("Invalid or oversized manifest token.");
   const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - value.length % 4) % 4);
@@ -138,6 +215,7 @@ Deno.serve(async (req: Request) => {
       const batchId = imported.get(item.ftoNumber.trim().toUpperCase());
       if (batchId && !deferredIds.has(batchId)) throw new Error("An already-imported FTO is no longer Deferred and cannot be re-fetched in this run.");
     }
+    const misIndex = await loadActiveMisIndex(admin);
     const results: Record<string, unknown>[] = [];
     let cursor = 0;
     const workers = Array.from({ length: Math.min(2, selected.length) }, async () => {
@@ -145,7 +223,16 @@ Deno.serve(async (req: Request) => {
         const item = selected[cursor++];
         try {
           const detail = await getPage(item.detailUrl);
-          results.push({ ftoNumber: item.ftoNumber, signatoryDate: item.listingRow[5] || "", listingTransactionCount: Number(item.listingRow[6] || 0), listingAmount: Number(item.listingRow[7] || 0), listingRow: item.listingRow, listingHeaders: item.listingHeaders || [], ...detail });
+          if (detail.kind === "ok") {
+            const transactions = detail.transactions.map(tx => {
+              const match = matchTransactionToMis(tx, misIndex);
+              const exempt = misIndex.exemptCards.has(String(tx.jobCardNumber || "").trim().toUpperCase());
+              return { ...tx, ...match, contributionExempt: exempt };
+            });
+            results.push({ ftoNumber: item.ftoNumber, signatoryDate: item.listingRow[5] || "", listingTransactionCount: Number(item.listingRow[6] || 0), listingAmount: Number(item.listingRow[7] || 0), listingRow: item.listingRow, listingHeaders: item.listingHeaders || [], ...detail, transactions });
+          } else {
+            results.push({ ftoNumber: item.ftoNumber, signatoryDate: item.listingRow[5] || "", listingTransactionCount: Number(item.listingRow[6] || 0), listingAmount: Number(item.listingRow[7] || 0), listingRow: item.listingRow, listingHeaders: item.listingHeaders || [], ...detail });
+          }
         } catch (error) {
           results.push({ ftoNumber: item.ftoNumber, kind: "fetch_failure", error: "Government detail request failed. Retry this FTO." });
         }

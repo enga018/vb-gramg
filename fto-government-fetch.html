@@ -147,6 +147,14 @@ async function runDetailBatches(numbers){
   addStat("Rejected",checks.reduce((n,x)=>n+x.statusCounts.rejected,0));
   addStat("Deferred / blank",checks.reduce((n,x)=>n+x.statusCounts.deferred,0));
   addStat("Unrecognized status",checks.reduce((n,x)=>n+x.statusCounts.unknown,0));
+  const allTransactions=successful.flatMap(item=>Array.isArray(item.transactions)?item.transactions:[]);
+  const misCounts={matched:0,applicant_review:0,not_in_active_mis:0,exempt:0};
+  for(const tx of allTransactions){if(tx.contributionExempt)misCounts.exempt++;if(tx.misMatchStatus in misCounts)misCounts[tx.misMatchStatus]++;}
+  const misHeading=document.createElement("h3");misHeading.textContent="Active MIS matching · read-only";validation.append(misHeading);
+  addStat("Applicant matched",misCounts.matched);
+  addStat("Applicant review",misCounts.applicant_review);
+  addStat("Not in Active MIS",misCounts.not_in_active_mis);
+  addStat("Exempt Job Cards",misCounts.exempt);
   progress.textContent="Processed "+done+" of "+total+" FTOs · "+successful.length+" successful · "+failed.length+" failed · "+passed+" passed validation · "+warningCount+" with warnings";
   target.replaceChildren();
   for(const item of detailResults){
@@ -168,9 +176,19 @@ async function runDetailBatches(numbers){
    }
    if(item.kind==="ok"){
     const table=document.createElement("table"),thead=document.createElement("thead"),trh=document.createElement("tr");
-    ["Job Card Number","Reference Number","Status","Amount","Village","Person"].forEach(v=>{const th=document.createElement("th");th.textContent=v;trh.append(th);});
+    ["Job Card Number","Reference Number","Status","Amount","Village","Person","Active MIS match","Contribution"].forEach(v=>{const th=document.createElement("th");th.textContent=v;trh.append(th);});
     thead.append(trh);table.append(thead);const tbody=document.createElement("tbody");
-    for(const tx of item.transactions){const tr=document.createElement("tr");[tx.jobCardNumber,tx.referenceNumber,tx.governmentStatus,tx.amount,tx.village,tx.personName].forEach(v=>{const td=document.createElement("td");td.textContent=v||"—";tr.append(td);});tbody.append(tr);}
+    for(const tx of item.transactions){
+     const tr=document.createElement("tr");
+     [tx.jobCardNumber,tx.referenceNumber,tx.governmentStatus,tx.amount,tx.village,tx.personName].forEach(v=>{const td=document.createElement("td");td.textContent=v||"—";tr.append(td);});
+     const matchCell=document.createElement("td");
+     const matchLabels={matched:"Matched",applicant_review:"Applicant review",not_in_active_mis:"Not in Active MIS"};
+     matchCell.textContent=matchLabels[tx.misMatchStatus]||"Not checked";
+     if(Array.isArray(tx.misCandidates)&&tx.misCandidates.length)matchCell.title=tx.misCandidates.map(a=>a.applicantName+" ("+a.matchPercentage+"%)").join("\\n");
+     tr.append(matchCell);
+     const exemptionCell=document.createElement("td");exemptionCell.textContent=tx.contributionExempt?"Exempt":"—";tr.append(exemptionCell);
+     tbody.append(tr);
+    }
     table.append(tbody);section.append(table);
    }else{const p=document.createElement("p");p.textContent=item.error||("Page result: "+item.kind);section.append(p);}
    target.append(section);

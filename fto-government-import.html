@@ -87,6 +87,7 @@ function validate(doc){
    if(col(row,"Status").toLowerCase()!=="rejected")throw Error("A raw Government status is not Rejected in "+spec.ftoNumber+".");
    if(col(row,"Rejection Reason")!=="Rejected by DDO")throw Error("A rejection reason differs from the audited reason in "+spec.ftoNumber+".");
    if(!card||!ref)throw Error("A row is missing its Job Card or reference number.");
+   if(col(row,"Job Card No. (Panchayat Name)").split(" (")[0]!==card||col(row,"Reference No.")!==ref)throw Error("A raw Government Job Card or reference does not match its normalized row.");
    if(cards.has(card)||allCards.has(card))throw Error("A Job Card appears more than once in the three target FTOs: "+card);
    if(allRefs.has(ref))throw Error("A reference number is duplicated: "+ref);
    cards.add(card);allCards.add(card);allRefs.add(ref);

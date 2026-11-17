@@ -46,10 +46,14 @@ declare
   v_now timestamptz := now();
   v_results jsonb := '[]'::jsonb;
 begin
-  if p_payload is null or jsonb_typeof(p_payload) <> 'object'
-     or jsonb_typeof(p_payload->'ftos') is distinct from 'array'
-     or jsonb_array_length(p_payload->'ftos') = 0 then
-    raise exception 'Government FTO import payload must contain a non-empty ftos array.';
+  if p_payload is null or jsonb_typeof(p_payload) <> 'object' then
+    raise exception 'Government FTO import payload must be a JSON object.';
+  end if;
+  if jsonb_typeof(p_payload->'ftos') is distinct from 'array' then
+    raise exception 'Government FTO import payload must contain an ftos array.';
+  end if;
+  if jsonb_array_length(p_payload->'ftos') = 0 then
+    raise exception 'Government FTO import payload must contain at least one FTO.';
   end if;
   if p_actor is null then
     raise exception 'Administrator identity is missing.';
@@ -106,9 +110,11 @@ begin
     if exists (select 1 from public.vbgramg_fto_batches b where b.fto_number = v_fto_number) then
       raise exception 'FTO batch % already exists in FTO history. Nothing was imported.', v_fto_number;
     end if;
-    if jsonb_typeof(v_fto->'rows') is distinct from 'array'
-       or jsonb_array_length(v_fto->'rows') = 0 then
-      raise exception 'FTO % must contain a non-empty transaction rows array.', v_fto_number;
+    if jsonb_typeof(v_fto->'rows') is distinct from 'array' then
+      raise exception 'FTO % transaction rows must be an array.', v_fto_number;
+    end if;
+    if jsonb_array_length(v_fto->'rows') = 0 then
+      raise exception 'FTO % must contain at least one transaction row.', v_fto_number;
     end if;
 
     insert into public.vbgramg_fto_batches (
@@ -153,9 +159,11 @@ begin
         raise exception 'Government reference number % already exists in FTO history.', v_reference;
       end if;
 
-      if jsonb_typeof(v_row->'sourceRow') is distinct from 'array'
-         or jsonb_array_length(v_row->'sourceRow') = 0 then
-        raise exception 'Government source columns are missing for reference %.', v_reference;
+      if jsonb_typeof(v_row->'sourceRow') is distinct from 'array' then
+        raise exception 'Government source columns must be an array for reference %.', v_reference;
+      end if;
+      if jsonb_array_length(v_row->'sourceRow') = 0 then
+        raise exception 'Government source columns are empty for reference %.', v_reference;
       end if;
       v_source_row := v_row->'sourceRow';
 

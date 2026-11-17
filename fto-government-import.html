@@ -39,8 +39,8 @@ button.secondary{background:#f0f3f8;color:#344054;border-color:#e0e6ef}button:di
   <h2>Final review</h2>
   <div id="fto-list"></div>
   <div class="notice">All 354 transactions are Rejected by DDO. They will remain visible in FTO history, with zero calculated contribution charge and no ledger link. Exemption records are not consulted during import.</div>
-  <div class="actions"><button id="import-button" disabled>Import 3 FTO batches</button><button class="secondary" id="clear-button" type="button">Clear preview</button></div>
-  <p class="small">The import is atomic: if any live validation fails, none of the three batches or their transactions will be saved.</p>
+  <div class="actions"><button class="secondary" id="validate-button" type="button" disabled>Validate live data only</button><button id="import-button" disabled>Import 3 FTO batches</button><button class="secondary" id="clear-button" type="button">Clear preview</button></div>
+  <p class="small">Validate live data only performs Government, MIS, period and duplicate checks without calling the database import RPC. Import remains a separate, explicitly confirmed action.</p>
  </div>
 </section>
 </main>
@@ -117,11 +117,11 @@ function render(payload){
   [["Job Cards",spec.count.toLocaleString("en-IN")],["Government amount","₹"+spec.amount.toLocaleString("en-IN")],["Contribution period","JUL26"]].forEach(([label,value])=>{const box=document.createElement("div"),span=document.createElement("span"),strong=document.createElement("strong");span.textContent=label;strong.textContent=value;box.append(span,strong);meta.appendChild(box)});
   card.append(top,meta);host.appendChild(card);
  }
- $("review").classList.remove("hidden");$("import-button").disabled=false;
+ $("review").classList.remove("hidden");$("validate-button").disabled=false;$("import-button").disabled=false;
 }
 async function sha256(file){const bytes=await file.arrayBuffer();const hash=await crypto.subtle.digest("SHA-256",bytes);return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,"0")).join("");}
 $("preview-file").addEventListener("change",async()=>{
- validatedPayload=null;$("review").classList.add("hidden");$("import-button").disabled=true;
+ validatedPayload=null;$("review").classList.add("hidden");$("validate-button").disabled=true;$("import-button").disabled=true;
  const file=$("preview-file").files?.[0];if(!file){status("validation-status","Select a preview JSON file.");return;}
  if(file.size>25*1024*1024){status("validation-status","The preview file exceeds the 25 MB safety limit.","error");return;}
  try{
@@ -131,7 +131,19 @@ $("preview-file").addEventListener("change",async()=>{
   status("validation-status","Local validation passed: 3 target FTOs, 354 unique Job Cards and references, all Rejected by DDO, total ₹6,92,100. Live MIS and duplicate checks will run again on the server at import time.","success");
  }catch(err){status("validation-status",err.message||"Preview validation failed.","error");}
 });
-$("clear-button").addEventListener("click",()=>{$("preview-file").value="";validatedPayload=null;$("review").classList.add("hidden");$("import-button").disabled=true;status("validation-status","Preview cleared. Select a JSON file to begin again.");});
+$("clear-button").addEventListener("click",()=>{$("preview-file").value="";validatedPayload=null;$("review").classList.add("hidden");$("validate-button").disabled=true;$("import-button").disabled=true;status("validation-status","Preview cleared. Select a JSON file to begin again.");});
+$("validate-button").addEventListener("click",async()=>{
+ if(!validatedPayload||!sessionUser)return;
+ const validateButton=$("validate-button"),importButton=$("import-button");
+ validateButton.disabled=true;importButton.disabled=true;validateButton.textContent="Checking live data…";
+ try{
+  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-government-fto-import",{body:{...validatedPayload,action:"validate-only"},timeoutMs:false});
+  if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||"Live Government validation failed.");
+  if(data.validated!==true||data.live_source_verified!==true||data.database_writes_performed!==false||Number(data.batch_count)!==3||Number(data.transaction_count)!==354||Number(data.status_history_rows_expected)!==354||Number(data.ledger_rows_to_create)!==0)throw new Error("The server did not return the exact expected validation-only result.");
+  status("validation-status","LIVE VALIDATION PASSED — no database writes were performed. Government listing and all three FTO details match; active MIS and duplicate checks passed. Expected import: 3 batches, 354 rejected transactions, 354 initial status-history rows, 0 Contribution ledger rows. Import has NOT been run.","success");
+ }catch(err){status("validation-status",err.message||"Live validation failed. No import was requested.","error");}
+ finally{validateButton.disabled=false;validateButton.textContent="Validate live data only";importButton.disabled=false;}
+});
 $("import-button").addEventListener("click",async()=>{
  if(!validatedPayload||!sessionUser)return;
  const message="Import these 3 Government FTO batches into JUL26?\n\n354 rejected transactions will be saved in FTO history.\nNo Contribution charges will be created.\nExisting FTO batches and the manual importer will not be changed.\n\nContinue?";

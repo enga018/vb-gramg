@@ -26,11 +26,11 @@ test("Eligibility is based on Active MIS Job Card presence and retains every FTO
 
 test("Preview tokens are short-lived and bound to administrator and MIS snapshot", () => {
   assert.match(details, /exp:\s*Date\.now\(\)\s*\+\s*15\s*\*\s*60\s*\*\s*1000/);
-  assert.match(details, /userId:\s*userId/);
+  assert.match(details, /JSON\.stringify\(\{ v: 1, exp: Date\.now\(\) \+ 15 \* 60 \* 1000, userId,/);
   assert.match(importer, /preview\.userId !== claims\.sub/);
   assert.match(importer, /preview\.ftoNumber\.trim\(\)\.toUpperCase\(\) !== number/);
-  assert.match(importer, /preview\.activeImportId !== activeImportId/);
-  assert.match(importer, /preview\.misUpdatedAt !== misUpdatedAt/);
+  assert.match(importer, /activeImportId !== preview\.activeImportId/);
+  assert.match(importer, /misUpdatedAt !== preview\.misUpdatedAt/);
 });
 
 test("Import endpoint accepts only signed previews and caps each request", () => {

@@ -158,7 +158,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Inspection is separate from import. COMPLETE but unimported FTOs remain
+    // Inspection is separate from import. ELIGIBLE but unimported FTOs remain
     // available so a fresh secure preview token can be issued if an earlier one expired.
     // OUT_OF_SCOPE FTOs are permanently skipped; imported FTOs are excluded above.
     const { data: inspectionRows, error: inspectionError } = await admin

@@ -221,7 +221,7 @@ Deno.serve(async (req: Request) => {
             String(row.normalizedStatus || "").toLowerCase() !== "rejected" ||
             !columnValue(row, "Applicant Name") || village !== "NEW SERCHHIP North" ||
             !/^[0-9,]+(\.[0-9]+)?$/.test(rawAmount) ||
-            !/^[0-9,]+(\\.[0-9]+)?$/.test(rawCredit) ||
+            !/^[0-9,]+(\.[0-9]+)?$/.test(rawCredit) ||
             !Number.isFinite(Number(amountText)) || !Number.isFinite(Number(creditText)) ||
             Number(amountText) < 0 || Number(creditText) < 0) {
           return reply({ error: "A live Government row failed the server-side source, status, village or amount checks in " + spec.ftoNumber + "." }, 409);

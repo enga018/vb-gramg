@@ -270,7 +270,7 @@ $("import-button").addEventListener("click",async()=>{
 });
 
 $("fetch-button").addEventListener("click",async()=>{
- const button=$("fetch-button");button.disabled=true;button.textContent="Fetching…";$("results").hidden=true;
+ const button=$("fetch-button");button.disabled=true;button.textContent="Fetching…";$("results").hidden=true;$("details-panel").hidden=true;
  status("fetch-status","Connecting to the Government FTO listing and checking imported history…");
  try{
   const {data,error}=await window.VBGRAMGData.invoke("vbgramg-fto-government-fetch",{body:{},timeoutMs:30000});

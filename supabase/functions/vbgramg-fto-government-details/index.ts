@@ -105,16 +105,12 @@ async function loadActiveMisIndex(admin: any) {
       applicantUniqueId: uniqueCol >= 0 ? String(row[uniqueCol] || "").trim() : ""
     });
   }
-  const { data: exemptions, error: exemptionError } = await admin.from("vbgramg_contribution_exemptions")
-    .select("job_card_number");
-  if (exemptionError) throw new Error("Could not load Contribution exemption list.");
   return {
     importId: state.active_import_id,
     misUpdatedAt: state.updated_at,
     rowCount: Number(state.row_count) || records.length - 1,
     byCard,
-    activeCards,
-    exemptCards: new Set((exemptions || []).map((r: any) => String(r.job_card_number || "").trim().toUpperCase()))
+    activeCards
   };
 }
 function matchTransactionToMis(tx: Record<string, string>, index: Awaited<ReturnType<typeof loadActiveMisIndex>>) {
@@ -324,8 +320,7 @@ Deno.serve(async (req: Request) => {
           if (detail.kind === "ok") {
             const transactions = detail.transactions.map(tx => {
               const match = matchTransactionToMis(tx, misIndex);
-              const exempt = misIndex.exemptCards.has(String(tx.jobCardNumber || "").trim().toUpperCase());
-              return { ...tx, ftoNumber: item.ftoNumber, ...match, contributionExempt: exempt };
+              return { ...tx, ftoNumber: item.ftoNumber, ...match };
             });
             // Eligibility is based only on whether a transaction's full Job Card Number
             // exists in the reviewed Active MIS. Retain every transaction in the FTO,

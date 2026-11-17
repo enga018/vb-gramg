@@ -532,9 +532,15 @@ Deno.serve(async(req:Request)=>{
     const transactions:Record<string,any>[]=[];
     for(let i=0;i<batchIds.length;i+=500){
      const ids=batchIds.slice(i,i+500);
-     const {data,error}=await admin.from("vbgramg_fto_transactions").select("id,batch_id,reference_no,job_card_number,village_name,person_name,transaction_date,processed_date,amount_to_be_credited,credit_amount,calculated_charge,status,rejection_reason,last_seen_at,source_row,is_in_scope").in("batch_id",ids).order("job_card_number",{ascending:true}).order("reference_no",{ascending:true});
-     if(error)throw error;
-     transactions.push(...(data||[]));
+     // PostgREST returns at most 1,000 rows per request by default. Page each
+     // batch-id group so history counts and transaction details include every row.
+     for(let offset=0;;offset+=1000){
+      const {data,error}=await admin.from("vbgramg_fto_transactions").select("id,batch_id,reference_no,job_card_number,village_name,person_name,transaction_date,processed_date,amount_to_be_credited,credit_amount,calculated_charge,status,rejection_reason,last_seen_at,source_row,is_in_scope").in("batch_id",ids).order("job_card_number",{ascending:true}).order("reference_no",{ascending:true}).order("id",{ascending:true}).range(offset,offset+999);
+      if(error)throw error;
+      const page=data||[];
+      transactions.push(...page);
+      if(page.length<1000)break;
+     }
     }
     const byBatch=new Map<string,Record<string,any>[]>();
     for(const tx of transactions){const id=String(tx.batch_id);if(!byBatch.has(id))byBatch.set(id,[]);byBatch.get(id)!.push(tx);}

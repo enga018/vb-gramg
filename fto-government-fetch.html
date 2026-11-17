@@ -55,7 +55,7 @@ button{font:inherit;font-weight:650;border:1px solid transparent;border-radius:1
 (function(){
 "use strict";
 const $=id=>document.getElementById(id),client=window.vbgramgSupabase;
-let authSequence=0, manifestToken="", detailQueue=[], detailResults=[], misSnapshot=null;
+let authSequence=0, manifestToken="", detailQueue=[], detailResults=[], misSnapshot=null, importedFtoNumbers=new Set();
 function status(id,message,type){const el=$(id);el.textContent=message;el.className="status"+(type?" "+type:"");}
 async function verifyAccess(user){
  const seq=++authSequence;
@@ -217,31 +217,67 @@ async function runDetailBatches(numbers){
  const failed=detailResults.filter(x=>x.kind!=="ok").map(x=>x.ftoNumber);
  button.textContent=failed.length?"Retry failed FTOs ("+failed.length+")":"Detail preview complete";
  button.disabled=failed.length===0;
- button.onclick=async()=>{detailResults=detailResults.filter(x=>x.kind==="ok");await runDetailBatches(failed);};
+ button.onclick=async()=>{detailResults=detailResults.filter(x=>x.kind==="ok");await runDetailBatches(failed);if(detailResults.every(x=>x.kind==="ok")){button.onclick=startDetailsPreview;button.textContent="Detail preview complete";}};
 }
-$("details-button").onclick=()=>{if(detailQueue.length){detailResults=[];$("import-button").disabled=true;runDetailBatches(detailQueue);}};
+function startDetailsPreview(){
+ if(!detailQueue.length)return;
+ detailResults=[];misSnapshot=null;importedFtoNumbers=new Set();
+ $("import-button").disabled=true;
+ $("import-button").textContent="Import new FTO history";
+ $("import-status").textContent="Complete the detail preview before importing.";
+ $("details-button").onclick=startDetailsPreview;
+ runDetailBatches(detailQueue);
+}
+$("details-button").onclick=startDetailsPreview;
+
+function buildImportChunks(items){
+ const chunks=[];let current=[];
+ const maxBytes=8_000_000;
+ for(const item of items){
+  const candidate=[...current,{ftoNumber:item.ftoNumber,previewToken:item.importPreviewToken}];
+  const bytes=new TextEncoder().encode(JSON.stringify({ftos:candidate})).length;
+  if(current.length&&(candidate.length>50||bytes>maxBytes)){chunks.push(current);current=[{ftoNumber:item.ftoNumber,previewToken:item.importPreviewToken}];}
+  else current=candidate;
+ }
+ if(current.length)chunks.push(current);
+ return chunks;
+}
 $("import-button").addEventListener("click",async()=>{
  const button=$("import-button");
  if(button.disabled||!misSnapshot||!detailResults.length)return;
  const successful=detailResults.filter(item=>item.kind==="ok");
  if(successful.length!==detailResults.length){status("import-status","Resolve every failed FTO detail fetch before importing.","error");return;}
- const eligible=successful.filter(item=>Number(item.matchingJobCardCount)>0);
- if(!eligible.length){status("import-status","No new FTO contains a Job Card Number matching the reviewed Active MIS. Nothing can be imported.","error");return;}
+ const eligible=successful.filter(item=>Number(item.matchingJobCardCount)>0&&!importedFtoNumbers.has(String(item.ftoNumber).trim().toUpperCase()));
+ const outOfScope=successful.filter(item=>Number(item.matchingJobCardCount)===0||item.inspectionClassification==="OUT_OF_SCOPE");
+ if(!eligible.length){status("import-status","There are no eligible, unimported FTOs in this preview.","error");return;}
  if(eligible.some(item=>!item.importPreviewToken)){status("import-status","A server-issued import preview is missing. Fetch and review FTO details again.","error");return;}
  const transactionCount=eligible.reduce((n,item)=>n+Number(item.importableTransactionCount||0),0);
- if(!window.confirm("Import "+eligible.length+" new FTO(s) with Active MIS matches and "+transactionCount+" Government transaction row(s) into FTO History? FTOs without any Active MIS Job Card match will be skipped. No Contribution period, charges or ledger entries will be created."))return;
+ const chunks=buildImportChunks(eligible);
+ if(!chunks.length)return;
+ const confirmation="Import "+eligible.length+" eligible FTO(s) and "+transactionCount+" Government transaction row(s) into FTO History?\n\nOut of scope and skipped: "+outOfScope.length+" FTO(s).\nImport requests: "+chunks.length+" (maximum 50 FTOs per request).\n\nEach request is atomic. If a later request fails, earlier successful requests remain imported. No Contribution period, charges or ledger entries will be created. Continue?";
+ if(!window.confirm(confirmation))return;
  button.disabled=true;button.textContent="Importing…";
- status("import-status","Sending the reviewed Government history to the secure import endpoint…");
- try{
-  const payload={ftos:eligible.map(item=>({ftoNumber:item.ftoNumber,previewToken:item.importPreviewToken}))};
-  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-fto-government-import",{body:payload,timeoutMs:60000});
-  if(error||!data||data.success!==true)throw new Error(data?.error||error?.message||"Government FTO history import failed.");
-  status("import-status","Imported "+Number(data.result?.batch_count||0)+" FTO(s) and "+Number(data.result?.transaction_count||0)+" transaction(s). Contribution period assigned: No. Ledger rows created: 0.","success");
-  button.textContent="Import complete";
- }catch(error){
-  status("import-status",error.message||"Government FTO history import failed.","error");
-  button.disabled=false;button.textContent="Retry Government history import";
+ let completedBatches=0,completedFtos=0,completedRows=0;
+ for(let i=0;i<chunks.length;i++){
+  const payload={ftos:chunks[i]};
+  status("import-status","Importing request "+(i+1)+" of "+chunks.length+" · "+completedFtos+" of "+eligible.length+" FTOs completed…");
+  try{
+   const {data,error}=await window.VBGRAMGData.invoke("vbgramg-fto-government-import",{body:payload,timeoutMs:60000});
+   if(error||!data||data.success!==true)throw new Error(data?.error||error?.message||"Government FTO history import failed.");
+   const batchCount=Number(data.result?.batch_count||0),rowCount=Number(data.result?.transaction_count||0);
+   if(batchCount!==chunks[i].length)throw new Error("The server returned an unexpected imported FTO count. Refresh FTO History before continuing.");
+   completedBatches++;completedFtos+=batchCount;completedRows+=rowCount;
+   chunks[i].forEach(item=>importedFtoNumbers.add(String(item.ftoNumber).trim().toUpperCase()));
+   status("import-status","Completed request "+completedBatches+" of "+chunks.length+" · Imported "+completedFtos+" FTO(s) and "+completedRows+" transaction row(s).");
+  }catch(error){
+   status("import-status","Stopped at request "+(i+1)+" of "+chunks.length+". Confirmed imported: "+completedFtos+" FTO(s), "+completedRows+" transaction row(s). Error: "+(error.message||"Import failed.")+" Earlier successful requests remain imported. Because a connection failure can leave the last request's outcome uncertain, refresh the Government listing and FTO History before attempting another import.","error");
+   button.textContent="Refresh listing before retry";
+   button.disabled=true;
+   return;
+  }
  }
+ status("import-status","Import complete: "+completedFtos+" FTO(s) and "+completedRows+" Government transaction row(s) imported in "+completedBatches+" request(s). Contribution period assigned: No. Ledger rows created: 0.","success");
+ button.textContent="Import complete";
 });
 
 $("fetch-button").addEventListener("click",async()=>{
@@ -263,7 +299,8 @@ $("fetch-button").addEventListener("click",async()=>{
   misSnapshot=null;
   $("import-button").disabled=true;
   status("import-status","Complete the detail preview before importing.");
-  detailResults=[];
+  detailResults=[];misSnapshot=null;importedFtoNumbers=new Set();
+  $("details-button").onclick=startDetailsPreview;
   $("details-button").disabled=detailQueue.length===0;
   $("details-button").textContent="Fetch new FTO details ("+newFtoCount+")";
   $("details-panel").hidden=true;

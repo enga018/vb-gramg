@@ -26,13 +26,14 @@ button{font:inherit;font-weight:650;border:1px solid transparent;border-radius:1
 <section class="panel" id="app-panel" hidden>
 <div class="notice"><strong>Read-only comparison.</strong> This fetches the Government listing and compares FTO numbers with imported FTO history. It does not fetch detail pages, import transactions, assign Contribution periods, or change database records.</div>
 <div class="actions"><button id="fetch-button" type="button">Fetch Government FTO listing</button><button id="details-button" type="button" disabled>Fetch FTO details (new + Deferred)</button></div>
-<div id="details-panel" class="panel" hidden><h2>Read-only transaction preview</h2><p id="details-progress" class="section-note">Ready.</p><progress id="details-progressbar" max="1" value="0" style="width:100%;height:18px"></progress><div id="details-validation" class="stats" hidden></div><div id="details-results" class="table-wrap"></div></div>
+<div id="details-panel" class="panel" hidden><h2>Transaction preview</h2><p class="section-note">Successful inspections save only the FTO inspection classification. FTO transaction history and Contribution records are not changed.</p><p id="details-progress" class="section-note">Ready.</p><progress id="details-progressbar" max="1" value="0" style="width:100%;height:18px"></progress><div id="details-validation" class="stats" hidden></div><div id="details-results" class="table-wrap"></div></div>
 <div id="fetch-status" class="status">Ready. Select Fetch to contact the Government website.</div>
 <div id="results" hidden>
 <div class="stats">
 <div class="stat"><small>New FTOs</small><strong id="new-count">—</strong></div>
 <div class="stat"><small>Already imported</small><strong id="imported-count">—</strong></div>
 <div class="stat"><small>Needs review</small><strong id="review-count">—</strong></div>
+<div class="stat"><small>Already inspected (skipped)</small><strong id="skipped-count">—</strong></div>
 <div class="stat"><small>Total listed</small><strong id="count">—</strong></div>
 <div class="stat"><small>Fetched at</small><strong id="fetched-at">—</strong></div>
 <div class="stat"><small>Database changes</small><strong>No</strong></div>
@@ -169,7 +170,7 @@ async function runDetailBatches(numbers){
   for(const item of detailResults){
    const section=document.createElement("section");section.style.margin="14px 0";
    const check=checks.find(x=>x.item===item);
-   const heading=document.createElement("h3");heading.textContent=item.ftoNumber+" — "+(item.signatoryDate?"Signatory date: "+item.signatoryDate+" · ":"")+(item.kind==="ok"?"Loaded "+item.transactions.length+" transactions":item.kind);section.append(heading);
+   const heading=document.createElement("h3");heading.textContent=item.ftoNumber+" — "+(item.signatoryDate?"Signatory date: "+item.signatoryDate+" · ":"")+(item.kind==="ok"?"Loaded "+item.transactions.length+" transactions · "+(item.inspectionClassification||"inspected"):item.kind);section.append(heading);
    if(check){
     const notes=[];
     notes.push("Parsed "+check.txs.length+" detail rows (informational; Government 'No of Transaction' [6] is not treated as detail-row count).");
@@ -224,10 +225,10 @@ $("fetch-button").addEventListener("click",async()=>{
   const {data,error}=await window.VBGRAMGData.invoke("vbgramg-fto-government-fetch",{body:{},timeoutMs:30000});
   if(error||!data||data.success!==true)throw new Error(data?.error||error?.message||"Government fetch failed.");
   const validList=key=>Array.isArray(data[key]);
-  if(data.databaseChanged!==false||!validList("newFtos")||!validList("alreadyImported")||!validList("unrecognized")||
+  if(data.databaseChanged!==false||!validList("newFtos")||!validList("alreadyImported")||!validList("unrecognized")||!validList("skippedInspectedFtos")||
      data.newFtos.length!==Number(data.newCount)||data.alreadyImported.length!==Number(data.alreadyImportedCount)||
-     data.unrecognized.length!==Number(data.unrecognizedCount)||
-     data.newFtos.length+data.alreadyImported.length+data.unrecognized.length!==Number(data.listingCandidateCount))
+     data.unrecognized.length!==Number(data.unrecognizedCount)||data.skippedInspectedFtos.length!==Number(data.skippedInspectedCount)||
+     data.newFtos.length+data.alreadyImported.length+data.unrecognized.length+data.skippedInspectedFtos.length!==Number(data.listingCandidateCount))
     throw new Error("The server returned an incomplete or unexpected comparison response.");
   manifestToken=String(data.manifestToken||"");
   if(!manifestToken)throw new Error("The server did not return the secure detail manifest.");
@@ -239,6 +240,7 @@ $("fetch-button").addEventListener("click",async()=>{
   $("new-count").textContent=Number(data.newCount).toLocaleString("en-IN");
   $("imported-count").textContent=Number(data.alreadyImportedCount).toLocaleString("en-IN");
   $("review-count").textContent=Number(data.unrecognizedCount).toLocaleString("en-IN");
+  $("skipped-count").textContent=Number(data.skippedInspectedCount).toLocaleString("en-IN");
   $("count").textContent=Number(data.listingCandidateCount).toLocaleString("en-IN");
   $("fetched-at").textContent=new Date(data.fetchedAt).toLocaleString();
   renderRows("new-rows",data.newFtos,"No new FTOs were found.");

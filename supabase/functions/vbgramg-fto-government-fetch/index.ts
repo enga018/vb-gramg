@@ -180,7 +180,23 @@ Deno.serve(async (req: Request) => {
         if (number) deferredNumbers.add(number);
       }
     }
-    const deferredFtos = alreadyImported.filter(item => deferredNumbers.has(item.ftoNumber.trim().toUpperCase()));
+    const { data: inspectionRows, error: inspectionError } = await admin
+      .from("vbgramg_fto_inspection_state")
+      .select("fto_number_normalized,classification,last_inspected_at");
+    if (inspectionError) throw new Error("Could not load persistent FTO inspection state.");
+    const inspectionByNumber = new Map((inspectionRows || []).map((row: any) => [
+      String(row.fto_number_normalized || "").trim().toUpperCase(), String(row.classification || "")
+    ]));
+    const shouldInspect = (item: { ftoNumber: string }) => {
+      const classification = inspectionByNumber.get(item.ftoNumber.trim().toUpperCase());
+      return !classification || classification === "RECHECK_REQUIRED";
+    };
+    const skippedInspectedFtos = newFtos.filter(item => !shouldInspect(item));
+    const eligibleNewFtos = newFtos.filter(shouldInspect);
+    const deferredFtos = alreadyImported.filter(item =>
+      inspectionByNumber.get(item.ftoNumber.trim().toUpperCase()) === "RECHECK_REQUIRED" ||
+      (!inspectionByNumber.has(item.ftoNumber.trim().toUpperCase()) && deferredNumbers.has(item.ftoNumber.trim().toUpperCase()))
+    );
     const manifestToken = await makeManifestToken(serviceKey, candidates.map(({ detailUrl, ftoNumber, listingRow, listingHeaders }) => ({ detailUrl, ftoNumber, listingRow, listingHeaders })));
     const fingerprintBytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(candidates.map(item => item.detailUrl).join("\n")));
     const listingFingerprint = [...new Uint8Array(fingerprintBytes)].map(value => value.toString(16).padStart(2, "0")).join("");
@@ -190,7 +206,9 @@ Deno.serve(async (req: Request) => {
       source: "government",
       fetchedAt: new Date().toISOString(),
       listingCandidateCount: candidates.length,
-      newCount: newFtos.length,
+      newCount: eligibleNewFtos.length,
+      skippedInspectedCount: skippedInspectedFtos.length,
+      skippedInspectedFtos,
       alreadyImportedCount: alreadyImported.length,
       unrecognizedCount: unrecognized.length,
       listingFingerprint,
@@ -198,7 +216,7 @@ Deno.serve(async (req: Request) => {
       manifestExpiresInSeconds: 2700,
       deferredFtos,
       deferredCount: deferredFtos.length,
-      newFtos,
+      newFtos: eligibleNewFtos,
       alreadyImported,
       unrecognized,
       message: "Government listing fetched and compared with imported history. Secure detail manifest prepared; no detail pages were fetched and no database records were changed.",

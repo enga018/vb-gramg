@@ -106,6 +106,10 @@ Deno.serve(async (req: Request) => {
   if (!payload || typeof payload !== "object" || !payload.previewMeta || !Array.isArray(payload.ftos)) {
     return reply({ error: "The validated Government FTO preview payload is incomplete." }, 400);
   }
+  if (payload.action !== undefined && payload.action !== "validate-only") {
+    return reply({ error: "Unsupported Government FTO action." }, 400);
+  }
+  const validateOnly = payload.action === "validate-only";
 
   const previewKey = Deno.env.get("FTO_IMPORT_PREVIEW_KEY");
   if (!previewKey) return reply({ error: "Government source revalidation is not configured. No import was made." }, 503);
@@ -180,6 +184,19 @@ Deno.serve(async (req: Request) => {
         return reply({ error: "Government transaction details changed since the preview for " + spec.ftoNumber + ". No data was imported; generate a fresh preview." }, 409);
       }
       liveFtos.push({ ftoNumber: spec.ftoNumber, rows: currentRows });
+    }
+
+    if (validateOnly) {
+      return reply({
+        validated: true,
+        live_source_verified: true,
+        database_writes_performed: false,
+        batch_count: liveFtos.length,
+        transaction_count: liveFtos.reduce((sum, item) => sum + item.rows.length, 0),
+        status_history_rows_expected: liveFtos.reduce((sum, item) => sum + item.rows.length, 0),
+        ledger_rows_to_create: 0,
+        fto_numbers: liveFtos.map((item) => item.ftoNumber),
+      });
     }
 
     const trustedPayload = {

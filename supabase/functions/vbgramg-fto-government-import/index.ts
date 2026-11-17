@@ -11,6 +11,28 @@ const corsHeaders = {
 function reply(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Cache-Control": "no-store" } });
 }
+async function readJsonBody(req: Request, maxBytes: number) {
+  const declaredLength = Number(req.headers.get("Content-Length") || 0);
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) throw new Error("Request body is too large.");
+  if (!req.body) throw new Error("Request body is empty.");
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new Error("Request body is too large.");
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
 function tokenBytes(value: string) {
   if (!/^[A-Za-z0-9_-]+$/.test(value) || value.length > 2_000_000) throw new Error("Invalid or oversized import preview token.");
   const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - value.length % 4) % 4);
@@ -52,7 +74,7 @@ Deno.serve(async (req: Request) => {
   if (approvalError) return reply({ error: "Could not verify app access." }, 500);
   if (!approved || approved.role !== "admin") return reply({ error: "Only an approved VBGRAMG administrator can import Government FTO history." }, 403);
   try {
-    const body = await req.json();
+    const body = await readJsonBody(req, 10_000_000);
     if (!body || typeof body !== "object" || !Array.isArray(body.ftos) || body.ftos.length < 1 || body.ftos.length > 50)
       return reply({ error: "Select between one and fifty new FTOs to import." }, 400);
     const seen = new Set<string>(); const ftos = [];

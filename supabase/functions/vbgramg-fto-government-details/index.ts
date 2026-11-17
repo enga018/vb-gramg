@@ -366,6 +366,15 @@ Deno.serve(async (req: Request) => {
                 updated_at: new Date().toISOString()
               }, { onConflict: "fto_number_normalized" });
               if (stateWriteError) throw new Error("Could not save FTO inspection state.");
+              // The database trigger can intentionally suppress this write if an
+              // import committed while the Government detail request was in flight.
+              const { data: persistedInspection, error: persistedInspectionError } = await admin
+                .from("vbgramg_fto_inspection_state")
+                .select("fto_number_normalized")
+                .eq("fto_number_normalized", normalizedFto)
+                .maybeSingle();
+              if (persistedInspectionError) throw new Error("Could not confirm saved FTO inspection state.");
+              if (!persistedInspection) throw new Error("This FTO was imported while it was being inspected. Refresh the Government listing.");
               newlyInspectedCount++;
             } else {
               reusedInspectionCount++;

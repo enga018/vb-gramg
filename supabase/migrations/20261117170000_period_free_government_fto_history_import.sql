@@ -3,7 +3,11 @@
 -- This operation never writes to vbgramg_charge_ledger or payment allocations.
 
 alter table public.vbgramg_fto_batches
-  alter column contribution_period drop not null;
+  alter column contribution_period drop not null,
+  alter column village_scope drop not null;
+
+comment on column public.vbgramg_fto_batches.village_scope is
+  'Legacy metadata for older FTO workflows. NULL is valid for Government history imports that are not assigned to a village scope.';
 
 comment on column public.vbgramg_fto_batches.contribution_period is
   'Contribution period assigned to this FTO batch. NULL means Government history has been imported but no Contribution period has been assigned.';
@@ -155,7 +159,7 @@ begin
       v_reason := nullif(btrim(coalesce(v_row->>'rejectionReason','')), '');
 
       if coalesce(v_row->>'ftoNumber','') <> v_fto_number
-         or v_card = '' or v_reference = '' or v_person = '' then
+         or v_card = '' or v_reference = '' then
         raise exception 'FTO % contains a row with missing or inconsistent identity fields.', v_fto_number;
       end if;
       if v_status not in ('processed','rejected','blank','other') then

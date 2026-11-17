@@ -61,7 +61,10 @@ test("SQL independently validates normalized Active MIS matching and duplicate p
   assert.match(migration, /if not v_fto_has_active_mis_match then/i);
 });
 
-test("Fetcher permanently excludes imported and out-of-scope FTOs without Deferred rechecks", () => {
+test("Inspection uses ELIGIBLE rather than COMPLETE and excludes imported/out-of-scope FTOs", () => {
+  assert.match(details, /matchingCards\\.size === 0 \\? "OUT_OF_SCOPE" : "ELIGIBLE"/);
+  assert.doesNotMatch(details, /COMPLETE/);
+  assert.match(fetcher, /ELIGIBLE but unimported FTOs remain/);
   assert.match(fetcher, /inspectionByNumber\.get\(item\.ftoNumber\.trim\(\)\.toUpperCase\(\)\) === "OUT_OF_SCOPE"/);
   assert.match(fetcher, /imported/);
   assert.doesNotMatch(fetcher, /RECHECK_REQUIRED|deferredNumbers|deferredFtos/);

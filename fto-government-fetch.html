@@ -145,7 +145,7 @@ async function runDetailBatches(numbers){
   $("import-button").disabled=failed.length>0 || detailResults.length!==detailQueue.length || !misSnapshot || warningCount>0 || staleInspections.length>0 || !detailResults.some(item=>item.kind==="ok" && Number(item.matchingJobCardCount)>0);
   validation.hidden=detailResults.length===0;validation.replaceChildren();
   const addStat=(label,value)=>{const box=document.createElement("div");box.className="stat";const small=document.createElement("small");small.textContent=label;const strong=document.createElement("strong");strong.textContent=String(value);box.append(small,strong);validation.append(box);};
-  addStat("Validation passed",passed);addStat("Warnings",warningCount);addStat("Fetch/parse failures",failed.length);
+  addStat("Validation passed",passed);addStat("Warnings",warningCount);addStat("Fetch/parse failures",failed.length);addStat("Stale MIS inspections",staleInspections.length);
   addStat("Processed",checks.reduce((n,x)=>n+x.statusCounts.processed,0));
   addStat("Rejected",checks.reduce((n,x)=>n+x.statusCounts.rejected,0));
   addStat("Deferred / blank",checks.reduce((n,x)=>n+x.statusCounts.deferred,0));
@@ -185,7 +185,7 @@ async function runDetailBatches(numbers){
     if(check.missingReferences)notes.push(check.missingReferences+" transaction(s) have no Reference Number.");
     if(check.missingAmounts)notes.push(check.missingAmounts+" transaction(s) have no parsed amount.");
     if(check.statusCounts.unknown)notes.push(check.statusCounts.unknown+" transaction(s) have an unrecognized status (not counted as Deferred).");
-    const note=document.createElement("p");note.className="section-note";note.textContent=(check.warnings===0?"PASS — ":"WARNING — ")+notes.join(" ");section.append(note);
+    const note=document.createElement("p");note.className="section-note";note.textContent=(check.warnings===0&&!item.inspectionSnapshotStale?"PASS — ":"WARNING — ")+notes.join(" ");section.append(note);
    }
    if(item.kind==="ok"){
     const table=document.createElement("table"),thead=document.createElement("thead"),trh=document.createElement("tr");

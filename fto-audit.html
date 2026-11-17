@@ -33,6 +33,8 @@
     <progress id="progress" value="0" max="1"></progress>
     <p id="count" class="muted">No FTOs tested yet.</p>
     <div class="actions">
+      <label for="diagnosticKey">Diagnostic access code</label>
+      <input id="diagnosticKey" type="password" autocomplete="off" placeholder="Enter diagnostic access code" style="padding:10px;border:1px solid #cbd5e1;border-radius:8px;min-width:240px">
       <button id="start" type="button">Run source health audit</button>
       <button id="match" type="button">Run exact MIS matching audit</button>
       <button id="stop" type="button" disabled>Stop after current batch</button>
@@ -47,7 +49,6 @@
 (() => {
   "use strict";
   const ENDPOINT = "https://trtzhafgvqosjwrgckty.supabase.co/functions/v1/vbgramg-fto-list-audit";
-  const KEY = "ftoaudit-2026-11-16-7b8f3d91c2e64a0b";
   const BATCH_SIZE = 5;
   const statusEl = document.getElementById("status");
   const progressEl = document.getElementById("progress");
@@ -56,6 +57,7 @@
   const startBtn = document.getElementById("start");
   const matchBtn = document.getElementById("match");
   const stopBtn = document.getElementById("stop");
+  const diagnosticKey = () => document.getElementById("diagnosticKey").value.trim();
   let stopRequested = false;
   let running = false;
 
@@ -73,6 +75,7 @@
 
   async function runAudit(mode) {
     if (running) return;
+    if (!diagnosticKey()) { statusEl.textContent = "Enter the diagnostic access code first."; return; }
     running = true;
     stopRequested = false;
     startBtn.disabled = true;
@@ -99,9 +102,8 @@
 
     try {
       const manifestUrl = new URL(ENDPOINT);
-      manifestUrl.searchParams.set("key", KEY);
       manifestUrl.searchParams.set("mode", mode === "mis-match" ? "manifest-mis-match" : "manifest");
-      const manifestResponse = await fetch(manifestUrl.toString(), { method: "GET", cache: "no-store" });
+      const manifestResponse = await fetch(manifestUrl.toString(), { method: "GET", cache: "no-store", headers: { "x-fto-diagnostic-key": diagnosticKey() } });
       const manifest = await manifestResponse.json();
       if (!manifestResponse.ok || !manifest.success || !Array.isArray(manifest.detailUrls)) {
         throw new Error("Could not create the audit snapshot: " + JSON.stringify(manifest));
@@ -129,11 +131,10 @@
         const urls = detailUrls.slice(offset, offset + BATCH_SIZE);
         statusEl.textContent = "Testing FTOs " + (offset + 1) + " to " + (offset + urls.length) + "...";
         const batchUrl = new URL(ENDPOINT);
-        batchUrl.searchParams.set("key", KEY);
         batchUrl.searchParams.set("mode", mode === "mis-match" ? "batch-mis-match" : "batch-source");
         batchUrl.searchParams.set("urls", JSON.stringify(urls));
         batchUrl.searchParams.set("listingRows", JSON.stringify(ftoCandidates.slice(offset, offset + urls.length).map(item => item.listingRow)));
-        const response = await fetch(batchUrl.toString(), { method: "GET", cache: "no-store" });
+        const response = await fetch(batchUrl.toString(), { method: "GET", cache: "no-store", headers: { "x-fto-diagnostic-key": diagnosticKey() } });
         const data = await response.json();
         if (!response.ok || !data.success) {
           throw new Error("Batch at offset " + offset + " failed: " + JSON.stringify(data));

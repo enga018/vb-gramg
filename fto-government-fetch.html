@@ -252,9 +252,10 @@ $("import-button").addEventListener("click",async()=>{
  if(!eligible.length){status("import-status","There are no eligible, unimported FTOs in this preview.","error");return;}
  if(eligible.some(item=>!item.importPreviewToken)){status("import-status","A server-issued import preview is missing. Fetch and review FTO details again.","error");return;}
  const transactionCount=eligible.reduce((n,item)=>n+Number(item.importableTransactionCount||0),0);
+ const unmatchedRows=eligible.reduce((n,item)=>n+(Array.isArray(item.transactions)?item.transactions.filter(tx=>tx.misMatchStatus==="not_in_active_mis").length:0),0);
  const chunks=buildImportChunks(eligible);
  if(!chunks.length)return;
- const confirmation="Import "+eligible.length+" eligible FTO(s) and "+transactionCount+" Government transaction row(s) into FTO History?\n\nOut of scope and skipped: "+outOfScope.length+" FTO(s).\nImport requests: "+chunks.length+" (maximum 50 FTOs per request).\n\nEach request is atomic. If a later request fails, earlier successful requests remain imported. No Contribution period, charges or ledger entries will be created. Continue?";
+ const confirmation="Import "+eligible.length+" eligible FTO(s) and "+transactionCount+" Government transaction row(s) into FTO History?\n\nOut of scope and skipped: "+outOfScope.length+" FTO(s).\nUnmatched rows included for later review: "+unmatchedRows+". All transaction rows in eligible FTOs are retained.\nImport requests: "+chunks.length+" (maximum 50 FTOs per request).\n\nEach request is atomic. If a later request fails, earlier successful requests remain imported. No Contribution period, charges or ledger entries will be created. Continue?";
  if(!window.confirm(confirmation))return;
  button.disabled=true;button.textContent="Importing…";
  let completedBatches=0,completedFtos=0,completedRows=0;

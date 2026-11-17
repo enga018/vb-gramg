@@ -291,23 +291,24 @@ Deno.serve(async (req: Request) => {
     if (batchError) throw new Error("Could not verify imported FTO history.");
     const imported = new Map((batches || []).map(row => [String(row.fto_number).trim().toUpperCase(), String(row.id)]));
     const { data: inspectionRows, error: inspectionError } = await admin.from("vbgramg_fto_inspection_state")
-      .select("fto_number_normalized,classification")
+      .select("fto_number_normalized,classification,inspection_data,matching_job_card_count,deferred_transaction_count,transaction_count,last_inspected_at")
       .in("fto_number_normalized", selected.map(item => item.ftoNumber.trim().toUpperCase()));
     if (inspectionError) throw new Error("Could not verify persistent FTO inspection state.");
     const inspectionByNumber = new Map((inspectionRows || []).map(row => [
-      String(row.fto_number_normalized).trim().toUpperCase(), String(row.classification)
+      String(row.fto_number_normalized).trim().toUpperCase(), row
     ]));
     for (const item of selected) {
       const normalized = item.ftoNumber.trim().toUpperCase();
-      const classification = inspectionByNumber.get(normalized);
+      const inspection = inspectionByNumber.get(normalized);
+      const classification = inspection?.classification;
       if (imported.has(normalized)) {
         throw new Error("This FTO has already been imported and is permanently excluded from automatic detail fetching.");
       }
       if (classification === "OUT_OF_SCOPE") {
         throw new Error("This FTO was inspected and has no transactions matching an Active MIS Job Card. It is permanently excluded.");
       }
-      // COMPLETE means inspected and eligible, not imported. Allow a fresh
-      // detail fetch so an unimported FTO can receive a new preview token.
+      // Previously inspected ELIGIBLE FTOs reuse their saved transaction rows.
+      // Legacy inspection records without a payload are fetched once to populate it.
     }
     const misIndex = await loadActiveMisIndex(admin);
     const results: Record<string, unknown>[] = [];
@@ -316,9 +317,17 @@ Deno.serve(async (req: Request) => {
       while (cursor < selected.length) {
         const item = selected[cursor++];
         try {
-          const detail = await getPage(item.detailUrl, item.ftoNumber);
+          const normalizedFto = item.ftoNumber.trim().toUpperCase();
+          const savedInspection = inspectionByNumber.get(normalizedFto);
+          const savedData = savedInspection?.inspection_data;
+          const hasSavedTransactions = savedData && Array.isArray(savedData.transactions);
+          const detail = hasSavedTransactions
+            ? { kind: "ok", transactions: savedData.transactions }
+            : await getPage(item.detailUrl, item.ftoNumber);
           if (detail.kind === "ok") {
-            const transactions = detail.transactions.map(tx => {
+            const transactions = hasSavedTransactions
+              ? detail.transactions
+              : detail.transactions.map(tx => {
               const match = matchTransactionToMis(tx, misIndex);
               return { ...tx, ftoNumber: item.ftoNumber, ...match };
             });
@@ -328,11 +337,20 @@ Deno.serve(async (req: Request) => {
             const matchingTransactions = transactions.filter(tx => tx.misMatchStatus !== "not_in_active_mis");
             const matchingCards = new Set(matchingTransactions.map(tx => String(tx.jobCardNumber || "").trim().toUpperCase()).filter(Boolean));
             const deferredInScope = matchingTransactions.filter(tx => tx.normalizedStatus === "blank").length;
-            const classification = matchingCards.size === 0 ? "OUT_OF_SCOPE" : "COMPLETE";
+            const classification = matchingCards.size === 0 ? "OUT_OF_SCOPE" : "ELIGIBLE";
+            const inspectionData = {
+              transactions,
+              listingRow: item.listingRow,
+              listingHeaders: item.listingHeaders || [],
+              signatoryDate: item.listingRow[5] || "",
+              listingTransactionCount: Number(item.listingRow[6] || 0),
+              listingAmount: Number(item.listingRow[7] || 0)
+            };
             const { error: stateWriteError } = await admin.from("vbgramg_fto_inspection_state").upsert({
-              fto_number_normalized: item.ftoNumber.trim().toUpperCase(),
+              fto_number_normalized: normalizedFto,
               fto_number: item.ftoNumber.trim(),
               classification,
+              inspection_data: inspectionData,
               last_inspected_at: new Date().toISOString(),
               matching_job_card_count: matchingCards.size,
               deferred_transaction_count: deferredInScope,
@@ -340,12 +358,15 @@ Deno.serve(async (req: Request) => {
               updated_at: new Date().toISOString()
             }, { onConflict: "fto_number_normalized" });
             if (stateWriteError) throw new Error("Could not save FTO inspection state.");
+            const listingRow = hasSavedTransactions && Array.isArray(savedData.listingRow) ? savedData.listingRow : item.listingRow;
+            const listingHeaders = hasSavedTransactions && Array.isArray(savedData.listingHeaders) ? savedData.listingHeaders : (item.listingHeaders || []);
             const result: Record<string, unknown> = { ftoNumber: item.ftoNumber, inspectionClassification: classification,
               matchingJobCardCount: matchingCards.size, importableTransactionCount: transactions.length,
               deferredInScopeCount: deferredInScope,
-              signatoryDate: item.listingRow[5] || "", listingTransactionCount: Number(item.listingRow[6] || 0),
-              listingAmount: Number(item.listingRow[7] || 0), listingRow: item.listingRow,
-              listingHeaders: item.listingHeaders || [], ...detail, transactions };
+              signatoryDate: hasSavedTransactions ? (savedData.signatoryDate || "") : (item.listingRow[5] || ""),
+              listingTransactionCount: hasSavedTransactions ? Number(savedData.listingTransactionCount || 0) : Number(item.listingRow[6] || 0),
+              listingAmount: hasSavedTransactions ? Number(savedData.listingAmount || 0) : Number(item.listingRow[7] || 0),
+              listingRow, listingHeaders, kind: "ok", transactions };
             if (!imported.has(item.ftoNumber.trim().toUpperCase()) && matchingCards.size > 0) {
               result.importPreviewToken = await makeImportPreviewToken(serviceKey, claims.sub, {
                 activeImportId: misIndex.importId, misUpdatedAt: misIndex.misUpdatedAt,

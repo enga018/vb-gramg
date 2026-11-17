@@ -108,17 +108,18 @@ Deno.serve(async (req: Request) => {
 
     const newFtos: { ftoNumber: string; listingRow: string[] }[] = [];
     const alreadyImported: { ftoNumber: string; listingRow: string[] }[] = [];
-    const unrecognized: { ftoNumber: string; listingRow: string[] }[] = [];
+    const unrecognized: { ftoNumber: string; listingRow: string[]; reason: string }[] = [];
     const seenNumbers = new Set<string>();
     for (const candidate of candidates) {
       const ftoNumber = String(candidate.ftoNumber || "").trim();
       const normalized = ftoNumber.toUpperCase();
       const item = { ftoNumber, listingRow: candidate.listingRow };
       if (!normalized) {
-        unrecognized.push(item);
+        unrecognized.push({ ...item, reason: "FTO number unavailable" });
       } else if (seenNumbers.has(normalized)) {
-        // Repeated FTO numbers in the listing are not new import candidates.
-        alreadyImported.push(item);
+        // A repeated number in the same Government listing needs review; it is
+        // not evidence that the FTO already exists in our database.
+        unrecognized.push({ ...item, reason: "Duplicate FTO number in Government listing" });
       } else {
         seenNumbers.add(normalized);
         if (existingNumbers.has(normalized)) alreadyImported.push(item);

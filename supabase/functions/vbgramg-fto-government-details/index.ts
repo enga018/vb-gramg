@@ -261,8 +261,7 @@ Deno.serve(async (req: Request) => {
       if (!candidate) throw new Error("Requested FTO is not part of this Government listing manifest.");
       return candidate;
     });
-    // Revalidate eligibility at request time: new FTOs, or imported FTOs with a
-    // current blank/Deferred transaction. No writes are performed here.
+    // Revalidate eligibility at request time. Imported FTOs are never re-fetched.
     const { data: batches, error: batchError } = await admin.from("vbgramg_fto_batches")
       .select("id,fto_number").in("fto_number", selected.map(item => item.ftoNumber));
     if (batchError) throw new Error("Could not verify imported FTO history.");
@@ -281,7 +280,7 @@ Deno.serve(async (req: Request) => {
         throw new Error("This FTO has already been imported and is permanently excluded from automatic detail fetching.");
       }
       if (classification === "OUT_OF_SCOPE") {
-        throw new Error("This FTO was inspected and has no transactions for New Serchchip North. It is permanently excluded.");
+        throw new Error("This FTO was inspected and has no transactions matching an Active MIS Job Card. It is permanently excluded.");
       }
       // COMPLETE means inspected and eligible, not imported. Allow a fresh
       // detail fetch so an unimported FTO can receive a new preview token.
@@ -300,14 +299,12 @@ Deno.serve(async (req: Request) => {
               const exempt = misIndex.exemptCards.has(String(tx.jobCardNumber || "").trim().toUpperCase());
               return { ...tx, ftoNumber: item.ftoNumber, ...match, contributionExempt: exempt };
             });
-            const isOurVillage = (value: unknown) =>
-              String(value || "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim() === "NEW SERCHHIP NORTH";
-            // The Government detail page can contain records beyond our village.
-            // Only New Serchchip North rows are eligible for this village's history import.
-            const villageTransactions = transactions.filter(tx => isOurVillage(tx.villageName));
-            const inScope = villageTransactions.filter(tx => tx.misMatchStatus !== "not_in_active_mis");
-            const matchingCards = new Set(inScope.map(tx => String(tx.jobCardNumber || "").trim().toUpperCase()).filter(Boolean));
-            const deferredInScope = inScope.filter(tx => tx.normalizedStatus === "blank").length;
+            // Eligibility is based only on whether a transaction's full Job Card Number
+            // exists in the reviewed Active MIS. Retain every transaction in the FTO,
+            // including unmatched rows, for later review during Contribution charge creation.
+            const matchingTransactions = transactions.filter(tx => tx.misMatchStatus !== "not_in_active_mis");
+            const matchingCards = new Set(matchingTransactions.map(tx => String(tx.jobCardNumber || "").trim().toUpperCase()).filter(Boolean));
+            const deferredInScope = matchingTransactions.filter(tx => tx.normalizedStatus === "blank").length;
             const classification = matchingCards.size === 0 ? "OUT_OF_SCOPE" : "COMPLETE";
             const { error: stateWriteError } = await admin.from("vbgramg_fto_inspection_state").upsert({
               fto_number_normalized: item.ftoNumber.trim().toUpperCase(),
@@ -321,7 +318,7 @@ Deno.serve(async (req: Request) => {
             }, { onConflict: "fto_number_normalized" });
             if (stateWriteError) throw new Error("Could not save FTO inspection state.");
             const result: Record<string, unknown> = { ftoNumber: item.ftoNumber, inspectionClassification: classification,
-              matchingJobCardCount: matchingCards.size, importableTransactionCount: villageTransactions.length,
+              matchingJobCardCount: matchingCards.size, importableTransactionCount: transactions.length,
               deferredInScopeCount: deferredInScope,
               signatoryDate: item.listingRow[5] || "", listingTransactionCount: Number(item.listingRow[6] || 0),
               listingAmount: Number(item.listingRow[7] || 0), listingRow: item.listingRow,
@@ -329,7 +326,7 @@ Deno.serve(async (req: Request) => {
             if (!imported.has(item.ftoNumber.trim().toUpperCase()) && matchingCards.size > 0) {
               result.importPreviewToken = await makeImportPreviewToken(serviceKey, claims.sub, {
                 activeImportId: misIndex.importId, misUpdatedAt: misIndex.misUpdatedAt,
-                ftoNumber: item.ftoNumber, rows: villageTransactions
+                ftoNumber: item.ftoNumber, rows: transactions
               });
             }
             results.push(result);

@@ -177,7 +177,9 @@ async function runDetailBatches(numbers){
      tbody.append(tr);
     }
     table.append(tbody);section.append(table);
-   }else{const p=document.createElement("p");p.textContent=item.error||("Page result: "+item.kind);section.append(p);}
+   }else{const p=document.createElement("p");p.textContent=item.error||("Page result: "+item.kind);section.append(p);
+    if(Array.isArray(item.validationErrors)&&item.validationErrors.length){const ul=document.createElement("ul");for(const message of item.validationErrors){const li=document.createElement("li");li.textContent=message;ul.append(li);}section.append(ul);}
+   }
    target.append(section);
   }
  };

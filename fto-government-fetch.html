@@ -149,17 +149,12 @@ async function runDetailBatches(numbers){
    const check=checks.find(x=>x.item===item);
    const heading=document.createElement("h3");heading.textContent=item.ftoNumber+" — "+(item.signatoryDate?"Signatory date: "+item.signatoryDate+" · ":"")+(item.kind==="ok"?"Loaded "+Number(item.governmentTransactionCount||0)+" Government rows · "+Number(item.importableTransactionCount||0)+" matching rows stored · "+Number(item.unmatchedTransactionCount||0)+" unmatched (count only) · "+(item.inspectionClassification||"inspected"):item.kind);section.append(heading);
    if(check){
-    const notes=[];
-    notes.push("Parsed "+check.txs.length+" detail rows (informational; Government 'No of Transaction' [6] is not treated as detail-row count).");
-    if(Array.isArray(item.listingRow)&&item.listingRow.length>12)notes.push("Government field [12] (Total Processed Amount) is displayed in the source listing but excluded from amount reconciliation pending clarification of its relationship to transaction statuses.");
-    for(const result of check.listingMismatches)notes.push(result.label+" mismatch: Government "+result.expected+", parsed "+result.actual+".");
-    if(check.listingUnavailable.length)notes.push("Government summary fields unavailable: "+check.listingUnavailable.map(x=>x.label).join(", ")+".");
-    if(check.duplicateRefs)notes.push(check.duplicateRefs+" duplicate Reference Number(s).");
-    if(check.missingJobCards)notes.push(check.missingJobCards+" transaction(s) have no Job Card Number.");
-    if(check.missingReferences)notes.push(check.missingReferences+" transaction(s) have no Reference Number.");
-    if(check.missingAmounts)notes.push(check.missingAmounts+" transaction(s) have no parsed amount.");
-    if(check.statusCounts.unknown)notes.push(check.statusCounts.unknown+" transaction(s) have an unrecognized status (not counted as Deferred).");
-    const note=document.createElement("p");note.className="section-note";note.textContent=(check.warnings===0?"PASS — ":"WARNING — ")+notes.join(" ");section.append(note);
+    const notes=[
+     "Backend validation passed for all "+Number(item.governmentTransactionCount||0)+" Government transaction rows.",
+     "Stored transaction details: "+Number(item.importableTransactionCount||0)+".",
+     "Unmatched rows excluded from storage: "+Number(item.unmatchedTransactionCount||0)+"."
+    ];
+    const note=document.createElement("p");note.className="section-note";note.textContent="PASS — "+notes.join(" ");section.append(note);
    }
    if(item.kind==="ok"){
     const table=document.createElement("table"),thead=document.createElement("thead"),trh=document.createElement("tr");

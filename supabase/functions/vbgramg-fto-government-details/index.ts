@@ -338,26 +338,30 @@ Deno.serve(async (req: Request) => {
             const matchingCards = new Set(matchingTransactions.map(tx => String(tx.jobCardNumber || "").trim().toUpperCase()).filter(Boolean));
             const deferredInScope = matchingTransactions.filter(tx => tx.normalizedStatus === "blank").length;
             const classification = matchingCards.size === 0 ? "OUT_OF_SCOPE" : "ELIGIBLE";
-            const inspectionData = {
-              transactions,
-              listingRow: item.listingRow,
-              listingHeaders: item.listingHeaders || [],
-              signatoryDate: item.listingRow[5] || "",
-              listingTransactionCount: Number(item.listingRow[6] || 0),
-              listingAmount: Number(item.listingRow[7] || 0)
-            };
-            const { error: stateWriteError } = await admin.from("vbgramg_fto_inspection_state").upsert({
-              fto_number_normalized: normalizedFto,
-              fto_number: item.ftoNumber.trim(),
-              classification,
-              inspection_data: inspectionData,
-              last_inspected_at: new Date().toISOString(),
-              matching_job_card_count: matchingCards.size,
-              deferred_transaction_count: deferredInScope,
-              transaction_count: transactions.length,
-              updated_at: new Date().toISOString()
-            }, { onConflict: "fto_number_normalized" });
-            if (stateWriteError) throw new Error("Could not save FTO inspection state.");
+            if (!hasSavedTransactions) {
+              const inspectionData = {
+                transactions,
+                listingRow: item.listingRow,
+                listingHeaders: item.listingHeaders || [],
+                signatoryDate: item.listingRow[5] || "",
+                listingTransactionCount: Number(item.listingRow[6] || 0),
+                listingAmount: Number(item.listingRow[7] || 0),
+                activeImportId: misIndex.importId,
+                misUpdatedAt: misIndex.misUpdatedAt
+              };
+              const { error: stateWriteError } = await admin.from("vbgramg_fto_inspection_state").upsert({
+                fto_number_normalized: normalizedFto,
+                fto_number: item.ftoNumber.trim(),
+                classification,
+                inspection_data: inspectionData,
+                last_inspected_at: new Date().toISOString(),
+                matching_job_card_count: matchingCards.size,
+                deferred_transaction_count: deferredInScope,
+                transaction_count: transactions.length,
+                updated_at: new Date().toISOString()
+              }, { onConflict: "fto_number_normalized" });
+              if (stateWriteError) throw new Error("Could not save FTO inspection state.");
+            }
             const listingRow = hasSavedTransactions && Array.isArray(savedData.listingRow) ? savedData.listingRow : item.listingRow;
             const listingHeaders = hasSavedTransactions && Array.isArray(savedData.listingHeaders) ? savedData.listingHeaders : (item.listingHeaders || []);
             const result: Record<string, unknown> = { ftoNumber: item.ftoNumber, inspectionClassification: classification,
@@ -369,7 +373,8 @@ Deno.serve(async (req: Request) => {
               listingRow, listingHeaders, kind: "ok", transactions };
             if (!imported.has(item.ftoNumber.trim().toUpperCase()) && matchingCards.size > 0) {
               result.importPreviewToken = await makeImportPreviewToken(serviceKey, claims.sub, {
-                activeImportId: misIndex.importId, misUpdatedAt: misIndex.misUpdatedAt,
+                activeImportId: hasSavedTransactions ? savedData.activeImportId : misIndex.importId,
+                misUpdatedAt: hasSavedTransactions ? savedData.misUpdatedAt : misIndex.misUpdatedAt,
                 ftoNumber: item.ftoNumber, rows: transactions
               });
             }

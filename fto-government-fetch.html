@@ -125,9 +125,9 @@ async function runDetailBatches(numbers){
  const failed=detailResults.filter(x=>x.kind!=="ok").map(x=>x.ftoNumber);
  button.textContent=failed.length?"Retry failed FTOs ("+failed.length+")":"Detail preview complete";
  button.disabled=failed.length===0;
- button.onclick=async()=>{detailResults=detailResults.filter(x=>x.kind==="ok");button.onclick=null;await runDetailBatches(failed);};
+ button.onclick=async()=>{detailResults=detailResults.filter(x=>x.kind==="ok");await runDetailBatches(failed);};
 }
-$("details-button").addEventListener("click",()=>{if(detailQueue.length){detailResults=[];runDetailBatches(detailQueue);}});
+$("details-button").onclick=()=>{if(detailQueue.length){detailResults=[];runDetailBatches(detailQueue);}};
 \n$("fetch-button").addEventListener("click",async()=>{
  const button=$("fetch-button");button.disabled=true;button.textContent="Fetching…";$("results").hidden=true;
  status("fetch-status","Connecting to the Government FTO listing and checking imported history…");

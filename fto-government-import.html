@@ -148,14 +148,14 @@ $("import-button").addEventListener("click",async()=>{
  if(!validatedPayload||!sessionUser)return;
  const message="Import these 3 Government FTO batches into JUL26?\n\n354 rejected transactions will be saved in FTO history.\nNo Contribution charges will be created.\nExisting FTO batches and the manual importer will not be changed.\n\nContinue?";
  if(!window.confirm(message))return;
- const button=$("import-button");button.disabled=true;button.textContent="Importing…";
+ const button=$("import-button");button.disabled=true;$("validate-button").disabled=true;button.textContent="Importing…";
  try{
   const {data,error}=await window.VBGRAMGData.invoke("vbgramg-government-fto-import",{body:validatedPayload,timeoutMs:false});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||"Government FTO import failed.");
   if(data.approved!==true||Number(data.batch_count)!==3||Number(data.transaction_count)!==354||Number(data.status_history_count)!==354||Number(data.ledger_rows_created)!==0)throw new Error("The server response did not confirm the exact expected import totals. Check FTO history before attempting another import.");
   status("validation-status","Import completed and live Government source was revalidated. Saved batches: 3; rejected transactions: 354; initial status-history rows: 354; Contribution ledger rows created: 0.","success");
   button.textContent="Import completed";
- }catch(err){status("validation-status",err.message||"Import failed. No batches should have been saved unless the server explicitly confirmed success.","error");button.disabled=false;button.textContent="Retry import";}
+ }catch(err){status("validation-status",err.message||"Import failed. No batches should have been saved unless the server explicitly confirmed success.","error");button.disabled=false;$("validate-button").disabled=false;button.textContent="Retry import";}
 });
 async function verifyAccess(user){
  const seq=++authSequence;if(!user){window.location.replace("./");return;}

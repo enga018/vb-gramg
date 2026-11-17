@@ -25,7 +25,8 @@ button{font:inherit;font-weight:650;border:1px solid transparent;border-radius:1
 <section class="panel" id="access-panel"><h2>Administrator access</h2><p>Sign in with an approved VBGRAMG administrator account.</p><div id="access-status" class="status">Checking your session…</div></section>
 <section class="panel" id="app-panel" hidden>
 <div class="notice"><strong>Read-only comparison.</strong> This fetches the Government listing and compares FTO numbers with imported FTO history. It does not fetch detail pages, import transactions, assign Contribution periods, or change database records.</div>
-<div class="actions"><button id="fetch-button" type="button">Fetch Government FTO listing</button></div>
+<div class="actions"><button id="fetch-button" type="button">Fetch Government FTO listing</button><button id="details-button" type="button" disabled>Fetch FTO details (new + Deferred)</button></div>
+<div id="details-panel" class="panel" hidden><h2>Read-only transaction preview</h2><p id="details-progress" class="section-note">Ready.</p><progress id="details-progressbar" max="1" value="0" style="width:100%;height:18px"></progress><div id="details-results" class="table-wrap"></div></div>
 <div id="fetch-status" class="status">Ready. Select Fetch to contact the Government website.</div>
 <div id="results" hidden>
 <div class="stats">
@@ -53,7 +54,7 @@ button{font:inherit;font-weight:650;border:1px solid transparent;border-radius:1
 (function(){
 "use strict";
 const $=id=>document.getElementById(id),client=window.vbgramgSupabase;
-let authSequence=0;
+let authSequence=0, manifestToken="", detailQueue=[], detailResults=[];
 function status(id,message,type){const el=$(id);el.textContent=message;el.className="status"+(type?" "+type:"");}
 async function verifyAccess(user){
  const seq=++authSequence;
@@ -91,7 +92,43 @@ $("toggle-imported").addEventListener("click",()=>{
  $("toggle-imported").textContent=show?"Hide already-imported FTOs":"Show already-imported FTOs";
  $("toggle-imported").setAttribute("aria-expanded",String(show));
 });
-$("fetch-button").addEventListener("click",async()=>{
+
+async function runDetailBatches(numbers){
+ const button=$("details-button"),panel=$("details-panel"),progress=$("details-progress"),bar=$("details-progressbar"),target=$("details-results");
+ button.disabled=true;panel.hidden=false;
+ const total=numbers.length;let pending=[...numbers],done=0;
+ const render=()=>{
+  bar.max=Math.max(1,total);bar.value=done;
+  progress.textContent="Processed "+done+" of "+total+" FTOs · "+detailResults.filter(x=>x.kind==="ok").length+" successful · "+detailResults.filter(x=>x.kind!=="ok").length+" failed";
+  target.replaceChildren();
+  for(const item of detailResults){
+   const section=document.createElement("section");section.style.margin="14px 0";
+   const heading=document.createElement("h3");heading.textContent=item.ftoNumber+" — "+(item.kind==="ok"?"Loaded "+item.transactions.length+" transactions":item.kind);section.append(heading);
+   if(item.kind==="ok"){
+    const table=document.createElement("table"),thead=document.createElement("thead"),trh=document.createElement("tr");
+    ["Job Card Number","Reference Number","Status","Amount","Village","Person"].forEach(v=>{const th=document.createElement("th");th.textContent=v;trh.append(th);});
+    thead.append(trh);table.append(thead);const tbody=document.createElement("tbody");
+    for(const tx of item.transactions){const tr=document.createElement("tr");[tx.jobCardNumber,tx.referenceNumber,tx.governmentStatus,tx.amount,tx.village,tx.personName].forEach(v=>{const td=document.createElement("td");td.textContent=v||"—";tr.append(td);});tbody.append(tr);}
+    table.append(tbody);section.append(table);
+   }else{const p=document.createElement("p");p.textContent=item.error||("Page result: "+item.kind);section.append(p);}
+   target.append(section);
+  }
+ };
+ while(pending.length){
+  const batch=pending.splice(0,5);
+  try{
+   const {data,error}=await window.VBGRAMGData.invoke("vbgramg-fto-government-details",{body:{manifestToken,ftoNumbers:batch},timeoutMs:60000});
+   if(error||!data||data.success!==true||!Array.isArray(data.results))throw new Error(data?.error||error?.message||"Batch request failed.");
+   detailResults.push(...data.results);done+=batch.length;render();
+  }catch(error){detailResults.push(...batch.map(ftoNumber=>({ftoNumber,kind:"request_failure",error:error.message||"Batch request failed."})));done+=batch.length;render();}
+ }
+ const failed=detailResults.filter(x=>x.kind!=="ok").map(x=>x.ftoNumber);
+ button.textContent=failed.length?"Retry failed FTOs ("+failed.length+")":"Detail preview complete";
+ button.disabled=failed.length===0;
+ button.onclick=async()=>{detailResults=detailResults.filter(x=>x.kind==="ok");button.onclick=null;await runDetailBatches(failed);};
+}
+$("details-button").addEventListener("click",()=>{if(detailQueue.length){detailResults=[];runDetailBatches(detailQueue);}});
+\n$("fetch-button").addEventListener("click",async()=>{
  const button=$("fetch-button");button.disabled=true;button.textContent="Fetching…";$("results").hidden=true;
  status("fetch-status","Connecting to the Government FTO listing and checking imported history…");
  try{
@@ -103,6 +140,13 @@ $("fetch-button").addEventListener("click",async()=>{
      data.unrecognized.length!==Number(data.unrecognizedCount)||
      data.newFtos.length+data.alreadyImported.length+data.unrecognized.length!==Number(data.listingCandidateCount))
     throw new Error("The server returned an incomplete or unexpected comparison response.");
+  manifestToken=String(data.manifestToken||"");
+  if(!manifestToken)throw new Error("The server did not return the secure detail manifest.");
+  detailQueue=[...data.newFtos,...(Array.isArray(data.deferredFtos)?data.deferredFtos:[])].map(item=>String(item.ftoNumber||"").trim()).filter(Boolean);
+  detailResults=[];
+  $("details-button").disabled=detailQueue.length===0;
+  $("details-button").textContent="Fetch FTO details ("+detailQueue.length+" new + Deferred)";
+  $("details-panel").hidden=true;
   $("new-count").textContent=Number(data.newCount).toLocaleString("en-IN");
   $("imported-count").textContent=Number(data.alreadyImportedCount).toLocaleString("en-IN");
   $("review-count").textContent=Number(data.unrecognizedCount).toLocaleString("en-IN");
@@ -114,7 +158,7 @@ $("fetch-button").addEventListener("click",async()=>{
   $("imported-section").hidden=true;$("toggle-imported").textContent="Show already-imported FTOs";$("toggle-imported").setAttribute("aria-expanded","false");
   $("unrecognized-section").hidden=data.unrecognized.length===0;
   $("results").hidden=false;
-  status("fetch-status",data.message+" Listing fingerprint: "+data.listingFingerprint,"success");
+  status("fetch-status",data.message+" Deferred FTOs to recheck: "+Number(data.deferredCount||0)+". Listing fingerprint: "+data.listingFingerprint,"success");
  }catch(error){status("fetch-status",error.message||"Government fetch failed.","error");}
  finally{button.disabled=false;button.textContent="Fetch Government FTO listing";}
 });

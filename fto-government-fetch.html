@@ -224,12 +224,14 @@ $("import-button").addEventListener("click",async()=>{
  if(button.disabled||!misSnapshot||!detailResults.length)return;
  const successful=detailResults.filter(item=>item.kind==="ok");
  if(successful.length!==detailResults.length){status("import-status","Resolve every failed FTO detail fetch before importing.","error");return;}
- const transactionCount=successful.reduce((n,item)=>n+(Array.isArray(item.transactions)?item.transactions.length:0),0);
- if(!window.confirm("Import "+successful.length+" new FTO(s) and "+transactionCount+" Government transaction row(s) into FTO History? No Contribution period, charges or ledger entries will be created."))return;
+ const eligible=successful.filter(item=>Number(item.matchingJobCardCount)>0);
+ if(!eligible.length){status("import-status","No new FTO contains a Job Card Number in the reviewed Active MIS. Nothing can be imported.","error");return;}
+ const transactionCount=eligible.reduce((n,item)=>n+(Array.isArray(item.transactions)?item.transactions.length:0),0);
+ if(!window.confirm("Import "+eligible.length+" new FTO(s) with Active MIS matches and "+transactionCount+" Government transaction row(s) into FTO History? FTOs without Active MIS matches will be skipped. No Contribution period, charges or ledger entries will be created."))return;
  button.disabled=true;button.textContent="Importing…";
  status("import-status","Sending the reviewed Government history to the secure import endpoint…");
  try{
-  const payload={activeImportId:misSnapshot.activeImportId,misUpdatedAt:misSnapshot.misUpdatedAt,ftos:successful.map(item=>({ftoNumber:item.ftoNumber,rows:item.transactions}))};
+  const payload={activeImportId:misSnapshot.activeImportId,misUpdatedAt:misSnapshot.misUpdatedAt,ftos:eligible.map(item=>({ftoNumber:item.ftoNumber,rows:item.transactions}))};
   const {data,error}=await window.VBGRAMGData.invoke("vbgramg-fto-government-import",{body:payload,timeoutMs:60000});
   if(error||!data||data.success!==true)throw new Error(data?.error||error?.message||"Government FTO history import failed.");
   status("import-status","Imported "+Number(data.result?.batch_count||0)+" FTO(s) and "+Number(data.result?.transaction_count||0)+" transaction(s). Contribution period assigned: No. Ledger rows created: 0.","success");

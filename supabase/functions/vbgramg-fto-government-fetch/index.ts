@@ -191,10 +191,7 @@ Deno.serve(async (req: Request) => {
       const classification = inspectionByNumber.get(item.ftoNumber.trim().toUpperCase());
       return !classification || classification === "RECHECK_REQUIRED";
     };
-    const skippedInspectedFtos = [
-      ...newFtos.filter(item => !shouldInspect(item)),
-      ...alreadyImported.filter(item => !shouldInspect(item) && !deferredNumbers.has(item.ftoNumber.trim().toUpperCase()))
-    ];
+    const skippedInspectedFtos = newFtos.filter(item => !shouldInspect(item));
     const eligibleNewFtos = newFtos.filter(shouldInspect);
     const deferredFtos = alreadyImported.filter(item =>
       inspectionByNumber.get(item.ftoNumber.trim().toUpperCase()) === "RECHECK_REQUIRED" ||

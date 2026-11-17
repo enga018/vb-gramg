@@ -140,7 +140,7 @@ begin
       fto_number, contribution_period, ledger_charge_period, village_scope,
       last_source_sha256, created_by, notes, period_id, revision_number
     ) values (
-      v_fto_number, null, null, 'NEW SERCHHIP North',
+      v_fto_number, null, null, null,
       nullif(p_payload->>'sourceSha256',''), p_actor,
       'Government FTO history import; Contribution period not assigned; no ledger charges created.',
       null, 1
@@ -159,9 +159,6 @@ begin
       if coalesce(v_row->>'ftoNumber','') <> v_fto_number
          or v_card = '' or v_reference = '' or v_person = '' then
         raise exception 'FTO % contains a row with missing or inconsistent identity fields.', v_fto_number;
-      end if;
-      if upper(regexp_replace(v_village, '[^A-Za-z0-9]+', ' ', 'g')) <> 'NEW SERCHHIP NORTH' then
-        raise exception 'FTO % contains a transaction outside NEW SERCHHIP North.', v_fto_number;
       end if;
       if v_status not in ('processed','rejected','blank','other') then
         raise exception 'FTO % contains an unrecognized Government status for reference %.', v_fto_number, v_reference;
@@ -229,7 +226,7 @@ begin
     end loop;
 
     if not v_fto_has_active_mis_match then
-      raise exception 'FTO % has no Job Card Number in the reviewed Active MIS. It cannot be imported.', v_fto_number;
+      raise exception 'FTO % has no transaction matching an Active MIS Job Card. It cannot be imported.', v_fto_number;
     end if;
 
     v_batch_count := v_batch_count + 1;

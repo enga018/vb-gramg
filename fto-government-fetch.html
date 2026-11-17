@@ -149,12 +149,21 @@ async function runDetailBatches(numbers){
   addStat("Unrecognized status",checks.reduce((n,x)=>n+x.statusCounts.unknown,0));
   const allTransactions=successful.flatMap(item=>Array.isArray(item.transactions)?item.transactions:[]);
   const misCounts={matched:0,applicant_review:0,not_in_active_mis:0,exempt:0};
-  for(const tx of allTransactions){if(tx.contributionExempt)misCounts.exempt++;if(tx.misMatchStatus in misCounts)misCounts[tx.misMatchStatus]++;}
+  const uniqueCards={matched:new Set(),applicant_review:new Set(),not_in_active_mis:new Set(),exempt:new Set()};
+  for(const tx of allTransactions){
+   const card=String(tx.jobCardNumber||"").trim().toUpperCase();
+   if(tx.contributionExempt){misCounts.exempt++;if(card)uniqueCards.exempt.add(card);}
+   if(tx.misMatchStatus in misCounts){misCounts[tx.misMatchStatus]++;if(card)uniqueCards[tx.misMatchStatus].add(card);}
+  }
   const misHeading=document.createElement("h3");misHeading.textContent="Active MIS matching · read-only";validation.append(misHeading);
-  addStat("Applicant matched",misCounts.matched);
-  addStat("Applicant review",misCounts.applicant_review);
-  addStat("Not in Active MIS",misCounts.not_in_active_mis);
-  addStat("Exempt Job Cards",misCounts.exempt);
+  const misNote=document.createElement("p");misNote.className="section-note";misNote.textContent="Counts below show unique Job Cards, not transaction rows. Transactions remain visible even when their Job Card is absent from the current Active MIS.";validation.append(misNote);
+  addStat("Matched Job Cards",uniqueCards.matched.size);
+  addStat("Applicant review Job Cards",uniqueCards.applicant_review.size);
+  addStat("Outside Active MIS / not found",uniqueCards.not_in_active_mis.size);
+  addStat("Exempt Job Cards",uniqueCards.exempt.size);
+  const misDetail=document.createElement("p");misDetail.className="section-note";
+  misDetail.textContent="Transaction rows — Matched: "+misCounts.matched+" · Applicant review: "+misCounts.applicant_review+" · Outside Active MIS: "+misCounts.not_in_active_mis+" · Exempt: "+misCounts.exempt;
+  validation.append(misDetail);
   progress.textContent="Processed "+done+" of "+total+" FTOs · "+successful.length+" successful · "+failed.length+" failed · "+passed+" passed validation · "+warningCount+" with warnings";
   target.replaceChildren();
   for(const item of detailResults){
@@ -182,7 +191,7 @@ async function runDetailBatches(numbers){
      const tr=document.createElement("tr");
      [tx.jobCardNumber,tx.referenceNumber,tx.governmentStatus,tx.amount,tx.village,tx.personName].forEach(v=>{const td=document.createElement("td");td.textContent=v||"—";tr.append(td);});
      const matchCell=document.createElement("td");
-     const matchLabels={matched:"Matched",applicant_review:"Applicant review",not_in_active_mis:"Not in Active MIS"};
+     const matchLabels={matched:"Matched",applicant_review:"Applicant review",not_in_active_mis:"Outside Active MIS / not found"};
      matchCell.textContent=matchLabels[tx.misMatchStatus]||"Not checked";
      if(Array.isArray(tx.misCandidates)&&tx.misCandidates.length)matchCell.title=tx.misCandidates.map(a=>a.applicantName+" ("+a.matchPercentage+"%)").join("\\n");
      tr.append(matchCell);

@@ -141,7 +141,9 @@ async function runDetailBatches(numbers){
     if(check.missingAmounts)notes.push(check.missingAmounts+" transaction(s) have no parsed amount.");
     if(check.statusCounts.unknown)notes.push(check.statusCounts.unknown+" transaction(s) have an unrecognized status (not counted as Deferred).");
     if(check.countKnown&&!check.countMatches&&Array.isArray(item.listingRow)){
-     notes.push("Listing row cells for diagnosis: "+item.listingRow.map((v,i)=>"["+i+"] "+(v||"—")).join(" | "));
+     const headers=Array.isArray(item.listingHeaders)?item.listingHeaders:[];
+     notes.push("Government listing fields: "+item.listingRow.map((v,i)=>((headers[i]||("Column "+(i+1)))+" ["+i+"]: "+(v||"—"))).join(" | "));
+     notes.push("Transaction-count comparison currently uses cell [6]; its header is: "+(headers[6]||"not captured")+". This mapping remains unverified.");
     }
     const note=document.createElement("p");note.className="section-note";note.textContent=(check.warnings===0?"PASS — ":"WARNING — ")+notes.join(" ");section.append(note);
    }

@@ -117,6 +117,8 @@ begin
       raise exception 'FTO % must contain at least one transaction row.', v_fto_number;
     end if;
 
+    v_seen_refs := array[]::text[];
+
     insert into public.vbgramg_fto_batches (
       fto_number, contribution_period, ledger_charge_period, village_scope,
       last_source_sha256, created_by, notes, period_id, revision_number
@@ -141,7 +143,7 @@ begin
          or v_card = '' or v_reference = '' or v_person = '' then
         raise exception 'FTO % contains a row with missing or inconsistent identity fields.', v_fto_number;
       end if;
-      if v_village <> 'NEW SERCHHIP North' then
+      if upper(regexp_replace(v_village, '[^A-Za-z0-9]+', ' ', 'g')) <> 'NEW SERCHHIP NORTH' then
         raise exception 'FTO % contains a transaction outside NEW SERCHHIP North.', v_fto_number;
       end if;
       if v_status not in ('processed','rejected','blank','other') then
@@ -151,13 +153,6 @@ begin
         raise exception 'Duplicate Government reference number % in this import.', v_reference;
       end if;
       v_seen_refs := array_append(v_seen_refs, v_reference);
-
-      if exists (
-        select 1 from public.vbgramg_fto_transactions t
-        where t.reference_no = v_reference
-      ) then
-        raise exception 'Government reference number % already exists in FTO history.', v_reference;
-      end if;
 
       if jsonb_typeof(v_row->'sourceRow') is distinct from 'array' then
         raise exception 'Government source columns must be an array for reference %.', v_reference;

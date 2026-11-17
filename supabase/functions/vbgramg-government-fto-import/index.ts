@@ -214,13 +214,13 @@ Deno.serve(async (req: Request) => {
         const rawCredit = columnValue(row, "Credit Amount(In Rs.)");
         const amountText = rawAmount.replace(/,/g, "");
         const creditText = rawCredit.replace(/,/g, "");
-        const village = rawCard.match(/\\(([^)]*)\\)/)?.[1] || "";
+        const village = rawCard.match(/\(([^)]*)\)/)?.[1] || "";
         if (!card || !reference || rawCard.split(" (")[0] !== card || rawReference !== reference ||
             columnValue(row, "Status").toLowerCase() !== "rejected" ||
             columnValue(row, "Rejection Reason") !== "Rejected by DDO" ||
             String(row.normalizedStatus || "").toLowerCase() !== "rejected" ||
             !columnValue(row, "Applicant Name") || village !== "NEW SERCHHIP North" ||
-            !/^[0-9,]+(\\.[0-9]+)?$/.test(rawAmount) ||
+            !/^[0-9,]+(\.[0-9]+)?$/.test(rawAmount) ||
             !/^[0-9,]+(\\.[0-9]+)?$/.test(rawCredit) ||
             !Number.isFinite(Number(amountText)) || !Number.isFinite(Number(creditText)) ||
             Number(amountText) < 0 || Number(creditText) < 0) {

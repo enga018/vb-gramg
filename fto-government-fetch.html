@@ -15,7 +15,7 @@ button{font:inherit;font-weight:650;border:1px solid transparent;border-radius:1
 .actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}.status{padding:11px 13px;border:1px solid var(--line);border-radius:10px;background:#f7f9fc;color:#475467;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.88rem;margin-top:13px}.status.error{background:#fff4f2;border-color:#ffd8d2;color:#a12b20}.status.success{background:#effaf3;border-color:#ccebd7;color:#17663a}
 .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0}.stat{padding:13px;border:1px solid var(--line);border-radius:11px}.stat small{display:block;color:var(--muted);font-size:.77rem;margin-bottom:5px}.stat strong{font-size:1.05rem;overflow-wrap:anywhere}
 .table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:.88rem}th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--muted);font-weight:650}td:first-child{font-weight:650;overflow-wrap:anywhere}
-.notice{padding:12px 14px;border:1px solid #d6e4fa;background:#f5f9ff;border-radius:11px;font-size:.9rem;line-height:1.5}
+.notice{padding:12px 14px;border:1px solid #d6e4fa;background:#f5f9ff;border-radius:11px;font-size:.9rem;line-height:1.5}\n.details-toggle{margin:14px 0 8px;background:#fff;color:var(--ink);border-color:var(--line)}.section-note{font-size:.82rem;margin:4px 0 10px}.empty{color:var(--muted);font-style:italic;padding:12px 8px}
 @media(max-width:650px){body{padding:10px}header,.panel{padding:15px}.stats{grid-template-columns:1fr 1fr}.actions button{width:100%}}
 </style>
 </head>
@@ -23,13 +23,25 @@ button{font:inherit;font-weight:650;border:1px solid transparent;border-radius:1
 <header><h1>Government FTO Fetch</h1><p>Secure, read-only connection to the Government FTO listing for VBGRAMG administrators.</p></header>
 <section class="panel" id="access-panel"><h2>Administrator access</h2><p>Sign in with an approved VBGRAMG administrator account.</p><div id="access-status" class="status">Checking your session…</div></section>
 <section class="panel" id="app-panel" hidden>
-<div class="notice"><strong>Read-only first step.</strong> This fetches and validates the Government listing only. It does not fetch FTO detail pages, import transactions, assign Contribution periods, or change the database. New-versus-existing detection will be added in the next step.</div>
+<div class="notice"><strong>Read-only comparison.</strong> This fetches the Government listing and compares FTO numbers with imported FTO history. It does not fetch detail pages, import transactions, assign Contribution periods, or change database records.</div>
 <div class="actions"><button id="fetch-button" type="button">Fetch Government FTO listing</button></div>
 <div id="fetch-status" class="status">Ready. Select Fetch to contact the Government website.</div>
 <div id="results" hidden>
-<div class="stats"><div class="stat"><small>FTOs listed</small><strong id="count">—</strong></div><div class="stat"><small>Fetched at</small><strong id="fetched-at">—</strong></div><div class="stat"><small>Database changes</small><strong>No</strong></div></div>
-<h2>Government listing</h2>
-<div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Listing details</th></tr></thead><tbody id="rows"></tbody></table></div>
+<div class="stats">
+<div class="stat"><small>New FTOs</small><strong id="new-count">—</strong></div>
+<div class="stat"><small>Already imported</small><strong id="imported-count">—</strong></div>
+<div class="stat"><small>Needs review</small><strong id="review-count">—</strong></div>
+<div class="stat"><small>Total listed</small><strong id="count">—</strong></div>
+<div class="stat"><small>Fetched at</small><strong id="fetched-at">—</strong></div>
+<div class="stat"><small>Database changes</small><strong>No</strong></div>
+</div>
+<h2>New FTOs</h2><p class="section-note">Only FTO numbers not found in imported history appear here.</p>
+<div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Listing details</th></tr></thead><tbody id="new-rows"></tbody></table></div>
+<button class="details-toggle" id="toggle-imported" type="button" aria-expanded="false" aria-controls="imported-section">Show already-imported FTOs</button>
+<section id="imported-section" hidden><h2>Already imported</h2><p class="section-note">These FTO numbers already exist in VBGRAMG FTO History and will not be treated as new imports.</p>
+<div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Listing details</th></tr></thead><tbody id="imported-rows"></tbody></table></div></section>
+<section id="unrecognized-section" hidden><h2>Needs review</h2><p class="section-note">The Government listing row did not provide a recognizable FTO number. These entries are not treated as new.</p>
+<div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Listing details</th></tr></thead><tbody id="unrecognized-rows"></tbody></table></div></section>
 </div>
 </section>
 </main>
@@ -62,22 +74,44 @@ client.auth.getSession().then(({data,error})=>{
  if(error||!data.session){window.location.replace("./");return;}
  verifyAccess(data.session.user);
 });
+function renderRows(targetId,items,emptyText){
+ const tbody=$(targetId);tbody.replaceChildren();
+ if(!items.length){const tr=document.createElement("tr"),cell=document.createElement("td");cell.colSpan=2;cell.className="empty";cell.textContent=emptyText;tr.append(cell);tbody.append(tr);return;}
+ for(const item of items){
+  const tr=document.createElement("tr"),number=document.createElement("td"),details=document.createElement("td");
+  number.textContent=item.ftoNumber||"FTO number unavailable";
+  details.textContent=(item.listingRow||[]).filter(Boolean).join(" · ");
+  tr.append(number,details);tbody.append(tr);
+ }
+}
+$("toggle-imported").addEventListener("click",()=>{
+ const section=$("imported-section"),show=section.hidden;
+ section.hidden=!show;
+ $("toggle-imported").textContent=show?"Hide already-imported FTOs":"Show already-imported FTOs";
+ $("toggle-imported").setAttribute("aria-expanded",String(show));
+});
 $("fetch-button").addEventListener("click",async()=>{
  const button=$("fetch-button");button.disabled=true;button.textContent="Fetching…";$("results").hidden=true;
- status("fetch-status","Connecting to the Government FTO listing…");
+ status("fetch-status","Connecting to the Government FTO listing and checking imported history…");
  try{
   const {data,error}=await window.VBGRAMGData.invoke("vbgramg-fto-government-fetch",{body:{},timeoutMs:30000});
   if(error||!data||data.success!==true)throw new Error(data?.error||error?.message||"Government fetch failed.");
-  if(data.databaseChanged!==false||!Array.isArray(data.candidates)||data.candidates.length!==Number(data.listingCandidateCount))throw new Error("The server returned an incomplete or unexpected listing response.");
+  const validList=key=>Array.isArray(data[key]);
+  if(data.databaseChanged!==false||!validList("newFtos")||!validList("alreadyImported")||!validList("unrecognized")||
+     data.newFtos.length!==Number(data.newCount)||data.alreadyImported.length!==Number(data.alreadyImportedCount)||
+     data.unrecognized.length!==Number(data.unrecognizedCount)||
+     data.newFtos.length+data.alreadyImported.length+data.unrecognized.length!==Number(data.listingCandidateCount))
+    throw new Error("The server returned an incomplete or unexpected comparison response.");
+  $("new-count").textContent=Number(data.newCount).toLocaleString("en-IN");
+  $("imported-count").textContent=Number(data.alreadyImportedCount).toLocaleString("en-IN");
+  $("review-count").textContent=Number(data.unrecognizedCount).toLocaleString("en-IN");
   $("count").textContent=Number(data.listingCandidateCount).toLocaleString("en-IN");
   $("fetched-at").textContent=new Date(data.fetchedAt).toLocaleString();
-  const tbody=$("rows");tbody.replaceChildren();
-  for(const item of data.candidates){
-   const tr=document.createElement("tr"),number=document.createElement("td"),details=document.createElement("td");
-   number.textContent=item.ftoNumber||"FTO number unavailable";
-   details.textContent=(item.listingRow||[]).filter(Boolean).join(" · ");
-   tr.append(number,details);tbody.append(tr);
-  }
+  renderRows("new-rows",data.newFtos,"No new FTOs were found.");
+  renderRows("imported-rows",data.alreadyImported,"No previously imported FTOs were found.");
+  renderRows("unrecognized-rows",data.unrecognized,"No FTO numbers need review.");
+  $("imported-section").hidden=true;$("toggle-imported").textContent="Show already-imported FTOs";$("toggle-imported").setAttribute("aria-expanded","false");
+  $("unrecognized-section").hidden=data.unrecognized.length===0;
   $("results").hidden=false;
   status("fetch-status",data.message+" Listing fingerprint: "+data.listingFingerprint,"success");
  }catch(error){status("fetch-status",error.message||"Government fetch failed.","error");}

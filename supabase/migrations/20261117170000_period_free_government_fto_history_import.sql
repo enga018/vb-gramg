@@ -38,6 +38,7 @@ declare
   v_processed_date date;
   v_source_row jsonb;
   v_is_in_scope boolean;
+  v_fto_has_active_mis_match boolean;
   v_job_card_col integer;
   v_batch_count integer := 0;
   v_transaction_count integer := 0;
@@ -131,6 +132,7 @@ begin
     end if;
 
     v_seen_refs := array[]::text[];
+    v_fto_has_active_mis_match := false;
 
     insert into public.vbgramg_fto_batches (
       fto_number, contribution_period, ledger_charge_period, village_scope,
@@ -195,6 +197,7 @@ begin
         where m.import_id = v_active_import_id
           and m.row_data->>v_job_card_col = v_card
       ) into v_is_in_scope;
+      if v_is_in_scope then v_fto_has_active_mis_match := true; end if;
 
       insert into public.vbgramg_fto_transactions (
         batch_id, reference_no, job_card_number, village_name, person_name,
@@ -222,6 +225,10 @@ begin
       v_transaction_count := v_transaction_count + 1;
       v_history_count := v_history_count + 1;
     end loop;
+
+    if not v_fto_has_active_mis_match then
+      raise exception 'FTO % has no Job Card Number in the reviewed Active MIS. It cannot be imported.', v_fto_number;
+    end if;
 
     v_batch_count := v_batch_count + 1;
     v_results := v_results || jsonb_build_array(jsonb_build_object(

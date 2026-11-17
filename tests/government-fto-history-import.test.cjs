@@ -16,11 +16,13 @@ test("Government detail parser binds every transaction to its parent FTO", () =>
   assert.match(details, /getPage\(item\.detailUrl, item\.ftoNumber\)/);
 });
 
-test("Eligibility is based on Active MIS Job Card presence and retains every FTO row", () => {
+test("Eligibility stores only Active MIS Job Card rows and keeps applicant review rows", () => {
+  assert.match(details, /const governmentTransactionCount = transactions\.length/);
+  assert.match(details, /const unmatchedTransactionCount = transactions\.filter\(tx => tx\.misMatchStatus === "not_in_active_mis"\)\.length/);
   assert.match(details, /const matchingTransactions = transactions\.filter\(tx => tx\.misMatchStatus !== "not_in_active_mis"\)/);
-  assert.match(details, /const matchingCards = new Set\(matchingTransactions\.map/);
-  assert.match(details, /importableTransactionCount: transactions\.length/);
-  assert.match(details, /rows: transactions/);
+  assert.match(details, /importableTransactionCount: matchingTransactions\.length/);
+  assert.match(details, /rows: matchingTransactions/);
+  assert.match(details, /validateGovernmentTransactions\(transactions, item\.listingRow/);
   assert.doesNotMatch(details, /village.*(?:filter|eligible|scope)/i);
 });
 
@@ -37,6 +39,9 @@ test("Import endpoint accepts only signed previews and caps each request", () =>
   assert.match(importer, /body\.ftos\.length > 50/);
   assert.match(importer, /readJsonBody\(req, 10_000_000\)/);
   assert.match(importer, /openImportPreviewToken\(token, serviceKey\)/);
+  assert.match(importer, /preview\.governmentTransactionCount/);
+  assert.match(importer, /preview\.unmatchedTransactionCount/);
+  assert.match(importer, /governmentTransactionCount !== payload\.rows\.length \+ payload\.unmatchedTransactionCount/);
   assert.match(importer, /admin\.rpc\("vbgramg_import_government_fto_history"/);
   assert.doesNotMatch(importer, /body\.ftos\[[^\]]+\]\.rows/);
 });
@@ -74,7 +79,9 @@ test("Frontend chunks by FTO count and byte size, and warns about partial comple
   assert.match(page, /candidate\.length>50/);
   assert.match(page, /maxBytes=8_000_000/);
   assert.match(page, /Earlier successful requests remain imported/);
-  assert.match(page, /Unmatched rows included for later review/);
+  assert.match(page, /Unmatched rows excluded from storage/);
+  assert.match(page, /stored_transaction_count/);
+  assert.doesNotMatch(page, /All transaction rows in eligible FTOs are retained/);
   assert.match(page, /refresh the Government listing and FTO History before attempting another import/i);
 });
 

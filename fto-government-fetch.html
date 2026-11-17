@@ -25,8 +25,8 @@ button{font:inherit;font-weight:650;border:1px solid transparent;border-radius:1
 <section class="panel" id="access-panel"><h2>Administrator access</h2><p>Sign in with an approved VBGRAMG administrator account.</p><div id="access-status" class="status">Checking your session…</div></section>
 <section class="panel" id="app-panel" hidden>
 <div class="notice"><strong>Read-only comparison.</strong> This fetches the Government listing and compares FTO numbers with imported FTO history. It does not fetch detail pages, import transactions, assign Contribution periods, or change database records.</div>
-<div class="actions"><button id="fetch-button" type="button">Fetch Government FTO listing</button><button id="details-button" type="button" disabled>Fetch FTO details (new + Deferred)</button></div>
-<div id="details-panel" class="panel" hidden><h2>Transaction preview</h2><p class="section-note">Successful inspections save only the FTO inspection classification. FTO transaction history and Contribution records are not changed.</p><p id="details-progress" class="section-note">Ready.</p><progress id="details-progressbar" max="1" value="0" style="width:100%;height:18px"></progress><div id="details-validation" class="stats" hidden></div><div id="details-results" class="table-wrap"></div></div>
+<div class="actions"><button id="fetch-button" type="button">Fetch Government FTO listing</button><button id="details-button" type="button" disabled>Fetch new FTO details</button></div>
+<div id="details-panel" class="panel" hidden><h2>Transaction preview</h2><p class="section-note">Successful inspections save only the FTO inspection classification. FTO transaction history and Contribution records are not changed.</p><p id="details-progress" class="section-note">Ready.</p><div class="notice" style="margin:10px 0">Import records Government transaction history only. It does not calculate Contribution charges or assign a Contribution period.</div><button id="import-button" type="button" disabled>Import new FTO history</button><div id="import-status" class="status">Complete the detail preview before importing.</div><progress id="details-progressbar" max="1" value="0" style="width:100%;height:18px"></progress><div id="details-validation" class="stats" hidden></div><div id="details-results" class="table-wrap"></div></div>
 <div id="fetch-status" class="status">Ready. Select Fetch to contact the Government website.</div>
 <div id="results" hidden>
 <div class="stats">
@@ -55,7 +55,7 @@ button{font:inherit;font-weight:650;border:1px solid transparent;border-radius:1
 (function(){
 "use strict";
 const $=id=>document.getElementById(id),client=window.vbgramgSupabase;
-let authSequence=0, manifestToken="", detailQueue=[], detailResults=[];
+let authSequence=0, manifestToken="", detailQueue=[], detailResults=[], misSnapshot=null;
 function status(id,message,type){const el=$(id);el.textContent=message;el.className="status"+(type?" "+type:"");}
 async function verifyAccess(user){
  const seq=++authSequence;
@@ -209,6 +209,7 @@ async function runDetailBatches(numbers){
   try{
    const {data,error}=await window.VBGRAMGData.invoke("vbgramg-fto-government-details",{body:{manifestToken,ftoNumbers:batch},timeoutMs:60000});
    if(error||!data||data.success!==true||!Array.isArray(data.results))throw new Error(data?.error||error?.message||"Batch request failed.");
+   if(data.misSnapshot && data.misSnapshot.activeImportId && data.misSnapshot.misUpdatedAt) misSnapshot=data.misSnapshot;
    detailResults.push(...data.results);done+=batch.length;render();
   }catch(error){detailResults.push(...batch.map(ftoNumber=>({ftoNumber,kind:"request_failure",error:error.message||"Batch request failed."})));done+=batch.length;render();}
  }
@@ -217,7 +218,28 @@ async function runDetailBatches(numbers){
  button.disabled=failed.length===0;
  button.onclick=async()=>{detailResults=detailResults.filter(x=>x.kind==="ok");await runDetailBatches(failed);};
 }
-$("details-button").onclick=()=>{if(detailQueue.length){detailResults=[];runDetailBatches(detailQueue);}};
+$("details-button").onclick=()=>{if(detailQueue.length){detailResults=[];$("import-button").disabled=true;runDetailBatches(detailQueue);}};
+$("import-button").addEventListener("click",async()=>{
+ const button=$("import-button");
+ if(button.disabled||!misSnapshot||!detailResults.length)return;
+ const successful=detailResults.filter(item=>item.kind==="ok");
+ if(successful.length!==detailResults.length){status("import-status","Resolve every failed FTO detail fetch before importing.","error");return;}
+ const transactionCount=successful.reduce((n,item)=>n+(Array.isArray(item.transactions)?item.transactions.length:0),0);
+ if(!window.confirm("Import "+successful.length+" new FTO(s) and "+transactionCount+" Government transaction row(s) into FTO History? No Contribution period, charges or ledger entries will be created."))return;
+ button.disabled=true;button.textContent="Importing…";
+ status("import-status","Sending the reviewed Government history to the secure import endpoint…");
+ try{
+  const payload={activeImportId:misSnapshot.activeImportId,misUpdatedAt:misSnapshot.misUpdatedAt,ftos:successful.map(item=>({ftoNumber:item.ftoNumber,rows:item.transactions}))};
+  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-fto-government-import",{body:payload,timeoutMs:60000});
+  if(error||!data||data.success!==true)throw new Error(data?.error||error?.message||"Government FTO history import failed.");
+  status("import-status","Imported "+Number(data.result?.batch_count||0)+" FTO(s) and "+Number(data.result?.transaction_count||0)+" transaction(s). Contribution period assigned: No. Ledger rows created: 0.","success");
+  button.textContent="Import complete";
+ }catch(error){
+  status("import-status",error.message||"Government FTO history import failed.","error");
+  button.disabled=false;button.textContent="Retry Government history import";
+ }
+});
+
 $("fetch-button").addEventListener("click",async()=>{
  const button=$("fetch-button");button.disabled=true;button.textContent="Fetching…";$("results").hidden=true;
  status("fetch-status","Connecting to the Government FTO listing and checking imported history…");
@@ -233,11 +255,13 @@ $("fetch-button").addEventListener("click",async()=>{
   manifestToken=String(data.manifestToken||"");
   if(!manifestToken)throw new Error("The server did not return the secure detail manifest.");
   const newFtoCount=Array.isArray(data.newFtos)?data.newFtos.length:0;
-  const deferredFtoCount=Array.isArray(data.deferredFtos)?data.deferredFtos.length:0;
-  detailQueue=[...data.newFtos,...(Array.isArray(data.deferredFtos)?data.deferredFtos:[])].map(item=>String(item.ftoNumber||"").trim()).filter(Boolean);
+  detailQueue=data.newFtos.map(item=>String(item.ftoNumber||"").trim()).filter(Boolean);
+  misSnapshot=null;
+  $("import-button").disabled=true;
+  status("import-status","Complete the detail preview before importing.");
   detailResults=[];
   $("details-button").disabled=detailQueue.length===0;
-  $("details-button").textContent="Fetch FTO details ("+newFtoCount+" new + "+deferredFtoCount+" Deferred)";
+  $("details-button").textContent="Fetch new FTO details ("+newFtoCount+")";
   $("details-panel").hidden=true;
   $("new-count").textContent=Number(data.newCount).toLocaleString("en-IN");
   $("imported-count").textContent=Number(data.alreadyImportedCount).toLocaleString("en-IN");
@@ -251,7 +275,7 @@ $("fetch-button").addEventListener("click",async()=>{
   $("imported-section").hidden=true;$("toggle-imported").textContent="Show already-imported FTOs";$("toggle-imported").setAttribute("aria-expanded","false");
   $("unrecognized-section").hidden=data.unrecognized.length===0;
   $("results").hidden=false;
-  status("fetch-status",data.message+" Deferred FTOs to recheck: "+Number(data.deferredCount||0)+". Listing fingerprint: "+data.listingFingerprint,"success");
+  status("fetch-status",data.message+" This import workflow fetches new FTOs only. Listing fingerprint: "+data.listingFingerprint,"success");
  }catch(error){status("fetch-status",error.message||"Government fetch failed.","error");}
  finally{button.disabled=false;button.textContent="Fetch Government FTO listing";}
 });

@@ -39,7 +39,7 @@ async function openManifest(token: string, serviceKey: string) {
   const manifest = JSON.parse(new TextDecoder().decode(clear));
   if (manifest?.v !== 1 || !Number.isFinite(manifest.exp) || manifest.exp < Date.now() || !Array.isArray(manifest.candidates))
     throw new Error("Manifest has expired or is invalid. Fetch the Government listing again.");
-  return manifest as { v: number; exp: number; candidates: { detailUrl: string; ftoNumber: string; listingRow: string[] }[] };
+  return manifest as { v: number; exp: number; candidates: { detailUrl: string; ftoNumber: string; listingRow: string[]; listingHeaders?: string[] }[] };
 }
 async function getPage(url: string) {
   const parsed = new URL(url);
@@ -110,7 +110,7 @@ Deno.serve(async (req: Request) => {
     if (!token || requested.length < 1 || requested.length > 5 || new Set(requested.map(v => v.toUpperCase())).size !== requested.length)
       return reply({ error: "Provide a valid manifest and between one and five distinct FTO numbers." }, 400);
     const manifest = await openManifest(token, serviceKey);
-    const byNumber = new Map<string, { detailUrl: string; ftoNumber: string; listingRow: string[] }>();
+    const byNumber = new Map<string, { detailUrl: string; ftoNumber: string; listingRow: string[]; listingHeaders?: string[] }>();
     for (const candidate of manifest.candidates) {
       const key = String(candidate.ftoNumber || "").trim().toUpperCase();
       if (key && !byNumber.has(key)) byNumber.set(key, candidate);
@@ -145,7 +145,7 @@ Deno.serve(async (req: Request) => {
         const item = selected[cursor++];
         try {
           const detail = await getPage(item.detailUrl);
-          results.push({ ftoNumber: item.ftoNumber, signatoryDate: item.listingRow[5] || "", listingTransactionCount: Number(item.listingRow[6] || 0), listingAmount: Number(item.listingRow[7] || 0), listingRow: item.listingRow, ...detail });
+          results.push({ ftoNumber: item.ftoNumber, signatoryDate: item.listingRow[5] || "", listingTransactionCount: Number(item.listingRow[6] || 0), listingAmount: Number(item.listingRow[7] || 0), listingRow: item.listingRow, listingHeaders: item.listingHeaders || [], ...detail });
         } catch (error) {
           results.push({ ftoNumber: item.ftoNumber, kind: "fetch_failure", error: "Government detail request failed. Retry this FTO." });
         }

@@ -24,10 +24,15 @@ function textOf(value: string) {
     .replace(/<br\s*\/?>/gi, " ").replace(/<[^>]*>/g, " ")).replace(/[\u00a0\u200b]/g, " ").replace(/\s+/g, " ").trim();
 }
 function discoverCandidates(html: string, baseUrl: string) {
-  const candidates: { detailUrl: string; listingRow: string[]; ftoNumber: string }[] = [];
+  const candidates: { detailUrl: string; listingRow: string[]; listingHeaders: string[]; ftoNumber: string }[] = [];
   const seen = new Set<string>();
   for (const table of html.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)) {
-    for (const row of table[1].matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)) {
+    const tableRows = [...table[1].matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)];
+    const headerMatch = tableRows.find(row => /<th\b/i.test(row[1]) && !/<a\b/i.test(row[1]));
+    const listingHeaders = headerMatch
+      ? [...headerMatch[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(cell => textOf(cell[1]))
+      : [];
+    for (const row of tableRows) {
       const href = row[1].match(/<a\b[^>]*href\s*=\s*["']([^"']*fto_trasction_dtl\.aspx\?payload=[^"']+)["'][^>]*>/i)?.[1];
       if (!href) continue;
       const detail = new URL(decodeHtml(href), baseUrl);
@@ -36,14 +41,14 @@ function discoverCandidates(html: string, baseUrl: string) {
       if (seen.has(detailUrl)) continue;
       seen.add(detailUrl);
       const listingRow = [...row[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(cell => textOf(cell[1]));
-      candidates.push({ detailUrl, listingRow, ftoNumber: String(listingRow[3] || "").trim() });
+      candidates.push({ detailUrl, listingRow, listingHeaders, ftoNumber: String(listingRow[3] || "").trim() });
     }
   }
   return candidates;
 }
 
 
-async function makeManifestToken(serviceKey: string, candidates: { detailUrl: string; ftoNumber: string; listingRow: string[] }[]) {
+async function makeManifestToken(serviceKey: string, candidates: { detailUrl: string; ftoNumber: string; listingRow: string[]; listingHeaders: string[] }[]) {
   const material = new TextEncoder().encode("VBGRAMG-FTO-MANIFEST-v1:" + serviceKey);
   const digest = await crypto.subtle.digest("SHA-256", material);
   const key = await crypto.subtle.importKey("raw", digest, { name: "AES-GCM" }, false, ["encrypt"]);
@@ -162,7 +167,7 @@ Deno.serve(async (req: Request) => {
       }
     }
     const deferredFtos = alreadyImported.filter(item => deferredNumbers.has(item.ftoNumber.trim().toUpperCase()));
-    const manifestToken = await makeManifestToken(serviceKey, candidates.map(({ detailUrl, ftoNumber, listingRow }) => ({ detailUrl, ftoNumber, listingRow })));
+    const manifestToken = await makeManifestToken(serviceKey, candidates.map(({ detailUrl, ftoNumber, listingRow, listingHeaders }) => ({ detailUrl, ftoNumber, listingRow, listingHeaders })));
     const fingerprintBytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(candidates.map(item => item.detailUrl).join("\n")));
     const listingFingerprint = [...new Uint8Array(fingerprintBytes)].map(value => value.toString(16).padStart(2, "0")).join("");
     return reply({

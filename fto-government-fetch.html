@@ -26,7 +26,7 @@ button{font:inherit;font-weight:650;border:1px solid transparent;border-radius:1
 <section class="panel" id="app-panel" hidden>
 <div class="notice"><strong>Read-only comparison.</strong> This fetches the Government listing and compares FTO numbers with imported FTO history. It does not fetch detail pages, import transactions, assign Contribution periods, or change database records.</div>
 <div class="actions"><button id="fetch-button" type="button">Fetch Government FTO listing</button><button id="details-button" type="button" disabled>Fetch FTO details (new + Deferred)</button></div>
-<div id="details-panel" class="panel" hidden><h2>Read-only transaction preview</h2><p id="details-progress" class="section-note">Ready.</p><progress id="details-progressbar" max="1" value="0" style="width:100%;height:18px"></progress><div id="details-results" class="table-wrap"></div></div>
+<div id="details-panel" class="panel" hidden><h2>Read-only transaction preview</h2><p id="details-progress" class="section-note">Ready.</p><progress id="details-progressbar" max="1" value="0" style="width:100%;height:18px"></progress><div id="details-validation" class="stats" hidden></div><div id="details-results" class="table-wrap"></div></div>
 <div id="fetch-status" class="status">Ready. Select Fetch to contact the Government website.</div>
 <div id="results" hidden>
 <div class="stats">
@@ -97,13 +97,45 @@ async function runDetailBatches(numbers){
  const button=$("details-button"),panel=$("details-panel"),progress=$("details-progress"),bar=$("details-progressbar"),target=$("details-results");
  button.disabled=true;panel.hidden=false;
  const total=numbers.length;let pending=[...numbers],done=0;
+ const validation=$("details-validation");
  const render=()=>{
   bar.max=Math.max(1,total);bar.value=done;
-  progress.textContent="Processed "+done+" of "+total+" FTOs · "+detailResults.filter(x=>x.kind==="ok").length+" successful · "+detailResults.filter(x=>x.kind!=="ok").length+" failed";
+  const successful=detailResults.filter(x=>x.kind==="ok");
+  const failed=detailResults.filter(x=>x.kind!=="ok");
+  const checks=successful.map(item=>{
+   const txs=Array.isArray(item.transactions)?item.transactions:[];
+   const refs=txs.map(tx=>String(tx.referenceNumber||"").trim()).filter(Boolean);
+   const duplicateRefs=refs.length-new Set(refs.map(v=>v.toUpperCase())).size;
+   const missingAmounts=txs.filter(tx=>!String(tx.amount||"").trim()).length;
+   const statusCounts={processed:0,rejected:0,deferred:0};
+   for(const tx of txs){const status=String(tx.status||"").toLowerCase();statusCounts[status in statusCounts?status:"deferred"]++;}
+   const expected=Number(item.listingTransactionCount);
+   const countKnown=Number.isFinite(expected)&&expected>=0;
+   const countMatches=countKnown&&expected===txs.length;
+   const warnings=(!countKnown?1:0)+(countKnown&&!countMatches?1:0)+(duplicateRefs>0?1:0)+(missingAmounts>0?1:0);
+   return {item,txs,duplicateRefs,missingAmounts,statusCounts,countKnown,expected,countMatches,warnings};
+  });
+  const passed=checks.filter(x=>x.warnings===0).length;
+  const warningCount=checks.filter(x=>x.warnings>0).length;
+  validation.hidden=detailResults.length===0;validation.replaceChildren();
+  const addStat=(label,value)=>{const box=document.createElement("div");box.className="stat";const small=document.createElement("small");small.textContent=label;const strong=document.createElement("strong");strong.textContent=String(value);box.append(small,strong);validation.append(box);};
+  addStat("Validation passed",passed);addStat("Warnings",warningCount);addStat("Fetch/parse failures",failed.length);
+  addStat("Processed",checks.reduce((n,x)=>n+x.statusCounts.processed,0));
+  addStat("Rejected",checks.reduce((n,x)=>n+x.statusCounts.rejected,0));
+  addStat("Deferred / blank",checks.reduce((n,x)=>n+x.statusCounts.deferred,0));
+  progress.textContent="Processed "+done+" of "+total+" FTOs · "+successful.length+" successful · "+failed.length+" failed · "+passed+" passed validation · "+warningCount+" with warnings";
   target.replaceChildren();
   for(const item of detailResults){
    const section=document.createElement("section");section.style.margin="14px 0";
+   const check=checks.find(x=>x.item===item);
    const heading=document.createElement("h3");heading.textContent=item.ftoNumber+" — "+(item.signatoryDate?"Signatory date: "+item.signatoryDate+" · ":"")+(item.kind==="ok"?"Loaded "+item.transactions.length+" transactions":item.kind);section.append(heading);
+   if(check){
+    const notes=[];
+    notes.push(check.countKnown?(check.countMatches?"Transaction count matches listing ("+check.expected+").":"Count mismatch: listing "+check.expected+", parsed "+check.txs.length+"."):"Listing transaction count unavailable.");
+    if(check.duplicateRefs)notes.push(check.duplicateRefs+" duplicate Reference Number(s).");
+    if(check.missingAmounts)notes.push(check.missingAmounts+" transaction(s) have no parsed amount.");
+    const note=document.createElement("p");note.className="section-note";note.textContent=(check.warnings===0?"PASS — ":"WARNING — ")+notes.join(" ");section.append(note);
+   }
    if(item.kind==="ok"){
     const table=document.createElement("table"),thead=document.createElement("thead"),trh=document.createElement("tr");
     ["Job Card Number","Reference Number","Status","Amount","Village","Person"].forEach(v=>{const th=document.createElement("th");th.textContent=v;trh.append(th);});

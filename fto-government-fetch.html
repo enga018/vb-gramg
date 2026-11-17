@@ -106,14 +106,16 @@ async function runDetailBatches(numbers){
    const txs=Array.isArray(item.transactions)?item.transactions:[];
    const refs=txs.map(tx=>String(tx.referenceNumber||"").trim()).filter(Boolean);
    const duplicateRefs=refs.length-new Set(refs.map(v=>v.toUpperCase())).size;
+   const missingJobCards=txs.filter(tx=>!String(tx.jobCardNumber||"").trim()).length;
+   const missingReferences=txs.filter(tx=>!String(tx.referenceNumber||"").trim()).length;
    const missingAmounts=txs.filter(tx=>!String(tx.amount||"").trim()).length;
-   const statusCounts={processed:0,rejected:0,deferred:0};
-   for(const tx of txs){const status=String(tx.status||"").toLowerCase();statusCounts[status in statusCounts?status:"deferred"]++;}
+   const statusCounts={processed:0,rejected:0,deferred:0,unknown:0};
+   for(const tx of txs){const status=String(tx.status||"").toLowerCase();if(status in statusCounts && status!=="unknown")statusCounts[status]++;else statusCounts.unknown++;}
    const expected=Number(item.listingTransactionCount);
    const countKnown=Number.isFinite(expected)&&expected>=0;
    const countMatches=countKnown&&expected===txs.length;
-   const warnings=(!countKnown?1:0)+(countKnown&&!countMatches?1:0)+(duplicateRefs>0?1:0)+(missingAmounts>0?1:0);
-   return {item,txs,duplicateRefs,missingAmounts,statusCounts,countKnown,expected,countMatches,warnings};
+   const warnings=(!countKnown?1:0)+(countKnown&&!countMatches?1:0)+(duplicateRefs>0?1:0)+(missingJobCards>0?1:0)+(missingReferences>0?1:0)+(missingAmounts>0?1:0)+(statusCounts.unknown>0?1:0);
+   return {item,txs,duplicateRefs,missingJobCards,missingReferences,missingAmounts,statusCounts,countKnown,expected,countMatches,warnings};
   });
   const passed=checks.filter(x=>x.warnings===0).length;
   const warningCount=checks.filter(x=>x.warnings>0).length;
@@ -123,6 +125,7 @@ async function runDetailBatches(numbers){
   addStat("Processed",checks.reduce((n,x)=>n+x.statusCounts.processed,0));
   addStat("Rejected",checks.reduce((n,x)=>n+x.statusCounts.rejected,0));
   addStat("Deferred / blank",checks.reduce((n,x)=>n+x.statusCounts.deferred,0));
+  addStat("Unrecognized status",checks.reduce((n,x)=>n+x.statusCounts.unknown,0));
   progress.textContent="Processed "+done+" of "+total+" FTOs · "+successful.length+" successful · "+failed.length+" failed · "+passed+" passed validation · "+warningCount+" with warnings";
   target.replaceChildren();
   for(const item of detailResults){
@@ -133,7 +136,13 @@ async function runDetailBatches(numbers){
     const notes=[];
     notes.push(check.countKnown?(check.countMatches?"Transaction count matches listing ("+check.expected+").":"Count mismatch: listing "+check.expected+", parsed "+check.txs.length+"."):"Listing transaction count unavailable.");
     if(check.duplicateRefs)notes.push(check.duplicateRefs+" duplicate Reference Number(s).");
+    if(check.missingJobCards)notes.push(check.missingJobCards+" transaction(s) have no Job Card Number.");
+    if(check.missingReferences)notes.push(check.missingReferences+" transaction(s) have no Reference Number.");
     if(check.missingAmounts)notes.push(check.missingAmounts+" transaction(s) have no parsed amount.");
+    if(check.statusCounts.unknown)notes.push(check.statusCounts.unknown+" transaction(s) have an unrecognized status (not counted as Deferred).");
+    if(check.countKnown&&!check.countMatches&&Array.isArray(item.listingRow)){
+     notes.push("Listing row cells for diagnosis: "+item.listingRow.map((v,i)=>"["+i+"] "+(v||"—")).join(" | "));
+    }
     const note=document.createElement("p");note.className="section-note";note.textContent=(check.warnings===0?"PASS — ":"WARNING — ")+notes.join(" ");section.append(note);
    }
    if(item.kind==="ok"){

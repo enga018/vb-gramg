@@ -26,10 +26,10 @@ function rowsOf(html: string) {
     .filter(row => row.some(Boolean));
 }
 function normalizeApplicantName(value: unknown) {
-  return String(value || "").normalize("NFKC").replace(/\\s+/g, " ").trim().toLocaleLowerCase();
+  return String(value || "").normalize("NFKC").replace(/\s+/g, " ").trim().toLocaleLowerCase();
 }
 function normalizeApplicantIdentity(value: unknown) {
-  return normalizeApplicantName(value).replace(/[^\\p{L}\\p{N}]+/gu, "");
+  return normalizeApplicantName(value).replace(/[^\p{L}\p{N}]+/gu, "");
 }
 function applicantNameScore(left: unknown, right: unknown) {
   const a = normalizeApplicantIdentity(left), b = normalizeApplicantIdentity(right);

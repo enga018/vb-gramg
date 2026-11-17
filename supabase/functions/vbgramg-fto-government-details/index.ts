@@ -306,7 +306,7 @@ Deno.serve(async (req: Request) => {
       if (classification === "OUT_OF_SCOPE") {
         throw new Error("This FTO was inspected and has no transactions matching an Active MIS Job Card. It is permanently excluded.");
       }
-      // COMPLETE means inspected and eligible, not imported. Allow a fresh
+      // ELIGIBLE means inspected and eligible, not imported. Allow a fresh
       // detail fetch so an unimported FTO can receive a new preview token.
     }
     const misIndex = await loadActiveMisIndex(admin);
@@ -328,7 +328,7 @@ Deno.serve(async (req: Request) => {
             const matchingTransactions = transactions.filter(tx => tx.misMatchStatus !== "not_in_active_mis");
             const matchingCards = new Set(matchingTransactions.map(tx => String(tx.jobCardNumber || "").trim().toUpperCase()).filter(Boolean));
             const deferredInScope = matchingTransactions.filter(tx => tx.normalizedStatus === "blank").length;
-            const classification = matchingCards.size === 0 ? "OUT_OF_SCOPE" : "COMPLETE";
+            const classification = matchingCards.size === 0 ? "OUT_OF_SCOPE" : "ELIGIBLE";
             const { error: stateWriteError } = await admin.from("vbgramg_fto_inspection_state").upsert({
               fto_number_normalized: item.ftoNumber.trim().toUpperCase(),
               fto_number: item.ftoNumber.trim(),

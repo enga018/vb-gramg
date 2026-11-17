@@ -1,0 +1,39 @@
+name: Government FTO import regression tests
+
+on:
+  push:
+    branches:
+      - cleanup-imported-fto-inspection-state
+    paths:
+      - "tests/government-fto-history-import.test.cjs"
+      - "supabase/functions/vbgramg-fto-government-details/**"
+      - "supabase/functions/vbgramg-fto-government-fetch/**"
+      - "supabase/functions/vbgramg-fto-government-import/**"
+      - "supabase/migrations/**"
+      - "fto-government-fetch.html"
+      - ".github/workflows/test-government-fto-import.yml"
+  pull_request:
+    paths:
+      - "tests/government-fto-history-import.test.cjs"
+      - "supabase/functions/vbgramg-fto-government-details/**"
+      - "supabase/functions/vbgramg-fto-government-fetch/**"
+      - "supabase/functions/vbgramg-fto-government-import/**"
+      - "supabase/migrations/**"
+      - "fto-government-fetch.html"
+      - ".github/workflows/test-government-fto-import.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  regression-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run Government FTO import regression tests
+        run: node --test tests/government-fto-history-import.test.cjs

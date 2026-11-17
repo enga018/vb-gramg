@@ -58,7 +58,8 @@ test("Cash payments remain recordable at zero balance and may exceed outstanding
   assert.match(html, /function showPaymentForm\(\)/);
   assert.match(html, /addRowAction\('Record payment',!c\.exempt/);
   assert.doesNotMatch(html, /id="paymentAmount"[^>]*max=/);
-  assert.doesNotMatch(html, /amount>Number\(c\.balance\)\+0\.001/);
+  // The balance check is valid for waivers; only a cash-payment balance cap is forbidden.
+  assert.doesNotMatch(html, /if\(amount>Number\(c\.balance\)\+0\.001/);
   assert.doesNotMatch(html, /Payment cannot exceed the current outstanding balance\./);
   assert.match(html, /isWaiver\?Number\(c\.balance\)\.toFixed\(2\):10000000/);
   assert.match(html, /isWaiver&&amount>Number\(c\.balance\)\+0\.001/);

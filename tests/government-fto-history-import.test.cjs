@@ -60,7 +60,7 @@ test("SQL independently validates normalized Active MIS matching and duplicate p
   assert.match(migration, /upper\(btrim\(b\.fto_number\)\) = upper\(v_fto_number\)/i);
   assert.match(migration, /v_reference = any\(v_seen_refs\)/i);
   assert.match(migration, /if not v_fto_has_active_mis_match then/i);
-  assert.match(migration, /if v_is_in_scope then[\\s\\S]*?insert into public\\.vbgramg_fto_transactions/i);
+  assert.ok(migration.includes("if v_is_in_scope then\n        insert into public.vbgramg_fto_transactions"));
   assert.match(migration, /transaction_count', v_fto_transaction_count/i);
 });
 

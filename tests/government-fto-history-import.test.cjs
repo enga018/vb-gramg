@@ -7,7 +7,7 @@ const read = relative => fs.readFileSync(path.join(__dirname, "..", relative), "
 const details = read("supabase/functions/vbgramg-fto-government-details/index.ts");
 const importer = read("supabase/functions/vbgramg-fto-government-import/index.ts");
 const fetcher = read("supabase/functions/vbgramg-fto-government-fetch/index.ts");
-const migration = read("supabase/migrations/20261117180000_normalize_government_fto_mis_card_match.sql");
+const migration = read("supabase/migrations/20261117210000_import_only_active_mis_fto_transactions.sql");
 const page = read("fto-government-fetch.html");
 
 test("Government detail parser binds every transaction to its parent FTO", () => {

@@ -74,3 +74,8 @@ test("Frontend chunks by FTO count and byte size, and warns about partial comple
   assert.match(page, /Unmatched rows included for later review/);
   assert.match(page, /refresh the Government listing and FTO History before attempting another import/i);
 });
+
+
+test("Government FTO preview is independent of Contribution exemptions", () => {
+  assert.doesNotMatch(details, /vbgramg_contribution_exemptions|exemptCards|contributionExempt/);
+});

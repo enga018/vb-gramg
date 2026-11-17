@@ -163,7 +163,7 @@ async function makeManifestToken(serviceKey: string, candidates: { detailUrl: st
     }
     const deferredFtos = alreadyImported.filter(item => deferredNumbers.has(item.ftoNumber.trim().toUpperCase()));
     const manifestToken = await makeManifestToken(serviceKey, candidates.map(({ detailUrl, ftoNumber, listingRow }) => ({ detailUrl, ftoNumber, listingRow })));
-    const fingerprintBytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(candidates.map(item => item.detailUrl).join("\\n")));
+    const fingerprintBytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(candidates.map(item => item.detailUrl).join("\n")));
     const listingFingerprint = [...new Uint8Array(fingerprintBytes)].map(value => value.toString(16).padStart(2, "0")).join("");
     return reply({
       success: true,

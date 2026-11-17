@@ -18,6 +18,7 @@ declare
   v_card text;
   v_reference text;
   v_job_card_source text;
+  v_reference_source text;
   v_status text;
   v_reason text;
   v_person text;
@@ -72,7 +73,7 @@ begin
     or coalesce(p_payload#>>'{previewMeta,listingFingerprint}','') !~ '^[a-f0-9]{64}$'
     or coalesce(p_payload#>>'{previewMeta,activeImportId}','') = ''
     or coalesce(p_payload#>>'{previewMeta,misUpdatedAt}','') = ''
-    or p_payload#>>'{previewMeta,auditMode}' <> 'import-preview'
+    or coalesce(p_payload#>>'{previewMeta,auditMode}','') <> 'import-preview'
     or coalesce(p_payload#>>'{previewMeta,databaseChanged}','true') <> 'false'
     or coalesce(p_payload#>>'{previewMeta,testedPages}','') !~ '^[0-9]+$'
     or coalesce(p_payload#>>'{previewMeta,listingCandidateCount}','') !~ '^[0-9]+$'
@@ -115,8 +116,11 @@ begin
     and contribution_month = date '2026-07-01'
   for share;
 
-  if not found or v_period.status <> 'open' then
-    raise exception 'Contribution period JUL26 is missing or not open.';
+  if not found then
+    raise exception 'Contribution period JUL26 is missing.';
+  end if;
+  if v_period.status <> 'open' then
+    raise exception 'Contribution period JUL26 is not open.';
   end if;
 
   if (
@@ -207,6 +211,7 @@ begin
 
       select
         max(c->>'value') filter (where c->>'name' = 'Job Card No. (Panchayat Name)'),
+        max(c->>'value') filter (where c->>'name' = 'Reference No.'),
         max(c->>'value') filter (where c->>'name' = 'Applicant Name'),
         max(c->>'value') filter (where c->>'name' = 'Status'),
         max(c->>'value') filter (where c->>'name' = 'Rejection Reason'),
@@ -214,12 +219,15 @@ begin
         max(c->>'value') filter (where c->>'name' = 'Processed Date'),
         max(c->>'value') filter (where c->>'name' = 'Amount to be credited (In Rs.)'),
         max(c->>'value') filter (where c->>'name' = 'Credit Amount(In Rs.)')
-      into v_job_card_source, v_person, v_status, v_reason,
+      into v_job_card_source, v_reference_source, v_person, v_status, v_reason,
            v_transaction_date_text, v_processed_date_text, v_amount_text, v_credit_text
       from jsonb_array_elements(v_row->'columns') as a(c);
 
       if split_part(coalesce(v_job_card_source,''), ' (', 1) <> v_card then
         raise exception 'Raw Job Card value does not match the exact MIS Job Card %.', v_card;
+      end if;
+      if btrim(coalesce(v_reference_source,'')) <> v_reference then
+        raise exception 'Raw Government reference does not match reference %.', v_reference;
       end if;
       if lower(coalesce(v_status,'')) <> 'rejected'
         or coalesce(v_reason,'') <> 'Rejected by DDO' then

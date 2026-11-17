@@ -276,9 +276,10 @@ Deno.serve(async (req: Request) => {
     results.sort((a, b) => requested.findIndex(v => v.toUpperCase() === String(a.ftoNumber).toUpperCase()) -
       requested.findIndex(v => v.toUpperCase() === String(b.ftoNumber).toUpperCase()));
     const successful = results.filter(item => item.kind === "ok").length;
-    return reply({ success: true, databaseChanged: false, requestedCount: requested.length, successfulCount: successful,
+    return reply({ success: true, databaseChanged: successful > 0, inspectionStateSaved: successful > 0,
+      requestedCount: requested.length, successfulCount: successful,
       failedCount: results.length - successful, results,
-      message: "Detail pages processed. Results are a read-only preview; no database records were changed." });
+      message: "Detail pages processed. Inspection classifications were saved; FTO transaction history and Contribution records were not changed." });
   } catch (error) {
     return reply({ error: error instanceof Error ? error.message : "FTO detail processing failed.", databaseChanged: false }, 400);
   }

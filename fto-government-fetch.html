@@ -26,7 +26,7 @@ button{font:inherit;font-weight:650;border:1px solid transparent;border-radius:1
 <section class="panel" id="app-panel" hidden>
 <div class="notice"><strong>Read-only comparison.</strong> This fetches the Government listing and compares it with imported history and saved inspection results. Imported FTOs and FTOs with no Active MIS Job Card matches are permanently skipped. No Contribution periods or charges are created.</div>
 <div class="actions"><button id="fetch-button" type="button">Refresh Government listing</button></div>
-<div id="details-panel" class="panel" hidden><h2>Transaction preview</h2><p class="section-note">Successful inspections save only the FTO inspection classification. FTO transaction history and Contribution records are not changed.</p><p id="details-progress" class="section-note">Ready.</p><div class="notice" style="margin:10px 0">Import records Government transaction history only. It does not calculate Contribution charges or assign a Contribution period.</div><button id="import-button" type="button" disabled>Import new FTO history</button><div id="import-status" class="status">Complete the detail preview before importing.</div><progress id="details-progressbar" max="1" value="0" style="width:100%;height:18px"></progress><div id="details-validation" class="stats" hidden></div><div id="details-results" class="table-wrap"></div></div>
+<div id="details-panel" class="panel" hidden><h2>Transaction preview</h2><p class="section-note">Successful inspections save only the FTO inspection classification. FTO transaction history and Contribution records are not changed.</p><p id="details-progress" class="section-note">Ready.</p><div class="notice" style="margin:10px 0">Import records Government transaction history only. It does not calculate Contribution charges or assign a Contribution period.</div><button id="import-button" hidden type="button" disabled>Import new FTO history</button><div id="import-status" class="status">Complete the detail preview before importing.</div><progress id="details-progressbar" max="1" value="0" style="width:100%;height:18px"></progress><div id="details-validation" class="stats" hidden></div><div id="details-results" class="table-wrap"></div></div>
 <div id="fetch-status" class="status" aria-live="polite">Opening the Government listing…</div>
 <div id="results" hidden>
 <div class="stats">
@@ -126,21 +126,21 @@ async function runDetailBatches(numbers){
   addStat("Deferred / blank",checks.reduce((n,x)=>n+x.statusCounts.deferred,0));
   addStat("Unrecognized status",checks.reduce((n,x)=>n+x.statusCounts.unknown,0));
   const allTransactions=successful.flatMap(item=>Array.isArray(item.transactions)?item.transactions:[]);
-  const misCounts={matched:0,applicant_review:0,not_in_active_mis:0,exempt:0};
-  const uniqueCards={matched:new Set(),applicant_review:new Set(),not_in_active_mis:new Set(),exempt:new Set()};
+  const misCounts={not_in_active_mis:0,exempt:0};
+  const uniqueCards={not_in_active_mis:new Set(),exempt:new Set()};
   for(const tx of allTransactions){
    const card=String(tx.jobCardNumber||"").trim().toUpperCase();
    if(tx.contributionExempt){misCounts.exempt++;if(card)uniqueCards.exempt.add(card);}
    if(tx.misMatchStatus in misCounts){misCounts[tx.misMatchStatus]++;if(card)uniqueCards[tx.misMatchStatus].add(card);}
   }
-  const misHeading=document.createElement("h3");misHeading.textContent="Active MIS matching · read-only";validation.append(misHeading);
+  const misHeading=document.createElement("h3");misHeading.textContent="Job Card scope validation";validation.append(misHeading);
   const misNote=document.createElement("p");misNote.className="section-note";misNote.textContent="Counts below show unique Job Cards, not transaction rows. Only Active MIS Job Cards are included in the import preview. Out-of-scope transaction details are not retained.";validation.append(misNote);
   addStat("Matched Job Cards",uniqueCards.matched.size);
   addStat("Applicant review Job Cards",uniqueCards.applicant_review.size);
   addStat("Outside Active MIS / not found",uniqueCards.not_in_active_mis.size);
   addStat("Exempt Job Cards",uniqueCards.exempt.size);
   const misDetail=document.createElement("p");misDetail.className="section-note";
-  misDetail.textContent="Transaction rows — Matched: "+misCounts.matched+" · Applicant review: "+misCounts.applicant_review+" · Outside Active MIS: "+misCounts.not_in_active_mis+" · Exempt: "+misCounts.exempt;
+  misDetail.textContent="Applicant matching is deferred until an FTO is opened from Pending Imports. Only aggregate counts for unmatched Government rows are retained.";
   validation.append(misDetail);
   progress.textContent="Processed "+done+" of "+total+" FTOs · "+successful.length+" successful · "+failed.length+" failed · "+passed+" passed validation · "+warningCount+" with warnings";
   target.replaceChildren();
@@ -157,21 +157,9 @@ async function runDetailBatches(numbers){
     const note=document.createElement("p");note.className="section-note";note.textContent="PASS — "+notes.join(" ");section.append(note);
    }
    if(item.kind==="ok"){
-    const table=document.createElement("table"),thead=document.createElement("thead"),trh=document.createElement("tr");
-    ["Job Card Number","Reference Number","Status","Amount","Village","Person","Active MIS match","Contribution"].forEach(v=>{const th=document.createElement("th");th.textContent=v;trh.append(th);});
-    thead.append(trh);table.append(thead);const tbody=document.createElement("tbody");
-    for(const tx of item.transactions){
-     const tr=document.createElement("tr");
-     [tx.jobCardNumber,tx.referenceNumber,tx.governmentStatus,tx.amount,tx.village,tx.personName].forEach(v=>{const td=document.createElement("td");td.textContent=v||"—";tr.append(td);});
-     const matchCell=document.createElement("td");
-     const matchLabels={matched:"Matched",applicant_review:"Applicant review",not_in_active_mis:"Outside Active MIS / not found"};
-     matchCell.textContent=matchLabels[tx.misMatchStatus]||"Not checked";
-     if(Array.isArray(tx.misCandidates)&&tx.misCandidates.length)matchCell.title=tx.misCandidates.map(a=>a.applicantName+" ("+a.matchPercentage+"%)").join("\\n");
-     tr.append(matchCell);
-     const exemptionCell=document.createElement("td");exemptionCell.textContent=tx.contributionExempt?"Exempt":"—";tr.append(exemptionCell);
-     tbody.append(tr);
-    }
-    table.append(tbody);section.append(table);
+    const note=document.createElement("p");note.className="section-note";
+    note.textContent="Government validation passed. "+Number(item.importableTransactionCount||0)+" Active-MIS-matching transaction rows have been saved for Pending Imports; "+Number(item.unmatchedTransactionCount||0)+" unmatched rows were excluded (aggregate count only). Applicant matching has not been performed.";
+    section.append(note);
    }else{const p=document.createElement("p");p.textContent=item.error||("Page result: "+item.kind);section.append(p);
     if(Array.isArray(item.validationErrors)&&item.validationErrors.length){const ul=document.createElement("ul");for(const message of item.validationErrors){const li=document.createElement("li");li.textContent=message;ul.append(li);}section.append(ul);}
    }
@@ -202,44 +190,10 @@ function buildImportChunks(items){
  if(current.length)chunks.push(current);
  return chunks;
 }
-$("import-button").addEventListener("click",async()=>{
- const button=$("import-button");
- if(button.disabled||!misSnapshot||!detailResults.length)return;
- const successful=detailResults.filter(item=>item.kind==="ok");
- if(successful.length!==detailResults.length){status("import-status","Resolve every failed FTO detail fetch before importing.","error");return;}
- const eligible=successful.filter(item=>Number(item.matchingJobCardCount)>0&&!importedFtoNumbers.has(String(item.ftoNumber).trim().toUpperCase()));
- const outOfScope=successful.filter(item=>Number(item.matchingJobCardCount)===0||item.inspectionClassification==="OUT_OF_SCOPE");
- if(!eligible.length){status("import-status","There are no eligible, unimported FTOs in this preview.","error");return;}
- if(eligible.some(item=>!item.importPreviewToken)){status("import-status","A server-issued import preview is missing. Fetch and review FTO details again.","error");return;}
- const transactionCount=eligible.reduce((n,item)=>n+Number(item.importableTransactionCount||0),0);
- const unmatchedRows=eligible.reduce((n,item)=>n+Number(item.unmatchedTransactionCount||0),0);
- const chunks=buildImportChunks(eligible);
- if(!chunks.length)return;
- const confirmation="Import "+eligible.length+" eligible FTO(s) and "+transactionCount+" Government transaction row(s) into FTO History?\n\nOut of scope and skipped: "+outOfScope.length+" FTO(s).\nUnmatched rows excluded from storage (aggregate count only): "+unmatchedRows+". Only Active MIS-matching transaction details are stored.\nImport requests: "+chunks.length+" (maximum 50 FTOs per request).\n\nEach request is atomic. If a later request fails, earlier successful requests remain imported. No Contribution period, charges or ledger entries will be created. Continue?";
- if(!window.confirm(confirmation))return;
- button.disabled=true;button.textContent="Importing…";
- let completedBatches=0,completedFtos=0,completedRows=0;
- for(let i=0;i<chunks.length;i++){
-  const payload={ftos:chunks[i]};
-  status("import-status","Importing request "+(i+1)+" of "+chunks.length+" · "+completedFtos+" of "+eligible.length+" FTOs completed…");
-  try{
-   const {data,error}=await window.VBGRAMGData.invoke("vbgramg-fto-government-import",{body:payload,timeoutMs:60000});
-   if(error||!data||data.success!==true)throw new Error(data?.error||error?.message||"Government FTO history import failed.");
-   const batchCount=Number(data.result?.batch_count||0),rowCount=Number(data.result?.stored_transaction_count||0);
-   if(batchCount!==chunks[i].length)throw new Error("The server returned an unexpected imported FTO count. Refresh FTO History before continuing.");
-   completedBatches++;completedFtos+=batchCount;completedRows+=rowCount;
-   chunks[i].forEach(item=>importedFtoNumbers.add(String(item.ftoNumber).trim().toUpperCase()));
-   status("import-status","Completed request "+completedBatches+" of "+chunks.length+" · Imported "+completedFtos+" FTO(s) and "+completedRows+" transaction row(s).");
-  }catch(error){
-   status("import-status","Stopped at request "+(i+1)+" of "+chunks.length+". Confirmed imported: "+completedFtos+" FTO(s), "+completedRows+" transaction row(s). Error: "+(error.message||"Import failed.")+" Earlier successful requests remain imported. Because a connection failure can leave the last request's outcome uncertain, refresh the Government listing and FTO History before attempting another import.","error");
-   button.textContent="Refresh listing before retry";
-   button.disabled=true;
-   return;
-  }
- }
- status("import-status","Import complete: "+completedFtos+" FTO(s) and "+completedRows+" Government transaction row(s) imported in "+completedBatches+" request(s). Contribution period assigned: No. Ledger rows created: 0.","success");
- button.textContent="Import complete";
-});
+// Import is completed from Pending Imports, not from the inspection screen.
+$("import-button").hidden=true;
+$("import-button").disabled=true;
+$("import-button").addEventListener("click",()=>status("import-status","Open this FTO from Pending Imports to complete applicant matching and import.","error"));
 
 $("fetch-button").addEventListener("click",async()=>{
  const button=$("fetch-button");button.disabled=true;button.textContent="Fetching…";$("results").hidden=true;$("details-panel").hidden=true;
@@ -261,7 +215,7 @@ $("fetch-button").addEventListener("click",async()=>{
   $("import-button").hidden=true;
   $("import-button").disabled=true;
   $("import-button").textContent="Import new FTOs";
-  status("import-status","Complete the detail preview before importing.");
+  status("import-status","Inspection complete. Open Pending Imports to review applicants and complete each FTO import.");
   detailResults=[];misSnapshot=null;importedFtoNumbers=new Set();
   $("details-panel").hidden=detailQueue.length===0;
   $("details-results").replaceChildren();
@@ -286,7 +240,7 @@ $("fetch-button").addEventListener("click",async()=>{
    $("import-button").hidden=true;
    $("import-button").disabled=true;
    $("import-button").textContent="Import new FTOs";
-   status("import-status","Automatic detail checks are running. Review the validation results before importing.");
+   status("import-status","Automatic detail checks are running. Eligible FTOs will be available in Pending Imports.");
    await runDetailBatches(detailQueue);
   }
  }catch(error){status("fetch-status",error.message||"Government fetch failed.","error");}

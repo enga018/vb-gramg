@@ -171,7 +171,7 @@ async function runDetailBatches(numbers){
   for(const item of detailResults){
    const section=document.createElement("section");section.style.margin="14px 0";
    const check=checks.find(x=>x.item===item);
-   const heading=document.createElement("h3");heading.textContent=item.ftoNumber+" — "+(item.signatoryDate?"Signatory date: "+item.signatoryDate+" · ":"")+(item.kind==="ok"?"Loaded "+item.transactions.length+" transactions · "+(item.inspectionClassification||"inspected"):item.kind);section.append(heading);
+   const heading=document.createElement("h3");heading.textContent=item.ftoNumber+" — "+(item.signatoryDate?"Signatory date: "+item.signatoryDate+" · ":"")+(item.kind==="ok"?"Loaded "+item.transactions.length+" detail rows · "+Number(item.importableTransactionCount||0)+" New Serchchip North rows · "+(item.inspectionClassification||"inspected"):item.kind);section.append(heading);
    if(check){
     const notes=[];
     notes.push("Parsed "+check.txs.length+" detail rows (informational; Government 'No of Transaction' [6] is not treated as detail-row count).");
@@ -228,7 +228,7 @@ $("import-button").addEventListener("click",async()=>{
  const eligible=successful.filter(item=>Number(item.matchingJobCardCount)>0);
  if(!eligible.length){status("import-status","No new FTO contains a Job Card Number in the reviewed Active MIS. Nothing can be imported.","error");return;}
  if(eligible.some(item=>!item.importPreviewToken)){status("import-status","A server-issued import preview is missing. Fetch and review FTO details again.","error");return;}
- const transactionCount=eligible.reduce((n,item)=>n+(Array.isArray(item.transactions)?item.transactions.length:0),0);
+ const transactionCount=eligible.reduce((n,item)=>n+Number(item.importableTransactionCount||0),0);
  if(!window.confirm("Import "+eligible.length+" new FTO(s) with Active MIS matches and "+transactionCount+" Government transaction row(s) into FTO History? FTOs without Active MIS matches will be skipped. No Contribution period, charges or ledger entries will be created."))return;
  button.disabled=true;button.textContent="Importing…";
  status("import-status","Sending the reviewed Government history to the secure import endpoint…");

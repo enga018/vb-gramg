@@ -321,7 +321,8 @@ Deno.serve(async (req: Request) => {
             }, { onConflict: "fto_number_normalized" });
             if (stateWriteError) throw new Error("Could not save FTO inspection state.");
             const result: Record<string, unknown> = { ftoNumber: item.ftoNumber, inspectionClassification: classification,
-              matchingJobCardCount: matchingCards.size, deferredInScopeCount: deferredInScope,
+              matchingJobCardCount: matchingCards.size, importableTransactionCount: villageTransactions.length,
+              deferredInScopeCount: deferredInScope,
               signatoryDate: item.listingRow[5] || "", listingTransactionCount: Number(item.listingRow[6] || 0),
               listingAmount: Number(item.listingRow[7] || 0), listingRow: item.listingRow,
               listingHeaders: item.listingHeaders || [], ...detail, transactions };

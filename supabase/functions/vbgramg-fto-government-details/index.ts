@@ -67,63 +67,31 @@ function applicantNameScore(left: unknown, right: unknown) {
   }
   return Math.round((1 - prev[b.length] / Math.max(a.length, b.length)) * 1000) / 10;
 }
-async function loadActiveMisIndex(admin: any) {
+async function loadActiveMisJobCards(admin: any) {
   const { data: state, error: stateError } = await admin.from("vbgramg_mis_state")
-    .select("active_import_id,row_count,source_filename,updated_at").eq("singleton", true).maybeSingle();
+    .select("active_import_id,row_count,updated_at").eq("singleton", true).maybeSingle();
   if (stateError) throw new Error("Could not load Active MIS state.");
-  if (!state?.active_import_id) throw new Error("There is no Active MIS import. Load Active MIS before matching FTO transactions.");
-  const records: any[] = [];
-  for (let offset = 0; ; offset += 1000) {
-    const { data, error } = await admin.from("vbgramg_mis_rows").select("row_number,row_data")
-      .eq("import_id", state.active_import_id).order("row_number", { ascending: true }).range(offset, offset + 999);
-    if (error) throw new Error("Could not load Active MIS applicant records.");
-    records.push(...(data || []));
+  if (!state?.active_import_id) throw new Error("There is no Active MIS import. Load Active MIS before inspecting FTOs.");
+  const { data: headerRecord, error: headerError } = await admin.from("vbgramg_mis_rows")
+    .select("row_data").eq("import_id", state.active_import_id).eq("row_number", 1).maybeSingle();
+  if (headerError || !Array.isArray(headerRecord?.row_data)) throw new Error("Could not read the Active MIS header.");
+  const header = headerRecord.row_data.map((v: unknown) => String(v || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim());
+  const jobCol = header.findIndex((v: string) => ["job card number", "jobcard number"].includes(v));
+  if (jobCol < 0) throw new Error("Active MIS is missing the Job Card Number column.");
+  const activeCards = new Set<string>();
+  for (let offset = 1; ; offset += 1000) {
+    const { data, error } = await admin.from("vbgramg_mis_rows").select("row_data")
+      .eq("import_id", state.active_import_id).gt("row_number", 1)
+      .order("row_number", { ascending: true }).range(offset - 1, offset + 998);
+    if (error) throw new Error("Could not load Active MIS Job Cards.");
+    for (const record of data || []) {
+      const row = Array.isArray(record.row_data) ? record.row_data : [];
+      const card = String(row[jobCol] || "").trim().toUpperCase();
+      if (card) activeCards.add(card);
+    }
     if (!data || data.length < 1000) break;
   }
-  if (!records.length) throw new Error("Active MIS contains no rows.");
-  const header = Array.isArray(records[0].row_data)
-    ? records[0].row_data.map((v: unknown) => String(v || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()) : [];
-  const col = (...names: string[]) => header.findIndex((v: string) => names.includes(v));
-  const jobCol = col("job card number", "jobcard number");
-  const nameCol = col("name of applicant", "applicant name");
-  const numberCol = col("applicant no", "applicant number");
-  const uniqueCol = col("unique id", "unique applicant id");
-  if (jobCol < 0 || nameCol < 0) throw new Error("Active MIS is missing Job Card Number or Name of Applicant columns.");
-  const byCard = new Map<string, { applicantName: string; applicantNumber: string; applicantUniqueId: string }[]>();
-  const activeCards = new Set<string>();
-  for (const record of records.slice(1)) {
-    const row = Array.isArray(record.row_data) ? record.row_data : [];
-    const card = String(row[jobCol] || "").trim().toUpperCase();
-    const name = String(row[nameCol] || "").trim();
-    if (!card) continue;
-    activeCards.add(card);
-    if (!name) continue;
-    if (!byCard.has(card)) byCard.set(card, []);
-    byCard.get(card)!.push({
-      applicantName: name,
-      applicantNumber: numberCol >= 0 ? String(row[numberCol] || "").trim() : "",
-      applicantUniqueId: uniqueCol >= 0 ? String(row[uniqueCol] || "").trim() : ""
-    });
-  }
-  return {
-    importId: state.active_import_id,
-    misUpdatedAt: state.updated_at,
-    rowCount: Number(state.row_count) || records.length - 1,
-    byCard,
-    activeCards
-  };
-}
-function matchTransactionToMis(tx: Record<string, string>, index: Awaited<ReturnType<typeof loadActiveMisIndex>>) {
-  const card = String(tx.jobCardNumber || "").trim().toUpperCase();
-  const applicants = index.byCard.get(card) || [];
-  if (!card || !index.activeCards.has(card)) return { misMatchStatus: "not_in_active_mis", misApplicant: null, misCandidates: [] };
-  const person = String(tx.personName || "").trim();
-  if (!person || !applicants.length) return { misMatchStatus: "applicant_review", misApplicant: null, misCandidates: applicants.map(a => ({ ...a, matchPercentage: 0 })) };
-  const ranked = applicants.map(a => ({ ...a, matchPercentage: applicantNameScore(person, a.applicantName) }))
-    .sort((a, b) => b.matchPercentage - a.matchPercentage || a.applicantName.localeCompare(b.applicantName));
-  const exact = ranked.filter(a => normalizeApplicantIdentity(a.applicantName) === normalizeApplicantIdentity(person));
-  if (exact.length === 1) return { misMatchStatus: "matched", misApplicant: exact[0], misCandidates: ranked.slice(0, 3) };
-  return { misMatchStatus: "applicant_review", misApplicant: null, misCandidates: ranked.slice(0, 3) };
+  return { importId: state.active_import_id, misUpdatedAt: state.updated_at, activeCards };
 }
 function base64UrlToBytes(value: string) {
   if (!/^[A-Za-z0-9_-]+$/.test(value) || value.length > 2_000_000) throw new Error("Invalid or oversized manifest token.");
@@ -346,7 +314,7 @@ Deno.serve(async (req: Request) => {
       // ELIGIBLE means inspected and eligible, not imported. Allow a fresh
       // detail fetch so an unimported FTO can receive a new preview token.
     }
-    const misIndex = await loadActiveMisIndex(admin);
+    const misIndex = await loadActiveMisJobCards(admin);
     const results: Record<string, unknown>[] = [];
     let cursor = 0;
     const workers = Array.from({ length: Math.min(2, selected.length) }, async () => {
@@ -355,10 +323,7 @@ Deno.serve(async (req: Request) => {
         try {
           const detail = await getPage(item.detailUrl, item.ftoNumber);
           if (detail.kind === "ok") {
-            const transactions = detail.transactions.map(tx => {
-              const match = matchTransactionToMis(tx, misIndex);
-              return { ...tx, ftoNumber: item.ftoNumber, ...match };
-            });
+            const transactions = detail.transactions.map(tx => ({ ...tx, ftoNumber: item.ftoNumber }));
             const validationErrors = validateGovernmentTransactions(transactions, item.listingRow || []);
             if (validationErrors.length) {
               results.push({ ftoNumber: item.ftoNumber, kind: "validation_failure", validationErrors,
@@ -368,7 +333,7 @@ Deno.serve(async (req: Request) => {
             // Keep only Job Cards present in Active MIS; applicant-name mismatches remain reviewable.
             const governmentTransactionCount = transactions.length;
             const unmatchedTransactionCount = transactions.filter(tx => tx.misMatchStatus === "not_in_active_mis").length;
-            const matchingTransactions = transactions.filter(tx => tx.misMatchStatus !== "not_in_active_mis");
+            const matchingTransactions = transactions.filter(tx => misIndex.activeCards.has(String(tx.jobCardNumber || "").trim().toUpperCase()));
             const matchingCards = new Set(matchingTransactions.map(tx => String(tx.jobCardNumber || "").trim().toUpperCase()).filter(Boolean));
             const deferredInScope = matchingTransactions.filter(tx => tx.normalizedStatus === "blank").length;
             const classification = matchingCards.size === 0 ? "OUT_OF_SCOPE" : "ELIGIBLE";
@@ -380,6 +345,10 @@ Deno.serve(async (req: Request) => {
               matching_job_card_count: matchingCards.size,
               deferred_transaction_count: deferredInScope,
               transaction_count: governmentTransactionCount,
+              unmatched_transaction_count: unmatchedTransactionCount,
+              validated_transactions: matchingTransactions,
+              active_mis_import_id: misIndex.importId,
+              active_mis_updated_at: misIndex.misUpdatedAt,
               updated_at: new Date().toISOString()
             }, { onConflict: "fto_number_normalized" });
             if (stateWriteError) throw new Error("Could not save FTO inspection state.");
@@ -390,12 +359,6 @@ Deno.serve(async (req: Request) => {
               signatoryDate: item.listingRow[5] || "", listingTransactionCount: Number(item.listingRow[6] || 0),
               listingAmount: Number(item.listingRow[7] || 0), listingRow: item.listingRow,
               listingHeaders: item.listingHeaders || [], ...detail, transactions: matchingTransactions };
-            if (!imported.has(item.ftoNumber.trim().toUpperCase()) && matchingCards.size > 0) {
-              result.importPreviewToken = await makeImportPreviewToken(serviceKey, claims.sub, {
-                activeImportId: misIndex.importId, misUpdatedAt: misIndex.misUpdatedAt,
-                ftoNumber: item.ftoNumber, governmentTransactionCount, unmatchedTransactionCount, rows: matchingTransactions
-              });
-            }
             results.push(result);
           } else {
             results.push({ ftoNumber: item.ftoNumber, signatoryDate: item.listingRow[5] || "", listingTransactionCount: Number(item.listingRow[6] || 0), listingAmount: Number(item.listingRow[7] || 0), listingRow: item.listingRow, listingHeaders: item.listingHeaders || [], ...detail });
@@ -413,7 +376,7 @@ Deno.serve(async (req: Request) => {
       misSnapshot: { activeImportId: misIndex.importId, misUpdatedAt: misIndex.misUpdatedAt },
       requestedCount: requested.length, successfulCount: successful,
       failedCount: results.length - successful, results,
-      message: "Detail pages processed. Inspection classifications were saved; FTO transaction history and Contribution records were not changed." });
+      message: "Detail pages validated. Eligible FTOs and their Active-MIS-matching transaction details were saved to Pending Imports. Applicant matching and FTO import have not been performed." });
   } catch (error) {
     return reply({ error: error instanceof Error ? error.message : "FTO detail processing failed.", databaseChanged: false }, 400);
   }

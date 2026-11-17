@@ -24,7 +24,7 @@ button{font:inherit;font-weight:650;border:1px solid transparent;border-radius:1
 <header><h1>Government FTO Fetch</h1><p>Secure, read-only connection to the Government FTO listing for VBGRAMG administrators.</p></header>
 <section class="panel" id="access-panel"><h2>Administrator access</h2><p>Sign in with an approved VBGRAMG administrator account.</p><div id="access-status" class="status">Checking your session…</div></section>
 <section class="panel" id="app-panel" hidden>
-<div class="notice"><strong>Read-only comparison.</strong> This fetches the Government listing and compares it with imported history and saved inspection results. Imported FTOs and FTOs with no New Serchchip North transactions are permanently skipped. No Contribution periods or charges are created.</div>
+<div class="notice"><strong>Read-only comparison.</strong> This fetches the Government listing and compares it with imported history and saved inspection results. Imported FTOs and FTOs with no Active MIS Job Card matches are permanently skipped. No Contribution periods or charges are created.</div>
 <div class="actions"><button id="fetch-button" type="button">Fetch Government FTO listing</button><button id="details-button" type="button" disabled>Fetch new FTO details</button></div>
 <div id="details-panel" class="panel" hidden><h2>Transaction preview</h2><p class="section-note">Successful inspections save only the FTO inspection classification. FTO transaction history and Contribution records are not changed.</p><p id="details-progress" class="section-note">Ready.</p><div class="notice" style="margin:10px 0">Import records Government transaction history only. It does not calculate Contribution charges or assign a Contribution period.</div><button id="import-button" type="button" disabled>Import new FTO history</button><div id="import-status" class="status">Complete the detail preview before importing.</div><progress id="details-progressbar" max="1" value="0" style="width:100%;height:18px"></progress><div id="details-validation" class="stats" hidden></div><div id="details-results" class="table-wrap"></div></div>
 <div id="fetch-status" class="status">Ready. Select Fetch to contact the Government website.</div>
@@ -38,7 +38,7 @@ button{font:inherit;font-weight:650;border:1px solid transparent;border-radius:1
 <div class="stat"><small>Fetched at</small><strong id="fetched-at">—</strong></div>
 <div class="stat"><small>Database changes</small><strong>No</strong></div>
 </div>
-<h2>New FTOs</h2><p class="section-note">Unimported FTOs with possible New Serchchip North transactions appear here. Previously inspected eligible FTOs remain available for a fresh import preview.</p>
+<h2>New FTOs</h2><p class="section-note">Unimported FTOs appear here for Active MIS matching. Previously inspected eligible FTOs remain available for a fresh import preview.</p>
 <div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Listing details</th></tr></thead><tbody id="new-rows"></tbody></table></div>
 <button class="details-toggle" id="toggle-imported" type="button" aria-expanded="false" aria-controls="imported-section">Show already-imported FTOs</button>
 <section id="imported-section" hidden><h2>Already imported</h2><p class="section-note">These FTO numbers already exist in VBGRAMG FTO History and are permanently excluded from automatic fetching.</p>
@@ -171,7 +171,7 @@ async function runDetailBatches(numbers){
   for(const item of detailResults){
    const section=document.createElement("section");section.style.margin="14px 0";
    const check=checks.find(x=>x.item===item);
-   const heading=document.createElement("h3");heading.textContent=item.ftoNumber+" — "+(item.signatoryDate?"Signatory date: "+item.signatoryDate+" · ":"")+(item.kind==="ok"?"Loaded "+item.transactions.length+" detail rows · "+Number(item.importableTransactionCount||0)+" New Serchchip North rows · "+(item.inspectionClassification||"inspected"):item.kind);section.append(heading);
+   const heading=document.createElement("h3");heading.textContent=item.ftoNumber+" — "+(item.signatoryDate?"Signatory date: "+item.signatoryDate+" · ":"")+(item.kind==="ok"?"Loaded "+item.transactions.length+" transaction rows · "+Number(item.importableTransactionCount||0)+" rows included in import · "+(item.inspectionClassification||"inspected"):item.kind);section.append(heading);
    if(check){
     const notes=[];
     notes.push("Parsed "+check.txs.length+" detail rows (informational; Government 'No of Transaction' [6] is not treated as detail-row count).");
@@ -226,10 +226,10 @@ $("import-button").addEventListener("click",async()=>{
  const successful=detailResults.filter(item=>item.kind==="ok");
  if(successful.length!==detailResults.length){status("import-status","Resolve every failed FTO detail fetch before importing.","error");return;}
  const eligible=successful.filter(item=>Number(item.matchingJobCardCount)>0);
- if(!eligible.length){status("import-status","No new FTO contains a Job Card Number in the reviewed Active MIS. Nothing can be imported.","error");return;}
+ if(!eligible.length){status("import-status","No new FTO contains a Job Card Number matching the reviewed Active MIS. Nothing can be imported.","error");return;}
  if(eligible.some(item=>!item.importPreviewToken)){status("import-status","A server-issued import preview is missing. Fetch and review FTO details again.","error");return;}
  const transactionCount=eligible.reduce((n,item)=>n+Number(item.importableTransactionCount||0),0);
- if(!window.confirm("Import "+eligible.length+" new FTO(s) with Active MIS matches and "+transactionCount+" Government transaction row(s) into FTO History? FTOs without Active MIS matches will be skipped. No Contribution period, charges or ledger entries will be created."))return;
+ if(!window.confirm("Import "+eligible.length+" new FTO(s) with Active MIS matches and "+transactionCount+" Government transaction row(s) into FTO History? FTOs without any Active MIS Job Card match will be skipped. No Contribution period, charges or ledger entries will be created."))return;
  button.disabled=true;button.textContent="Importing…";
  status("import-status","Sending the reviewed Government history to the secure import endpoint…");
  try{

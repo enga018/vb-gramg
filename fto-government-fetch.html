@@ -139,9 +139,10 @@ async function runDetailBatches(numbers){
    const warnings=(listingMismatches.length>0?1:0)+(listingUnavailable.length>0?1:0)+(duplicateRefs>0?1:0)+(missingJobCards>0?1:0)+(missingReferences>0?1:0)+(missingAmounts>0?1:0)+(statusCounts.unknown>0?1:0);
    return {item,txs,duplicateRefs,missingJobCards,missingReferences,missingAmounts,statusCounts,listingChecks,listingMismatches,listingUnavailable,warnings};
   });
+  const staleInspections=successful.filter(item=>item.inspectionSnapshotStale===true);
   const passed=checks.filter(x=>x.warnings===0).length;
-  const warningCount=checks.filter(x=>x.warnings>0).length;
-  $("import-button").disabled=failed.length>0 || detailResults.length!==detailQueue.length || !misSnapshot || warningCount>0 || !detailResults.some(item=>item.kind==="ok" && Number(item.matchingJobCardCount)>0);
+  const warningCount=checks.filter(x=>x.warnings>0).length+staleInspections.length;
+  $("import-button").disabled=failed.length>0 || detailResults.length!==detailQueue.length || !misSnapshot || warningCount>0 || staleInspections.length>0 || !detailResults.some(item=>item.kind==="ok" && Number(item.matchingJobCardCount)>0);
   validation.hidden=detailResults.length===0;validation.replaceChildren();
   const addStat=(label,value)=>{const box=document.createElement("div");box.className="stat";const small=document.createElement("small");small.textContent=label;const strong=document.createElement("strong");strong.textContent=String(value);box.append(small,strong);validation.append(box);};
   addStat("Validation passed",passed);addStat("Warnings",warningCount);addStat("Fetch/parse failures",failed.length);
@@ -166,7 +167,7 @@ async function runDetailBatches(numbers){
   const misDetail=document.createElement("p");misDetail.className="section-note";
   misDetail.textContent="Transaction rows — Matched: "+misCounts.matched+" · Applicant review: "+misCounts.applicant_review+" · Outside Active MIS: "+misCounts.not_in_active_mis+" · Exempt: "+misCounts.exempt;
   validation.append(misDetail);
-  progress.textContent="Processed "+done+" of "+total+" FTOs · "+successful.length+" successful · "+failed.length+" failed · "+passed+" passed validation · "+warningCount+" with warnings";
+  progress.textContent="Processed "+done+" of "+total+" FTOs · "+successful.length+" successful · "+failed.length+" failed · "+passed+" passed validation · "+warningCount+" with warnings"+(staleInspections.length?" · "+staleInspections.length+" stale MIS snapshot(s)":"");
   target.replaceChildren();
   for(const item of detailResults){
    const section=document.createElement("section");section.style.margin="14px 0";
@@ -174,6 +175,7 @@ async function runDetailBatches(numbers){
    const heading=document.createElement("h3");heading.textContent=item.ftoNumber+" — "+(item.signatoryDate?"Signatory date: "+item.signatoryDate+" · ":"")+(item.kind==="ok"?"Loaded "+item.transactions.length+" transaction rows · "+Number(item.importableTransactionCount||0)+" rows included in import · "+(item.inspectionClassification||"inspected"):item.kind);section.append(heading);
    if(check){
     const notes=[];
+    if(item.inspectionSnapshotStale)notes.push("STALE INSPECTION — Active MIS has changed since this FTO was inspected. The saved inspection was preserved and was not repeated. Re-inspection is not automatic; this FTO cannot be imported using the old snapshot.");
     notes.push("Parsed "+check.txs.length+" detail rows (informational; Government 'No of Transaction' [6] is not treated as detail-row count).");
     if(Array.isArray(item.listingRow)&&item.listingRow.length>12)notes.push("Government field [12] (Total Processed Amount) is displayed in the source listing but excluded from amount reconciliation pending clarification of its relationship to transaction statuses.");
     for(const result of check.listingMismatches)notes.push(result.label+" mismatch: Government "+result.expected+", parsed "+result.actual+".");
@@ -303,7 +305,7 @@ $("fetch-button").addEventListener("click",async()=>{
   detailResults=[];misSnapshot=null;importedFtoNumbers=new Set();
   $("details-button").onclick=startDetailsPreview;
   $("details-button").disabled=detailQueue.length===0;
-  $("details-button").textContent="Fetch new FTO details ("+newFtoCount+")";
+  $("details-button").textContent="Prepare eligible FTOs for import ("+newFtoCount+")";
   $("details-panel").hidden=true;
   $("new-count").textContent=Number(data.newCount).toLocaleString("en-IN");
   $("imported-count").textContent=Number(data.alreadyImportedCount).toLocaleString("en-IN");

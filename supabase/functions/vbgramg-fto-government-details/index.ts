@@ -195,9 +195,12 @@ async function getPage(url: string) {
       // Keep the established preview keys while exposing the exact import contract.
       jobCardNumber,
       referenceNumber,
-      status: normalizedStatus,
+      status: normalizedStatus === "blank" ? "deferred" : normalizedStatus,
+      normalizedStatus,
       governmentStatus: rawStatus || "blank",
       amount: row[amountToBeCredited] || "",
+      jobCardNo: jobCardNumber,
+      referenceNo: referenceNumber,
       amountToBeCredited: parseGovernmentAmount(row[amountToBeCredited] || ""),
       creditAmount: parseGovernmentAmount(row[creditAmount] || ""),
       transactionDate: transactionDate >= 0 ? parseGovernmentDate(row[transactionDate] || "") : "",
@@ -295,7 +298,7 @@ Deno.serve(async (req: Request) => {
             });
             const inScope = transactions.filter(tx => tx.misMatchStatus !== "not_in_active_mis");
             const matchingCards = new Set(inScope.map(tx => String(tx.jobCardNumber || "").trim().toUpperCase()).filter(Boolean));
-            const deferredInScope = inScope.filter(tx => tx.status === "blank").length;
+            const deferredInScope = inScope.filter(tx => tx.normalizedStatus === "blank").length;
             const classification = matchingCards.size === 0 ? "OUT_OF_SCOPE" :
               deferredInScope > 0 ? "RECHECK_REQUIRED" : "COMPLETE";
             const { error: stateWriteError } = await admin.from("vbgramg_fto_inspection_state").upsert({

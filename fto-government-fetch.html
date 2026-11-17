@@ -41,7 +41,7 @@ button{font:inherit;font-weight:650;border:1px solid transparent;border-radius:1
 <button class="details-toggle" id="toggle-imported" type="button" aria-expanded="false" aria-controls="imported-section">Show already-imported FTOs</button>
 <section id="imported-section" hidden><h2>Already imported</h2><p class="section-note">These FTO numbers already exist in VBGRAMG FTO History and will not be treated as new imports.</p>
 <div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Listing details</th></tr></thead><tbody id="imported-rows"></tbody></table></div></section>
-<section id="unrecognized-section" hidden><h2>Needs review</h2><p class="section-note">The Government listing row did not provide a recognizable FTO number. These entries are not treated as new.</p>
+<section id="unrecognized-section" hidden><h2>Needs review</h2><p class="section-note">The Government listing has a missing or repeated FTO number. These entries are not treated as new or already imported.</p>
 <div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Listing details</th></tr></thead><tbody id="unrecognized-rows"></tbody></table></div></section>
 </div>
 </section>
@@ -81,7 +81,7 @@ function renderRows(targetId,items,emptyText){
  for(const item of items){
   const tr=document.createElement("tr"),number=document.createElement("td"),details=document.createElement("td");
   number.textContent=item.ftoNumber||"FTO number unavailable";
-  details.textContent=(item.listingRow||[]).filter(Boolean).join(" · ");
+  details.textContent=[item.reason,(item.listingRow||[]).filter(Boolean).join(" · ")].filter(Boolean).join(" — ");
   tr.append(number,details);tbody.append(tr);
  }
 }

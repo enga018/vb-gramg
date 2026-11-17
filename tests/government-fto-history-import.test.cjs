@@ -61,7 +61,7 @@ test("SQL independently validates normalized Active MIS matching and duplicate p
   assert.match(migration, /v_reference = any\(v_seen_refs\)/i);
   assert.match(migration, /if not v_fto_has_active_mis_match then/i);
   assert.match(migration, /if v_is_in_scope then[\\s\\S]*?insert into public\\.vbgramg_fto_transactions/i);
-  assert.match(migration, /transaction_count\\x27, v_fto_transaction_count/i);
+  assert.match(migration, /transaction_count', v_fto_transaction_count/i);
 });
 
 test("Fetcher permanently excludes imported and out-of-scope FTOs without Deferred rechecks", () => {

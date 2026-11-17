@@ -88,6 +88,8 @@ test("Previously inspected eligible FTOs reuse saved rows and detect stale Activ
   assert.match(details, /matchingCards\.size > 0 && savedSnapshotIsCurrent/);
   assert.match(details, /newlyInspectedCount > 0/);
   assert.match(details, /reusedInspectionCount/);
+  assert.match(details, /persistedInspection, error: persistedInspectionError/);
+  assert.match(details, /This FTO was imported while it was being inspected/);
 });
 
 test("Stale saved inspections cannot be imported and are clearly shown in the UI", () => {

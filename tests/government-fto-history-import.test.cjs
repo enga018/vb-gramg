@@ -41,7 +41,7 @@ test("Import endpoint accepts only signed previews and caps each request", () =>
   assert.match(importer, /openImportPreviewToken\(token, serviceKey\)/);
   assert.match(importer, /preview\.governmentTransactionCount/);
   assert.match(importer, /preview\.unmatchedTransactionCount/);
-  assert.match(importer, /governmentTransactionCount !== payload\.rows\.length \+ payload\.unmatchedTransactionCount/);
+  assert.match(importer, /payload\.governmentTransactionCount !== payload\.rows\.length \+ payload\.unmatchedTransactionCount/);
   assert.match(importer, /admin\.rpc\("vbgramg_import_government_fto_history"/);
   assert.doesNotMatch(importer, /body\.ftos\[[^\]]+\]\.rows/);
 });

@@ -38,6 +38,10 @@ function normalizeRow(row: Record<string, any>) {
 function sortedRows(rows: Record<string, any>[]) {
   return rows.map(normalizeRow).sort((a, b) => a.referenceNo.localeCompare(b.referenceNo));
 }
+function columnValue(row: Record<string, any>, name: string) {
+  const found = Array.isArray(row.columns) ? row.columns.find((item: Record<string, any>) => String(item?.name || "").trim() === name) : null;
+  return String(found?.value ?? "").trim();
+}
 async function sha256(value: string) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return [...new Uint8Array(digest)].map((v) => v.toString(16).padStart(2, "0")).join("");
@@ -124,6 +128,22 @@ Deno.serve(async (req: Request) => {
       return reply({ error: "The Government listing snapshot is incomplete or inconsistent. Generate a fresh preview." }, 409);
     }
 
+    const meta = payload.previewMeta;
+    if (meta.auditMode !== "import-preview" || meta.databaseChanged !== false ||
+        Number(meta.testedPages) !== 371 || Number(meta.listingCandidateCount) !== 371 ||
+        Number(meta.exactMatchingTransactionCount) !== 1101 ||
+        Number(meta.ftoCountWithExactMatches) !== 10 ||
+        Number(meta.rejectedStatusCount) !== 354 ||
+        Number(meta.nonMatchingRowCount) !== 31283 ||
+        Number(meta.duplicateExactJobCardRows) !== 0 ||
+        Number(meta.duplicateReferenceCount) !== 0 ||
+        Number(meta.pageErrorsCount) !== 0 ||
+        Number(meta.listingChangesCount) !== 0 ||
+        Number(meta.listingAdditionsCount) !== 0 ||
+        !meta.activeImportId || !meta.misUpdatedAt) {
+      return reply({ error: "Government preview integrity metadata does not match the reviewed audit." }, 409);
+    }
+
     const currentManifest = await auditRequest("manifest");
     const currentNumbers = (currentManifest.ftoCandidates || [])
       .map((x: Record<string, any>) => String(x?.listingRow?.[3] || "").trim()).sort();
@@ -183,10 +203,51 @@ Deno.serve(async (req: Request) => {
       if (JSON.stringify(sortedRows(currentRows)) !== JSON.stringify(sortedRows(uploaded.rows))) {
         return reply({ error: "Government transaction details changed since the preview for " + spec.ftoNumber + ". No data was imported; generate a fresh preview." }, 409);
       }
+
+      let amountTotal = 0;
+      for (const row of currentRows) {
+        const card = String(row.jobCardNo || "").trim();
+        const reference = String(row.referenceNo || "").trim();
+        const rawCard = columnValue(row, "Job Card No. (Panchayat Name)");
+        const rawReference = columnValue(row, "Reference No.");
+        const rawAmount = columnValue(row, "Amount to be credited (In Rs.)");
+        const rawCredit = columnValue(row, "Credit Amount(In Rs.)");
+        const amountText = rawAmount.replace(/,/g, "");
+        const creditText = rawCredit.replace(/,/g, "");
+        const village = rawCard.match(/\\(([^)]*)\\)/)?.[1] || "";
+        if (!card || !reference || rawCard.split(" (")[0] !== card || rawReference !== reference ||
+            columnValue(row, "Status").toLowerCase() !== "rejected" ||
+            columnValue(row, "Rejection Reason") !== "Rejected by DDO" ||
+            String(row.normalizedStatus || "").toLowerCase() !== "rejected" ||
+            !columnValue(row, "Applicant Name") || village !== "NEW SERCHHIP North" ||
+            !/^[0-9,]+(\\.[0-9]+)?$/.test(rawAmount) ||
+            !/^[0-9,]+(\\.[0-9]+)?$/.test(rawCredit) ||
+            !Number.isFinite(Number(amountText)) || !Number.isFinite(Number(creditText)) ||
+            Number(amountText) < 0 || Number(creditText) < 0) {
+          return reply({ error: "A live Government row failed the server-side source, status, village or amount checks in " + spec.ftoNumber + "." }, 409);
+        }
+        amountTotal += Number(amountText);
+      }
+      const expectedAmount = spec.ftoNumber === EXPECTED[0].ftoNumber ? 581400 :
+        spec.ftoNumber === EXPECTED[1].ftoNumber ? 105300 : 5400;
+      if (amountTotal !== expectedAmount) {
+        return reply({ error: "The live Government amount total changed for " + spec.ftoNumber + "." }, 409);
+      }
       liveFtos.push({ ftoNumber: spec.ftoNumber, rows: currentRows });
     }
 
     // Read-only database preflight. The import RPC repeats these checks under locks before writing.
+    const { data: misState, error: misStateError } = await admin
+      .from("vbgramg_mis_state")
+      .select("active_import_id,updated_at")
+      .eq("singleton", true)
+      .maybeSingle();
+    if (misStateError) throw new Error("Could not verify active MIS state: " + misStateError.message);
+    if (!misState || misState.active_import_id !== payload.previewMeta.activeImportId ||
+        new Date(misState.updated_at).getTime() !== new Date(payload.previewMeta.misUpdatedAt).getTime()) {
+      throw new Error("The active MIS changed after this preview. Generate a fresh Government FTO preview.");
+    }
+
     const { data: period, error: periodError } = await admin
       .from("vbgramg_periods")
       .select("id,period_name,contribution_month,status")

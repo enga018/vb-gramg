@@ -225,7 +225,7 @@ $("import-button").addEventListener("click",async()=>{
   try{
    const {data,error}=await window.VBGRAMGData.invoke("vbgramg-fto-government-import",{body:payload,timeoutMs:60000});
    if(error||!data||data.success!==true)throw new Error(data?.error||error?.message||"Government FTO history import failed.");
-   const batchCount=Number(data.result?.batch_count||0),rowCount=Number(data.result?.transaction_count||0);
+   const batchCount=Number(data.result?.batch_count||0),rowCount=Number(data.result?.stored_transaction_count||0);
    if(batchCount!==chunks[i].length)throw new Error("The server returned an unexpected imported FTO count. Refresh FTO History before continuing.");
    completedBatches++;completedFtos+=batchCount;completedRows+=rowCount;
    chunks[i].forEach(item=>importedFtoNumbers.add(String(item.ftoNumber).trim().toUpperCase()));

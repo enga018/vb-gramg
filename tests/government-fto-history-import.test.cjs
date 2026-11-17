@@ -79,3 +79,28 @@ test("Frontend chunks by FTO count and byte size, and warns about partial comple
 test("Government FTO preview is independent of Contribution exemptions", () => {
   assert.doesNotMatch(details, /vbgramg_contribution_exemptions|exemptCards|contributionExempt/);
 });
+
+
+test("Previously inspected eligible FTOs reuse saved rows and detect stale Active MIS snapshots", () => {
+  assert.match(details, /const detail = hasSavedTransactions\s*\?\s*\{ kind: "ok", transactions: savedData\.transactions \}\s*:\s*await getPage/);
+  assert.match(details, /savedSnapshotIsCurrent = !hasSavedTransactions/);
+  assert.match(details, /inspectionSnapshotStale: hasSavedTransactions && !savedSnapshotIsCurrent/);
+  assert.match(details, /matchingCards\.size > 0 && savedSnapshotIsCurrent/);
+  assert.match(details, /newlyInspectedCount > 0/);
+  assert.match(details, /reusedInspectionCount/);
+});
+
+test("Stale saved inspections cannot be imported and are clearly shown in the UI", () => {
+  assert.match(page, /staleInspections\.length>0/);
+  assert.match(page, /STALE INSPECTION — Active MIS has changed/);
+  assert.match(page, /Prepare eligible FTOs for import \(\+newFtoCount\+\)/);
+});
+
+test("Inspection writes and batch inserts serialize on the normalized FTO identity", () => {
+  const lockMigration = read("supabase/migrations/20261117200000_serialize_fto_inspection_and_import.sql");
+  assert.match(lockMigration, /pg_advisory_xact_lock/);
+  assert.match(lockMigration, /before insert or update on public\.vbgramg_fto_batches/i);
+  assert.match(lockMigration, /before insert or update on public\.vbgramg_fto_inspection_state/i);
+  assert.match(lockMigration, /where upper\(btrim\(b\.fto_number\)\) = upper\(btrim\(new\.fto_number_normalized\)\)/i);
+  assert.match(lockMigration, /return null;/);
+});

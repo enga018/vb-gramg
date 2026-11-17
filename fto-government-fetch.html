@@ -142,7 +142,12 @@ async function runDetailBatches(numbers){
   });
   const passed=checks.filter(x=>x.warnings===0).length;
   const warningCount=checks.filter(x=>x.warnings>0).length;
-  $("import-button").disabled=failed.length>0 || detailResults.length!==detailQueue.length || !misSnapshot || warningCount>0 || !detailResults.some(item=>item.kind==="ok" && Number(item.matchingJobCardCount)>0);
+  const detailComplete=detailResults.length===detailQueue.length && failed.length===0;
+  const eligibleFtos=successful.filter(item=>Number(item.matchingJobCardCount)>0);
+  const canImport=detailComplete && !!misSnapshot && warningCount===0 && eligibleFtos.length>0;
+  $("import-button").hidden=!canImport;
+  $("import-button").disabled=!canImport;
+  $("import-button").textContent=canImport?"Import new FTOs ("+eligibleFtos.length+")":"Import new FTOs";
   validation.hidden=detailResults.length===0;validation.replaceChildren();
   const addStat=(label,value)=>{const box=document.createElement("div");box.className="stat";const small=document.createElement("small");small.textContent=label;const strong=document.createElement("strong");strong.textContent=String(value);box.append(small,strong);validation.append(box);};
   addStat("Validation passed",passed);addStat("Warnings",warningCount);addStat("Fetch/parse failures",failed.length);
@@ -286,7 +291,9 @@ $("fetch-button").addEventListener("click",async()=>{
   const newFtoCount=Array.isArray(data.newFtos)?data.newFtos.length:0;
   detailQueue=data.newFtos.map(item=>String(item.ftoNumber||"").trim()).filter(Boolean);
   misSnapshot=null;
+  $("import-button").hidden=true;
   $("import-button").disabled=true;
+  $("import-button").textContent="Import new FTOs";
   status("import-status","Complete the detail preview before importing.");
   detailResults=[];misSnapshot=null;importedFtoNumbers=new Set();
   $("details-panel").hidden=detailQueue.length===0;
@@ -309,8 +316,9 @@ $("fetch-button").addEventListener("click",async()=>{
   if(detailQueue.length){
    $("details-panel").hidden=false;
    detailResults=[];misSnapshot=null;importedFtoNumbers=new Set();
+   $("import-button").hidden=true;
    $("import-button").disabled=true;
-   $("import-button").textContent="Import new FTO history";
+   $("import-button").textContent="Import new FTOs";
    status("import-status","Automatic detail checks are running. Review the validation results before importing.");
    await runDetailBatches(detailQueue);
   }

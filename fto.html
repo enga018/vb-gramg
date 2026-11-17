@@ -944,7 +944,7 @@ supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){
  if(!modal||!frame||!open||!close)return;
  function showImport(url){frame.src='about:blank';if(typeof modal.showModal==='function'&&!modal.open)modal.showModal();else if(typeof modal.showModal!=='function')modal.setAttribute('open','');requestAnimationFrame(function(){frame.src=url;});}
  window.openFtoImportForRevision=function(ftoNumber){var number=String(ftoNumber||'').trim();if(!number)return;var url=new URL('./fto-import.html',window.location.href);url.searchParams.set('embedded','1');url.searchParams.set('revise',number);url.searchParams.set('_revision_session',String(Date.now()));showImport(url.href);};
- open.addEventListener('click',()=>{showImport('./fto-import.html?embedded=1');});
+ open.addEventListener('click',()=>{window.location.href='./fto-government-fetch.html?autostart=1';});
  close.addEventListener('click',()=>modal.close());
  modal.addEventListener('click',event=>{if(event.target===modal)modal.close()});
  modal.addEventListener('close',()=>{frame.src='about:blank'});

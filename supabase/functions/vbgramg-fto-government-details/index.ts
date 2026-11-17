@@ -312,6 +312,8 @@ Deno.serve(async (req: Request) => {
     }
     const misIndex = await loadActiveMisIndex(admin);
     const results: Record<string, unknown>[] = [];
+    let newlyInspectedCount = 0;
+    let reusedInspectionCount = 0;
     let cursor = 0;
     const workers = Array.from({ length: Math.min(2, selected.length) }, async () => {
       while (cursor < selected.length) {
@@ -321,6 +323,9 @@ Deno.serve(async (req: Request) => {
           const savedInspection = inspectionByNumber.get(normalizedFto);
           const savedData = savedInspection?.inspection_data;
           const hasSavedTransactions = savedData && Array.isArray(savedData.transactions);
+          const savedSnapshotIsCurrent = !hasSavedTransactions ||
+            (String(savedData.activeImportId || "") === misIndex.importId &&
+             String(savedData.misUpdatedAt || "") === String(misIndex.misUpdatedAt || ""));
           const detail = hasSavedTransactions
             ? { kind: "ok", transactions: savedData.transactions }
             : await getPage(item.detailUrl, item.ftoNumber);
@@ -361,17 +366,22 @@ Deno.serve(async (req: Request) => {
                 updated_at: new Date().toISOString()
               }, { onConflict: "fto_number_normalized" });
               if (stateWriteError) throw new Error("Could not save FTO inspection state.");
+              newlyInspectedCount++;
+            } else {
+              reusedInspectionCount++;
             }
             const listingRow = hasSavedTransactions && Array.isArray(savedData.listingRow) ? savedData.listingRow : item.listingRow;
             const listingHeaders = hasSavedTransactions && Array.isArray(savedData.listingHeaders) ? savedData.listingHeaders : (item.listingHeaders || []);
             const result: Record<string, unknown> = { ftoNumber: item.ftoNumber, inspectionClassification: classification,
               matchingJobCardCount: matchingCards.size, importableTransactionCount: transactions.length,
               deferredInScopeCount: deferredInScope,
+              inspectionSnapshotStale: hasSavedTransactions && !savedSnapshotIsCurrent,
+              inspectionSnapshotInspectedAt: hasSavedTransactions ? (savedInspection?.last_inspected_at || null) : null,
               signatoryDate: hasSavedTransactions ? (savedData.signatoryDate || "") : (item.listingRow[5] || ""),
               listingTransactionCount: hasSavedTransactions ? Number(savedData.listingTransactionCount || 0) : Number(item.listingRow[6] || 0),
               listingAmount: hasSavedTransactions ? Number(savedData.listingAmount || 0) : Number(item.listingRow[7] || 0),
               listingRow, listingHeaders, kind: "ok", transactions };
-            if (!imported.has(item.ftoNumber.trim().toUpperCase()) && matchingCards.size > 0) {
+            if (!imported.has(item.ftoNumber.trim().toUpperCase()) && matchingCards.size > 0 && savedSnapshotIsCurrent) {
               result.importPreviewToken = await makeImportPreviewToken(serviceKey, claims.sub, {
                 activeImportId: hasSavedTransactions ? savedData.activeImportId : misIndex.importId,
                 misUpdatedAt: hasSavedTransactions ? savedData.misUpdatedAt : misIndex.misUpdatedAt,
@@ -391,11 +401,14 @@ Deno.serve(async (req: Request) => {
     results.sort((a, b) => requested.findIndex(v => v.toUpperCase() === String(a.ftoNumber).toUpperCase()) -
       requested.findIndex(v => v.toUpperCase() === String(b.ftoNumber).toUpperCase()));
     const successful = results.filter(item => item.kind === "ok").length;
-    return reply({ success: true, databaseChanged: successful > 0, inspectionStateSaved: successful > 0,
+    return reply({ success: true, databaseChanged: newlyInspectedCount > 0, inspectionStateSaved: newlyInspectedCount > 0,
+      newlyInspectedCount, reusedInspectionCount,
       misSnapshot: { activeImportId: misIndex.importId, misUpdatedAt: misIndex.misUpdatedAt },
       requestedCount: requested.length, successfulCount: successful,
       failedCount: results.length - successful, results,
-      message: "Detail pages processed. Inspection classifications were saved; FTO transaction history and Contribution records were not changed." });
+      message: newlyInspectedCount > 0
+        ? "New Government detail inspections were saved. Previously inspected eligible FTOs reused their saved transaction rows. FTO history and Contribution records were not changed."
+        : "Previously inspected eligible FTOs reused their saved transaction rows. No new inspection records or Government detail requests were created." });
   } catch (error) {
     return reply({ error: error instanceof Error ? error.message : "FTO detail processing failed.", databaseChanged: false }, 400);
   }

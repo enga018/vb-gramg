@@ -300,7 +300,12 @@ Deno.serve(async (req: Request) => {
               const exempt = misIndex.exemptCards.has(String(tx.jobCardNumber || "").trim().toUpperCase());
               return { ...tx, ftoNumber: item.ftoNumber, ...match, contributionExempt: exempt };
             });
-            const inScope = transactions.filter(tx => tx.misMatchStatus !== "not_in_active_mis");
+            const isOurVillage = (value: unknown) =>
+              String(value || "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim() === "NEW SERCHHIP NORTH";
+            // The Government detail page can contain records beyond our village.
+            // Only New Serchchip North rows are eligible for this village's history import.
+            const villageTransactions = transactions.filter(tx => isOurVillage(tx.villageName));
+            const inScope = villageTransactions.filter(tx => tx.misMatchStatus !== "not_in_active_mis");
             const matchingCards = new Set(inScope.map(tx => String(tx.jobCardNumber || "").trim().toUpperCase()).filter(Boolean));
             const deferredInScope = inScope.filter(tx => tx.normalizedStatus === "blank").length;
             const classification = matchingCards.size === 0 ? "OUT_OF_SCOPE" : "COMPLETE";
@@ -323,7 +328,7 @@ Deno.serve(async (req: Request) => {
             if (!imported.has(item.ftoNumber.trim().toUpperCase()) && matchingCards.size > 0) {
               result.importPreviewToken = await makeImportPreviewToken(serviceKey, claims.sub, {
                 activeImportId: misIndex.importId, misUpdatedAt: misIndex.misUpdatedAt,
-                ftoNumber: item.ftoNumber, rows: transactions
+                ftoNumber: item.ftoNumber, rows: villageTransactions
               });
             }
             results.push(result);

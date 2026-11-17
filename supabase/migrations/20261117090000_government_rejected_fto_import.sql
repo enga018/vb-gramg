@@ -91,8 +91,8 @@ begin
     raise exception 'Government preview integrity metadata is missing or does not match the reviewed audit.';
   end if;
 
-  if jsonb_typeof(p_payload->'ftos') <> 'array'
-    or jsonb_array_length(p_payload->'ftos') <> 3 then
+  if jsonb_typeof(p_payload->'ftos') is distinct from 'array'
+    or coalesce(jsonb_array_length(p_payload->'ftos'),0) <> 3 then
     raise exception 'Exactly three audited Government FTO batches are required.';
   end if;
 
@@ -143,7 +143,7 @@ begin
     if v_expected_count is null then
       raise exception 'Unexpected FTO number: %.', v_fto_number;
     end if;
-    if jsonb_typeof(v_fto->'rows') <> 'array' then
+    if jsonb_typeof(v_fto->'rows') is distinct from 'array' then
       raise exception 'FTO % has no transaction rows.', v_fto_number;
     end if;
     if jsonb_array_length(v_fto->'rows') <> v_expected_count then
@@ -200,8 +200,8 @@ begin
         raise exception 'Job Card % is no longer an exact match in the active MIS.', v_card;
       end if;
 
-      if jsonb_typeof(v_row->'columns') <> 'array'
-        or jsonb_array_length(v_row->'columns') = 0 then
+      if jsonb_typeof(v_row->'columns') is distinct from 'array'
+        or coalesce(jsonb_array_length(v_row->'columns'),0) = 0 then
         raise exception 'Raw Government source columns are missing for reference %.', v_reference;
       end if;
 

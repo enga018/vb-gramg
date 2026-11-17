@@ -24,7 +24,7 @@ button{font:inherit;font-weight:650;border:1px solid transparent;border-radius:1
 <header><h1>Government FTO Fetch</h1><p>Secure, read-only connection to the Government FTO listing for VBGRAMG administrators.</p></header>
 <section class="panel" id="access-panel"><h2>Administrator access</h2><p>Sign in with an approved VBGRAMG administrator account.</p><div id="access-status" class="status">Checking your session…</div></section>
 <section class="panel" id="app-panel" hidden>
-<div class="notice"><strong>Read-only comparison.</strong> This fetches the Government listing and compares FTO numbers with imported FTO history. It does not fetch detail pages, import transactions, assign Contribution periods, or change database records.</div>
+<div class="notice"><strong>Read-only comparison.</strong> This fetches the Government listing and compares it with imported history and saved inspection results. Imported FTOs and FTOs with no New Serchchip North transactions are permanently skipped. No Contribution periods or charges are created.</div>
 <div class="actions"><button id="fetch-button" type="button">Fetch Government FTO listing</button><button id="details-button" type="button" disabled>Fetch new FTO details</button></div>
 <div id="details-panel" class="panel" hidden><h2>Transaction preview</h2><p class="section-note">Successful inspections save only the FTO inspection classification. FTO transaction history and Contribution records are not changed.</p><p id="details-progress" class="section-note">Ready.</p><div class="notice" style="margin:10px 0">Import records Government transaction history only. It does not calculate Contribution charges or assign a Contribution period.</div><button id="import-button" type="button" disabled>Import new FTO history</button><div id="import-status" class="status">Complete the detail preview before importing.</div><progress id="details-progressbar" max="1" value="0" style="width:100%;height:18px"></progress><div id="details-validation" class="stats" hidden></div><div id="details-results" class="table-wrap"></div></div>
 <div id="fetch-status" class="status">Ready. Select Fetch to contact the Government website.</div>
@@ -33,15 +33,15 @@ button{font:inherit;font-weight:650;border:1px solid transparent;border-radius:1
 <div class="stat"><small>New FTOs</small><strong id="new-count">—</strong></div>
 <div class="stat"><small>Already imported</small><strong id="imported-count">—</strong></div>
 <div class="stat"><small>Needs review</small><strong id="review-count">—</strong></div>
-<div class="stat"><small>Already inspected (skipped)</small><strong id="skipped-count">—</strong></div>
+<div class="stat"><small>Out of scope (permanently skipped)</small><strong id="skipped-count">—</strong></div>
 <div class="stat"><small>Total listed</small><strong id="count">—</strong></div>
 <div class="stat"><small>Fetched at</small><strong id="fetched-at">—</strong></div>
 <div class="stat"><small>Database changes</small><strong>No</strong></div>
 </div>
-<h2>New FTOs</h2><p class="section-note">Only FTO numbers not found in imported history appear here.</p>
+<h2>New FTOs</h2><p class="section-note">Unimported FTOs with possible New Serchchip North transactions appear here. Previously inspected eligible FTOs remain available for a fresh import preview.</p>
 <div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Listing details</th></tr></thead><tbody id="new-rows"></tbody></table></div>
 <button class="details-toggle" id="toggle-imported" type="button" aria-expanded="false" aria-controls="imported-section">Show already-imported FTOs</button>
-<section id="imported-section" hidden><h2>Already imported</h2><p class="section-note">These FTO numbers already exist in VBGRAMG FTO History and will not be treated as new imports.</p>
+<section id="imported-section" hidden><h2>Already imported</h2><p class="section-note">These FTO numbers already exist in VBGRAMG FTO History and are permanently excluded from automatic fetching.</p>
 <div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Listing details</th></tr></thead><tbody id="imported-rows"></tbody></table></div></section>
 <section id="unrecognized-section" hidden><h2>Needs review</h2><p class="section-note">The Government listing has a missing or repeated FTO number. These entries are not treated as new or already imported.</p>
 <div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Listing details</th></tr></thead><tbody id="unrecognized-rows"></tbody></table></div></section>
@@ -279,7 +279,7 @@ $("fetch-button").addEventListener("click",async()=>{
   $("imported-section").hidden=true;$("toggle-imported").textContent="Show already-imported FTOs";$("toggle-imported").setAttribute("aria-expanded","false");
   $("unrecognized-section").hidden=data.unrecognized.length===0;
   $("results").hidden=false;
-  status("fetch-status",data.message+" This import workflow fetches new FTOs only. Listing fingerprint: "+data.listingFingerprint,"success");
+  status("fetch-status",data.message+" This workflow fetches eligible unimported FTOs only; imported and out-of-scope FTOs are never rechecked. Listing fingerprint: "+data.listingFingerprint,"success");
  }catch(error){status("fetch-status",error.message||"Government fetch failed.","error");}
  finally{button.disabled=false;button.textContent="Fetch Government FTO listing";}
 });

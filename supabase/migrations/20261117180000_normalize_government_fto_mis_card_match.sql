@@ -5,7 +5,8 @@
 -- This operation never writes to vbgramg_charge_ledger or payment allocations.
 
 alter table public.vbgramg_fto_batches
-  alter column contribution_period drop not null;
+  alter column contribution_period drop not null,
+  alter column village_scope drop not null;
 
 comment on column public.vbgramg_fto_batches.contribution_period is
   'Contribution period assigned to this FTO batch. NULL means Government history has been imported but no Contribution period has been assigned.';
@@ -118,12 +119,12 @@ begin
     if v_fto_number = '' then
       raise exception 'An FTO number is missing.';
     end if;
-    if v_fto_number = any(v_seen_ftos) then
+    if upper(v_fto_number) = any(v_seen_ftos) then
       raise exception 'FTO % appears more than once in this import.', v_fto_number;
     end if;
-    v_seen_ftos := array_append(v_seen_ftos, v_fto_number);
+    v_seen_ftos := array_append(v_seen_ftos, upper(v_fto_number));
 
-    if exists (select 1 from public.vbgramg_fto_batches b where b.fto_number = v_fto_number) then
+    if exists (select 1 from public.vbgramg_fto_batches b where upper(btrim(b.fto_number)) = upper(v_fto_number)) then
       raise exception 'FTO batch % already exists in FTO history. Nothing was imported.', v_fto_number;
     end if;
     if jsonb_typeof(v_fto->'rows') is distinct from 'array' then

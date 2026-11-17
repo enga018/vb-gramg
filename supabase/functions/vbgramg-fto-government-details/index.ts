@@ -274,24 +274,17 @@ Deno.serve(async (req: Request) => {
     const inspectionByNumber = new Map((inspectionRows || []).map(row => [
       String(row.fto_number_normalized).trim().toUpperCase(), String(row.classification)
     ]));
-    const batchIds = [...imported.values()];
-    const deferredIds = new Set<string>();
-    for (let start = 0; start < batchIds.length; start += 500) {
-      const { data: txs, error } = await admin.from("vbgramg_fto_transactions").select("batch_id")
-        .eq("is_current", true).in("status", ["blank", "deferred"]).in("batch_id", batchIds.slice(start, start + 500));
-      if (error) throw new Error("Could not verify Deferred transaction status.");
-      for (const tx of txs || []) deferredIds.add(String(tx.batch_id));
-    }
     for (const item of selected) {
       const normalized = item.ftoNumber.trim().toUpperCase();
       const classification = inspectionByNumber.get(normalized);
-      if (classification === "COMPLETE" || classification === "OUT_OF_SCOPE") {
-        throw new Error("This FTO has already been inspected and is permanently excluded from future detail fetching.");
+      if (imported.has(normalized)) {
+        throw new Error("This FTO has already been imported and is permanently excluded from automatic detail fetching.");
       }
-      const batchId = imported.get(normalized);
-      if (!classification && batchId && !deferredIds.has(batchId)) {
-        throw new Error("An already-imported FTO is no longer Deferred and cannot be re-fetched in this run.");
+      if (classification === "OUT_OF_SCOPE") {
+        throw new Error("This FTO was inspected and has no transactions for New Serchchip North. It is permanently excluded.");
       }
+      // COMPLETE means inspected and eligible, not imported. Allow a fresh
+      // detail fetch so an unimported FTO can receive a new preview token.
     }
     const misIndex = await loadActiveMisIndex(admin);
     const results: Record<string, unknown>[] = [];
@@ -310,8 +303,7 @@ Deno.serve(async (req: Request) => {
             const inScope = transactions.filter(tx => tx.misMatchStatus !== "not_in_active_mis");
             const matchingCards = new Set(inScope.map(tx => String(tx.jobCardNumber || "").trim().toUpperCase()).filter(Boolean));
             const deferredInScope = inScope.filter(tx => tx.normalizedStatus === "blank").length;
-            const classification = matchingCards.size === 0 ? "OUT_OF_SCOPE" :
-              deferredInScope > 0 ? "RECHECK_REQUIRED" : "COMPLETE";
+            const classification = matchingCards.size === 0 ? "OUT_OF_SCOPE" : "COMPLETE";
             const { error: stateWriteError } = await admin.from("vbgramg_fto_inspection_state").upsert({
               fto_number_normalized: item.ftoNumber.trim().toUpperCase(),
               fto_number: item.ftoNumber.trim(),

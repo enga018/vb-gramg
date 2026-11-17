@@ -109,7 +109,7 @@ async function runDetailBatches(numbers){
    const duplicateRefs=refs.length-new Set(refs.map(v=>v.toUpperCase())).size;
    const missingJobCards=txs.filter(tx=>!String(tx.jobCardNumber||"").trim()).length;
    const missingReferences=txs.filter(tx=>!String(tx.referenceNumber||"").trim()).length;
-   const missingAmounts=txs.filter(tx=>!String(tx.amount||"").trim()).length;
+   const missingAmounts=txs.filter(tx=>!String(tx.amountToBeCredited||"").trim() || !String(tx.creditAmount||"").trim()).length;
    const statusCounts={processed:0,rejected:0,deferred:0,unknown:0};
    for(const tx of txs){const status=String(tx.status||"").toLowerCase();if(status in statusCounts && status!=="unknown")statusCounts[status]++;else statusCounts.unknown++;}
    const listing=Array.isArray(item.listingRow)?item.listingRow:[];
@@ -141,6 +141,7 @@ async function runDetailBatches(numbers){
   });
   const passed=checks.filter(x=>x.warnings===0).length;
   const warningCount=checks.filter(x=>x.warnings>0).length;
+  $("import-button").disabled=failed.length>0 || detailResults.length!==detailQueue.length || !misSnapshot || warningCount>0 || !detailResults.some(item=>item.kind==="ok" && Number(item.matchingJobCardCount)>0);
   validation.hidden=detailResults.length===0;validation.replaceChildren();
   const addStat=(label,value)=>{const box=document.createElement("div");box.className="stat";const small=document.createElement("small");small.textContent=label;const strong=document.createElement("strong");strong.textContent=String(value);box.append(small,strong);validation.append(box);};
   addStat("Validation passed",passed);addStat("Warnings",warningCount);addStat("Fetch/parse failures",failed.length);

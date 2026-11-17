@@ -186,6 +186,42 @@ Deno.serve(async (req: Request) => {
       liveFtos.push({ ftoNumber: spec.ftoNumber, rows: currentRows });
     }
 
+    // Read-only database preflight. The import RPC repeats these checks under locks before writing.
+    const { data: period, error: periodError } = await admin
+      .from("vbgramg_periods")
+      .select("id,period_name,contribution_month,status")
+      .eq("period_name", "JUL26")
+      .eq("contribution_month", "2026-07-01")
+      .maybeSingle();
+    if (periodError) throw new Error("Could not verify JUL26 contribution period: " + periodError.message);
+    if (!period) throw new Error("Contribution period JUL26 is missing.");
+    if (period.status !== "open") throw new Error("Contribution period JUL26 is not open.");
+
+    const expectedNumbers = EXPECTED.map((item) => item.ftoNumber);
+    const { data: existingBatches, error: batchError } = await admin
+      .from("vbgramg_fto_batches")
+      .select("fto_number")
+      .in("fto_number", expectedNumbers);
+    if (batchError) throw new Error("Could not check existing FTO batches: " + batchError.message);
+    if ((existingBatches || []).length) {
+      throw new Error("One or more target FTO batches already exist. No import was made.");
+    }
+
+    const allLiveRows = liveFtos.flatMap((item) => item.rows);
+    const allReferences = allLiveRows.map((row) => String(row.referenceNo || "").trim());
+    const allCards = allLiveRows.map((row) => String(row.jobCardNo || "").trim());
+    if (allLiveRows.length !== 354 || new Set(allReferences).size !== 354 || new Set(allCards).size !== 354) {
+      throw new Error("The combined live FTO data does not contain 354 unique references and Job Cards.");
+    }
+    const { data: existingReferences, error: referenceError } = await admin
+      .from("vbgramg_fto_transactions")
+      .select("reference_no")
+      .in("reference_no", allReferences);
+    if (referenceError) throw new Error("Could not check existing FTO references: " + referenceError.message);
+    if ((existingReferences || []).length) {
+      throw new Error("One or more Government reference numbers already exist in FTO history. No import was made.");
+    }
+
     if (validateOnly) {
       return reply({
         validated: true,

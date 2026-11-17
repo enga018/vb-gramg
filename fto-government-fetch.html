@@ -232,10 +232,12 @@ $("fetch-button").addEventListener("click",async()=>{
     throw new Error("The server returned an incomplete or unexpected comparison response.");
   manifestToken=String(data.manifestToken||"");
   if(!manifestToken)throw new Error("The server did not return the secure detail manifest.");
+  const newFtoCount=Array.isArray(data.newFtos)?data.newFtos.length:0;
+  const deferredFtoCount=Array.isArray(data.deferredFtos)?data.deferredFtos.length:0;
   detailQueue=[...data.newFtos,...(Array.isArray(data.deferredFtos)?data.deferredFtos:[])].map(item=>String(item.ftoNumber||"").trim()).filter(Boolean);
   detailResults=[];
   $("details-button").disabled=detailQueue.length===0;
-  $("details-button").textContent="Fetch FTO details ("+detailQueue.length+" new + Deferred)";
+  $("details-button").textContent="Fetch FTO details ("+newFtoCount+" new + "+deferredFtoCount+" Deferred)";
   $("details-panel").hidden=true;
   $("new-count").textContent=Number(data.newCount).toLocaleString("en-IN");
   $("imported-count").textContent=Number(data.alreadyImportedCount).toLocaleString("en-IN");

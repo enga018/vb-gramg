@@ -47,7 +47,7 @@ function applicantNameScore(left: unknown, right: unknown) {
 }
 async function loadActiveMisIndex(admin: any) {
   const { data: state, error: stateError } = await admin.from("vbgramg_mis_state")
-    .select("active_import_id,row_count,source_filename").eq("singleton", true).maybeSingle();
+    .select("active_import_id,row_count,source_filename,updated_at").eq("singleton", true).maybeSingle();
   if (stateError) throw new Error("Could not load Active MIS state.");
   if (!state?.active_import_id) throw new Error("There is no Active MIS import. Load Active MIS before matching FTO transactions.");
   const records: any[] = [];
@@ -85,6 +85,7 @@ async function loadActiveMisIndex(admin: any) {
   if (exemptionError) throw new Error("Could not load Contribution exemption list.");
   return {
     importId: state.active_import_id,
+    misUpdatedAt: state.updated_at,
     rowCount: Number(state.row_count) || records.length - 1,
     byCard,
     exemptCards: new Set((exemptions || []).map((r: any) => String(r.job_card_number || "").trim().toUpperCase()))
@@ -330,6 +331,7 @@ Deno.serve(async (req: Request) => {
       requested.findIndex(v => v.toUpperCase() === String(b.ftoNumber).toUpperCase()));
     const successful = results.filter(item => item.kind === "ok").length;
     return reply({ success: true, databaseChanged: successful > 0, inspectionStateSaved: successful > 0,
+      misSnapshot: { activeImportId: misIndex.importId, misUpdatedAt: misIndex.misUpdatedAt },
       requestedCount: requested.length, successfulCount: successful,
       failedCount: results.length - successful, results,
       message: "Detail pages processed. Inspection classifications were saved; FTO transaction history and Contribution records were not changed." });

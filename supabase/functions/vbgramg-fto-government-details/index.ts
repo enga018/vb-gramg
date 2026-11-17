@@ -108,6 +108,16 @@ function base64UrlToBytes(value: string) {
   const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - value.length % 4) % 4);
   const binary = atob(padded); return Uint8Array.from(binary, c => c.charCodeAt(0));
 }
+async function makeImportPreviewToken(serviceKey: string, userId: string, payload: Record<string, unknown>) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("VBGRAMG-FTO-IMPORT-PREVIEW-v1:" + serviceKey));
+  const key = await crypto.subtle.importKey("raw", digest, { name: "AES-GCM" }, false, ["encrypt"]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const clear = new TextEncoder().encode(JSON.stringify({ v: 1, exp: Date.now() + 15 * 60 * 1000, userId, ...payload }));
+  const encrypted = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, clear));
+  const bytes = new Uint8Array(iv.length + encrypted.length); bytes.set(iv); bytes.set(encrypted, iv.length);
+  let binary = ""; for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
 async function openManifest(token: string, serviceKey: string) {
   const bytes = base64UrlToBytes(token);
   if (bytes.length < 29) throw new Error("Manifest token is incomplete.");
@@ -227,7 +237,7 @@ Deno.serve(async (req: Request) => {
   const auth = createClient(supabaseUrl, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: claimsData, error: claimsError } = await auth.auth.getClaims(bearer);
   const claims = claimsData?.claims;
-  if (claimsError || !claims || typeof claims.email !== "string" || claims.app_metadata?.email_verified !== true)
+  if (claimsError || !claims || typeof claims.sub !== "string" || typeof claims.email !== "string" || claims.app_metadata?.email_verified !== true)
     return reply({ error: "A verified account is required." }, 401);
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: approved, error: approvalError } = await admin.from("vbgramg_approved_users")
@@ -313,11 +323,18 @@ Deno.serve(async (req: Request) => {
               updated_at: new Date().toISOString()
             }, { onConflict: "fto_number_normalized" });
             if (stateWriteError) throw new Error("Could not save FTO inspection state.");
-            results.push({ ftoNumber: item.ftoNumber, inspectionClassification: classification,
+            const result: Record<string, unknown> = { ftoNumber: item.ftoNumber, inspectionClassification: classification,
               matchingJobCardCount: matchingCards.size, deferredInScopeCount: deferredInScope,
               signatoryDate: item.listingRow[5] || "", listingTransactionCount: Number(item.listingRow[6] || 0),
               listingAmount: Number(item.listingRow[7] || 0), listingRow: item.listingRow,
-              listingHeaders: item.listingHeaders || [], ...detail, transactions });
+              listingHeaders: item.listingHeaders || [], ...detail, transactions };
+            if (!imported.has(item.ftoNumber.trim().toUpperCase()) && matchingCards.size > 0) {
+              result.importPreviewToken = await makeImportPreviewToken(serviceKey, claims.sub, {
+                activeImportId: misIndex.importId, misUpdatedAt: misIndex.misUpdatedAt,
+                ftoNumber: item.ftoNumber, rows: transactions
+              });
+            }
+            results.push(result);
           } else {
             results.push({ ftoNumber: item.ftoNumber, signatoryDate: item.listingRow[5] || "", listingTransactionCount: Number(item.listingRow[6] || 0), listingAmount: Number(item.listingRow[7] || 0), listingRow: item.listingRow, listingHeaders: item.listingHeaders || [], ...detail });
           }

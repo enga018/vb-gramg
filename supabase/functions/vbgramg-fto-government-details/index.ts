@@ -118,6 +118,35 @@ async function openManifest(token: string, serviceKey: string) {
     throw new Error("Manifest has expired or is invalid. Fetch the Government listing again.");
   return manifest as { v: number; exp: number; candidates: { detailUrl: string; ftoNumber: string; listingRow: string[]; listingHeaders?: string[] }[] };
 }
+function parseGovernmentAmount(value: string) {
+  const cleaned = String(value || "").replace(/[₹,\\s]/g, "").replace(/[^\\d.-]/g, "");
+  if (!cleaned) return "";
+  const amount = Number(cleaned);
+  return Number.isFinite(amount) && amount >= 0 ? String(amount) : "";
+}
+function parseGovernmentDate(value: string) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const match = text.match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})$/);
+  if (match) return `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(text)) return text;
+  return "";
+}
+function normalizeGovernmentStatus(value: string) {
+  const raw = String(value || "").trim();
+  if (!raw) return "blank";
+  if (/^processed$/i.test(raw)) return "processed";
+  if (/^rejected$/i.test(raw)) return "rejected";
+  return "other";
+}
+function extractJobCard(value: string) {
+  const match = String(value || "").match(/\\bMZ-\\d{2}-(?:\\d{3}-){2,3}\\d{3}\\/\\d+(?:-[A-Z]+)?\\b/i);
+  return match ? match[0].toUpperCase() : "";
+}
+function extractVillage(value: string, jobCardNumber: string) {
+  return String(value || "").replace(jobCardNumber, " ").replace(/[()\\[\\]{}]/g, " ")
+    .replace(/\\s+/g, " ").replace(/^[\\s,;:.-]+|[\\s,;:.-]+$/g, "").trim();
+}
 async function getPage(url: string) {
   const parsed = new URL(url);
   if (parsed.hostname !== "vbgramgrep.dord.gov.in" || parsed.pathname.toLowerCase() !== "/vbgramg/fto/fto_trasction_dtl.aspx" || !parsed.searchParams.has("payload"))
@@ -129,34 +158,55 @@ async function getPage(url: string) {
     signal: AbortSignal.timeout(8000),
   });
   const html = await response.text();
-  if (!response.ok) return { kind: "http_failure", httpStatus: response.status, rows: [] as Record<string, string>[] };
-  if (new URL(response.url).hostname !== "vbgramgrep.dord.gov.in") return { kind: "redirect_failure", rows: [] as Record<string, string>[] };
+  if (!response.ok) return { kind: "http_failure", httpStatus: response.status, rows: [] as any[] };
+  if (new URL(response.url).hostname !== "vbgramgrep.dord.gov.in") return { kind: "redirect_failure", rows: [] as any[] };
   const tableRows = rowsOf(html);
   const pageText = textOf(html);
-  const header = tableRows.find(row => row.some(cell => /job\s*card\s*no/i.test(cell)) && row.some(cell => /reference\s*no/i.test(cell)));
-  if (!header || !/FTO\s+Transaction\s+Details/i.test(pageText)) return { kind: "parse_failure", rows: [] as Record<string, string>[] };
+  const header = tableRows.find(row => row.some(cell => /job\\s*card\\s*no/i.test(cell)) && row.some(cell => /reference\\s*no/i.test(cell)));
+  if (!header || !/FTO\\s+Transaction\\s+Details/i.test(pageText)) return { kind: "parse_failure", rows: [] as any[] };
   const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const names = header.map(normalize);
-  const find = (pattern: RegExp) => names.findIndex(name => pattern.test(name));
-  const job = find(/job card no/), reference = find(/reference no/), status = find(/^status$/);
-  const amount = find(/amount|credit amount/), village = find(/village/), person = find(/name of person|person name|applicant name/);
-  if (job < 0 || reference < 0) return { kind: "parse_failure", rows: [] as Record<string, string>[] };
+  const find = (...exactNames: string[]) => names.findIndex(name => exactNames.includes(name));
+  const job = find("job card no panchayat name", "job card no", "job card number");
+  const reference = find("reference no", "reference number");
+  const transactionDate = find("transaction date");
+  const applicant = find("applicant name", "name of applicant", "name of person");
+  const primaryHolder = find("name of primary account holder");
+  const amountToBeCredited = find("amount to be credited in rs", "amount to be credited");
+  const creditAmount = find("credit amount in rs", "credit amount");
+  const status = find("status");
+  const processedDate = find("processed date");
+  const rejectionReason = find("rejection reason");
+  if (job < 0 || reference < 0 || amountToBeCredited < 0 || creditAmount < 0 || status < 0)
+    return { kind: "parse_failure", rows: [] as any[] };
   const headerIndex = tableRows.indexOf(header);
-  const transactions: Record<string, string>[] = [];
+  const transactions: Record<string, any>[] = [];
   for (const row of tableRows.slice(headerIndex + 1)) {
-    const jobCell = row[job] || "", referenceNo = (row[reference] || "").trim();
-    const jobCardNo = jobCell.trim().split(/\s+/)[0];
-    if (!jobCardNo.includes("/") || jobCardNo.length < 8 || !referenceNo) continue;
-    const rawStatus = status >= 0 ? (row[status] || "").trim() : "";
+    const jobCell = row[job] || "";
+    const jobCardNumber = extractJobCard(jobCell);
+    const referenceNumber = (row[reference] || "").trim();
+    if (!jobCardNumber || !referenceNumber) continue;
+    const rawStatus = (row[status] || "").trim();
+    const normalizedStatus = normalizeGovernmentStatus(rawStatus);
+    const personName = (row[applicant >= 0 ? applicant : primaryHolder] || "").trim();
+    const village = extractVillage(jobCell, jobCardNumber);
+    const sourceRow = header.map((name, index) => ({ name, value: row[index] || "" }));
     transactions.push({
-      jobCardNumber: jobCardNo,
-      referenceNumber: referenceNo,
-      status: /^processed$/i.test(rawStatus) ? "processed" : /^rejected$/i.test(rawStatus) ? "rejected" : "deferred",
+      // Keep the established preview keys while exposing the exact import contract.
+      jobCardNumber,
+      referenceNumber,
+      status: normalizedStatus,
       governmentStatus: rawStatus || "blank",
-      amount: amount >= 0 ? (row[amount] || "").trim() : "",
-      village: village >= 0 ? (row[village] || "").trim() : "",
-      personName: person >= 0 ? (row[person] || "").trim() : "",
-      sourceRow: JSON.stringify(header.map((name, index) => ({ name, value: row[index] || "" }))),
+      amount: row[amountToBeCredited] || "",
+      amountToBeCredited: parseGovernmentAmount(row[amountToBeCredited] || ""),
+      creditAmount: parseGovernmentAmount(row[creditAmount] || ""),
+      transactionDate: transactionDate >= 0 ? parseGovernmentDate(row[transactionDate] || "") : "",
+      processedDate: processedDate >= 0 ? parseGovernmentDate(row[processedDate] || "") : "",
+      rejectionReason: rejectionReason >= 0 ? (row[rejectionReason] || "").trim() : "",
+      village,
+      villageName: village,
+      personName,
+      sourceRow
     });
   }
   return { kind: "ok", transactions };
@@ -245,7 +295,7 @@ Deno.serve(async (req: Request) => {
             });
             const inScope = transactions.filter(tx => tx.misMatchStatus !== "not_in_active_mis");
             const matchingCards = new Set(inScope.map(tx => String(tx.jobCardNumber || "").trim().toUpperCase()).filter(Boolean));
-            const deferredInScope = inScope.filter(tx => tx.status === "deferred").length;
+            const deferredInScope = inScope.filter(tx => tx.status === "blank").length;
             const classification = matchingCards.size === 0 ? "OUT_OF_SCOPE" :
               deferredInScope > 0 ? "RECHECK_REQUIRED" : "COMPLETE";
             const { error: stateWriteError } = await admin.from("vbgramg_fto_inspection_state").upsert({

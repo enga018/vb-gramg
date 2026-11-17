@@ -38,6 +38,7 @@ declare
   v_processed_date date;
   v_source_row jsonb;
   v_is_in_scope boolean;
+  v_job_card_col integer;
   v_batch_count integer := 0;
   v_transaction_count integer := 0;
   v_history_count integer := 0;
@@ -86,6 +87,18 @@ begin
      or v_active_import_id::text <> p_payload->>'activeImportId'
      or v_mis_updated_at is distinct from (p_payload->>'misUpdatedAt')::timestamptz then
     raise exception 'The active MIS changed after this Government FTO preview. Generate a fresh preview.';
+  end if;
+
+  -- Resolve the Job Card column from the Active MIS header, matching the detail parser's header-based lookup.
+  select (h.ordinality - 1)::integer into v_job_card_col
+  from public.vbgramg_mis_rows m
+  cross join lateral jsonb_array_elements_text(m.row_data) with ordinality as h(value, ordinality)
+  where m.import_id = v_active_import_id
+    and m.row_number = 1
+    and lower(regexp_replace(h.value, '[^A-Za-z0-9]+', ' ', 'g')) in ('job card number', 'jobcard number')
+  limit 1;
+  if v_job_card_col is null then
+    raise exception 'Active MIS header does not contain a Job Card Number column.';
   end if;
 
   -- Serialize Government imports and prevent races with the existing manual FTO writer.
@@ -180,7 +193,7 @@ begin
       select exists (
         select 1 from public.vbgramg_mis_rows m
         where m.import_id = v_active_import_id
-          and m.row_data->>0 = v_card
+          and m.row_data->>v_job_card_col = v_card
       ) into v_is_in_scope;
 
       insert into public.vbgramg_fto_transactions (

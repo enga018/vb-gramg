@@ -42,7 +42,19 @@ function discoverCandidates(html: string, baseUrl: string) {
   return candidates;
 }
 
-Deno.serve(async (req: Request) => {
+
+async function makeManifestToken(serviceKey: string, candidates: { detailUrl: string; ftoNumber: string; listingRow: string[] }[]) {
+  const material = new TextEncoder().encode("VBGRAMG-FTO-MANIFEST-v1:" + serviceKey);
+  const digest = await crypto.subtle.digest("SHA-256", material);
+  const key = await crypto.subtle.importKey("raw", digest, { name: "AES-GCM" }, false, ["encrypt"]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const payload = new TextEncoder().encode(JSON.stringify({ v: 1, exp: Date.now() + 45 * 60 * 1000, candidates }));
+  const encrypted = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, payload));
+  const bytes = new Uint8Array(iv.length + encrypted.length); bytes.set(iv); bytes.set(encrypted, iv.length);
+  let binary = ""; for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+\nDeno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return reply({ error: "Method not allowed." }, 405);
 
@@ -127,6 +139,30 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // Recheck FTOs with current Deferred/blank transactions, even though their
+    // batch records already exist. Page reads to avoid PostgREST truncation.
+    const deferredBatchIds = new Set<string>();
+    for (let offset = 0; ; offset += 1000) {
+      const { data: txs, error: txError } = await admin.from("vbgramg_fto_transactions")
+        .select("batch_id").eq("is_current", true).in("status", ["blank", "deferred"])
+        .order("batch_id", { ascending: true }).range(offset, offset + 999);
+      if (txError) throw new Error("Could not identify Deferred FTOs for rechecking: " + txError.message);
+      for (const tx of txs || []) if (tx.batch_id) deferredBatchIds.add(String(tx.batch_id));
+      if (!txs || txs.length < 1000) break;
+    }
+    const deferredNumbers = new Set<string>();
+    const ids = [...deferredBatchIds];
+    for (let start = 0; start < ids.length; start += 500) {
+      const { data: batches, error: deferredError } = await admin.from("vbgramg_fto_batches")
+        .select("fto_number").in("id", ids.slice(start, start + 500));
+      if (deferredError) throw new Error("Could not load Deferred FTO identifiers: " + deferredError.message);
+      for (const batch of batches || []) {
+        const number = String(batch.fto_number || "").trim().toUpperCase();
+        if (number) deferredNumbers.add(number);
+      }
+    }
+    const deferredFtos = alreadyImported.filter(item => deferredNumbers.has(item.ftoNumber.trim().toUpperCase()));
+    const manifestToken = await makeManifestToken(serviceKey, candidates.map(({ detailUrl, ftoNumber, listingRow }) => ({ detailUrl, ftoNumber, listingRow })));
     const fingerprintBytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(candidates.map(item => item.detailUrl).join("\\n")));
     const listingFingerprint = [...new Uint8Array(fingerprintBytes)].map(value => value.toString(16).padStart(2, "0")).join("");
     return reply({
@@ -139,10 +175,14 @@ Deno.serve(async (req: Request) => {
       alreadyImportedCount: alreadyImported.length,
       unrecognizedCount: unrecognized.length,
       listingFingerprint,
+      manifestToken,
+      manifestExpiresInSeconds: 2700,
+      deferredFtos,
+      deferredCount: deferredFtos.length,
       newFtos,
       alreadyImported,
       unrecognized,
-      message: "Government listing fetched and compared with imported FTO history. No detail pages were fetched and no database records were changed.",
+      message: "Government listing fetched and compared with imported history. Secure detail manifest prepared; no detail pages were fetched and no database records were changed.",
     });
   } catch (error) {
     return reply({ error: error instanceof Error ? error.message : "Government listing fetch failed.", databaseChanged: false }, 502);

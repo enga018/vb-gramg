@@ -49,6 +49,13 @@ function matchActiveMisApplicant(byCard:Map<string,Record<string,string|null>[]>
  const ranked=rankActiveMisApplicants(byCard,jobCard,name);
  return ranked.length===1?ranked[0]:null;
 }
+function findExactActiveMisApplicant(byCard:Map<string,Record<string,string|null>[]>,jobCard:string,name:string){
+ const identity=normalizeApplicantIdentity(name);
+ if(!identity)return null;
+ const applicants=byCard.get(jobCard)||[...(byCard.entries())].find(([card])=>String(card).trim().toUpperCase()===String(jobCard).trim().toUpperCase())?.[1]||[];
+ const exact=applicants.filter(applicant=>normalizeApplicantIdentity(applicant.applicant_name)===identity);
+ return exact.length===1?exact[0]:null;
+}
 const periodFromNote=(note:string):string|null=>{const n=note.trim().toUpperCase();const months:Record<string,string>={JAN:"01",FEB:"02",MAR:"03",APR:"04",MAY:"05",JUN:"06",JUL:"07",AUG:"08",SEP:"09",OCT:"10",NOV:"11",DEC:"12"};const m=n.match(/^(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s*26/);return m?`2026-${months[m[1]]}-01`:null;};
 const isoDate=(ms:number):string=>new Date(ms).toISOString().slice(0,10);
 function ftoEntryDate(rows:any[],deferred:boolean):string|null{if(deferred)return null;const dates=rows.filter(tx=>String(tx.status)==="processed"&&/^\d{4}-\d{2}-\d{2}$/.test(String(tx.processed_date||""))).map(tx=>String(tx.processed_date)).sort();return dates[0]||null;}
@@ -114,6 +121,281 @@ Deno.serve(async(req:Request)=>{
   const body=await req.json().catch(()=>({}));
   requestStageTimings.request_body_parse=Number((performance.now()-bodyParseStarted).toFixed(1));
   const action=String(body.action||"list");
+  if(action==="get-pending-fto"){
+   if(approved.role!=="admin")return reply({error:"Only an approved administrator can open Pending Imports."},403);
+   const ftoNumber=String(body.fto_number||"").trim().toUpperCase().slice(0,100);
+   if(!ftoNumber)return reply({error:"An FTO number is required."},400);
+   const {data:state,error:stateError}=await admin.from("vbgramg_fto_inspection_state")
+    .select("fto_number_normalized,fto_number,classification,last_inspected_at,transaction_count,unmatched_transaction_count,validated_transactions")
+    .eq("fto_number_normalized",ftoNumber).maybeSingle();
+   if(stateError)throw stateError;
+   if(!state||state.classification!=="ELIGIBLE")return reply({error:"This FTO is not available in Pending Imports."},404);
+   const {data:batch,error:batchError}=await admin.from("vbgramg_fto_batches").select("id")
+    .eq("fto_number",ftoNumber).maybeSingle();
+   if(batchError)throw batchError;
+   if(batch)return reply({error:"This FTO has already been imported and cannot be opened from Pending Imports."},409);
+   const {data:misState,error:misStateError}=await admin.from("vbgramg_mis_state")
+    .select("active_import_id,updated_at").eq("singleton",true).maybeSingle();
+   if(misStateError)throw misStateError;
+   if(!misState?.active_import_id)return reply({error:"There is no active MIS import. Load the active MIS before reviewing this FTO."},409);
+   const activeApplicants=await loadActiveMisApplicants(admin);
+   const activeCards=new Set([...activeApplicants.keys()].map(value=>String(value||"").trim().toUpperCase()).filter(Boolean));
+   const saved=Array.isArray(state.validated_transactions)?state.validated_transactions:[];
+   const matching=saved.filter((tx:any)=>activeCards.has(String(tx?.jobCardNumber||"").trim().toUpperCase()));
+   const uniqueCards=new Set(matching.map((tx:any)=>String(tx?.jobCardNumber||"").trim().toUpperCase()).filter(Boolean));
+   const unmatched=Math.max(0,Number(state.transaction_count||0)-matching.length);
+   if(!matching.length){
+    const {error:updateError}=await admin.from("vbgramg_fto_inspection_state").update({
+     classification:"OUT_OF_SCOPE",validated_transactions:[],matching_job_card_count:0,
+     unmatched_transaction_count:Number(state.transaction_count||0),updated_at:new Date().toISOString()
+    }).eq("fto_number_normalized",ftoNumber).eq("classification","ELIGIBLE");
+    if(updateError)throw updateError;
+    return reply({error:"No Government transactions remain in scope for the latest Active MIS. This FTO has been permanently excluded."},409);
+   }
+   const {error:updateError}=await admin.from("vbgramg_fto_inspection_state").update({
+    validated_transactions:matching,matching_job_card_count:uniqueCards.size,
+    unmatched_transaction_count:unmatched,active_mis_import_id:misState.active_import_id,
+    active_mis_updated_at:misState.updated_at||null,updated_at:new Date().toISOString()
+   }).eq("fto_number_normalized",ftoNumber).eq("classification","ELIGIBLE");
+   if(updateError)throw updateError;
+   const mappingCards=[...uniqueCards];
+   const {data:savedMappings,error:mappingError}=mappingCards.length
+    ?await admin.from("vbgramg_fto_applicant_mappings").select("job_card_number,normalized_fto_name,applicant_name,applicant_number,applicant_unique_id").in("job_card_number",mappingCards)
+    :{data:[],error:null};
+   if(mappingError)throw mappingError;
+   const mappingsByKey=new Map((savedMappings||[]).map((row:any)=>[String(row.job_card_number||"").trim().toUpperCase()+"|"+String(row.normalized_fto_name||""),row]));
+   const applicantMatches=matching.map((tx:any)=>{
+    const card=String(tx.jobCardNumber||"").trim().toUpperCase(),ftoName=String(tx.personName||"").trim();
+    const candidates=rankActiveMisApplicants(activeApplicants,card,ftoName);
+    const best=candidates[0],second=candidates[1],gap=second?best.match_percentage-second.match_percentage:100;
+    const savedMapping=mappingsByKey.get(card+"|"+normalizeApplicantIdentity(ftoName))||null;
+    const savedCandidate=savedMapping?candidates.find((candidate:any)=>
+     (savedMapping.applicant_unique_id&&candidate.applicant_unique_id===savedMapping.applicant_unique_id)||
+     (!savedMapping.applicant_unique_id&&candidate.applicant_name===savedMapping.applicant_name&&String(candidate.applicant_number||"")===String(savedMapping.applicant_number||""))
+    ):null;
+    const automatic=savedMapping?(savedCandidate||null):(candidates.length===1||best&&best.match_percentage>=80&&(!second||second.match_percentage<80||gap>=10)?best:null);
+    const visibleCandidates=candidates.slice(0,10);if(savedCandidate&&!visibleCandidates.some((candidate:any)=>candidate.applicant_unique_id&&candidate.applicant_unique_id===savedCandidate.applicant_unique_id)&&!visibleCandidates.some((candidate:any)=>!candidate.applicant_unique_id&&candidate.applicant_name===savedCandidate.applicant_name&&String(candidate.applicant_number||"")===String(savedCandidate.applicant_number||"")))visibleCandidates.push(savedCandidate);
+    return {job_card_number:card,fto_name:ftoName,candidates:visibleCandidates,suggested_applicant:automatic,saved_mapping:savedMapping,requires_manual:!automatic,reason:savedMapping&&!savedCandidate?"Saved applicant is no longer active in the latest MIS":!automatic?(best?.match_percentage<80?"Best match is below 80%":second&&second.match_percentage>=80&&gap<10?"Top two candidates are less than 10 percentage points apart":"Needs manual review"):null};
+   });
+   return reply({approved:true,fto_number:state.fto_number,inspected_at:state.last_inspected_at,
+    government_transaction_count:Number(state.transaction_count||0),eligible_transaction_count:matching.length,
+    unmatched_transaction_count:unmatched,matching_job_card_count:uniqueCards.size,
+    transactions:matching,applicant_matches:applicantMatches,active_mis_import_id:misState.active_import_id,active_mis_updated_at:misState.updated_at||null});
+  }
+  if(action==="preview-pending-fto-reconciliation"){
+   if(approved.role!=="admin")return reply({error:"Only an approved administrator can preview FTO reconciliation."},403);
+   const ftoNumber=String(body.fto_number||"").trim().toUpperCase().slice(0,100);
+   const periodId=String(body.period_id||"").trim();
+   const divisor=Number(body.divisor),multiplier=Number(body.multiplier);
+   if(!ftoNumber||!periodId)return reply({error:"An FTO and an open Contribution Period are required."},400);
+   if(!Number.isFinite(divisor)||divisor<=0||divisor>1000000000||!Number.isFinite(multiplier)||multiplier<=0||multiplier>1000000)return reply({error:"Divisor and multiplier must be finite positive numbers within the allowed range."},400);
+   const {data:state,error:stateError}=await admin.from("vbgramg_fto_inspection_state")
+    .select("fto_number,fto_number_normalized,classification,transaction_count,validated_transactions")
+    .eq("fto_number_normalized",ftoNumber).maybeSingle();
+   if(stateError)throw stateError;
+   if(!state||state.classification!=="ELIGIBLE")return reply({error:"This FTO is no longer available in Pending Imports."},409);
+   const {data:batch,error:batchError}=await admin.from("vbgramg_fto_batches").select("id").eq("fto_number",ftoNumber).maybeSingle();
+   if(batchError)throw batchError;
+   if(batch)return reply({error:"This FTO has already been imported."},409);
+   const {data:period,error:periodError}=await admin.from("vbgramg_periods")
+    .select("id,period_name,contribution_month,status").eq("id",periodId).maybeSingle();
+   if(periodError)throw periodError;
+   if(!period||period.status!=="open"||!period.contribution_month)return reply({error:"Select an existing open Contribution Period."},409);
+   const activeApplicants=await loadActiveMisApplicants(admin);
+   if(!activeApplicants.size)return reply({error:"There is no active MIS import. Load the active MIS before reviewing this FTO."},409);
+   const activeCards=new Set([...activeApplicants.keys()].map(card=>String(card||"").trim().toUpperCase()));
+   const saved=Array.isArray(state.validated_transactions)?state.validated_transactions:[];
+   const transactions=saved.filter((tx:any)=>activeCards.has(String(tx?.jobCardNumber||"").trim().toUpperCase()));
+   if(!transactions.length)return reply({error:"No saved FTO transactions remain in scope for the latest Active MIS."},409);
+   const seenCards=new Set<string>();
+   for(const tx of transactions){
+    const card=String(tx?.jobCardNumber||"").trim().toUpperCase();
+    if(!card||seenCards.has(card))return reply({error:"This FTO contains more than one transaction for a Job Card. Administrator review is required."},409);
+    seenCards.add(card);
+   }
+   const calculationRows=transactions.map((tx:any,row_index:number)=>({
+    row_index,credit_amount:tx.creditAmount,
+    status:String(tx.normalizedStatus||tx.status||"").trim().toLowerCase()
+   }));
+   const {data:calculated,error:calculationError}=await admin.rpc("vbgramg_calculate_fto_charges",{
+    p_rows:calculationRows,p_divisor:divisor,p_multiplier:multiplier
+   });
+   if(calculationError)throw calculationError;
+   if(!Array.isArray(calculated)||calculated.length!==transactions.length)throw new Error("PostgreSQL returned an incomplete FTO calculation.");
+   const amountByIndex=new Map<number,number>();
+   for(const item of calculated){
+    const index=Number(item.row_index),amount=Number(item.calculated_charge);
+    if(!Number.isInteger(index)||index<0||index>=transactions.length||!Number.isFinite(amount)||amount<0)throw new Error("PostgreSQL returned an invalid FTO charge calculation.");
+    amountByIndex.set(index,amount);
+   }
+   if(amountByIndex.size!==transactions.length)throw new Error("PostgreSQL returned an incomplete FTO calculation.");
+   const {data:exemptions,error:exemptionError}=await admin.from("vbgramg_contribution_exemptions").select("job_card_number");
+   if(exemptionError)throw exemptionError;
+   const exemptCards=new Set((exemptions||[]).map((row:any)=>String(row.job_card_number||"").trim().toUpperCase()));
+   const candidates=transactions.map((tx:any,index:number)=>({
+    job_card_number:String(tx.jobCardNumber||"").trim().toUpperCase(),
+    person_name:String(tx.personName||"").trim(),
+    reference_no:String(tx.referenceNumber||"").trim(),
+    status:String(tx.normalizedStatus||tx.status||"").trim().toLowerCase(),
+    credit_amount:Number(tx.creditAmount),
+    calculated_charge:amountByIndex.get(index)||0
+   })).filter((tx:any)=>!exemptCards.has(tx.job_card_number)&&["blank","processed"].includes(tx.status)&&tx.calculated_charge>0);
+   const cards=[...new Set(candidates.map((tx:any)=>tx.job_card_number))];
+   const refs=[...new Set(transactions.map((tx:any)=>String(tx.referenceNumber||"").trim()).filter(Boolean))];
+   const {data:ledgerRows,error:ledgerError}=cards.length?await admin.from("vbgramg_charge_ledger")
+    .select("id,job_card_number,person_name,entry_type,amount,charge_period,note,is_deferred,is_voided,reference_numbers,period_id,applicant_name,applicant_number,applicant_unique_id,fto_applicant_name")
+    .in("job_card_number",cards).eq("charge_period",period.contribution_month).in("entry_type",["charge","other_charge"]):{data:[],error:null};
+   if(ledgerError)throw ledgerError;
+   const manualReviews:any[]=[];
+   for(const card of cards){
+    const input=candidates.find((tx:any)=>tx.job_card_number===card);
+    const cardRows=(ledgerRows||[]).filter((row:any)=>String(row.job_card_number).trim().toUpperCase()===card&&row.entry_type==="charge"&&(!row.period_id||String(row.period_id)===periodId)&&!row.is_voided);
+    const manualRows=cardRows.filter((row:any)=>!/^FTO\b/i.test(String(row.note||""))&&!(Array.isArray(row.reference_numbers)?row.reference_numbers:[]).some((ref:any)=>refs.includes(String(ref))));
+    if(!manualRows.length)continue;
+    manualReviews.push({
+     job_card_number:card,government_applicant_name:input?.person_name||null,
+     incoming_calculated_charge:Number(candidates.filter((tx:any)=>tx.job_card_number===card).reduce((sum:number,tx:any)=>sum+tx.calculated_charge,0).toFixed(2)),
+     decision_required:true,
+     resolution:manualRows.length===1?"choose_link_or_keep_separate":"multiple_manual_charges_require_individual_resolution",
+     manual_charges:manualRows.map((row:any)=>({
+      id:row.id,amount:Number(row.amount||0),person_name:row.person_name||null,
+      applicant_name:row.applicant_name||null,applicant_number:row.applicant_number||null,
+      applicant_unique_id:row.applicant_unique_id||null,fto_applicant_name:row.fto_applicant_name||null,
+      requires_applicant_selection:!row.applicant_name&&!row.applicant_unique_id&&!row.applicant_number,
+      amount_differs:Math.abs(Number(row.amount||0)-Number(candidates.filter((tx:any)=>tx.job_card_number===card).reduce((sum:number,tx:any)=>sum+tx.calculated_charge,0)))>0.009
+     }))
+    });
+   }
+   const {data:referenceMatches,error:referenceError}=refs.length?await admin.from("vbgramg_charge_ledger")
+    .select("job_card_number,charge_period,period_id,note,reference_numbers").overlaps("reference_numbers",refs):{data:[],error:null};
+   if(referenceError)throw referenceError;
+   const duplicateReferences:any[]=[];
+   for(const tx of candidates){
+    for(const old of referenceMatches||[]){
+     if(!(old.reference_numbers||[]).includes(tx.reference_no))continue;
+     const sameLedger=String(old.job_card_number).trim().toUpperCase()===tx.job_card_number&&String(old.charge_period||"")===String(period.contribution_month)&&(!old.period_id||String(old.period_id)===periodId);
+     if(!sameLedger)duplicateReferences.push({reference_no:tx.reference_no,job_card_number:tx.job_card_number});
+    }
+   }
+   const {data:tracked,error:trackedError}=cards.length?await admin.from("vbgramg_fto_transactions")
+    .select("job_card_number,batch_id,calculated_charge,status,is_in_scope").in("job_card_number",cards):{data:[],error:null};
+   if(trackedError)throw trackedError;
+   const batchIds=[...new Set((tracked||[]).map((row:any)=>String(row.batch_id)))];
+   const {data:otherBatches,error:otherBatchError}=batchIds.length?await admin.from("vbgramg_fto_batches")
+    .select("id,fto_number,period_id").in("id",batchIds):{data:[],error:null};
+   if(otherBatchError)throw otherBatchError;
+   const batchById=new Map((otherBatches||[]).map((row:any)=>[String(row.id),row]));
+   const conflictingFtos=[...new Set((tracked||[]).filter((row:any)=>row.is_in_scope===true&&["blank","processed"].includes(String(row.status||""))&&Number(row.calculated_charge||0)>0)
+    .filter((row:any)=>{const old:any=batchById.get(String(row.batch_id));return old&&String(old.period_id||"")===periodId&&String(old.fto_number||"")!==ftoNumber;})
+    .map((row:any)=>String(row.job_card_number||"").trim().toUpperCase()))];
+   const total=candidates.reduce((sum:number,tx:any)=>sum+tx.calculated_charge,0);
+   return reply({
+    approved:true,fto_number:state.fto_number,period:{id:period.id,name:period.period_name,contribution_month:period.contribution_month},
+    formula:{divisor,multiplier},eligible_transaction_count:transactions.length,charge_candidate_count:candidates.length,
+    total_calculated_charge:Number(total.toFixed(2)),
+    rows:candidates.map((tx:any)=>({...tx,exempt:false})),
+    manual_charge_reviews:manualReviews,
+    duplicate_references:[...new Map(duplicateReferences.map((item:any)=>[item.reference_no,item])).values()],
+    conflicting_fto_job_cards:conflictingFtos,
+    blocked:manualReviews.some((item:any)=>item.resolution==="multiple_manual_charges_require_individual_resolution")||duplicateReferences.length>0||conflictingFtos.length>0
+   });
+  }
+  if(action==="save-pending-fto-mappings"){
+   if(approved.role!=="admin")return reply({error:"Only an approved administrator can save applicant mappings."},403);
+   const ftoNumber=String(body.fto_number||"").trim().toUpperCase().slice(0,100);
+   if(!ftoNumber)return reply({error:"An FTO number is required."},400);
+   const {data:state,error:stateError}=await admin.from("vbgramg_fto_inspection_state")
+    .select("fto_number_normalized,classification,validated_transactions").eq("fto_number_normalized",ftoNumber).maybeSingle();
+   if(stateError)throw stateError;
+   if(!state||state.classification!=="ELIGIBLE")return reply({error:"This FTO is no longer available in Pending Imports."},409);
+   const {data:batch,error:batchError}=await admin.from("vbgramg_fto_batches").select("id").eq("fto_number",ftoNumber).maybeSingle();
+   if(batchError)throw batchError;
+   if(batch)return reply({error:"This FTO has already been imported. Applicant mappings cannot be changed here."},409);
+   const activeApplicants=await loadActiveMisApplicants(admin);
+   const saved=Array.isArray(state.validated_transactions)?state.validated_transactions:[];
+   const byCard=new Map<string,any>();
+   for(const tx of saved){
+    const card=String(tx?.jobCardNumber||"").trim().toUpperCase(),name=String(tx?.personName||"").trim();
+    if(!card||!name)continue;
+    if(byCard.has(card))return reply({error:"This FTO contains more than one transaction for "+card+". Administrator review is required."},409);
+    byCard.set(card,tx);
+   }
+   const requested=Array.isArray(body.applicant_mappings)?body.applicant_mappings:[];
+   if(requested.length!==byCard.size)return reply({error:"Select an Active MIS applicant for every eligible Job Card before saving."},400);
+   const replacements=new Set(Array.isArray(body.confirm_mapping_replacements)?body.confirm_mapping_replacements.map((v:unknown)=>String(v||"").trim().toUpperCase()):[]);
+   const cards=[...byCard.keys()];
+   const {data:existing,error:existingError}=cards.length?await admin.from("vbgramg_fto_applicant_mappings")
+    .select("job_card_number,normalized_fto_name,applicant_name,applicant_number,applicant_unique_id").in("job_card_number",cards):{data:[],error:null};
+   if(existingError)throw existingError;
+   const existingByKey=new Map((existing||[]).map((row:any)=>[String(row.job_card_number||"").trim().toUpperCase()+"|"+String(row.normalized_fto_name||""),row]));
+   const rowsToSave:Record<string,unknown>[]=[];
+   const seen=new Set<string>();
+   for(const raw of requested){
+    const card=String(raw?.job_card_number||"").trim().toUpperCase(),tx=byCard.get(card);
+    if(!tx||seen.has(card))return reply({error:"The applicant selection contains an invalid or duplicate Job Card."},400);
+    seen.add(card);
+    const governmentName=String(tx.personName||"").trim(),normalizedName=normalizeApplicantIdentity(governmentName);
+    if(!normalizedName)return reply({error:"The Government applicant name is invalid for "+card+"."},400);
+    const candidates=activeApplicants.get(card)||[...(activeApplicants.entries())].find(([key])=>String(key).trim().toUpperCase()===card)?.[1]||[];
+    const uniqueId=String(raw?.applicant_unique_id||"").trim(),name=String(raw?.applicant_name||"").trim(),number=String(raw?.applicant_number||"").trim();
+    const chosen=candidates.find((candidate:any)=>(uniqueId&&candidate.applicant_unique_id===uniqueId)||(!uniqueId&&candidate.applicant_name===name&&String(candidate.applicant_number||"")===number));
+    if(!chosen)return reply({error:"The selected applicant for "+card+" is not in the latest Active MIS. Refresh and select again."},409);
+    const key=card+"|"+normalizedName,prior=existingByKey.get(key);
+    if(prior){
+     const same=(prior.applicant_unique_id&&chosen.applicant_unique_id===prior.applicant_unique_id)||(!prior.applicant_unique_id&&String(prior.applicant_name||"")===String(chosen.applicant_name||"")&&String(prior.applicant_number||"")===String(chosen.applicant_number||""));
+     if(!same&&!replacements.has(card))return reply({error:"A saved mapping exists for "+card+". Confirm replacement explicitly before saving.",mapping_conflict:true,job_card_number:card,saved_applicant_name:prior.applicant_name},409);
+    }
+    rowsToSave.push({job_card_number:card,normalized_fto_name:normalizedName,government_applicant_name:governmentName,applicant_name:chosen.applicant_name,applicant_number:chosen.applicant_number,applicant_unique_id:chosen.applicant_unique_id,confirmed_by:authData.user.id,confirmed_at:new Date().toISOString(),updated_at:new Date().toISOString()});
+   }
+   if(seen.size!==byCard.size)return reply({error:"One or more eligible Job Cards have no applicant selection."},400);
+   if(rowsToSave.length){const {error:saveError}=await admin.from("vbgramg_fto_applicant_mappings").upsert(rowsToSave,{onConflict:"job_card_number,normalized_fto_name"});if(saveError)throw saveError;}
+   return reply({approved:true,saved_count:rowsToSave.length,message:"Applicant mappings saved and confirmed. No FTO import was performed."});
+  }
+  if(action==="list-pending-ftos"){
+   if(approved.role!=="admin")return reply({error:"Only an approved administrator can access Pending Imports."},403);
+   const {data:states,error:statesError}=await admin.from("vbgramg_fto_inspection_state")
+    .select("fto_number_normalized,fto_number,classification,last_inspected_at,transaction_count,unmatched_transaction_count,validated_transactions")
+    .eq("classification","ELIGIBLE").order("last_inspected_at",{ascending:false});
+   if(statesError)throw statesError;
+   const {data:misState,error:misStateError}=await admin.from("vbgramg_mis_state")
+    .select("active_import_id,updated_at").eq("singleton",true).maybeSingle();
+   if(misStateError)throw misStateError;
+   if(!misState?.active_import_id)return reply({error:"There is no active MIS import. Load the active MIS before reviewing Pending Imports."},409);
+   const activeApplicants=await loadActiveMisApplicants(admin);
+   const activeCards=new Set([...activeApplicants.keys()].map(value=>String(value||"").trim().toUpperCase()).filter(Boolean));
+   const pending:any[]=[];
+   for(const state of states||[]){
+    const saved=Array.isArray(state.validated_transactions)?state.validated_transactions:[];
+    const matching=saved.filter((tx:any)=>activeCards.has(String(tx?.jobCardNumber||"").trim().toUpperCase()));
+    const uniqueCards=new Set(matching.map((tx:any)=>String(tx?.jobCardNumber||"").trim().toUpperCase()).filter(Boolean));
+    const unmatched=Math.max(0,Number(state.transaction_count||0)-matching.length);
+    if(!matching.length){
+     const {error:updateError}=await admin.from("vbgramg_fto_inspection_state").update({
+      classification:"OUT_OF_SCOPE",validated_transactions:[],matching_job_card_count:0,
+      unmatched_transaction_count:Number(state.transaction_count||0),updated_at:new Date().toISOString()
+     }).eq("fto_number_normalized",state.fto_number_normalized).eq("classification","ELIGIBLE");
+     if(updateError)throw updateError;
+     continue;
+    }
+    if(matching.length!==saved.length||unmatched!==Number(state.unmatched_transaction_count||0)){
+     const {error:updateError}=await admin.from("vbgramg_fto_inspection_state").update({
+      validated_transactions:matching,matching_job_card_count:uniqueCards.size,
+      unmatched_transaction_count:unmatched,active_mis_import_id:misState.active_import_id,
+      active_mis_updated_at:misState.updated_at||null,updated_at:new Date().toISOString()
+     }).eq("fto_number_normalized",state.fto_number_normalized).eq("classification","ELIGIBLE");
+     if(updateError)throw updateError;
+    }
+    pending.push({
+     fto_number:state.fto_number,
+     government_transaction_count:Number(state.transaction_count||0),
+     eligible_transaction_count:matching.length,
+     unmatched_transaction_count:unmatched,
+     matching_job_card_count:uniqueCards.size,
+     inspected_at:state.last_inspected_at
+    });
+   }
+   return reply({approved:true,pending,active_mis_import_id:misState.active_import_id,active_mis_updated_at:misState.updated_at||null});
+  }
   if(action==="save-exemption"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can manage exempt job cards."},403);
    const jobCard=String(body.job_card_number||"").trim().slice(0,100);
@@ -396,43 +678,36 @@ Deno.serve(async(req:Request)=>{
     const cards=requestedCards.filter(card=>activeJobCards.has(card.toUpperCase()));
     const notInActiveMis=requestedCards.filter(card=>!activeJobCards.has(card.toUpperCase()));
     const referenceRows=Array.isArray(body.reference_rows)?body.reference_rows.map((v:Record<string,unknown>)=>({job_card_number:String(v.job_card_number||"").trim(),person_name:String(v.person_name||"").trim(),reference_numbers:Array.isArray(v.reference_numbers)?[...new Set(v.reference_numbers.map((r:unknown)=>String(r||"").trim()).filter(Boolean))]:[]})).filter(row=>activeJobCards.has(row.job_card_number.toUpperCase())): [];
-    if(cards.length>1000)return reply({error:"Check at most 1,000 job cards at a time."},400);
-    if(!cards.length)return reply({approved:true,duplicates:[],duplicate_references:[],already_allocated:[],exempted_job_cards:[],unknown_job_cards:[],not_in_active_mis_job_cards:notInActiveMis});
-    const {data:existing,error:existingError}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,person_name,amount,is_deferred,is_voided,note,reference_numbers,period_id,applicant_name,applicant_number,applicant_unique_id,fto_applicant_name").in("job_card_number",cards).eq("entry_type","charge").eq("charge_period",periodDate);
-    if(existingError)throw existingError;
-    const {data:knownLedger,error:knownLedgerError}=await admin.from("vbgramg_charge_ledger").select("job_card_number").in("job_card_number",cards);
-    if(knownLedgerError)throw knownLedgerError;
-    const {data:knownCitizens,error:knownCitizensError}=await admin.from("vbgramg_contribution_citizens").select("job_card_number").in("job_card_number",cards);
-    if(knownCitizensError)throw knownCitizensError;
-    const known=new Set([...(knownLedger||[]).map(r=>String(r.job_card_number).trim().toUpperCase()),...(knownCitizens||[]).map(r=>String(r.job_card_number).trim().toUpperCase())]);
-    const allReferences=[...new Set(referenceRows.flatMap(r=>r.reference_numbers))];
-    const referenceMatches:Record<string,any>[]=[];
-    if(allReferences.length){for(let refOffset=0;refOffset<allReferences.length;refOffset+=100){const refs=allReferences.slice(refOffset,refOffset+100);for(let offset=0;;offset+=1000){const {data,error}=await admin.from("vbgramg_charge_ledger").select("id,job_card_number,charge_period,period_id,reference_numbers,amount,is_deferred,is_voided").overlaps("reference_numbers",refs).range(offset,offset+999);if(error)throw error;referenceMatches.push(...(data||[]));if(!data||data.length<1000)break;}}}
-    const periodIds=[...new Set(referenceMatches.map(r=>String(r.period_id||"")).filter(Boolean))],periodNames=new Map<string,string>();
-    if(periodIds.length){for(let offset=0;offset<periodIds.length;offset+=500){const ids=periodIds.slice(offset,offset+500);const {data,error}=await admin.from("vbgramg_periods").select("id,period_name").in("id",ids);if(error)throw error;for(const p of data||[])periodNames.set(String(p.id),String(p.period_name||""));}}
-    const duplicateMap=new Map<string,Set<string>>(),allocatedMap=new Map<string,Map<string,any>>();
-    for(const input of referenceRows){for(const reference of input.reference_numbers){for(const old of referenceMatches){if(old.is_voided||!(old.reference_numbers||[]).includes(reference))continue;
-      const sameCard=String(old.job_card_number||"").trim().toUpperCase()===input.job_card_number.trim().toUpperCase();
-      const sameSelectedPeriod=(old.period_id&&String(old.period_id)===periodId)||(!old.period_id&&String(old.charge_period||"")===periodDate);
-      if(sameCard&&sameSelectedPeriod){
-       if(!allocatedMap.has(input.job_card_number))allocatedMap.set(input.job_card_number,new Map());
-       const ledgerKey=String(old.id||reference);
-       if(!allocatedMap.get(input.job_card_number)!.has(ledgerKey))allocatedMap.get(input.job_card_number)!.set(ledgerKey,{reference_numbers:[],period_name:periodNames.get(String(old.period_id||""))||String(selectedRound.period_name||"")||periodDate,amount:Number(old.amount||0),is_deferred:Boolean(old.is_deferred)});
-       const allocation=allocatedMap.get(input.job_card_number)!.get(ledgerKey);
-       if(!allocation.reference_numbers.includes(reference))allocation.reference_numbers.push(reference);
-      }else{if(!duplicateMap.has(input.job_card_number))duplicateMap.set(input.job_card_number,new Set());duplicateMap.get(input.job_card_number)!.add(reference);}
-    }}}
+    const mappingByIdentity=new Map<string,Record<string,any>>();
+    const mappingCards=[...new Set(referenceRows.map(row=>row.job_card_number))];
+    if(mappingCards.length){
+     const {data:savedMappings,error:mappingError}=await admin.from("vbgramg_fto_applicant_mappings").select("job_card_number,normalized_fto_name,applicant_name,applicant_number,applicant_unique_id").in("job_card_number",mappingCards);
+     if(mappingError)throw mappingError;
+     for(const mapping of savedMappings||[])mappingByIdentity.set(String(mapping.job_card_number).trim().toUpperCase()+"|"+String(mapping.normalized_fto_name||""),mapping);
+    }
+    const resolveApplicant=(jobCard:string,ftoName:string,candidates:Record<string,any>[])=>{
+     const identity=normalizeApplicantIdentity(ftoName),saved=mappingByIdentity.get(String(jobCard).trim().toUpperCase()+"|"+identity);
+     if(saved){
+      const active=(activeMisApplicants.get(jobCard)||[...(activeMisApplicants.entries())].find(([card])=>String(card).trim().toUpperCase()===String(jobCard).trim().toUpperCase())?.[1]||[]).find(applicant=>(saved.applicant_unique_id&&applicant.applicant_unique_id===saved.applicant_unique_id)||(!saved.applicant_unique_id&&String(applicant.applicant_name)===String(saved.applicant_name)&&String(applicant.applicant_number||"")===String(saved.applicant_number||"")));
+      if(active)return {applicant:active,source:"saved_mapping"};
+     }
+     const exact=findExactActiveMisApplicant(activeMisApplicants,jobCard,ftoName);
+     if(exact)return {applicant:exact,source:"exact_name"};
+     const best=candidates[0],second=candidates[1],gap=second?best.match_percentage-second.match_percentage:100;
+     const confident=Boolean(best&&(candidates.length===1||best.match_percentage>=80&&(!second||second.match_percentage<80||gap>=10)));
+     return {applicant:confident?best:null,source:confident?"similarity":"manual"};
+    };
     const duplicateRows=[...new Map((existing||[]).filter(r=>!r.is_voided&&(!r.period_id||String(r.period_id)===periodId)&&!exemptedSet.has(String(r.job_card_number||"").trim().toUpperCase())&&!(/^FTO\b/i.test(String(r.note||"")))).map(r=>[r.job_card_number,r])).values()];
     const duplicates=duplicateRows.map(r=>{
      const input=referenceRows.find(item=>item.job_card_number===String(r.job_card_number)),ftoName=String(input?.person_name||"");
      const candidates=rankActiveMisApplicants(activeMisApplicants,String(r.job_card_number),ftoName).slice(0,10);
-     const best=candidates[0],second=candidates[1],gap=second?best.match_percentage-second.match_percentage:100;
-     const matchConfident=Boolean(best&&(candidates.length===1||best.match_percentage>=80&&(!second||second.match_percentage<80||gap>=10)));
+     const resolution=resolveApplicant(String(r.job_card_number),ftoName,candidates);
+     const matchConfident=Boolean(resolution.applicant);
      const hasAttachedApplicant=Boolean(r.applicant_unique_id||r.applicant_name||r.applicant_number);
      const applicantMismatch=Boolean(r.applicant_name&&ftoName&&normalizeApplicantIdentity(r.applicant_name)!==normalizeApplicantIdentity(ftoName));
-     return {id:r.id,job_card_number:r.job_card_number,person_name:r.person_name,amount:r.amount,is_deferred:r.is_deferred,charge_count:(existing||[]).filter(x=>!x.is_voided&&String(x.job_card_number)===String(r.job_card_number)&&(!x.period_id||String(x.period_id)===periodId)&&!/^FTO\b/i.test(String(x.note||""))).length,applicant_name:r.applicant_name||null,applicant_number:r.applicant_number||null,applicant_unique_id:r.applicant_unique_id||null,fto_applicant_name:r.fto_applicant_name||null,fto_name:ftoName,applicant_mismatch:applicantMismatch,match_confident:matchConfident,suggested_applicant:!hasAttachedApplicant&&matchConfident?best:null,candidates};
+     return {id:r.id,job_card_number:r.job_card_number,person_name:r.person_name,amount:r.amount,is_deferred:r.is_deferred,charge_count:(existing||[]).filter(x=>!x.is_voided&&String(x.job_card_number)===String(r.job_card_number)&&(!x.period_id||String(x.period_id)===periodId)&&!/^FTO\b/i.test(String(x.note||""))).length,applicant_name:r.applicant_name||null,applicant_number:r.applicant_number||null,applicant_unique_id:r.applicant_unique_id||null,fto_applicant_name:r.fto_applicant_name||null,fto_name:ftoName,applicant_mismatch:applicantMismatch,match_confident:matchConfident,suggested_applicant:!hasAttachedApplicant&&matchConfident?resolution.applicant:null,candidates};
     });
-    const applicantMatches=referenceRows.map(input=>{const candidates=rankActiveMisApplicants(activeMisApplicants,input.job_card_number,input.person_name).slice(0,10);const best=candidates[0],second=candidates[1];const gap=second?best.match_percentage-second.match_percentage:100;const confident=Boolean(best&&(candidates.length===1||best.match_percentage>=80&&(!second||second.match_percentage<80||gap>=10)));return {job_card_number:input.job_card_number,fto_name:input.person_name,candidates,suggested_applicant:confident?best:null,requires_manual:!confident};});
+    const applicantMatches=referenceRows.map(input=>{const candidates=rankActiveMisApplicants(activeMisApplicants,input.job_card_number,input.person_name).slice(0,10);const resolution=resolveApplicant(input.job_card_number,input.person_name,candidates);const savedMapping=mappingByIdentity.get(String(input.job_card_number).trim().toUpperCase()+"|"+normalizeApplicantIdentity(input.person_name));return {job_card_number:input.job_card_number,fto_name:input.person_name,candidates,suggested_applicant:resolution.applicant,match_source:resolution.source,saved_mapping:savedMapping?{applicant_name:savedMapping.applicant_name,applicant_number:savedMapping.applicant_number,applicant_unique_id:savedMapping.applicant_unique_id}:null,requires_manual:!resolution.applicant};});
     return reply({approved:true,charge_period:periodDate,duplicates,applicant_matches:applicantMatches,unknown_job_cards:cards.filter(card=>!known.has(card.toUpperCase())&&!exemptedSet.has(card.toUpperCase())),exempted_job_cards:cards.filter(card=>exemptedSet.has(card.toUpperCase())),not_in_active_mis_job_cards:notInActiveMis,already_allocated:[...allocatedMap].map(([job_card_number,refs])=>({job_card_number,allocations:[...refs.values()]})),duplicate_references:[...duplicateMap].map(([job_card_number,refs])=>({job_card_number,reference_numbers:[...refs]}))});
    }
    const rows=body.rows,sourceSha=String(body.source_sha256||"").toLowerCase(),sourceFilename=String(body.source_filename||"").trim().slice(0,255),ftoNumber=String(body.fto_number||"").trim().toUpperCase().slice(0,100);
@@ -652,7 +927,65 @@ Deno.serve(async(req:Request)=>{
    if(!Array.isArray(calculations)||calculations.length!==rows.length)return reply({error:"PostgreSQL returned an incomplete FTO calculation."},500);
    return reply({approved:true,calculations});
   }
-  if(action==="sync-fto-batch"){
+  if(action==="import-pending-fto"){
+   if(approved.role!=="admin")return reply({error:"Only an approved administrator can import a Pending FTO."},403);
+   if(body.final_review_confirmed!==true)return reply({error:"Confirm the final FTO review before importing."},400);
+   const fto=String(body.fto_number||"").trim().toUpperCase().slice(0,100);
+   const {data:pending,error:pendingError}=await admin.from("vbgramg_fto_inspection_state")
+    .select("fto_number,fto_number_normalized,classification,validated_transactions")
+    .eq("fto_number_normalized",fto).maybeSingle();
+   if(pendingError)throw pendingError;
+   if(!pending||pending.classification!=="ELIGIBLE")return reply({error:"This FTO is no longer available in Pending Imports."},409);
+   const {data:alreadyImported,error:alreadyImportedError}=await admin.from("vbgramg_fto_batches").select("id").eq("fto_number",fto).maybeSingle();
+   if(alreadyImportedError)throw alreadyImportedError;
+   if(alreadyImported)return reply({error:"This FTO has already been imported."},409);
+   const periodId=String(body.period_id||"").trim();
+   const {data:period,error:periodError}=await admin.from("vbgramg_periods")
+    .select("id,period_name,contribution_month,status").eq("id",periodId).maybeSingle();
+   if(periodError)throw periodError;
+   if(!period||period.status!=="open"||!period.contribution_month)return reply({error:"Select an existing open Contribution Period."},409);
+   const activeApplicants=await loadActiveMisApplicants(admin);
+   const activeCards=new Set([...activeApplicants.keys()].map(card=>String(card||"").trim().toUpperCase()));
+   const saved=Array.isArray(pending.validated_transactions)?pending.validated_transactions:[];
+   const transactions=saved.filter((tx:any)=>activeCards.has(String(tx?.jobCardNumber||"").trim().toUpperCase()));
+   if(!transactions.length)return reply({error:"No saved FTO transactions remain in scope for the latest Active MIS."},409);
+   const seen=new Set<string>();
+   for(const tx of transactions){const card=String(tx.jobCardNumber||"").trim().toUpperCase();if(!card||seen.has(card))return reply({error:"The saved FTO contains duplicate Job Cards. No import was made."},409);seen.add(card);}
+   const applicantMappings=Array.isArray(body.applicant_mappings)?body.applicant_mappings:[];
+   if(applicantMappings.length!==transactions.length)return reply({error:"Select an Active MIS applicant for every Job Card before importing."},400);
+   const mappingByCard=new Map<string,any>();
+   for(const raw of applicantMappings){
+    const card=String(raw?.job_card_number||"").trim().toUpperCase();
+    const candidates=activeApplicants.get(card)||[...(activeApplicants.entries())].find(([key])=>String(key).trim().toUpperCase()===card)?.[1]||[];
+    const uniqueId=String(raw?.applicant_unique_id||"").trim(),name=String(raw?.applicant_name||"").trim(),number=String(raw?.applicant_number||"").trim();
+    const chosen=candidates.find(a=>(uniqueId&&a.applicant_unique_id===uniqueId)||(!uniqueId&&String(a.applicant_name)===name&&String(a.applicant_number||"")===number));
+    if(!chosen||mappingByCard.has(card))return reply({error:"An applicant selection is missing, duplicated, or no longer active for "+card+"."},409);
+    mappingByCard.set(card,chosen);
+   }
+   if(mappingByCard.size!==transactions.length||transactions.some((tx:any)=>!mappingByCard.has(String(tx?.jobCardNumber||"").trim().toUpperCase())))return reply({error:"Applicant selections must cover exactly the Job Cards in this FTO. Refresh the review and select each applicant again."},400);
+   const rows=transactions.map((tx:any)=>({
+    reference_no:String(tx.referenceNumber||"").trim(),job_card_number:String(tx.jobCardNumber||"").trim().toUpperCase(),
+    village_name:String(tx.villageName||""),person_name:String(tx.personName||"").trim(),
+    transaction_date:tx.transactionDate||null,processed_date:tx.processedDate||null,
+    amount_to_be_credited:tx.amountToBeCredited??null,credit_amount:tx.creditAmount,
+    status:String(tx.normalizedStatus||tx.status||"").trim().toLowerCase(),
+    rejection_reason:tx.rejectionReason||null,source_row:tx.sourceRow&&typeof tx.sourceRow==="object"?tx.sourceRow:{}
+   }));
+   const divisor=Number(body.divisor),multiplier=Number(body.multiplier);
+   if(!Number.isFinite(divisor)||divisor<=0||!Number.isFinite(multiplier)||multiplier<=0)return reply({error:"Enter valid positive CO formula values."},400);
+   const sourcePayload=JSON.stringify({fto_number:fto,rows});
+   const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(sourcePayload));
+   const sourceSha=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,"0")).join("");
+   body.fto_number=fto;body.period_id=periodId;body.contribution_period=period.period_name;
+   body.charge_period=period.contribution_month;body.divisor=divisor;body.multiplier=multiplier;
+   body.rows=rows;body.source_sha256=sourceSha;
+   body.reconciliation_applicants=Object.fromEntries([...mappingByCard.entries()].map(([card,a])=>[card,a]));
+   body.confirm_mapping_replacements=Array.isArray(body.confirm_mapping_replacements)?body.confirm_mapping_replacements:[];
+   body.reviewed_duplicates=[];body.reviewed_new_job_cards=[];
+   body.manual_charge_actions=body.manual_charge_actions&&typeof body.manual_charge_actions==="object"?body.manual_charge_actions:{};
+   body.manual_charge_amount_confirmations=Array.isArray(body.manual_charge_amount_confirmations)?body.manual_charge_amount_confirmations:[];
+  }
+  if(action==="sync-fto-batch"||action==="import-pending-fto"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can synchronize FTO transactions."},403);
    const ftoNumber=String(body.fto_number||"").trim().toUpperCase().slice(0,100);
    let periodId=String(body.period_id||"").trim();
@@ -710,6 +1043,34 @@ Deno.serve(async(req:Request)=>{
     const chosen=candidates.find(a=>(uniqueId&&a.applicant_unique_id===uniqueId)||(!uniqueId&&String(a.applicant_name)===name&&String(a.applicant_number||"")===number));
     if(!chosen)return reply({error:"The selected applicant for "+card+" is not in the current active MIS. Refresh the preview and try again."},409);
     reconciliationApplicants.set(card,chosen);
+   }
+   const rawManualApplicants=body.manual_reconciliation_applicants&&typeof body.manual_reconciliation_applicants==="object"?body.manual_reconciliation_applicants as Record<string,any>:{};
+   const manualReconciliationApplicants=new Map<string,Record<string,string|null>>();
+   for(const [rawCard,rawApplicant] of Object.entries(rawManualApplicants)){
+    const card=String(rawCard||"").trim().toUpperCase();
+    if(!card||!rawApplicant||typeof rawApplicant!=="object")return reply({error:"A manual-charge applicant selection is invalid."},400);
+    const candidates=activeMisApplicants.get(card)||[...(activeMisApplicants.entries())].find(([key])=>String(key).trim().toUpperCase()===card)?.[1]||[];
+    const uniqueId=String(rawApplicant.applicant_unique_id||"").trim(),name=String(rawApplicant.applicant_name||"").trim(),number=String(rawApplicant.applicant_number||"").trim();
+    const chosen=candidates.find(a=>(uniqueId&&a.applicant_unique_id===uniqueId)||(!uniqueId&&String(a.applicant_name)===name&&String(a.applicant_number||"")===number));
+    if(!chosen)return reply({error:"The selected manual-charge applicant for "+card+" is no longer in the latest Active MIS."},409);
+    manualReconciliationApplicants.set(card,chosen);
+   }
+   // Refuse to replace a confirmed identity mapping implicitly.
+   const mappingKeys=[...new Set(rows.map((raw:Record<string,any>)=>({card:String(raw?.job_card_number||"").trim().toUpperCase(),name:normalizeApplicantIdentity(String(raw?.person_name||"").trim())})).filter(x=>x.card&&x.name).map(x=>x.card+"|"+x.name))];
+   const mappingCards=[...new Set(mappingKeys.map(key=>key.split("|")[0]))];
+   if(mappingCards.length){
+    const {data:existingMappings,error:existingMappingsError}=await admin.from("vbgramg_fto_applicant_mappings").select("job_card_number,normalized_fto_name,applicant_name,applicant_number,applicant_unique_id").in("job_card_number",mappingCards);
+    if(existingMappingsError)throw existingMappingsError;
+    const existingByKey=new Map((existingMappings||[]).map((m:any)=>[String(m.job_card_number).trim().toUpperCase()+"|"+String(m.normalized_fto_name||""),m]));
+    const confirmedReplacements=new Set(Array.isArray(body.confirm_mapping_replacements)?body.confirm_mapping_replacements.map((v:unknown)=>String(v||"").trim().toUpperCase()):[]);
+    for(const [card,chosen] of reconciliationApplicants){
+     const source=rows.find((raw:Record<string,any>)=>String(raw?.job_card_number||"").trim().toUpperCase()===card);
+     const key=card+"|"+normalizeApplicantIdentity(String(source?.person_name||"").trim()),saved=existingByKey.get(key);
+     if(saved){
+      const same=(saved.applicant_unique_id&&chosen.applicant_unique_id===saved.applicant_unique_id)||(!saved.applicant_unique_id&&String(saved.applicant_name||"")===String(chosen.applicant_name||"")&&String(saved.applicant_number||"")===String(chosen.applicant_number||""));
+      if(!same&&!confirmedReplacements.has(card))return reply({error:"A confirmed applicant mapping already exists for "+card+". Select the saved MIS applicant or explicitly confirm the replacement in the review.",mapping_conflict:true,job_card_number:card,saved_applicant_name:saved.applicant_name},409);
+     }
+    }
    }
    const localInputRows=rows;
    const {data:chargeCalculations,error:calculationError}=await admin.rpc("vbgramg_calculate_fto_charges",{p_rows:localInputRows.map((raw:Record<string,any>,row_index:number)=>({row_index,credit_amount:raw.credit_amount,status:raw.status})),p_divisor:divisor,p_multiplier:multiplier});
@@ -818,6 +1179,7 @@ Deno.serve(async(req:Request)=>{
     }
    }
    skippedDuplicateReferences=[...new Set(skippedDuplicateReferences)];
+   if(action==="import-pending-fto"&&skippedDuplicateReferences.length)return reply({error:"A reference number became duplicated after the preview. No FTO was imported. Refresh the reconciliation preview and resolve the duplicate references.",duplicate_references:skippedDuplicateReferences},409);
    const skippedDuplicateSet=new Set(skippedDuplicateReferences);
    if(skippedDuplicateSet.size){
     // Keep duplicate rows in the FTO snapshot/history, but exclude them from
@@ -965,7 +1327,7 @@ Deno.serve(async(req:Request)=>{
     if(manualRows.length===1){
      const action=manualChargeActions.get(card);
      if(!action){manualReviewIssues.push(card+" (choose Link to FTO or Keep manual charge separate)");continue;}
-     if(action==="link"&&!manualRows[0].applicant_name&&!manualRows[0].applicant_unique_id&&!manualRows[0].applicant_number&&!reconciliationApplicants.has(card))
+     if(action==="link"&&!manualRows[0].applicant_name&&!manualRows[0].applicant_unique_id&&!manualRows[0].applicant_number&&!manualReconciliationApplicants.has(card))
       manualReviewIssues.push(card+" (MIS applicant not selected for linking)");
      const incomingAmount=Number(active.reduce((sum,tx)=>sum+Number(tx.calculated_charge||0),0).toFixed(2));
      if(action==="link"&&Math.abs(Number(manualRows[0].amount||0)-incomingAmount)>0.009&&!manualAmountConfirmations.has(card))
@@ -995,7 +1357,7 @@ Deno.serve(async(req:Request)=>{
      const entryDate=ftoEntryDate(active,isDeferred);
      const activeApplicantName=String(normalized.find(r=>String(r.job_card_number)===card)?.person_name||"");
      const name=activeApplicantName||keeper?.person_name||manualKeeper?.person_name||"Name needs review";
-     const applicantChoice=reconciliationApplicants.get(card);
+     const applicantChoice=manualKeeper?manualReconciliationApplicants.get(card)||reconciliationApplicants.get(card):reconciliationApplicants.get(card);
      const ledgerId=String(manualKeeper?.id||keeper?.id||crypto.randomUUID());
      if(manualKeeper)manualLinkIds.push(ledgerId);
      ledgerPlan.push({id:ledgerId,job_card_number:card,person_name:name,entry_type:"charge",amount,
@@ -1027,6 +1389,21 @@ Deno.serve(async(req:Request)=>{
    const {data:rpcResult,error:rpcError}=await admin.rpc("vbgramg_apply_fto_snapshot",{p_plan:plan});
    if(rpcError)throw rpcError;
    if(!rpcResult?.committed)return reply({error:"The atomic FTO snapshot did not confirm a commit. No success was reported."},500);
+   // Persist applicant mappings only after the atomic FTO snapshot commits.
+   const mappingRows:Record<string,unknown>[]=[];
+   for(const [card,chosen] of reconciliationApplicants){
+    const source=rows.find((raw:Record<string,any>)=>String(raw?.job_card_number||"").trim().toUpperCase()===card);
+    const governmentName=String(source?.person_name||"").trim(),normalizedName=normalizeApplicantIdentity(governmentName);
+    if(!normalizedName)continue;
+    mappingRows.push({job_card_number:card,normalized_fto_name:normalizedName,government_applicant_name:governmentName,applicant_name:chosen.applicant_name,applicant_number:chosen.applicant_number,applicant_unique_id:chosen.applicant_unique_id,confirmed_by:authData.user.id,confirmed_at:new Date().toISOString(),updated_at:new Date().toISOString()});
+   }
+   if(mappingRows.length){
+    const {error:mappingSaveError}=await admin.from("vbgramg_fto_applicant_mappings").upsert(mappingRows,{onConflict:"job_card_number,normalized_fto_name"});
+    if(mappingSaveError){
+     console.error("FTO snapshot committed; applicant mapping persistence failed:",mappingSaveError);
+     return reply({error:"FTO snapshot committed, but confirmed applicant mappings could not be saved. Do not re-import this FTO. Administrator review is required.",snapshot_committed:true,mapping_save_failed:true},500);
+    }
+   }
    // The atomic snapshot has committed. Any verification/repair failure below must
    // explicitly tell the caller not to retry the import as a fresh snapshot.
    try{

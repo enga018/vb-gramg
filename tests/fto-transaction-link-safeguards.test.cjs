@@ -17,7 +17,7 @@ function section(source, startMarker, endMarker) {
 }
 
 test("FTO snapshot sends links only for active transactions and checks the committed RPC result", () => {
-  const sync = section(edge, 'if(action==="sync-fto-batch"){', 'if(action==="sync-fto-status"){');
+  const sync = section(edge, 'if(action==="sync-fto-batch"||action==="import-pending-fto"){', 'if(action==="sync-fto-status"){');
   assert.match(sync, /for\s*\(const tx of active\)\s*\{\s*transactionLinks\.push\(\{id:String\(tx\.id\),ledger_entry_id:ledgerId\}\);\s*\}/);
   assert.match(sync, /transaction_links:transactionLinks/);
   assert.match(sync, /admin\.rpc\("vbgramg_apply_fto_snapshot"/);

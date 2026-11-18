@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0f172a">
+<title>Pending Imports — VBGRAMG</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f3f6fb;--line:#e3e8f0;--muted:#667085;--ink:#172033}
+*{box-sizing:border-box}body{margin:0;padding:20px}main{width:min(100%,1200px);margin:0 auto}
+header,.panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 4px 18px rgb(23 32 51 / 4%)}
+header{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}h1{font-size:1.35rem;margin:0 0 5px}h2{font-size:1.08rem;margin:0 0 6px}p{color:var(--muted);line-height:1.5;margin:5px 0}
+button,.link{font:inherit;font-size:.9rem;font-weight:650;border:1px solid transparent;border-radius:10px;min-height:40px;padding:9px 14px;background:var(--ink);color:white;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+button.secondary,.link.secondary{background:#f0f3f8;color:#344054;border-color:#e0e6ef}
+.status{margin:14px 0;padding:11px 13px;border:1px solid #e5eaf2;border-radius:10px;background:#f7f9fc;color:#475467;font-size:.88rem;line-height:1.45;white-space:pre-wrap}.status.error{background:#fff4f2;border-color:#ffd8d2;color:#a12b20}
+.hidden{display:none!important}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px;margin-top:14px}table{border-collapse:collapse;width:100%;font-size:.9rem}th,td{text-align:left;padding:12px 13px;border-bottom:1px solid #edf0f5;vertical-align:middle}th{background:#f5f7fb;color:#5b6577;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em}tr:last-child td{border-bottom:0}.num{font-variant-numeric:tabular-nums}.detail-head{display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap}.detail-table{max-height:60vh;overflow:auto}.empty{padding:28px;text-align:center;color:var(--muted)}.review-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0}.review-controls label{display:block;font-size:.84rem;font-weight:650;margin-bottom:6px}.review-controls input,.review-controls select{font:inherit;width:100%;min-height:42px;padding:9px 11px;border:1px solid #cfd7e4;border-radius:9px;background:#fff}.review-summary{padding:12px;border:1px solid var(--line);border-radius:10px;background:#f7f9fc;margin:12px 0}.review-summary strong{font-variant-numeric:tabular-nums}@media(max-width:650px){.review-controls{grid-template-columns:1fr}}
+@media(max-width:650px){body{padding:10px}header,.panel{padding:15px}th,td{padding:10px 9px;font-size:.82rem}}
+</style>
+</head>
+<body><main>
+<header><div><h1>Pending Imports</h1><p>Continue FTOs from their saved inspection. Government details are not fetched again.</p></div><div class="actions"><a class="link secondary" href="./fto.html">FTO History</a><a class="link secondary" href="./fto-government-fetch.html">New FTO Import</a><button id="refresh" type="button">Refresh</button></div></header>
+<section class="panel" id="access-panel"><h2>Administrator access</h2><p>Sign in with an approved VBGRAMG administrator account.</p><div id="access-status" class="status">Checking your session…</div></section>
+<section class="panel hidden" id="app-panel"><h2>Inspected FTOs awaiting import</h2><p>Only eligible, unimported FTOs are shown. Transaction counts are revalidated against the latest Active MIS whenever this page is refreshed or an FTO is opened.</p><div id="list-status" class="status">Loading Pending Imports…</div><div class="table-wrap"><table><thead><tr><th>FTO Number</th><th>Government Rows</th><th>Eligible Rows</th><th>Unmatched</th><th>Inspected On</th><th></th></tr></thead><tbody id="pending-rows"></tbody></table><div id="empty" class="empty hidden">There are no FTOs waiting in Pending Imports.</div></div></section>
+<section class="panel hidden" id="detail-panel"><div class="detail-head"><div><h2 id="detail-title">FTO details</h2><p id="detail-summary"></p></div><div><button id="save-mappings" type="button">Save applicant matches</button> <button id="close-detail" class="secondary" type="button">Back to list</button></div></div><div id="detail-status" class="status">Loading saved inspection…</div><div class="review-controls"><div><label for="contribution-period">Contribution Period</label><select id="contribution-period" disabled><option value="">Loading periods…</option></select></div><div><label for="co-divisor">CO Divisor</label><input id="co-divisor" type="number" min="0.01" step="any" value="300"></div><div><label for="co-multiplier">CO Multiplier</label><input id="co-multiplier" type="number" min="0.01" step="any" value="100"></div></div><div class="review-summary" id="calculation-summary">Select an open Contribution Period and calculate CO to preview charges.</div><section class="review-summary hidden" id="reconciliation-panel"><h3>Existing contribution charge review</h3><p>Review existing manual charges before import. These decisions are not saved or applied yet.</p><div id="reconciliation-content"></div></section><div class="actions"><button id="calculate-co" type="button">Calculate CO</button> <button id="open-final-review" class="secondary" type="button">Final review</button> <button id="import-fto" type="button" disabled>Import FTO</button></div><section id="final-review" class="review-summary hidden" aria-live="polite"><h3>Final Review</h3><div id="final-review-content"></div><label style="display:block;margin-top:12px"><input id="final-review-confirm" type="checkbox" style="width:auto;min-height:0;margin-right:8px">I have checked the applicant selections, Contribution Period, and CO amounts.</label><p id="final-review-status">Complete all checks before proceeding.</p></section><div class="table-wrap detail-table"><table><thead><tr><th>Job Card</th><th>Government Applicant</th><th>Active MIS Applicant</th><th>Reference No.</th><th>Credit Amount</th><th>Calculated CO</th><th>Status</th><th>Transaction Date</th></tr></thead><tbody id="detail-rows"></tbody></table></div><p>These are saved Government rows revalidated against the latest Active MIS. Applicant matching, Contribution period selection, CO calculation, and final import controls are the next workflow step.</p></section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./js/supabase-client.js?v=20261117a"></script>
+<script src="./js/data-loader.js?v=20261117a"></script>
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id),client=window.vbgramgSupabase;
+let authSequence=0,currentApplicantMatches=new Map(),currentFtoNumber="",currentTransactions=[],currentCalculations=[],sharedPeriods=[],reconciliationPreview=null,manualChargeDecisions=new Map(),manualAmountConfirmations=new Set(),finalReviewReady=false;
+function status(id,message,type){const el=$(id);el.textContent=message;el.className="status"+(type?" "+type:"");}
+function cell(row,value){const td=row.insertCell();td.textContent=value==null?"":String(value);return td;}
+function dateLabel(value){if(!value)return "—";const d=new Date(value);return Number.isNaN(d.getTime())?String(value):d.toLocaleString("en-IN");}
+async function loadPending(){
+ status("list-status","Revalidating saved inspections against the latest Active MIS…");
+ $("pending-rows").replaceChildren();$("empty").classList.add("hidden");
+ const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"list-pending-ftos"},timeoutMs:60000});
+ if(error||!data||data.approved!==true){status("list-status",data?.error||error?.message||"Could not load Pending Imports.","error");return;}
+ for(const item of data.pending||[]){
+  const tr=document.createElement("tr");
+  cell(tr,item.fto_number);cell(tr,Number(item.government_transaction_count||0).toLocaleString("en-IN"));
+  cell(tr,Number(item.eligible_transaction_count||0).toLocaleString("en-IN"));
+  cell(tr,Number(item.unmatched_transaction_count||0).toLocaleString("en-IN"));
+  cell(tr,dateLabel(item.inspected_at));
+  const td=tr.insertCell(),button=document.createElement("button");button.type="button";button.textContent="Open";button.addEventListener("click",()=>openPending(item.fto_number));td.append(button);
+  $("pending-rows").append(tr);
+ }
+ if(!(data.pending||[]).length)$("empty").classList.remove("hidden");
+ status("list-status",(data.pending||[]).length+" FTO(s) ready to continue. No Government detail fetch was performed.","success");
+}
+function selectedContributionPeriod(){return sharedPeriods.find(period=>period.id===$("contribution-period").value)||null;}
+async function loadContributionPeriods(){
+ const select=$("contribution-period");select.disabled=true;
+ const {data,error}=await window.VBGRAMGData.request("vbgramg-periods",{body:{action:"list"}});
+ if(error||!data||data.approved!==true)throw new Error(data?.error||error?.message||"Could not load Contribution Periods.");
+ sharedPeriods=Array.isArray(data.periods)?data.periods:[];
+ const open=sharedPeriods.filter(period=>period.status==="open"&&period.contribution_month);
+ select.replaceChildren();const placeholder=document.createElement("option");placeholder.value="";placeholder.textContent=open.length?"Select an open Contribution Period":"No open Contribution Periods";select.append(placeholder);
+ for(const period of open){const option=document.createElement("option");option.value=period.id;option.textContent=period.period_name;select.append(option);}
+ select.disabled=false;
+}
+async function calculatePendingCO(){
+ if(!currentTransactions.length){status("detail-status","Open an FTO before calculating CO.","error");return;}
+ const period=selectedContributionPeriod(),divisor=Number($("co-divisor").value),multiplier=Number($("co-multiplier").value);
+ if(!period){status("detail-status","Select an open Contribution Period.","error");return;}
+ if(!Number.isFinite(divisor)||divisor<=0||!Number.isFinite(multiplier)||multiplier<=0){status("detail-status","Divisor and multiplier must be positive numbers.","error");return;}
+ const button=$("calculate-co");button.disabled=true;button.textContent="Calculating…";
+ try{
+  const rows=currentTransactions.map((tx,row_index)=>({row_index,credit_amount:tx.creditAmount,status:tx.normalizedStatus}));
+  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"calculate-fto-charges",divisor,multiplier,rows},timeoutMs:60000,deduplicate:false});
+  if(error||!data||data.approved!==true||!Array.isArray(data.calculations)||data.calculations.length!==currentTransactions.length)throw new Error(data?.error||error?.message||"The CO calculation was incomplete.");
+  currentCalculations=data.calculations.map((item,index)=>{if(Number(item.row_index)!==index||!Number.isFinite(Number(item.calculated_charge)))throw new Error("The CO calculation returned an invalid row.");return Number(item.calculated_charge);});
+  const total=currentCalculations.reduce((sum,value)=>sum+value,0);
+  $("calculation-summary").textContent="Period: "+period.period_name+" · Formula: Credit Amount ÷ "+divisor+" × "+multiplier+" · Total calculated CO: ₹"+total.toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2})+". Preview only; nothing has been imported.";
+  renderPendingTransactions();
+  status("detail-status","CO calculated successfully. Review the period, formula, and row amounts. No import has been performed.","success");
+ }catch(err){currentCalculations=[];$("calculation-summary").textContent="Calculation unavailable. "+(err.message||"Review the inputs and try again.");renderPendingTransactions();status("detail-status",err.message||"CO calculation failed.","error");}
+ finally{button.disabled=false;button.textContent="Calculate CO";}
+}
+function invalidateFinalReview(){finalReviewReady=false;$("import-fto").disabled=true;const panel=$("final-review");if(panel&&!panel.classList.contains("hidden")){$("final-review-confirm").checked=false;$("final-review-status").textContent="A review input changed. Reopen Final review to validate the updated selections.";}}
+function escapeHtml(value){
+ return String(value??"").replace(/[&<>"']/g,char=>{
+  if(char==="&")return "&amp;";
+  if(char==="<")return "&lt;";
+  if(char===">")return "&gt;";
+  if(char==='"')return "&quot;";
+  return "&#39;";
+ });
+}
+function sameApplicant(a,b){
+ if(!a||!b)return false;
+ return (a.applicant_unique_id&&b.applicant_unique_id&&a.applicant_unique_id===b.applicant_unique_id)||(!a.applicant_unique_id&&!b.applicant_unique_id&&a.applicant_name===b.applicant_name&&String(a.applicant_number||"")===String(b.applicant_number||""));
+}
+function renderReconciliation(){
+ const panel=$("reconciliation-panel"),content=$("reconciliation-content");
+ content.replaceChildren();
+ if(!reconciliationPreview){panel.classList.add("hidden");return;}
+ panel.classList.remove("hidden");
+ const issues=[];
+ for(const review of reconciliationPreview.manual_charge_reviews||[]){
+  const section=document.createElement("div");section.style.cssText="border-top:1px solid var(--line);padding:12px 0";
+  const heading=document.createElement("p");heading.innerHTML="<strong>"+escapeHtml(review.job_card_number)+"</strong> · Incoming CO ₹"+Number(review.incoming_calculated_charge||0).toFixed(2);section.append(heading);
+  if(review.resolution==="multiple_manual_charges_require_individual_resolution"){
+   const warning=document.createElement("p");warning.textContent="Multiple manual charges exist for this Job Card. Import is blocked until each charge can be resolved individually.";warning.style.color="#a12b20";section.append(warning);issues.push(review.job_card_number+": multiple manual charges");
+  }else{
+   const charge=review.manual_charges[0],select=document.createElement("select");select.style.cssText="min-height:40px;padding:8px;border:1px solid #cfd7e4;border-radius:8px;max-width:100%";
+   [["","Choose how to handle this manual charge"],["link","Link manual charge to this FTO"],["keep_separate","Keep manual charge separate"]].forEach(([value,label])=>{const option=document.createElement("option");option.value=value;option.textContent=label;select.append(option);});
+   select.value=manualChargeDecisions.get(review.job_card_number)||"";select.addEventListener("change",()=>{manualChargeDecisions.set(review.job_card_number,select.value);invalidateFinalReview();});
+   section.append(select);
+   const detail=document.createElement("p");detail.textContent="Existing manual charge: ₹"+Number(charge.amount||0).toFixed(2)+(charge.applicant_name?" · "+charge.applicant_name:"");section.append(detail);
+   if(charge.requires_applicant_selection){
+    const match=currentApplicantMatches.get(review.job_card_number),appSelect=document.createElement("select");appSelect.style.cssText="min-height:40px;padding:8px;border:1px solid #cfd7e4;border-radius:8px;max-width:100%";
+    const placeholder=document.createElement("option");placeholder.value="";placeholder.textContent="Select MIS applicant if linking";appSelect.append(placeholder);
+    (match?.candidates||[]).forEach((candidate,index)=>{const option=document.createElement("option");option.value=String(index);option.textContent=candidate.applicant_name+(candidate.applicant_number?" · "+candidate.applicant_number:"");appSelect.append(option);});
+    const saved=manualChargeDecisions.get(review.job_card_number+"_applicant");if(saved!==undefined)appSelect.value=String(saved);
+    appSelect.addEventListener("change",()=>{manualChargeDecisions.set(review.job_card_number+"_applicant",appSelect.value);invalidateFinalReview();});section.append(appSelect);
+   }
+   if(charge.amount_differs){
+    const label=document.createElement("label"),check=document.createElement("input");check.type="checkbox";check.style.cssText="width:auto;min-height:0;margin-right:8px";
+    check.checked=manualAmountConfirmations.has(review.job_card_number);check.addEventListener("change",()=>{if(check.checked)manualAmountConfirmations.add(review.job_card_number);else manualAmountConfirmations.delete(review.job_card_number);invalidateFinalReview();});
+    label.style.display="block";label.style.marginTop="9px";label.append(check,document.createTextNode("I confirm the amount difference if this charge is linked."));section.append(label);
+   }
+  }
+  content.append(section);
+ }
+ if((reconciliationPreview.duplicate_references||[]).length){const p=document.createElement("p");p.style.color="#a12b20";p.textContent="Duplicate references detected: "+reconciliationPreview.duplicate_references.map(x=>x.reference_no).join(", ");content.append(p);issues.push("duplicate references");}
+ if((reconciliationPreview.conflicting_fto_job_cards||[]).length){const p=document.createElement("p");p.style.color="#a12b20";p.textContent="Other FTOs already have charges in this period for: "+reconciliationPreview.conflicting_fto_job_cards.join(", ");content.append(p);issues.push("conflicting FTO charges");}
+ if(!issues.length&&!reconciliationPreview.manual_charge_reviews?.length){const p=document.createElement("p");p.textContent="No existing manual charge decisions or blocking conflicts were found.";content.append(p);}
+}
+async function previewPendingReconciliation(){
+ const period=selectedContributionPeriod();if(!period||currentCalculations.length!==currentTransactions.length)return;
+ const divisor=Number($("co-divisor").value),multiplier=Number($("co-multiplier").value);
+ const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"preview-pending-fto-reconciliation",fto_number:currentFtoNumber,period_id:period.id,divisor,multiplier},timeoutMs:60000,deduplicate:false});
+ if(error||!data||data.approved!==true)throw new Error(data?.error||error?.message||"Could not preview existing contribution charges.");
+ reconciliationPreview=data;manualChargeDecisions=new Map();manualAmountConfirmations=new Set();renderReconciliation();openFinalReview();
+}
+function openFinalReview(){
+ const panel=$("final-review");panel.classList.remove("hidden");$("final-review-confirm").checked=false;finalReviewReady=false;$("import-fto").disabled=true;
+ const issues=[],details=[];
+ if(!currentFtoNumber||!currentTransactions.length)issues.push("No Pending FTO is open.");
+ if(!selectedContributionPeriod())issues.push("Select an open Contribution Period.");
+ if(currentCalculations.length!==currentTransactions.length)issues.push("Calculate CO after the latest period and formula changes.");
+ if(!reconciliationPreview)issues.push("Run the existing contribution charge review.");
+ if(reconciliationPreview?.blocked)issues.push("Resolve blocking duplicate or conflicting FTO issues before import.");
+ if(reconciliationPreview){
+  for(const review of reconciliationPreview.manual_charge_reviews||[]){
+   if(review.resolution!=="choose_link_or_keep_separate")continue;
+   const action=manualChargeDecisions.get(review.job_card_number);
+   if(!action){issues.push("Choose how to handle the manual charge for "+review.job_card_number+".");continue;}
+   const charge=review.manual_charges?.[0];
+   if(action==="link"&&charge?.requires_applicant_selection){
+    const selected=manualChargeDecisions.get(review.job_card_number+"_applicant");
+    if(selected===undefined||selected==="")issues.push("Select an Active MIS applicant for linking "+review.job_card_number+".");
+   }
+   if(action==="link"&&charge?.amount_differs&&!manualAmountConfirmations.has(review.job_card_number))issues.push("Confirm the amount difference for "+review.job_card_number+".");
+  }
+ }
+ let mappingCount=0,replacementCount=0;
+ for(const [card,match] of currentApplicantMatches){
+  const index=match.selected_index!==undefined?(match.selected_index===null?-1:match.selected_index):(match.candidates||[]).findIndex(candidate=>sameApplicant(candidate,match.suggested_applicant));
+  const chosen=(match.candidates||[])[index];
+  if(!chosen){issues.push("Select an Active MIS applicant for "+card+".");continue;}
+  mappingCount++;
+  if(match.saved_mapping&&!sameApplicant(chosen,match.saved_mapping)){
+   if(match.confirm_replacement!==true)issues.push("Confirm replacement of the saved mapping for "+card+".");
+   else replacementCount++;
+  }
+ }
+ const period=selectedContributionPeriod(),divisor=Number($("co-divisor").value),multiplier=Number($("co-multiplier").value);
+ const total=currentCalculations.length===currentTransactions.length?currentCalculations.reduce((sum,value)=>sum+value,0):null;
+ details.push("<p><strong>FTO:</strong> "+escapeHtml(currentFtoNumber||"—")+"</p>");
+ details.push("<p><strong>Eligible transactions:</strong> "+currentTransactions.length+" · <strong>Applicant selections:</strong> "+mappingCount+"/"+currentApplicantMatches.size+"</p>");
+ details.push("<p><strong>Contribution Period:</strong> "+escapeHtml(period?.period_name||"Not selected")+"</p>");
+ details.push("<p><strong>CO formula:</strong> Credit Amount ÷ "+(Number.isFinite(divisor)?divisor:"—")+" × "+(Number.isFinite(multiplier)?multiplier:"—")+"</p>");
+ details.push("<p><strong>Total CO:</strong> "+(total===null?"Not calculated":"₹"+total.toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2}))+"</p>");
+ details.push("<p><strong>Saved mapping replacements confirmed:</strong> "+replacementCount+"</p>");
+ details.push("<p><strong>Manual charge decisions:</strong> "+(reconciliationPreview?(reconciliationPreview.manual_charge_reviews||[]).length:"Not reviewed")+"</p>");
+ details.push("<p><strong>Readiness:</strong> "+(issues.length?"Not ready":"All review checks passed")+"</p>");
+ details.push(issues.length?"<ul>"+issues.map(issue=>"<li>"+escapeHtml(issue)+"</li>").join("")+"</ul>":"<p>Applicant selections, period, CO calculation, and reconciliation checks are complete. Confirm below to enable Import FTO.</p>");
+ $("final-review-content").innerHTML=details.join("");
+ $("final-review-status").textContent=issues.length?"Resolve the items above before confirming.":"Review checklist complete. Confirm the checklist to enable Import FTO.";
+ $("final-review-confirm").disabled=issues.length>0;
+}
+function renderPendingTransactions(){
+ $("detail-rows").replaceChildren();
+ currentTransactions.forEach((tx,index)=>{
+  const tr=document.createElement("tr");cell(tr,tx.jobCardNumber);cell(tr,tx.personName);
+  const applicantCell=tr.insertCell(),card=String(tx.jobCardNumber||"").toUpperCase(),match=currentApplicantMatches.get(card);
+  if(!match){applicantCell.textContent="No Active MIS match";}else{
+   const select=document.createElement("select");select.setAttribute("aria-label","Active MIS applicant for "+card);
+   const placeholder=document.createElement("option");placeholder.value="";placeholder.textContent="Select applicant";select.append(placeholder);
+   (match.candidates||[]).forEach((candidate,candidateIndex)=>{const option=document.createElement("option");option.value=String(candidateIndex);option.textContent=candidate.applicant_name+(candidate.applicant_number?" · "+candidate.applicant_number:"")+" · "+candidate.match_percentage+"%";select.append(option);});
+   const selected=(match.candidates||[]).findIndex(candidate=>match.suggested_applicant&&((match.suggested_applicant.applicant_unique_id&&candidate.applicant_unique_id===match.suggested_applicant.applicant_unique_id)||(!match.suggested_applicant.applicant_unique_id&&candidate.applicant_name===match.suggested_applicant.applicant_name&&String(candidate.applicant_number||"")===String(match.suggested_applicant.applicant_number||""))));
+   select.value=match.selected_index!==undefined&&match.selected_index!==null?String(match.selected_index):(selected>=0?String(selected):"");
+   select.addEventListener("change",()=>{match.selected_index=select.value===""?null:Number(select.value);invalidateFinalReview();});applicantCell.append(select);
+   if(match.saved_mapping){const note=document.createElement("small");note.style.display="block";note.style.marginTop="6px";note.textContent="Saved mapping: "+match.saved_mapping.applicant_name;applicantCell.append(note);
+    const label=document.createElement("label"),confirm=document.createElement("input");confirm.type="checkbox";confirm.style.width="auto";confirm.style.minHeight="0";confirm.style.marginRight="6px";label.style.marginTop="7px";label.style.fontWeight="500";label.textContent="Confirm replacement";label.prepend(confirm);applicantCell.append(label);
+    confirm.checked=match.confirm_replacement===true;confirm.addEventListener("change",()=>{match.confirm_replacement=confirm.checked;invalidateFinalReview();});
+   }
+   if(match.reason){const note=document.createElement("small");note.style.display="block";note.style.marginTop="5px";note.textContent=match.reason;applicantCell.append(note);}
+  }
+  cell(tr,tx.referenceNumber);cell(tr,tx.creditAmount);cell(tr,currentCalculations.length?"₹"+currentCalculations[index].toFixed(2):"—");cell(tr,tx.status);cell(tr,tx.transactionDate);$("detail-rows").append(tr);
+ });
+}
+async function openPending(number){
+ $("detail-panel").classList.remove("hidden");$("detail-title").textContent=number;
+ $("detail-summary").textContent="Revalidating saved rows against the current Active MIS…";
+ $("detail-rows").replaceChildren();status("detail-status","Loading saved inspection data…");
+ $("detail-panel").scrollIntoView({behavior:"smooth",block:"start"});
+ const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"get-pending-fto",fto_number:number},timeoutMs:60000});
+ if(error||!data||data.approved!==true){status("detail-status",data?.error||error?.message||"Could not open this FTO.","error");await loadPending();return;}
+ $("detail-summary").textContent=Number(data.eligible_transaction_count||0)+" eligible rows · "+Number(data.unmatched_transaction_count||0)+" unmatched rows (count only)";
+ currentFtoNumber=number;currentApplicantMatches=new Map((data.applicant_matches||[]).map(match=>[String(match.job_card_number||"").toUpperCase(),match]));
+ currentTransactions=data.transactions||[];currentCalculations=[];$("calculation-summary").textContent="Select an open Contribution Period and calculate CO to preview charges.";
+ let periodsLoaded=true;try{await loadContributionPeriods();}catch(err){periodsLoaded=false;$("contribution-period").disabled=true;status("detail-status",err.message||"Could not load Contribution Periods.","error");}
+ renderPendingTransactions();
+ if(periodsLoaded)status("detail-status","Applicant suggestions are based on the latest Active MIS. Save confirmed selections to reuse them on future FTOs. Saving mappings does not import this FTO.","success");
+}
+async function saveApplicantMappings(){
+ if(!currentFtoNumber||!currentApplicantMatches.size){status("detail-status","Open a Pending FTO before saving.","error");return;}
+ const applicant_mappings=[],confirm_mapping_replacements=[];
+ for(const [card,match] of currentApplicantMatches){
+  const index=match.selected_index!==undefined?(match.selected_index===null?-1:match.selected_index):(match.candidates||[]).findIndex(candidate=>match.suggested_applicant&&((match.suggested_applicant.applicant_unique_id&&candidate.applicant_unique_id===match.suggested_applicant.applicant_unique_id)||(!match.suggested_applicant.applicant_unique_id&&candidate.applicant_name===match.suggested_applicant.applicant_name&&String(candidate.applicant_number||"")===String(match.suggested_applicant.applicant_number||""))));
+  const chosen=(match.candidates||[])[index];
+  if(!chosen){status("detail-status","Select an Active MIS applicant for every Job Card before saving.","error");return;}
+  applicant_mappings.push({job_card_number:card,applicant_name:chosen.applicant_name,applicant_number:chosen.applicant_number,applicant_unique_id:chosen.applicant_unique_id});
+  if(match.confirm_replacement===true)confirm_mapping_replacements.push(card);
+ }
+ const button=$("save-mappings");button.disabled=true;button.textContent="Saving…";
+ status("detail-status","Validating selections against the latest Active MIS and saving confirmed mappings…");
+ try{
+  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"save-pending-fto-mappings",fto_number:currentFtoNumber,applicant_mappings,confirm_mapping_replacements},timeoutMs:60000});
+  if(error||!data||data.approved!==true){status("detail-status",data?.error||error?.message||"Applicant mappings could not be saved.","error");return;}
+  status("detail-status",data.message||("Saved "+data.saved_count+" applicant mapping(s)."),"success");
+  await openPending(currentFtoNumber);
+ }finally{button.disabled=false;button.textContent="Save applicant matches";}
+}
+async function importPendingFto(){
+ if(!finalReviewReady||!$("final-review-confirm").checked){status("detail-status","Complete Final Review and confirm the checklist before importing.","error");return;}
+ if(!reconciliationPreview||reconciliationPreview.blocked){status("detail-status","Resolve the reconciliation blockers and run the preview again.","error");return;}
+ const applicant_mappings=[];
+ for(const [card,match] of currentApplicantMatches){
+  const index=match.selected_index!==undefined?(match.selected_index===null?-1:match.selected_index):(match.candidates||[]).findIndex(candidate=>sameApplicant(candidate,match.suggested_applicant));
+  const chosen=(match.candidates||[])[index];
+  if(!chosen){status("detail-status","Select an Active MIS applicant for every Job Card.","error");return;}
+  applicant_mappings.push({job_card_number:card,applicant_name:chosen.applicant_name,applicant_number:chosen.applicant_number,applicant_unique_id:chosen.applicant_unique_id});
+ }
+ const manual_charge_actions={},manual_reconciliation_applicants={};
+ for(const review of reconciliationPreview.manual_charge_reviews||[]){
+  if(review.resolution!=="choose_link_or_keep_separate")continue;
+  const action=manualChargeDecisions.get(review.job_card_number);
+  if(!action){status("detail-status","A manual charge decision is missing for "+review.job_card_number+".","error");return;}
+  manual_charge_actions[review.job_card_number]=action;
+  if(action==="link"&&review.manual_charges?.[0]?.requires_applicant_selection){
+   const selected=manualChargeDecisions.get(review.job_card_number+"_applicant");
+   const candidate=currentApplicantMatches.get(review.job_card_number)?.candidates?.[Number(selected)];
+   if(!candidate){status("detail-status","Select an Active MIS applicant for the manual charge on "+review.job_card_number+".","error");return;}
+   manual_reconciliation_applicants[review.job_card_number]={applicant_name:candidate.applicant_name,applicant_number:candidate.applicant_number,applicant_unique_id:candidate.applicant_unique_id};
+  }
+ }
+ const confirm_mapping_replacements=[...currentApplicantMatches].filter(([card,match])=>match.confirm_replacement===true).map(([card])=>card);
+ const manual_charge_amount_confirmations=[...manualAmountConfirmations];
+ const button=$("import-fto");button.disabled=true;button.textContent="Importing…";
+ status("detail-status","Server is revalidating the saved FTO, Active MIS, period, applicant mappings, and manual-charge decisions before the atomic import…");
+ try{
+  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{
+   action:"import-pending-fto",final_review_confirmed:true,fto_number:currentFtoNumber,period_id:selectedContributionPeriod()?.id,
+   divisor:Number($("co-divisor").value),multiplier:Number($("co-multiplier").value),
+   applicant_mappings,confirm_mapping_replacements,manual_charge_actions,manual_charge_amount_confirmations,manual_reconciliation_applicants
+  },timeoutMs:120000,deduplicate:false});
+  if(error||!data||data.approved!==true){
+   const message=data?.error||error?.message||"The FTO import was not confirmed.";
+   if(data?.snapshot_committed){status("detail-status",message+" The snapshot has committed; do not retry this FTO. Refresh Pending Imports and check FTO History.","error");await loadPending();}
+   else status("detail-status",message,"error");
+   return;
+  }
+  status("detail-status","FTO "+data.fto_number+" imported successfully. "+Number(data.local_transactions||0)+" transactions · "+Number(data.inserted||0)+" new charges · "+Number(data.updated||0)+" updated · "+Number(data.reconciled||0)+" reconciled. Total CO ₹"+Number(data.total_amount||0).toFixed(2)+".","success");
+  currentFtoNumber="";currentTransactions=[];currentCalculations=[];reconciliationPreview=null;
+  $("detail-panel").classList.add("hidden");await loadPending();
+ }catch(err){status("detail-status",err.message||"Import failed. Check FTO History before retrying.","error");}
+ finally{button.disabled=!finalReviewReady;button.textContent="Import FTO";}
+}
+async function verifyAccess(user){
+ const seq=++authSequence;if(!user){window.location.replace("./");return;}
+ const {data,error}=await window.VBGRAMGData.invoke("vbgramg-app-access",{body:{}});
+ if(seq!==authSequence)return;
+ if(error||!data||data.approved!==true||data.role!=="admin"){status("access-status","An approved VBGRAMG administrator account is required.","error");return;}
+ $("access-panel").classList.add("hidden");$("app-panel").classList.remove("hidden");await loadPending();
+}
+client.auth.onAuthStateChange((event,session)=>{if(event==="SIGNED_OUT"){authSequence++;window.location.replace("./");}else if(event==="TOKEN_REFRESHED"&&session)Promise.resolve().then(()=>verifyAccess(session.user));});
+client.auth.getSession().then(({data,error})=>{if(error||!data.session){window.location.replace("./");return;}verifyAccess(data.session.user);});
+$("refresh").addEventListener("click",loadPending);$("open-final-review").addEventListener("click",openFinalReview);$("final-review-confirm").addEventListener("change",()=>{finalReviewReady=$("final-review-confirm").checked;$("import-fto").disabled=!finalReviewReady;$("final-review-status").textContent=finalReviewReady?"Final review confirmed. You can now import this FTO.":"Final review confirmation cleared.";});$("import-fto").addEventListener("click",importPendingFto);$("calculate-co").addEventListener("click",calculatePendingCO);$("contribution-period").addEventListener("change",()=>{currentCalculations=[];reconciliationPreview=null;renderReconciliation();invalidateFinalReview();$("calculation-summary").textContent="Period changed. Recalculate CO to refresh the preview.";renderPendingTransactions();});$("co-divisor").addEventListener("input",()=>{currentCalculations=[];reconciliationPreview=null;renderReconciliation();invalidateFinalReview();$("calculation-summary").textContent="Formula changed. Recalculate CO to refresh the preview.";renderPendingTransactions();});$("co-multiplier").addEventListener("input",()=>{currentCalculations=[];reconciliationPreview=null;renderReconciliation();invalidateFinalReview();$("calculation-summary").textContent="Formula changed. Recalculate CO to refresh the preview.";renderPendingTransactions();});$("save-mappings").addEventListener("click",saveApplicantMappings);$("close-detail").addEventListener("click",()=>{$("detail-panel").classList.add("hidden");});
+})();
+</script>
+</body></html>

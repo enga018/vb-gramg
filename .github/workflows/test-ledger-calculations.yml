@@ -11,6 +11,8 @@ on:
       - "supabase/migrations/20261111190000_atomic_manual_contribution_charge_batches.sql"
       - "tests/atomic-contribution-writes.test.cjs"
       - "tests/fto-transaction-link-safeguards.test.cjs"
+      - "tests/pending-fto-import.test.cjs"
+      - "pending-imports.html"
       - "tests/government-fto-history-import.test.cjs"
       - "supabase/functions/vbgramg-fto-government-fetch/index.ts"
       - "supabase/functions/vbgramg-fto-government-details/index.ts"
@@ -77,10 +79,15 @@ on:
       - "js/data-loader.js"
       - ".github/workflows/test-ledger-calculations.yml"
   push:
-    branches: [main]
+    branches: [main, feat/defer-fto-applicant-matching]
     paths:
       - "supabase/functions/shared/ledger-calculations.js"
       - "tests/ledger-calculations.test.cjs"
+      - "tests/pending-fto-import.test.cjs"
+      - "tests/atomic-contribution-writes.test.cjs"
+      - "tests/fto-transaction-link-safeguards.test.cjs"
+      - "pending-imports.html"
+      - "supabase/functions/vbgramg-contribution-data/index.ts"
       - ".github/workflows/test-ledger-calculations.yml"
 
 permissions:
@@ -96,6 +103,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Run Pending FTO import regression tests
+        run: node --test tests/pending-fto-import.test.cjs
       - name: Run shared ledger tests
         run: node --test tests/ledger-calculations.test.cjs tests/data-loader.test.cjs tests/postgres-contribution-balances.test.cjs tests/atomic-contribution-writes.test.cjs tests/fto-transaction-link-safeguards.test.cjs tests/extra-contribution-charges.test.cjs tests/extra-contribution-reconciliation.test.cjs tests/manual-contribution-charges.test.cjs
       - name: Run charge-level allocation schema static tests

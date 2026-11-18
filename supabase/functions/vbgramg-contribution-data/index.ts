@@ -804,7 +804,7 @@ Deno.serve(async(req:Request)=>{
    if(!batchId)return reply({error:"Select an imported FTO first."},400);
    if(!Number.isInteger(divisor)||divisor<=0||divisor>1000000000||!Number.isInteger(multiplier)||multiplier<=0||multiplier>1000000)return reply({error:"Divisor and multiplier must be whole positive numbers within the allowed range."},400);
    const {data:batch,error:batchError}=await admin.from("vbgramg_fto_batches")
-    .select("id,fto_number,period_id,contribution_period,ledger_charge_period,calculation_divisor,calculation_multiplier,revision_number")
+    .select("id,fto_number,period_id,contribution_period,ledger_charge_period,last_checked_at,last_deferred_recheck_at,calculation_divisor,calculation_multiplier,revision_number")
     .eq("id",batchId).maybeSingle();
    if(batchError)throw batchError;
    if(!batch)return reply({error:"The selected FTO batch was not found."},404);
@@ -812,6 +812,17 @@ Deno.serve(async(req:Request)=>{
    const {data:snapshot,error:snapshotError}=await admin.rpc("vbgramg_get_fto_revision_snapshot",{p_batch_id:batchId,p_target_period_id:null});
    if(snapshotError)throw snapshotError;
    if(!snapshot||!Array.isArray(snapshot.transactions)||!Array.isArray(snapshot.ledger_entries))return reply({error:"The database returned an incomplete FTO revision snapshot."},500);
+   const {data:latestBatch,error:latestBatchError}=await admin.from("vbgramg_fto_batches")
+    .select("period_id,ledger_charge_period,last_checked_at,last_deferred_recheck_at,revision_number")
+    .eq("id",batchId).maybeSingle();
+   if(latestBatchError)throw latestBatchError;
+   if(!latestBatch||String(latestBatch.period_id||"")!==String(batch.period_id||"")
+      ||String(latestBatch.ledger_charge_period||"")!==String(batch.ledger_charge_period||"")
+      ||String(latestBatch.last_checked_at||"")!==String(batch.last_checked_at||"")
+      ||String(latestBatch.last_deferred_recheck_at||"")!==String(batch.last_deferred_recheck_at||"")
+      ||Number(latestBatch.revision_number||1)!==Number(batch.revision_number||1)){
+    return reply({error:"The FTO changed while its calculation preview was being prepared. Reload history and preview again."},409);
+   }
    const transactions=snapshot.transactions.filter((tx:any)=>tx.is_current===true&&tx.is_in_scope===true);
    if(!transactions.length)return reply({error:"This FTO has no current in-scope transactions."},409);
    const rows=transactions.map((tx:any,index:number)=>({
@@ -896,6 +907,10 @@ Deno.serve(async(req:Request)=>{
    return reply({
     approved:true,preview:true,batch_id:batchId,fto_number:batch.fto_number,
     revision_number:Number(batch.revision_number||1),
+    expected_period_id:batch.period_id,
+    expected_charge_period:batch.ledger_charge_period,
+    expected_last_checked_at:batch.last_checked_at,
+    expected_last_deferred_recheck_at:batch.last_deferred_recheck_at,
     previous_parameters_recorded:batch.calculation_divisor!==null&&batch.calculation_multiplier!==null,
     previous_divisor:batch.calculation_divisor,previous_multiplier:batch.calculation_multiplier,
     divisor,multiplier,transaction_count:transactions.length,
@@ -911,11 +926,17 @@ Deno.serve(async(req:Request)=>{
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can apply a CO calculation change."},403);
    const batchId=String(body.batch_id||"").trim(),reason=String(body.reason||"").trim();
    const divisor=Number(body.divisor),multiplier=Number(body.multiplier),expectedRevision=Number(body.expected_revision_number);
-   if(!batchId||!reason)return reply({error:"The FTO batch and revision reason are required."},400);
+   const expectedPeriodId=String(body.expected_period_id||"").trim(),expectedChargePeriod=String(body.expected_charge_period||"").trim();
+   const expectedLastCheckedAt=String(body.expected_last_checked_at||"").trim();
+   const expectedLastDeferredRecheckAt=body.expected_last_deferred_recheck_at===null?null:String(body.expected_last_deferred_recheck_at||"").trim()||null;
+   if(!batchId||!reason||!expectedPeriodId||!expectedChargePeriod||!expectedLastCheckedAt)return reply({error:"The FTO preview is incomplete. Preview the calculation again."},400);
    if(!Number.isInteger(divisor)||divisor<=0||divisor>1000000000||!Number.isInteger(multiplier)||multiplier<=0||multiplier>1000000)return reply({error:"Divisor and multiplier must be whole positive numbers within the allowed range."},400);
    if(!Number.isInteger(expectedRevision)||expectedRevision<1)return reply({error:"Reload the FTO and preview the calculation again."},400);
    const {data:result,error}=await admin.rpc("vbgramg_apply_fto_co_revision",{
     p_batch_id:batchId,p_expected_revision_number:expectedRevision,
+    p_expected_period_id:expectedPeriodId,p_expected_charge_period:expectedChargePeriod,
+    p_expected_last_checked_at:expectedLastCheckedAt,
+    p_expected_last_deferred_recheck_at:expectedLastDeferredRecheckAt,
     p_divisor:divisor,p_multiplier:multiplier,p_revision_reason:reason,
     p_actor_user_id:authData.user.id,p_actor_email:authData.user.email
    });

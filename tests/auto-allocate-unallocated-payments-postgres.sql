@@ -1,4 +1,5 @@
--- Isolated PostgreSQL integration tests for automatic FIFO allocation on new charges and payments.
+-- Isolated PostgreSQL integration tests for automatic FIFO allocation on new charges,
+-- payments, and deferred-charge reactivation.
 -- Run against a disposable database only:
 --   createdb vbgramg_auto_allocate_test
 --   PGDATABASE=vbgramg_auto_allocate_test psql -v ON_ERROR_STOP=1 -f tests/auto-allocate-unallocated-payments-postgres.sql
@@ -84,7 +85,6 @@ BEGIN
     RAISE EXCEPTION 'Payment allocation job card and period are immutable';
   END IF;
 
-  -- Match production lock order: period advisory lock before payment row lock.
   PERFORM pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended(
       'contribution:' || NEW.job_card_number || ':' || NEW.period_id::text, 0
@@ -128,13 +128,12 @@ CREATE TRIGGER test_validate_payment_allocation
 BEFORE INSERT OR UPDATE ON public.vbgramg_payment_allocations
 FOR EACH ROW EXECUTE FUNCTION public.test_validate_payment_allocation();
 
--- Stand-in for the production FTO snapshot RPC so this fixture can test the
--- migration's lock-order wrapper without loading the full FTO schema.
 CREATE FUNCTION public.vbgramg_apply_fto_snapshot(p_plan jsonb)
 RETURNS jsonb LANGUAGE sql AS $$ SELECT pg_catalog.jsonb_build_object('committed',true) $$;
 
 \ir ../supabase/migrations/20261107200000_auto_allocate_unallocated_payments_on_new_charge.sql
 \ir ../supabase/migrations/20261108150000_auto_allocate_on_new_payment.sql
+\ir ../supabase/migrations/20261118100000_auto_allocate_after_deferred_reactivation.sql
 
 INSERT INTO public.vbgramg_periods(id,period_name,period_date,contribution_month,created_at) VALUES
  ('00000000-0000-0000-0000-000000000001','NOV26','2026-11-01','2026-11-01','2026-10-01'),
@@ -147,13 +146,10 @@ DECLARE
   v_unallocated numeric(12,2);
   v_count integer;
 BEGIN
-  -- Core example: a 500 payment covers a 400 charge; the remaining 100 is
-  -- allocated automatically when a later 150 charge is added.
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
   VALUES ('MZ-EXAMPLE','Example Household','charge',400,'2026-11-01','00000000-0000-0000-0000-000000000001','2026-11-01','Base charge');
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,entry_date,note)
   VALUES ('MZ-EXAMPLE','Example Household','payment',500,'2026-11-02','Bank');
-
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
   VALUES ('MZ-EXAMPLE','Example Household','charge',150,'2026-12-01','00000000-0000-0000-0000-000000000002','2026-12-01','Next period charge');
 
@@ -170,87 +166,72 @@ BEGIN
     RAISE EXCEPTION 'Core overpayment allocation failed: allocated %, unallocated %',v_alloc,v_unallocated;
   END IF;
 
-  -- Oldest contribution period is settled before a later period.
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,entry_date,note)
   VALUES ('MZ-PERIOD','Period Household','payment',150,'2026-11-01','Period FIFO payment');
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
   VALUES ('MZ-PERIOD','Period Household','charge',100,'2026-11-01','00000000-0000-0000-0000-000000000001','2026-11-01','Older period charge');
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
   VALUES ('MZ-PERIOD','Period Household','charge',100,'2026-12-01','00000000-0000-0000-0000-000000000002','2026-12-01','Newer period charge');
-  IF (SELECT a.amount FROM public.vbgramg_payment_allocations a
-      JOIN public.vbgramg_charge_ledger p ON p.id=a.transaction_id
-      WHERE p.job_card_number='MZ-PERIOD' AND a.period_id='00000000-0000-0000-0000-000000000001')<>100
-     OR (SELECT a.amount FROM public.vbgramg_payment_allocations a
-         JOIN public.vbgramg_charge_ledger p ON p.id=a.transaction_id
-         WHERE p.job_card_number='MZ-PERIOD' AND a.period_id='00000000-0000-0000-0000-000000000002')<>50 THEN
+  IF (SELECT a.amount FROM public.vbgramg_payment_allocations a JOIN public.vbgramg_charge_ledger p ON p.id=a.transaction_id WHERE p.job_card_number='MZ-PERIOD' AND a.period_id='00000000-0000-0000-0000-000000000001')<>100
+     OR (SELECT a.amount FROM public.vbgramg_payment_allocations a JOIN public.vbgramg_charge_ledger p ON p.id=a.transaction_id WHERE p.job_card_number='MZ-PERIOD' AND a.period_id='00000000-0000-0000-0000-000000000002')<>50 THEN
     RAISE EXCEPTION 'Oldest contribution period was not allocated first';
   END IF;
 
-  -- Oldest available payment is consumed before the newer payment.
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,entry_date,note)
-  VALUES
-   ('MZ-FIFO','FIFO Household','payment',80,'2026-11-01','Older payment'),
-   ('MZ-FIFO','FIFO Household','payment',70,'2026-11-02','Newer payment');
+  VALUES ('MZ-FIFO','FIFO Household','payment',80,'2026-11-01','Older payment'),
+         ('MZ-FIFO','FIFO Household','payment',70,'2026-11-02','Newer payment');
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
   VALUES ('MZ-FIFO','FIFO Household','charge',150,'2027-01-01','00000000-0000-0000-0000-000000000003','2027-01-01','FIFO test charge');
-  SELECT count(*) INTO v_count
-  FROM public.vbgramg_payment_allocations a
-  JOIN public.vbgramg_charge_ledger p ON p.id=a.transaction_id
+  SELECT count(*) INTO v_count FROM public.vbgramg_payment_allocations a JOIN public.vbgramg_charge_ledger p ON p.id=a.transaction_id
   WHERE p.job_card_number='MZ-FIFO' AND a.period_id='00000000-0000-0000-0000-000000000003';
-  IF v_count<>2 OR NOT EXISTS (
-    SELECT 1 FROM public.vbgramg_payment_allocations a
-    JOIN public.vbgramg_charge_ledger p ON p.id=a.transaction_id
-    WHERE p.job_card_number='MZ-FIFO' AND p.note='Older payment' AND a.amount=80
-  ) THEN
+  IF v_count<>2 OR NOT EXISTS (SELECT 1 FROM public.vbgramg_payment_allocations a JOIN public.vbgramg_charge_ledger p ON p.id=a.transaction_id WHERE p.job_card_number='MZ-FIFO' AND p.note='Older payment' AND a.amount=80) THEN
     RAISE EXCEPTION 'FIFO payment ordering failed';
   END IF;
 
-  -- Reconciled refunds reduce the payment balance available for future charges.
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,entry_date,note)
-  VALUES
-   ('MZ-REFUND','Refund Household','payment',200,'2026-11-01','Payment'),
-   ('MZ-REFUND','Refund Household','refund',60,'2026-11-02','Refund');
+  VALUES ('MZ-REFUND','Refund Household','payment',200,'2026-11-01','Payment'),
+         ('MZ-REFUND','Refund Household','refund',60,'2026-11-02','Refund');
   INSERT INTO public.vbgramg_payment_refund_reconciliations(payment_id,refund_id,job_card_number,amount)
-  SELECT p.id,r.id,'MZ-REFUND',60
-  FROM public.vbgramg_charge_ledger p
-  JOIN public.vbgramg_charge_ledger r ON r.job_card_number=p.job_card_number AND r.entry_type='refund'
+  SELECT p.id,r.id,'MZ-REFUND',60 FROM public.vbgramg_charge_ledger p JOIN public.vbgramg_charge_ledger r ON r.job_card_number=p.job_card_number AND r.entry_type='refund'
   WHERE p.job_card_number='MZ-REFUND' AND p.entry_type='payment';
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
   VALUES ('MZ-REFUND','Refund Household','charge',200,'2026-12-01','00000000-0000-0000-0000-000000000002','2026-12-01','Refund balance test');
-  SELECT a.amount INTO v_alloc
-  FROM public.vbgramg_payment_allocations a
-  JOIN public.vbgramg_charge_ledger p ON p.id=a.transaction_id
-  WHERE p.job_card_number='MZ-REFUND';
-  IF v_alloc<>140 THEN
-    RAISE EXCEPTION 'Refund-adjusted available balance should allocate 140, got %',v_alloc;
-  END IF;
+  SELECT a.amount INTO v_alloc FROM public.vbgramg_payment_allocations a JOIN public.vbgramg_charge_ledger p ON p.id=a.transaction_id WHERE p.job_card_number='MZ-REFUND';
+  IF v_alloc<>140 THEN RAISE EXCEPTION 'Refund-adjusted available balance should allocate 140, got %',v_alloc; END IF;
 
-  -- Deferred charges do not trigger allocation, and restoring one does not
-  -- automatically allocate the retained payment balance.
+  -- A payment recorded while a charge is deferred remains unallocated. Restoring
+  -- that charge must immediately consume the retained payment using FIFO.
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note,is_deferred)
   VALUES ('MZ-DEFER','Deferred Household','charge',50,'2026-11-01','00000000-0000-0000-0000-000000000001','2026-11-01','Deferred charge',true);
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,entry_date,note)
   VALUES ('MZ-DEFER','Deferred Household','payment',50,'2026-11-02','Payment');
+  IF EXISTS (SELECT 1 FROM public.vbgramg_payment_allocations a WHERE a.job_card_number='MZ-DEFER') THEN
+    RAISE EXCEPTION 'Payment was allocated while the only charge was deferred';
+  END IF;
   UPDATE public.vbgramg_charge_ledger SET is_deferred=false
   WHERE job_card_number='MZ-DEFER' AND entry_type='charge';
-  IF EXISTS (
-    SELECT 1 FROM public.vbgramg_payment_allocations a
-    JOIN public.vbgramg_charge_ledger p ON p.id=a.transaction_id
-    WHERE p.job_card_number='MZ-DEFER'
-  ) THEN
-    RAISE EXCEPTION 'Deferred charge restoration unexpectedly triggered allocation';
+  SELECT a.amount INTO v_alloc
+  FROM public.vbgramg_payment_allocations a
+  JOIN public.vbgramg_charge_ledger p ON p.id=a.transaction_id
+  WHERE p.job_card_number='MZ-DEFER' AND a.period_id='00000000-0000-0000-0000-000000000001';
+  SELECT p.amount-COALESCE(sum(a.amount),0) INTO v_unallocated
+  FROM public.vbgramg_charge_ledger p
+  LEFT JOIN public.vbgramg_payment_allocations a ON a.transaction_id=p.id
+  WHERE p.job_card_number='MZ-DEFER' AND p.entry_type='payment'
+  GROUP BY p.id;
+  IF v_alloc<>50 OR v_unallocated<>0 THEN
+    RAISE EXCEPTION 'Deferred-charge reactivation FIFO failed: allocated %, unallocated %',v_alloc,v_unallocated;
+  END IF;
+  IF (SELECT count(*) FROM public.vbgramg_ledger_audit WHERE job_card_number='MZ-DEFER' AND action='automatic_fifo_allocation')<>1 THEN
+    RAISE EXCEPTION 'Deferred-charge reactivation did not write exactly one FIFO audit entry';
   END IF;
 
-  -- Exempt job cards are excluded.
   INSERT INTO public.vbgramg_contribution_exemptions VALUES ('MZ-EXEMPT','Exempt');
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,entry_date,note)
   VALUES ('MZ-EXEMPT','Exempt Household','payment',100,'2026-11-02','Payment');
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
   VALUES ('MZ-EXEMPT','Exempt Household','charge',100,'2026-11-01','00000000-0000-0000-0000-000000000001','2026-11-01','Exempt charge');
-  IF EXISTS (
-    SELECT 1 FROM public.vbgramg_payment_allocations a
-    WHERE a.job_card_number='MZ-EXEMPT'
-  ) THEN
+  IF EXISTS (SELECT 1 FROM public.vbgramg_payment_allocations a WHERE a.job_card_number='MZ-EXEMPT') THEN
     RAISE EXCEPTION 'Exempt job card received an automatic allocation';
   END IF;
 
@@ -259,9 +240,6 @@ BEGIN
   END IF;
 END $$;
 
-
--- New payments immediately consume existing outstanding charges using the
--- same global period FIFO allocator. Excess remains genuinely unallocated.
 DO $new_payment_test$
 DECLARE
   v_old_period numeric(12,2);
@@ -270,53 +248,35 @@ DECLARE
   v_allocated numeric(12,2);
 BEGIN
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
-  VALUES
-    ('MZ-NEW-PAYMENT','New Payment Household','charge',100,'2026-11-01','00000000-0000-0000-0000-000000000001','2026-11-01','Old period due'),
-    ('MZ-NEW-PAYMENT','New Payment Household','charge',100,'2026-12-01','00000000-0000-0000-0000-000000000002','2026-12-01','New period due');
-
+  VALUES ('MZ-NEW-PAYMENT','New Payment Household','charge',100,'2026-11-01','00000000-0000-0000-0000-000000000001','2026-11-01','Old period due'),
+         ('MZ-NEW-PAYMENT','New Payment Household','charge',100,'2026-12-01','00000000-0000-0000-0000-000000000002','2026-12-01','New period due');
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,entry_date,note)
   VALUES ('MZ-NEW-PAYMENT','New Payment Household','payment',250,'2026-11-08','New payment');
-
   SELECT COALESCE(sum(a.amount) FILTER (WHERE a.period_id='00000000-0000-0000-0000-000000000001'),0),
          COALESCE(sum(a.amount) FILTER (WHERE a.period_id='00000000-0000-0000-0000-000000000002'),0),
          COALESCE(sum(a.amount),0)
-    INTO v_old_period,v_new_period,v_allocated
-  FROM public.vbgramg_payment_allocations a
-  JOIN public.vbgramg_charge_ledger p ON p.id=a.transaction_id
+  INTO v_old_period,v_new_period,v_allocated
+  FROM public.vbgramg_payment_allocations a JOIN public.vbgramg_charge_ledger p ON p.id=a.transaction_id
   WHERE p.job_card_number='MZ-NEW-PAYMENT' AND p.entry_type='payment';
-
-  SELECT p.amount - COALESCE(sum(a.amount),0)
-    INTO v_unallocated
-  FROM public.vbgramg_charge_ledger p
-  LEFT JOIN public.vbgramg_payment_allocations a ON a.transaction_id=p.id
-  WHERE p.job_card_number='MZ-NEW-PAYMENT' AND p.entry_type='payment'
-  GROUP BY p.id;
-
+  SELECT p.amount-COALESCE(sum(a.amount),0) INTO v_unallocated
+  FROM public.vbgramg_charge_ledger p LEFT JOIN public.vbgramg_payment_allocations a ON a.transaction_id=p.id
+  WHERE p.job_card_number='MZ-NEW-PAYMENT' AND p.entry_type='payment' GROUP BY p.id;
   IF v_old_period<>100 OR v_new_period<>100 OR v_allocated<>200 OR v_unallocated<>50 THEN
-    RAISE EXCEPTION 'New-payment FIFO failed: old %, new %, allocated %, unallocated %',
-      v_old_period,v_new_period,v_allocated,v_unallocated;
+    RAISE EXCEPTION 'New-payment FIFO failed: old %, new %, allocated %, unallocated %',v_old_period,v_new_period,v_allocated,v_unallocated;
   END IF;
 
-  -- A payment smaller than the outstanding balance is fully allocated;
-  -- the remaining balance is Due, not unallocated payment credit.
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note)
   VALUES ('MZ-NEW-PAYMENT-SHORT','Short Payment Household','charge',100,'2026-11-01','00000000-0000-0000-0000-000000000001','2026-11-01','Charge larger than payment');
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,entry_date,note)
   VALUES ('MZ-NEW-PAYMENT-SHORT','Short Payment Household','payment',60,'2026-11-08','Partial coverage');
-
   SELECT COALESCE(sum(a.amount),0) INTO v_allocated
-  FROM public.vbgramg_payment_allocations a
-  JOIN public.vbgramg_charge_ledger p ON p.id=a.transaction_id
+  FROM public.vbgramg_payment_allocations a JOIN public.vbgramg_charge_ledger p ON p.id=a.transaction_id
   WHERE p.job_card_number='MZ-NEW-PAYMENT-SHORT' AND p.entry_type='payment';
-  SELECT p.amount - COALESCE(sum(a.amount),0) INTO v_unallocated
-  FROM public.vbgramg_charge_ledger p
-  LEFT JOIN public.vbgramg_payment_allocations a ON a.transaction_id=p.id
-  WHERE p.job_card_number='MZ-NEW-PAYMENT-SHORT' AND p.entry_type='payment'
-  GROUP BY p.id;
-
+  SELECT p.amount-COALESCE(sum(a.amount),0) INTO v_unallocated
+  FROM public.vbgramg_charge_ledger p LEFT JOIN public.vbgramg_payment_allocations a ON a.transaction_id=p.id
+  WHERE p.job_card_number='MZ-NEW-PAYMENT-SHORT' AND p.entry_type='payment' GROUP BY p.id;
   IF v_allocated<>60 OR v_unallocated<>0 THEN
-    RAISE EXCEPTION 'Insufficient new payment was not fully allocated: allocated %, unallocated %',
-      v_allocated,v_unallocated;
+    RAISE EXCEPTION 'Insufficient new payment was not fully allocated: allocated %, unallocated %',v_allocated,v_unallocated;
   END IF;
 END $new_payment_test$;
 

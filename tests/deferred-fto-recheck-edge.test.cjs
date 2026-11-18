@@ -22,6 +22,14 @@ test("complete Government detail rows are validated before reference reconciliat
   assert.match(source, /Government table is missing stored reference/);
 });
 
+test("recheck validates both Government amount columns and passes listing data explicitly", () => {
+  assert.match(source, /amount to be credited in rs/);
+  assert.match(source, /invalid Amount to Be Credited/);
+  assert.match(source, /async function fetchDetail\\(url: string, ftoNumber: string, listingRow: string\\[\\]\\)/);
+  assert.match(source, /fetchDetail\\(candidate\\.url,ftoNumber,candidate\\.row\\)/);
+  assert.doesNotMatch(source, /fetchDetail as any/);
+});
+
 test("recheck RPC receives only existing references and never calls an insert path", () => {
   assert.match(source, /storedByRef/);
   assert.match(source, /admin\.rpc\("vbgramg_recheck_deferred_ftos"/);

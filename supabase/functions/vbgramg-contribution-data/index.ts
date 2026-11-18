@@ -882,7 +882,10 @@ Deno.serve(async(req:Request)=>{
    const waiverAllocations=Array.isArray(snapshot.waiver_allocations)?snapshot.waiver_allocations:[];
    const chargePaymentAllocations=Array.isArray(snapshot.charge_payment_allocations)?snapshot.charge_payment_allocations:[];
    const unlinkedWaivers=Array.isArray(snapshot.unlinked_legacy_waivers)?snapshot.unlinked_legacy_waivers:[];
+   const checkedCards=new Set<string>(),paymentWaiverChecked=new Set<string>(),chargeAllocationChecked=new Set<string>(),unlinkedWaiverChecked=new Set<string>();
+   let paymentWaiverChecksPassed=true,chargeAllocationChecksPassed=true,unlinkedWaiverChecksPassed=true;
    for(const card of new Set(transactions.map((tx:any)=>String(tx.job_card_number||"").trim().toUpperCase()).filter(Boolean))){
+    checkedCards.add(card);paymentWaiverChecked.add(card);chargeAllocationChecked.add(card);unlinkedWaiverChecked.add(card);
     const newCardTotal=Number(newByCard.get(card)||0);
     const relevantEntries=ledgerEntries.filter((entry:any)=>String(entry.job_card_number||"").trim().toUpperCase()===card&&(
      String(entry.period_id||"")===periodId||(!entry.period_id&&String(entry.charge_period||"")===chargeMonth)
@@ -896,12 +899,12 @@ Deno.serve(async(req:Request)=>{
      .reduce((sum:number,item:any)=>sum+Number(item.amount||0),0);
     const waived=waiverAllocations.filter((item:any)=>String(item.job_card_number||"").trim().toUpperCase()===card&&String(item.period_id||"")===periodId&&["charge_waiver","forgive"].includes(String(item.waiver_entry_type||""))&&item.waiver_is_voided!==true)
      .reduce((sum:number,item:any)=>sum+Number(item.amount||0),0);
-    if(unlinkedWaivers.some((item:any)=>String(item.job_card_number||"").trim().toUpperCase()===card&&Number(item.unlinked_amount||0)>0))blocked.push("Job Card "+card+" has an unlinked legacy waiver that must be resolved first.");
-    if(allocated+waived>nonFto+newCardTotal+0.00001)blocked.push("Job Card "+card+" has allocations/waivers exceeding the revised eligible charges.");
+    if(unlinkedWaivers.some((item:any)=>String(item.job_card_number||"").trim().toUpperCase()===card&&Number(item.unlinked_amount||0)>0)){unlinkedWaiverChecksPassed=false;blocked.push("Job Card "+card+" has an unlinked legacy waiver that must be resolved first.");}
+    if(allocated+waived>nonFto+newCardTotal+0.00001){paymentWaiverChecksPassed=false;blocked.push("Job Card "+card+" has allocations/waivers exceeding the revised eligible charges.");}
     const cardLedgerIds=new Set(transactions.filter((tx:any)=>String(tx.job_card_number||"").trim().toUpperCase()===card&&tx.ledger_entry_id).map((tx:any)=>String(tx.ledger_entry_id)));
     const directAllocated=chargePaymentAllocations.filter((item:any)=>cardLedgerIds.has(String(item.charge_id||""))&&item.charge_is_voided!==true&&item.payment_is_voided!==true)
      .reduce((sum:number,item:any)=>sum+Number(item.amount||0),0);
-    if(directAllocated>newCardTotal+0.00001)blocked.push("Job Card "+card+" has charge-level allocations exceeding its revised FTO charge.");
+    if(directAllocated>newCardTotal+0.00001){chargeAllocationChecksPassed=false;blocked.push("Job Card "+card+" has charge-level allocations exceeding its revised FTO charge.");}
    }
    const uniqueBlocked=[...new Set(blocked)];
    return reply({
@@ -918,6 +921,7 @@ Deno.serve(async(req:Request)=>{
     old_total:Number(oldTotal.toFixed(2)),new_total:Number(newTotal.toFixed(2)),
     difference:Number((newTotal-oldTotal).toFixed(2)),
     changed_transaction_count:changes.filter((item:any)=>Math.abs(item.difference)>0.00001).length,
+    validation_summary:{job_cards_checked:checkedCards.size,payment_and_waiver_allocations:{checked:paymentWaiverChecked.size,passed:paymentWaiverChecksPassed},charge_level_allocations:{checked:chargeAllocationChecked.size,passed:chargeAllocationChecksPassed},unlinked_waivers:{checked:unlinkedWaiverChecked.size,passed:unlinkedWaiverChecksPassed}},
     changes,blocked_reasons:uniqueBlocked,can_apply:uniqueBlocked.length===0&&(batch.calculation_divisor===null||batch.calculation_multiplier===null||Number(batch.calculation_divisor)!==divisor||Number(batch.calculation_multiplier)!==multiplier||changes.some((item:any)=>Math.abs(item.difference)>0.00001)),
     allocations_preserved:true
    });

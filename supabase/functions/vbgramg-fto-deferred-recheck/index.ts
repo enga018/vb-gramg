@@ -145,6 +145,7 @@ Deno.serve(async (req: Request) => {
   if(!approved||approved.role!=="admin") return reply({error:"Only an approved VBGRAMG administrator can recheck deferred FTOs."},403);
 
   let runId:string|null=null;
+  let databaseChanged=false;
   try {
     const {data:batches,error:batchError}=await admin.from("vbgramg_fto_batches").select("id,fto_number").order("fto_number");
     if(batchError) throw new Error("Could not load imported FTO history.");
@@ -224,20 +225,26 @@ Deno.serve(async (req: Request) => {
         if(error) throw new Error(error.message||"Database recheck failed.");
         const resultBatch=data?.batches?.[0]?.result||{};
         successfulFtOs++;
+        databaseChanged=true;
         updatedCount+=Number(resultBatch.updated_count||0);
         stillDeferredCount+=Number(resultBatch.still_deferred_count||0);
         results.push({ftoNumber,...resultBatch});
       } catch(error) {
         const message=error instanceof Error?error.message:"Recheck failed.";
-        const {error:recordError}=await admin.rpc("vbgramg_record_fto_recheck_failure",{
-          p_run_id:runId,p_batch_id:batch.id,p_actor:claims.sub,p_stage:stage,p_error_message:message
-        });
-        if(recordError) {
-          auditPersistenceError=recordError.message||"Could not persist an FTO failure record.";
+        try {
+          const {error:recordError}=await admin.rpc("vbgramg_record_fto_recheck_failure",{
+            p_run_id:runId,p_batch_id:batch.id,p_actor:claims.sub,p_stage:stage,p_error_message:message
+          });
+          if(recordError) {
+            auditPersistenceError=recordError.message||"Could not persist an FTO failure record.";
+            failedChecks.push({ftoNumber,error:message,auditRecorded:false});
+          } else {
+            failedFtOs++;
+            failedChecks.push({ftoNumber,error:message,auditRecorded:true});
+          }
+        } catch(recordException) {
+          auditPersistenceError=recordException instanceof Error?recordException.message:"Could not persist an FTO failure record.";
           failedChecks.push({ftoNumber,error:message,auditRecorded:false});
-        } else {
-          failedFtOs++;
-          failedChecks.push({ftoNumber,error:message,auditRecorded:true});
         }
       }
     }
@@ -260,6 +267,6 @@ Deno.serve(async (req: Request) => {
       message:"Deferred FTO recheck completed. Existing Processed and Rejected records were not changed."});
   } catch(error) {
     return reply({success:false,error:error instanceof Error?error.message:"Deferred FTO recheck failed.",
-      ...(runId?{runId}:{}),databaseChanged:false},502);
+      ...(runId?{runId}:{}),databaseChanged},502);
   }
 });

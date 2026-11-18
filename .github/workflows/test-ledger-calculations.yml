@@ -83,6 +83,11 @@ on:
     paths:
       - "supabase/functions/shared/ledger-calculations.js"
       - "tests/ledger-calculations.test.cjs"
+      - "tests/pending-fto-import.test.cjs"
+      - "tests/atomic-contribution-writes.test.cjs"
+      - "tests/fto-transaction-link-safeguards.test.cjs"
+      - "pending-imports.html"
+      - "supabase/functions/vbgramg-contribution-data/index.ts"
       - ".github/workflows/test-ledger-calculations.yml"
 
 permissions:

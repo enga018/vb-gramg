@@ -1,10 +1,60 @@
 /* Shared sidebar navigation for VBGRAMG module pages. */
 (function () {
+  function initTheme() {
+    var root = document.documentElement, storageKey = "vbgramg-color-theme";
+    var media = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+    var selected = null, buttons = [];
+    try { var stored = window.localStorage.getItem(storageKey); if (stored === "light" || stored === "dark") selected = stored; } catch (_) {}
+    function apply() {
+      var dark = selected ? selected === "dark" : !!(media && media.matches);
+      root.classList.toggle("theme-dark", dark);
+      root.dataset.theme = selected || "system";
+      buttons.forEach(function (button) {
+        button.textContent = dark ? (button.classList.contains("global-theme-toggle-home") ? "☾" : "☾ Dark mode") : (button.classList.contains("global-theme-toggle-home") ? "☀" : "☀ Light mode");
+        button.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+        button.setAttribute("aria-pressed", dark ? "true" : "false");
+        button.title = dark ? "Dark mode — switch to light mode" : "Light mode — switch to dark mode";
+      });
+    }
+    function makeButton(home) {
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = home ? "global-theme-toggle global-theme-toggle-home" : "global-theme-toggle";
+      button.addEventListener("click", function () {
+        selected = root.classList.contains("theme-dark") ? "light" : "dark";
+        try { window.localStorage.setItem(storageKey, selected); } catch (_) {}
+        apply();
+      });
+      buttons.push(button); apply(); return button;
+    }
+    if (media) {
+      var onSystemChange = function () { if (!selected) apply(); };
+      if (media.addEventListener) media.addEventListener("change", onSystemChange);
+      else if (media.addListener) media.addListener(onSystemChange);
+    }
+    window.addEventListener("storage", function (event) {
+      if (event.key !== storageKey && event.key !== null) return;
+      selected = event.newValue === "light" || event.newValue === "dark" ? event.newValue : null;
+      apply();
+    });
+    apply(); return { makeButton: makeButton };
+  }
+
   function install() {
+    var theme = initTheme();
     if (window.self !== window.top) return;
     var path = window.location.pathname || "/";
-    var cleanPath = path.replace(/\/+$/, "") || "/";
-    if (cleanPath.endsWith("/index.html") || cleanPath === "/" || path.endsWith("/")) return;
+    var cleanPath = path.replace(/\\/+$/, "") || "/";
+    if (cleanPath.endsWith("/index.html") || cleanPath === "/" || path.endsWith("/")) {
+      var homeAccount = document.querySelector(".account");
+      if (homeAccount && !homeAccount.querySelector(".global-theme-toggle-home")) {
+        var homeThemeButton = theme.makeButton(true);
+        var logoutButton = homeAccount.querySelector("#logout-button");
+        if (logoutButton) homeAccount.insertBefore(homeThemeButton, logoutButton);
+        else homeAccount.appendChild(homeThemeButton);
+      }
+      return;
+    }
     if (document.querySelector(".global-sidebar")) return;
     var main = document.querySelector("main");
     if (!main) return;
@@ -31,6 +81,11 @@
     sidebar.setAttribute("aria-label", "Main navigation");
     sidebar.innerHTML = '<div class="global-sidebar-brand"><span class="global-sidebar-mark" aria-hidden="true">V</span><span><strong>VBGRAMG</strong><small>Village Benefit Management</small></span></div><div class="global-sidebar-label">WORKSPACE</div><nav class="global-sidebar-links" aria-label="Workspace"></nav>';
     var nav = sidebar.querySelector(".global-sidebar-links");
+    var themeControl = document.createElement("div");
+    themeControl.className = "global-theme-control";
+    themeControl.innerHTML = '<span class="global-theme-control-label">APPEARANCE</span>';
+    themeControl.appendChild(theme.makeButton(false));
+    sidebar.appendChild(themeControl);
     links.forEach(function (item) {
       var a = document.createElement("a");
       a.href = item[1];

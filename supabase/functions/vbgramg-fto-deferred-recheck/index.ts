@@ -76,10 +76,16 @@ async function fetchDetail(url: string, ftoNumber: string, listingRow: string[],
   if (!response.ok) throw new Error("Government detail request failed (HTTP " + response.status + ").");
   if (new URL(response.url).hostname !== "vbgramgrep.dord.gov.in") throw new Error("Government detail redirected to an unexpected host.");
   onStage?.("detail_validation");
-  const allRows = rowsOf(html), pageText = textOf(html);
-  if (!/FTO\s+Transaction\s+Details/i.test(pageText)) throw new Error("Government detail page did not validate.");
-  const header = allRows.find(r => r.some(c => /job\s*card\s*no/i.test(c)) && r.some(c => /reference\s*no/i.test(c)));
-  if (!header) throw new Error("Government transaction table header was not found.");
+  const pageText = textOf(html);
+  if (!/FTO\\s+Transaction\\s+Details/i.test(pageText)) throw new Error("Government detail page did not validate.");
+  // The detail page contains other tables (including bank summaries), and its
+  // transaction table itself contains bank SubTotal and final Total rows.
+  // Scope extraction to the one table containing the transaction header.
+  const transactionTable = [...html.matchAll(/<table\\b[^>]*>([\\s\\S]*?)<\\/table>/gi)]
+    .map(match => rowsOf(match[1]))
+    .find(rows => rows.some(r => r.some(c => /job\\s*card\\s*no/i.test(c)) && r.some(c => /reference\\s*no/i.test(c))));
+  if (!transactionTable) throw new Error("Government transaction table header was not found.");
+  const header = transactionTable.find(r => r.some(c => /job\\s*card\\s*no/i.test(c)) && r.some(c => /reference\\s*no/i.test(c)))!;
   const norm = (s:string) => s.toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
   const h = header.map(norm), find = (...names:string[]) => h.findIndex(v => names.includes(v));
   const job=find("job card no panchayat name","job card no","job card number");
@@ -88,13 +94,17 @@ async function fetchDetail(url: string, ftoNumber: string, listingRow: string[],
   const credit=find("credit amount in rs","credit amount");
   const state=find("status"), processed=find("processed date"), reason=find("rejection reason");
   if ([job,ref,amountToBeCredited,credit,state].some(v=>v<0)) throw new Error("Government table is missing required columns.");
-  const transactions = allRows.slice(allRows.indexOf(header)+1).map((r,i) => {
-    const card=jobCard(r[job]||""), reference=String(r[ref]||"").trim();
-    const rawStatus=String(r[state]||"").trim();
-    return { ftoNumber, jobCardNumber:card, referenceNo:reference, normalizedStatus:status(rawStatus),
-      amountToBeCredited:amount(r[amountToBeCredited]||""), creditAmount:amount(r[credit]||""), processedDate:processed>=0?parseDate(r[processed]||""):"",
-      rejectionReason:reason>=0?String(r[reason]||"").trim():"", rowNumber:i+1 };
-  });
+  const transactions = transactionTable.slice(transactionTable.indexOf(header)+1)
+    // Government inserts bank-wise subtotal rows and one final total row in
+    // the same table. They are summaries, not transaction records.
+    .filter(r => !r.some(c => /^(?:sub\\s*total|total)$/i.test(String(c||"").trim())))
+    .map((r,i) => {
+      const card=jobCard(r[job]||""), reference=String(r[ref]||"").trim();
+      const rawStatus=String(r[state]||"").trim();
+      return { ftoNumber, jobCardNumber:card, referenceNo:reference, normalizedStatus:status(rawStatus),
+        amountToBeCredited:amount(r[amountToBeCredited]||""), creditAmount:amount(r[credit]||""), processedDate:processed>=0?parseDate(r[processed]||""):"",
+        rejectionReason:reason>=0?String(r[reason]||"").trim():"", rowNumber:i+1 };
+    });
   if (!transactions.length) throw new Error("Government transaction table is empty.");
   const refs=new Set<string>(), errors:string[]=[];
   for (const tx of transactions) {

@@ -276,7 +276,7 @@ BEGIN
     NULL;
   END;
 END
-$;
+$$;
 
 -- The production migrations intentionally revoke direct table access from
 -- service_role. After asserting that isolation above, grant SELECT only in

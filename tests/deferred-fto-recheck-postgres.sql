@@ -61,6 +61,7 @@ GRANT SELECT, INSERT ON public.vbgramg_fto_status_history TO service_role;
 \ir ../supabase/migrations/20261118190000_add_deferred_fto_recheck_audit.sql
 \ir ../supabase/migrations/20261118193000_add_deferred_fto_recheck_run_rpcs.sql
 \ir ../supabase/migrations/20261118200000_add_deferred_fto_recheck_recovery.sql
+\ir ../supabase/migrations/20261118220000_enforce_single_active_fto_recheck.sql
 
 INSERT INTO auth.users(id,email)
 VALUES ('11111111-1111-4111-8111-111111111111','admin@example.test');
@@ -295,6 +296,17 @@ DECLARE
 BEGIN
   v_run_id := public.vbgramg_start_fto_recheck_run(v_actor, 1);
 
+  -- A second start is rejected while the first run is active, with a stable
+  -- message suitable for the administrator-facing UI.
+  BEGIN
+    PERFORM public.vbgramg_start_fto_recheck_run(v_actor, 1);
+    RAISE EXCEPTION 'A concurrent deferred FTO recheck start should have been rejected';
+  EXCEPTION WHEN SQLSTATE '55P03' THEN
+    IF position('already in progress' in lower(SQLERRM)) = 0 THEN
+      RAISE EXCEPTION 'Concurrent-run rejection had an unexpected message: %', SQLERRM;
+    END IF;
+  END;
+
   v_result := public.vbgramg_recheck_deferred_ftos_with_run(
     '{
       "ftos":[{
@@ -400,12 +412,17 @@ DECLARE
   v_run_id uuid;
   v_recovered integer;
 BEGIN
-  v_run_id := public.vbgramg_start_fto_recheck_run(v_actor, 1);
+  -- Use a zero-FTO run so it can be cleanly finalized after the heartbeat
+  -- assertion, leaving the single-active-run slot free for stale-run testing.
+  v_run_id := public.vbgramg_start_fto_recheck_run(v_actor, 0);
   v_recovered := public.vbgramg_recover_stale_fto_recheck_runs(v_actor);
   IF v_recovered <> 0 THEN
     RAISE EXCEPTION 'An active run was incorrectly recovered';
   END IF;
   PERFORM public.vbgramg_heartbeat_fto_recheck_run(v_run_id, v_actor);
+  PERFORM public.vbgramg_complete_fto_recheck_run(
+    v_run_id, v_actor, 0, 0, 'completed', null
+  );
 END
 $$;
 RESET ROLE;

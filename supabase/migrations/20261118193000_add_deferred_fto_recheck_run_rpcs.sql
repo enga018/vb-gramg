@@ -142,7 +142,7 @@ declare
   v_message text;
   v_attempt_count integer;
 begin
-  if p_run_id is null or p_batch_id is null or p_actor is null
+  if p_run_id is null or p_batch_id is null or p_actor is null or p_stage is null
      or p_stage not in ('listing_match', 'detail_fetch', 'detail_validation', 'reconciliation') then
     raise exception 'Invalid deferred FTO failure record.';
   end if;
@@ -225,7 +225,7 @@ declare
   v_failed integer;
   v_message text;
 begin
-  if p_run_id is null or p_actor is null
+  if p_run_id is null or p_actor is null or p_status is null
      or p_successful_ftos is null or p_successful_ftos < 0
      or p_failed_ftos is null or p_failed_ftos < 0
      or p_status not in ('completed', 'partial', 'failed') then

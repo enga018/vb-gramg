@@ -41,6 +41,7 @@ test("restoring a deferred charge invokes FIFO for its job card", () => {
   assert.match(reactivationMigration, /OLD\.is_deferred IS TRUE[\s\S]*?NEW\.is_deferred IS FALSE/);
   assert.match(reactivationMigration, /vbgramg_auto_allocate_unallocated_payments\(NEW\.job_card_number\)/);
   assert.match(reactivationMigration, /NEW\.period_id IS NULL/);
+  assert.match(reactivationMigration, /app\.vbgramg_allow_fto_period_rebuild/);
   assert.match(reactivationMigration, /COALESCE\(NEW\.is_voided, false\)/);
   assert.match(reactivationMigration, /REVOKE ALL ON FUNCTION public\.vbgramg_auto_allocate_after_deferred_charge_reactivation\(\)/);
 });

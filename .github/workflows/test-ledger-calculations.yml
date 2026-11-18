@@ -308,6 +308,10 @@ jobs:
         run: |
           createdb vbgramg_voided_payment_test
           PGDATABASE=vbgramg_voided_payment_test psql -v ON_ERROR_STOP=1 -f tests/voided-payment-allocation-safeguards-postgres.sql
+      - name: Run payment allocation source compatibility PostgreSQL tests
+        run: |
+          createdb vbgramg_allocation_sources_test
+          PGDATABASE=vbgramg_allocation_sources_test psql -v ON_ERROR_STOP=1 -f tests/payment-allocation-source-compatibility-postgres.sql
       - name: Run refund-aware payment allocation guard PostgreSQL tests
         run: |
           createdb vbgramg_refund_guard_test

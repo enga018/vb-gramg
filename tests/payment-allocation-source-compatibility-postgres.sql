@@ -35,7 +35,8 @@ BEGIN
     PERFORM 1
     FROM public.vbgramg_payment_allocations a
     WHERE a.job_card_number = p_job_card_number
-      AND a.period_id = v_period.id;
+      AND a.period_id = v_period.id
+      AND a.allocation_source = 'fifo_auto';
 
     INSERT INTO public.vbgramg_payment_allocations
       (transaction_id, period_id, job_card_number, amount, allocation_source)
@@ -50,9 +51,8 @@ $function$;
 CREATE FUNCTION public.vbgramg_replace_payment_allocations(
   p_transaction_id uuid,
   p_allocations jsonb,
-  p_job_card_number text,
-  p_actor uuid,
-  p_allocation_source text DEFAULT 'manual'
+  p_allocation_source text DEFAULT 'manual',
+  p_user_id uuid DEFAULT NULL
 )
 RETURNS jsonb LANGUAGE plpgsql AS $function$
 DECLARE
@@ -124,7 +124,7 @@ BEGIN
   PERFORM public.vbgramg_replace_payment_allocations(
     v_payment,
     jsonb_build_array(jsonb_build_object('period_id',v_period,'amount',25)),
-    'MZ-TEST',NULL,'manual'
+    'manual',NULL
   );
   SELECT amount INTO v_manual FROM public.vbgramg_payment_allocations
   WHERE transaction_id=v_payment AND period_id=v_period AND allocation_source='manual';
@@ -141,7 +141,7 @@ BEGIN
     PERFORM public.vbgramg_replace_payment_allocations(
       v_payment,
       jsonb_build_array(jsonb_build_object('period_id',v_period,'amount',30)),
-      'MZ-TEST',NULL,'manual'
+      'manual',NULL
     );
   EXCEPTION WHEN OTHERS THEN
     v_failed := true;

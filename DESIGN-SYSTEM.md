@@ -9,7 +9,8 @@
 VBGRAMG uses a modern, dependable administrative-dashboard visual language. The interface prioritizes readable operational data, clear actions, restrained decoration, and consistent mobile/desktop behaviour.
 
 - Light mode is the default.
-- Dark mode follows the device/browser `prefers-color-scheme` setting.
+- Until a user chooses a theme, the app follows the device/browser `prefers-color-scheme` setting.
+- A user-selected Light or Dark preference is saved in local storage and takes precedence over the device setting across pages.
 - Dark surfaces use charcoal tones and subtle borders; avoid heavy shadows.
 - The brand/action palette is blue in light mode. Existing restrained teal primary actions are retained in dark mode for continuity.
 - Financial/status meaning remains stable: green = paid/success, red = outstanding/error, amber = deferred/warning, blue = overpaid/information, neutral = exempt/inactive.

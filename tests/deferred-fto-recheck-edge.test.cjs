@@ -25,7 +25,7 @@ test("complete Government detail rows are validated before reference reconciliat
 test("recheck validates both Government amount columns and passes listing data explicitly", () => {
   assert.match(source, /amount to be credited in rs/);
   assert.match(source, /invalid Amount to Be Credited/);
-  assert.ok(source.includes("async function fetchDetail(url: string, ftoNumber: string, listingRow: string[])"));
+  assert.match(source, /async function fetchDetail\(url: string, ftoNumber: string, listingRow: string\[\], onStage\?/);
   assert.match(source, /fetchDetail\\(candidate\\.url,ftoNumber,candidate\\.row\\)/);
   assert.doesNotMatch(source, /fetchDetail as any/);
 });
@@ -73,4 +73,9 @@ test("successful reconciliation and its audit attempt use the atomic run RPC", (
 test("detail fetch and Government table validation are audited as separate stages", () => {
   assert.match(source, /onStage\?\.\("detail_validation"\)/);
   assert.match(source, /nextStage=>\{stage=nextStage;\}/);
+});
+
+test("detail aggregate validation uses the supplied FTO listing row", () => {
+  assert.match(source, /String\(listingRow\[i\]\|\|""\)/);
+  assert.doesNotMatch(source, /String\(listing\[i\]\|\|""\)/);
 });

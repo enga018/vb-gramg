@@ -181,6 +181,57 @@ Deno.serve(async(req:Request)=>{
     unmatched_transaction_count:unmatched,matching_job_card_count:uniqueCards.size,
     transactions:matching,applicant_matches:applicantMatches,active_mis_import_id:misState.active_import_id,active_mis_updated_at:misState.updated_at||null});
   }
+  if(action==="save-pending-fto-mappings"){
+   if(approved.role!=="admin")return reply({error:"Only an approved administrator can save applicant mappings."},403);
+   const ftoNumber=String(body.fto_number||"").trim().toUpperCase().slice(0,100);
+   if(!ftoNumber)return reply({error:"An FTO number is required."},400);
+   const {data:state,error:stateError}=await admin.from("vbgramg_fto_inspection_state")
+    .select("fto_number_normalized,classification,validated_transactions").eq("fto_number_normalized",ftoNumber).maybeSingle();
+   if(stateError)throw stateError;
+   if(!state||state.classification!=="ELIGIBLE")return reply({error:"This FTO is no longer available in Pending Imports."},409);
+   const {data:batch,error:batchError}=await admin.from("vbgramg_fto_batches").select("id").eq("fto_number",ftoNumber).maybeSingle();
+   if(batchError)throw batchError;
+   if(batch)return reply({error:"This FTO has already been imported. Applicant mappings cannot be changed here."},409);
+   const activeApplicants=await loadActiveMisApplicants(admin);
+   const saved=Array.isArray(state.validated_transactions)?state.validated_transactions:[];
+   const byCard=new Map<string,any>();
+   for(const tx of saved){
+    const card=String(tx?.jobCardNumber||"").trim().toUpperCase(),name=String(tx?.personName||"").trim();
+    if(!card||!name)continue;
+    if(byCard.has(card))return reply({error:"This FTO contains more than one transaction for "+card+". Administrator review is required."},409);
+    byCard.set(card,tx);
+   }
+   const requested=Array.isArray(body.applicant_mappings)?body.applicant_mappings:[];
+   if(requested.length!==byCard.size)return reply({error:"Select an Active MIS applicant for every eligible Job Card before saving."},400);
+   const replacements=new Set(Array.isArray(body.confirm_mapping_replacements)?body.confirm_mapping_replacements.map((v:unknown)=>String(v||"").trim().toUpperCase()):[]);
+   const cards=[...byCard.keys()];
+   const {data:existing,error:existingError}=cards.length?await admin.from("vbgramg_fto_applicant_mappings")
+    .select("job_card_number,normalized_fto_name,applicant_name,applicant_number,applicant_unique_id").in("job_card_number",cards):{data:[],error:null};
+   if(existingError)throw existingError;
+   const existingByKey=new Map((existing||[]).map((row:any)=>[String(row.job_card_number||"").trim().toUpperCase()+"|"+String(row.normalized_fto_name||""),row]));
+   const rowsToSave:Record<string,unknown>[]=[];
+   const seen=new Set<string>();
+   for(const raw of requested){
+    const card=String(raw?.job_card_number||"").trim().toUpperCase(),tx=byCard.get(card);
+    if(!tx||seen.has(card))return reply({error:"The applicant selection contains an invalid or duplicate Job Card."},400);
+    seen.add(card);
+    const governmentName=String(tx.personName||"").trim(),normalizedName=normalizeApplicantIdentity(governmentName);
+    if(!normalizedName)return reply({error:"The Government applicant name is invalid for "+card+"."},400);
+    const candidates=activeApplicants.get(card)||[...(activeApplicants.entries())].find(([key])=>String(key).trim().toUpperCase()===card)?.[1]||[];
+    const uniqueId=String(raw?.applicant_unique_id||"").trim(),name=String(raw?.applicant_name||"").trim(),number=String(raw?.applicant_number||"").trim();
+    const chosen=candidates.find((candidate:any)=>(uniqueId&&candidate.applicant_unique_id===uniqueId)||(!uniqueId&&candidate.applicant_name===name&&String(candidate.applicant_number||"")===number));
+    if(!chosen)return reply({error:"The selected applicant for "+card+" is not in the latest Active MIS. Refresh and select again."},409);
+    const key=card+"|"+normalizedName,prior=existingByKey.get(key);
+    if(prior){
+     const same=(prior.applicant_unique_id&&chosen.applicant_unique_id===prior.applicant_unique_id)||(!prior.applicant_unique_id&&String(prior.applicant_name||"")===String(chosen.applicant_name||"")&&String(prior.applicant_number||"")===String(chosen.applicant_number||""));
+     if(!same&&!replacements.has(card))return reply({error:"A saved mapping exists for "+card+". Confirm replacement explicitly before saving.",mapping_conflict:true,job_card_number:card,saved_applicant_name:prior.applicant_name},409);
+    }
+    rowsToSave.push({job_card_number:card,normalized_fto_name:normalizedName,government_applicant_name:governmentName,applicant_name:chosen.applicant_name,applicant_number:chosen.applicant_number,applicant_unique_id:chosen.applicant_unique_id,confirmed_by:authData.user.id,confirmed_at:new Date().toISOString(),updated_at:new Date().toISOString()});
+   }
+   if(seen.size!==byCard.size)return reply({error:"One or more eligible Job Cards have no applicant selection."},400);
+   if(rowsToSave.length){const {error:saveError}=await admin.from("vbgramg_fto_applicant_mappings").upsert(rowsToSave,{onConflict:"job_card_number,normalized_fto_name"});if(saveError)throw saveError;}
+   return reply({approved:true,saved_count:rowsToSave.length,message:"Applicant mappings saved and confirmed. No FTO import was performed."});
+  }
   if(action==="list-pending-ftos"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can access Pending Imports."},403);
    const {data:states,error:statesError}=await admin.from("vbgramg_fto_inspection_state")

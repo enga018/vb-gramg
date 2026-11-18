@@ -23,7 +23,7 @@ test("Eligibility stores only Active MIS Job Card rows and keeps applicant revie
   assert.match(details, /importableTransactionCount: matchingTransactions\.length/);
   assert.match(details, /validated_transactions: matchingTransactions/);
   assert.match(details, /unmatched_transaction_count: unmatchedTransactionCount/);
-  assert.match(details, /validateGovernmentTransactions\(transactions, item\.listingRow\)/);
+  assert.match(details, /validateGovernmentTransactions\(transactions, item\.listingRow \|\| \[\]\)/);
   assert.doesNotMatch(details, /village.*(?:filter|eligible|scope)/i);
 });
 

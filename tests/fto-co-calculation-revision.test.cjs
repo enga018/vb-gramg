@@ -46,7 +46,7 @@ test("CO revision apply delegates to a service-role-only atomic database operati
   assert.match(apply, /p_expected_last_checked_at/);
   assert.match(apply, /p_expected_last_deferred_recheck_at/);
   assert.match(snapshotGuard, /last_deferred_recheck_at is distinct from p_expected_last_deferred_recheck_at/);
-  assert.match(cleanup, /drop function if exists public\\.vbgramg_apply_fto_co_revision\\(uuid,integer,numeric,numeric,text,uuid,text\\)/);
+  assert.match(cleanup, /drop function if exists public\.vbgramg_apply_fto_co_revision\(uuid,integer,numeric,numeric,text,uuid,text\)/);
   assert.match(migration, /revoke all on function public\.vbgramg_apply_fto_co_revision/);
   assert.match(migration, /grant execute on function public\.vbgramg_apply_fto_co_revision[\s\S]*to service_role/);
 });

@@ -77,7 +77,7 @@ async function openPending(number){
   }
   cell(tr,tx.referenceNumber);cell(tr,tx.creditAmount);cell(tr,tx.status);cell(tr,tx.transactionDate);$("detail-rows").append(tr);
  }
- status("detail-status","Applicant suggestions are based on the latest Active MIS. Confirm uncertain matches manually. No applicant mapping is saved and no import has been performed yet.","success");
+ status("detail-status","Applicant suggestions are based on the latest Active MIS. Save confirmed selections to reuse them on future FTOs. Saving mappings does not import this FTO.","success");
 }
 async function saveApplicantMappings(){
  if(!currentFtoNumber||!currentApplicantMatches.size){status("detail-status","Open a Pending FTO before saving.","error");return;}

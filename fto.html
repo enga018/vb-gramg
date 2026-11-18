@@ -693,7 +693,6 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
    <div class="fto-modal-actions co-revision-actions">
     <button id="fto-co-cancel" type="button" class="secondary">Cancel</button>
     <button id="fto-co-preview" type="button" class="secondary">Preview Calculation</button>
-    <button id="fto-co-test" type="button" class="secondary" disabled>Test Apply (Rollback)</button>
     <button id="fto-co-apply" type="button" disabled>Apply Calculation</button>
    </div>
   </div>
@@ -1071,7 +1070,7 @@ let currentCoRevisionBatch=null,coRevisionPreview=null;
 function coMoney(value){return "₹"+Number(value||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});}
 function coRevisionStatus(message,type=""){const el=$("fto-co-preview-status");el.textContent=message;el.classList.remove("error","success");if(type)el.classList.add(type);}
 function invalidateCoRevisionPreview(){
- coRevisionPreview=null;$("fto-co-apply").disabled=true;$("fto-co-test").disabled=true;
+ coRevisionPreview=null;$("fto-co-apply").disabled=true;
  $("fto-co-preview-results").replaceChildren();
  coRevisionStatus("Calculation parameters changed. Preview again.");
 }
@@ -1135,7 +1134,7 @@ function renderCoRevisionPreview(data){
   if(changed.length>100){const more=document.createElement("p");more.className="muted";more.textContent="Showing the first 100 changed transactions of "+changed.length+".";root.appendChild(more);}
  }
  const canApply=data.can_apply===true;
- $("fto-co-apply").disabled=!canApply;$("fto-co-test").disabled=!canApply;
+ $("fto-co-apply").disabled=!canApply;
  coRevisionStatus(canApply
   ?"Preview complete. Review the totals and changes, enter a reason, then apply the revision."
   :(changed.length===0?"No CO amounts would change.":"The preview contains blocking issues. Resolve them before applying."),canApply?"success":"");
@@ -1151,26 +1150,6 @@ async function previewFtoCoCalculation(){
   coRevisionPreview=data;renderCoRevisionPreview(data);
  }catch(err){coRevisionPreview=null;coRevisionStatus(err.message||"Could not preview the CO calculation.","error");}
  finally{$("fto-co-preview").disabled=false;$("fto-co-preview").textContent="Preview Calculation";}
-}
-async function testFtoCoCalculation(){
- const batch=currentCoRevisionBatch,preview=coRevisionPreview;
- if(!batch||!preview||preview.can_apply!==true)return;
- const reason=$("fto-co-reason").value.trim();
- if(reason.length<10){coRevisionStatus("Enter a reason with at least 10 characters before running the rollback test.","error");$("fto-co-reason").focus();return;}
- if(Number($("fto-co-divisor").value)!==Number(preview.divisor)||Number($("fto-co-multiplier").value)!==Number(preview.multiplier)){invalidateCoRevisionPreview();return;}
- if(!window.confirm("Run the real CO revision database operation in rollback mode? It will test all writes and constraints, then discard every database change. No contribution records will be changed."))return;
- $("fto-co-test").disabled=true;$("fto-co-test").textContent="Testing…";
- try{
-  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{
-   action:"test-fto-co-revision",batch_id:batch.id,divisor:preview.divisor,multiplier:preview.multiplier,
-   expected_revision_number:preview.revision_number,expected_period_id:preview.expected_period_id,
-   expected_charge_period:preview.expected_charge_period,expected_last_checked_at:preview.expected_last_checked_at,
-   expected_last_deferred_recheck_at:preview.expected_last_deferred_recheck_at,reason
-  },deduplicate:false,timeoutMs:false});
-  if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||"Rollback test failed.");
-  coRevisionStatus("Rollback test passed. The database completed the revision operation, then rolled back all changes. "+Number(data.transactions_changed||0)+" transactions and "+Number(data.ledger_updated||0)+" ledger charges were tested. No financial records were changed.","success");
- }catch(err){coRevisionStatus("Rollback test failed: "+(err.message||"Unknown error")+". No changes were committed.","error");}
- finally{$("fto-co-test").disabled=!(coRevisionPreview&&coRevisionPreview.can_apply===true);$("fto-co-test").textContent="Test Apply (Rollback)";}
 }
 async function applyFtoCoCalculation(){
  const batch=currentCoRevisionBatch,preview=coRevisionPreview;
@@ -1197,7 +1176,6 @@ async function applyFtoCoCalculation(){
  finally{$("fto-co-apply").textContent="Apply Calculation";}
 }
 $("fto-co-preview").addEventListener("click",previewFtoCoCalculation);
-$("fto-co-test").addEventListener("click",testFtoCoCalculation);
 $("fto-co-apply").addEventListener("click",applyFtoCoCalculation);
 $("fto-co-cancel").addEventListener("click",closeFtoCoModal);
 $("fto-co-modal-close").addEventListener("click",closeFtoCoModal);

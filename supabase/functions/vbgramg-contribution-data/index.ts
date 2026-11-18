@@ -926,6 +926,37 @@ Deno.serve(async(req:Request)=>{
     allocations_preserved:true
    });
   }
+  if(action==="test-fto-co-revision"){
+   if(approved.role!=="admin")return reply({error:"Only an approved administrator can run a CO calculation rollback test."},403);
+   const batchId=String(body.batch_id||"").trim(),reason=String(body.reason||"").trim();
+   const divisor=Number(body.divisor),multiplier=Number(body.multiplier),expectedRevision=Number(body.expected_revision_number);
+   const expectedPeriodId=String(body.expected_period_id||"").trim(),expectedChargePeriod=String(body.expected_charge_period||"").trim();
+   const expectedLastCheckedAt=String(body.expected_last_checked_at||"").trim();
+   const expectedLastDeferredRecheckAt=body.expected_last_deferred_recheck_at===null?null:String(body.expected_last_deferred_recheck_at||"").trim()||null;
+   if(!batchId||!reason||!expectedPeriodId||!expectedChargePeriod||!expectedLastCheckedAt)return reply({error:"The FTO preview is incomplete. Preview the calculation again."},400);
+   if(!Number.isInteger(divisor)||divisor<=0||divisor>1000000000||!Number.isInteger(multiplier)||multiplier<=0||multiplier>1000000)return reply({error:"Divisor and multiplier must be whole positive numbers within the allowed range."},400);
+   if(!Number.isInteger(expectedRevision)||expectedRevision<1)return reply({error:"Reload the FTO and preview the calculation again."},400);
+   const {data:result,error}=await admin.rpc("vbgramg_apply_fto_co_revision",{
+    p_batch_id:batchId,p_expected_revision_number:expectedRevision,
+    p_expected_period_id:expectedPeriodId,p_expected_charge_period:expectedChargePeriod,
+    p_expected_last_checked_at:expectedLastCheckedAt,
+    p_expected_last_deferred_recheck_at:expectedLastDeferredRecheckAt,
+    p_divisor:divisor,p_multiplier:multiplier,p_revision_reason:reason,
+    p_actor_user_id:authData.user.id,p_actor_email:authData.user.email
+   }).rollback();
+   if(error)throw error;
+   if(!result||result.ok!==true)return reply({error:"The rollback test did not receive a successful database revision result."},500);
+   return reply({
+    tested:true,rolled_back:true,batch_id:batchId,
+    revision_number_would_be:Number(result.revision_number||expectedRevision+1),
+    transactions_changed:Number(result.transactions_changed||0),
+    ledger_updated:Number(result.ledger_updated||0),
+    old_eligible_total:Number(result.old_eligible_total||0),
+    new_eligible_total:Number(result.new_eligible_total||0),
+    allocations_preserved:result.allocations_preserved===true,
+    message:"The revision RPC completed successfully and PostgREST rolled back the request transaction."
+   });
+  }
   if(action==="apply-fto-co-revision"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can apply a CO calculation change."},403);
    const batchId=String(body.batch_id||"").trim(),reason=String(body.reason||"").trim();

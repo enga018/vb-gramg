@@ -9,7 +9,11 @@ SECURITY DEFINER
 SET search_path = ''
 AS $function$
 BEGIN
-  IF OLD.is_deferred IS DISTINCT FROM TRUE
+  -- Change Period deliberately stages replacement FTO rows as deferred and
+  -- restores their status inside one protected rebuild. Do not allocate from
+  -- this intermediate state; that workflow owns its own reconciliation.
+  IF pg_catalog.current_setting('app.vbgramg_allow_fto_period_rebuild', true) = 'on'
+     OR OLD.is_deferred IS DISTINCT FROM TRUE
      OR NEW.is_deferred IS DISTINCT FROM FALSE
      OR NEW.period_id IS NULL
      OR NEW.entry_type NOT IN ('charge', 'other_charge', 'sanitationFee')

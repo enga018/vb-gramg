@@ -9,6 +9,7 @@ const page = read("fto.html");
 const migration = read("supabase/migrations/20261118240000_atomic_fto_co_calculation_revision.sql");
 const snapshotGuard = read("supabase/migrations/20261118242000_guard_fto_co_revision_preview_snapshot.sql");
 const cleanup = read("supabase/migrations/20261118243000_drop_legacy_fto_co_revision_rpc.sql");
+const deferredGuard = read("supabase/migrations/20261118244000_exclude_deferred_charges_from_co_revision_allocation_guard.sql");
 
 test("CO revision preview is admin-only and recalculates saved Credit Amount values", () => {
   const start = edge.indexOf('if(action==="preview-fto-co-revision"){');
@@ -56,6 +57,7 @@ test("Atomic CO revision preserves allocations and rejects unsupported balances"
   assert.match(migration, /contribution:' \|\| v_card/);
   assert.match(migration, /allocated \+ v_waived > v_non_fto \+ v_new_card_total/);
   assert.match(migration, /charge_payment_allocations/);
+  assert.match(deferredGuard, /coalesce\(fto_charge\.is_deferred,false\) = false/);
   assert.match(migration, /allocations_preserved',true/);
   assert.doesNotMatch(migration, /delete from public\.vbgramg_payment_allocations/i);
   assert.doesNotMatch(migration, /delete from public\.vbgramg_waiver_period_allocations/i);

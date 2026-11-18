@@ -870,7 +870,7 @@ Deno.serve(async(req:Request)=>{
      seenLedgerIds.add(ledgerId);
      const old=Number(ledger.amount||0);
      oldTotal+=old;newTotal+=next;
-     newByCard.set(card,(newByCard.get(card)||0)+next);
+     if(ledger.is_deferred!==true)newByCard.set(card,(newByCard.get(card)||0)+next);
      changes.push({reference_no:tx.reference_no,job_card_number:card,status,old_charge:old,new_charge:next,difference:Number((next-old).toFixed(2))});
     }else if(["rejected","other"].includes(status)){
      if(ledgerId)blocked.push("Rejected/other reference "+String(tx.reference_no||"")+" unexpectedly has a linked charge.");

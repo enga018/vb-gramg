@@ -106,7 +106,6 @@ function validateGovernmentTransactions(transactions: Record<string, any>[], lis
     if (ref && refs.has(ref)) errors.push(label + ": duplicate Reference Number " + ref + ".");
     if (ref) refs.add(ref);
     if (!tx.creditAmount) errors.push(label + ": missing or invalid Credit Amount.");
-    if (!tx.creditAmount) errors.push(label + ": missing or invalid Credit Amount.");
     if (tx.normalizedStatus === "other") errors.push(label + ": unrecognized Government status.");
   }
   const sum = (rows: Record<string, any>[]) => rows.reduce((n, tx) => n + Number(tx.creditAmount || 0), 0);

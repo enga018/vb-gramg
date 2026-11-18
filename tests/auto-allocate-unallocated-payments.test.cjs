@@ -12,7 +12,7 @@ const paymentMigration = fs.readFileSync(
   "utf8"
 );
 const reactivationMigration = fs.readFileSync(
-  path.join(__dirname, "../supabase/migrations/20261118100000_auto_allocate_after_deferred_reactivation.sql"),
+  path.join(__dirname, "../supabase/migrations/20261118210000_auto_allocate_after_deferred_reactivation.sql"),
   "utf8"
 );
 const postgresTest = fs.readFileSync(
@@ -90,7 +90,7 @@ test("automatic allocations retain the original payment and write an audit entry
 });
 
 test("isolated PostgreSQL test covers FIFO allocation after deferred-charge reactivation", () => {
-  assert.match(postgresTest, /20261118100000_auto_allocate_after_deferred_reactivation/);
+  assert.match(postgresTest, /20261118210000_auto_allocate_after_deferred_reactivation/);
   assert.match(postgresTest, /MZ-DEFER/);
   assert.match(postgresTest, /Deferred-charge reactivation FIFO failed/);
   assert.match(postgresTest, /did not write exactly one FIFO audit entry/);

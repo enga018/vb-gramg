@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0f172a">
+<title>Pending Imports — VBGRAMG</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f3f6fb;--line:#e3e8f0;--muted:#667085;--ink:#172033}
+*{box-sizing:border-box}body{margin:0;padding:20px}main{width:min(100%,1200px);margin:0 auto}
+header,.panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 4px 18px rgb(23 32 51 / 4%)}
+header{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}h1{font-size:1.35rem;margin:0 0 5px}h2{font-size:1.08rem;margin:0 0 6px}p{color:var(--muted);line-height:1.5;margin:5px 0}
+button,.link{font:inherit;font-size:.9rem;font-weight:650;border:1px solid transparent;border-radius:10px;min-height:40px;padding:9px 14px;background:var(--ink);color:white;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+button.secondary,.link.secondary{background:#f0f3f8;color:#344054;border-color:#e0e6ef}
+.status{margin:14px 0;padding:11px 13px;border:1px solid #e5eaf2;border-radius:10px;background:#f7f9fc;color:#475467;font-size:.88rem;line-height:1.45;white-space:pre-wrap}.status.error{background:#fff4f2;border-color:#ffd8d2;color:#a12b20}
+.hidden{display:none!important}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px;margin-top:14px}table{border-collapse:collapse;width:100%;font-size:.9rem}th,td{text-align:left;padding:12px 13px;border-bottom:1px solid #edf0f5;vertical-align:middle}th{background:#f5f7fb;color:#5b6577;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em}tr:last-child td{border-bottom:0}.num{font-variant-numeric:tabular-nums}.detail-head{display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap}.detail-table{max-height:60vh;overflow:auto}.empty{padding:28px;text-align:center;color:var(--muted)}
+@media(max-width:650px){body{padding:10px}header,.panel{padding:15px}th,td{padding:10px 9px;font-size:.82rem}}
+</style>
+</head>
+<body><main>
+<header><div><h1>Pending Imports</h1><p>Continue FTOs from their saved inspection. Government details are not fetched again.</p></div><div class="actions"><a class="link secondary" href="./fto.html">FTO History</a><a class="link secondary" href="./fto-government-fetch.html">New FTO Import</a><button id="refresh" type="button">Refresh</button></div></header>
+<section class="panel" id="access-panel"><h2>Administrator access</h2><p>Sign in with an approved VBGRAMG administrator account.</p><div id="access-status" class="status">Checking your session…</div></section>
+<section class="panel hidden" id="app-panel"><h2>Inspected FTOs awaiting import</h2><p>Only eligible, unimported FTOs are shown. Transaction counts are revalidated against the latest Active MIS whenever this page is refreshed or an FTO is opened.</p><div id="list-status" class="status">Loading Pending Imports…</div><div class="table-wrap"><table><thead><tr><th>FTO Number</th><th>Government Rows</th><th>Eligible Rows</th><th>Unmatched</th><th>Inspected On</th><th></th></tr></thead><tbody id="pending-rows"></tbody></table><div id="empty" class="empty hidden">There are no FTOs waiting in Pending Imports.</div></div></section>
+<section class="panel hidden" id="detail-panel"><div class="detail-head"><div><h2 id="detail-title">FTO details</h2><p id="detail-summary"></p></div><button id="close-detail" class="secondary" type="button">Back to list</button></div><div id="detail-status" class="status">Loading saved inspection…</div><div class="table-wrap detail-table"><table><thead><tr><th>Job Card</th><th>Government Applicant</th><th>Reference No.</th><th>Credit Amount</th><th>Status</th><th>Transaction Date</th></tr></thead><tbody id="detail-rows"></tbody></table></div><p>These are saved Government rows revalidated against the latest Active MIS. Applicant matching, Contribution period selection, CO calculation, and final import controls are the next workflow step.</p></section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./js/supabase-client.js?v=20261117a"></script>
+<script src="./js/data-loader.js?v=20261117a"></script>
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id),client=window.vbgramgSupabase;
+let authSequence=0;
+function status(id,message,type){const el=$(id);el.textContent=message;el.className="status"+(type?" "+type:"");}
+function cell(row,value){const td=row.insertCell();td.textContent=value==null?"":String(value);return td;}
+function dateLabel(value){if(!value)return "—";const d=new Date(value);return Number.isNaN(d.getTime())?String(value):d.toLocaleString("en-IN");}
+async function loadPending(){
+ status("list-status","Revalidating saved inspections against the latest Active MIS…");
+ $("pending-rows").replaceChildren();$("empty").classList.add("hidden");
+ const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"list-pending-ftos"},timeoutMs:60000});
+ if(error||!data||data.approved!==true){status("list-status",data?.error||error?.message||"Could not load Pending Imports.","error");return;}
+ for(const item of data.pending||[]){
+  const tr=document.createElement("tr");
+  cell(tr,item.fto_number);cell(tr,Number(item.government_transaction_count||0).toLocaleString("en-IN"));
+  cell(tr,Number(item.eligible_transaction_count||0).toLocaleString("en-IN"));
+  cell(tr,Number(item.unmatched_transaction_count||0).toLocaleString("en-IN"));
+  cell(tr,dateLabel(item.inspected_at));
+  const td=tr.insertCell(),button=document.createElement("button");button.type="button";button.textContent="Open";button.addEventListener("click",()=>openPending(item.fto_number));td.append(button);
+  $("pending-rows").append(tr);
+ }
+ if(!(data.pending||[]).length)$("empty").classList.remove("hidden");
+ status("list-status",(data.pending||[]).length+" FTO(s) ready to continue. No Government detail fetch was performed.","success");
+}
+async function openPending(number){
+ $("detail-panel").classList.remove("hidden");$("detail-title").textContent=number;
+ $("detail-summary").textContent="Revalidating saved rows against the current Active MIS…";
+ $("detail-rows").replaceChildren();status("detail-status","Loading saved inspection data…");
+ $("detail-panel").scrollIntoView({behavior:"smooth",block:"start"});
+ const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"get-pending-fto",fto_number:number},timeoutMs:60000});
+ if(error||!data||data.approved!==true){status("detail-status",data?.error||error?.message||"Could not open this FTO.","error");await loadPending();return;}
+ $("detail-summary").textContent=Number(data.eligible_transaction_count||0)+" eligible rows · "+Number(data.unmatched_transaction_count||0)+" unmatched rows (count only)";
+ for(const tx of data.transactions||[]){const tr=document.createElement("tr");cell(tr,tx.jobCardNumber);cell(tr,tx.personName);cell(tr,tx.referenceNumber);cell(tr,tx.creditAmount);cell(tr,tx.status);cell(tr,tx.transactionDate);$("detail-rows").append(tr);}
+ status("detail-status","Saved inspection loaded and revalidated. Government details were not fetched again.","success");
+}
+async function verifyAccess(user){
+ const seq=++authSequence;if(!user){window.location.replace("./");return;}
+ const {data,error}=await window.VBGRAMGData.invoke("vbgramg-app-access",{body:{}});
+ if(seq!==authSequence)return;
+ if(error||!data||data.approved!==true||data.role!=="admin"){status("access-status","An approved VBGRAMG administrator account is required.","error");return;}
+ $("access-panel").classList.add("hidden");$("app-panel").classList.remove("hidden");await loadPending();
+}
+client.auth.onAuthStateChange((event,session)=>{if(event==="SIGNED_OUT"){authSequence++;window.location.replace("./");}else if(event==="TOKEN_REFRESHED"&&session)Promise.resolve().then(()=>verifyAccess(session.user));});
+client.auth.getSession().then(({data,error})=>{if(error||!data.session){window.location.replace("./");return;}verifyAccess(data.session.user);});
+$("refresh").addEventListener("click",loadPending);$("close-detail").addEventListener("click",()=>{$("detail-panel").classList.add("hidden");});
+})();
+</script>
+</body></html>

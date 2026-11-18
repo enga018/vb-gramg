@@ -172,3 +172,9 @@ html.theme-dark .global-theme-control{border-color:#303b46}
 html.theme-dark .global-theme-control-label{color:#9aa8b8}
 html.theme-dark .global-theme-toggle{color:#e7edf3;background:#252f39;border-color:#3a4652}
 html.theme-dark .global-theme-toggle:hover{background:#303c48}
+
+/* The home screen uses an icon-only appearance control beside the existing account actions. */
+header .account > .global-theme-toggle-home{background:#f6f8fc!important;color:#344054!important;border:1px solid #dfe5ee!important}
+header .account > .global-theme-toggle-home:hover{background:#edf2f8!important;color:#344054!important}
+html.theme-dark header .account > .global-theme-toggle-home{background:#252f39!important;color:#e7edf3!important;border-color:#3a4652!important}
+html.theme-dark header .account > .global-theme-toggle-home:hover{background:#303c48!important;color:#f7fafc!important}

@@ -521,6 +521,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 .fto-recheck-result-content{padding:16px 20px;max-height:calc(88vh - 150px);overflow:auto}
 .fto-recheck-result-state{margin:0 0 14px;padding:11px 13px;border:1px solid #dce5f1;border-radius:10px;background:#f7f9fc;color:#475467;font-size:.88rem;line-height:1.5}
 .fto-recheck-result-state.error{border-color:#ffd8d2;background:#fff4f2;color:#a12b20}
+.fto-recheck-result-state.warning{border-color:#f2d7a0;background:#fff8e8;color:#80520b}
 .fto-recheck-result-state.success{border-color:#ccebd7;background:#effaf3;color:#17663a}
 .fto-recheck-result-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}
 .fto-recheck-result-stat{padding:11px;border:1px solid #e3e8f0;border-radius:10px;background:#fff;min-width:0}
@@ -930,10 +931,13 @@ function showFtoRecheckResults(data,error){
  content.replaceChildren();
  const valid=data&&typeof data==="object",failed=!!error||(valid&&data.success===false);
  const state=document.createElement("p");
- state.className="fto-recheck-result-state "+(failed?"error":(Number(data?.failedFtoCount||0)===0?"success":""));
+ const partial=valid&&Number(data.failedFtoCount||0)>0&&data.success===true;
+ state.className="fto-recheck-result-state "+(failed?"error":partial?"warning":(Number(data?.failedFtoCount||0)===0?"success":""));
  state.textContent=error
   ?"The recheck request did not return a complete result. "+String(error.message||error)+" The FTO history was refreshed to show any saved changes."
-  :(data.message||(failed?"The recheck did not complete successfully.":"Deferred FTO recheck completed."));
+  :partial
+   ?"Recheck finished with "+Number(data.failedFtoCount||0)+" FTO check(s) failed. Review the failed FTO list below."
+   :(data.message||(failed?"The recheck did not complete successfully.":"Deferred FTO recheck completed."));
  content.appendChild(state);
  if(valid){
   const grid=document.createElement("div");grid.className="fto-recheck-result-grid";

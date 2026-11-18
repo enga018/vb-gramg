@@ -69,7 +69,7 @@ test("Manual charge and mapping replacement choices are independently revalidate
 
 test("Duplicate references and conflicting transactions block Pending FTO import", () => {
   assert.match(sync, /A reference number became duplicated after the preview/);
-  assert.match(sync, /duplicateReferences\.length/);
+  assert.match(sync, /skippedDuplicateReferences=\[\.\.\.new Set\(skippedDuplicateReferences\)\]/);
   assert.match(sync, /different FTO number already has a charge/i);
 });
 

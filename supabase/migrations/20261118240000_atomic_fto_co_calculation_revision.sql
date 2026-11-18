@@ -20,6 +20,7 @@ declare
   v_batch public.vbgramg_fto_batches%rowtype;
   v_tx public.vbgramg_fto_transactions%rowtype;
   v_ledger public.vbgramg_charge_ledger%rowtype;
+  v_period public.vbgramg_periods%rowtype;
   v_cards text[];
   v_card text;
   v_before jsonb;
@@ -86,6 +87,16 @@ begin
       pg_catalog.hashtextextended('contribution:' || v_card || ':' || v_initial_batch.period_id::text, 0)
     );
   end loop;
+
+  -- Lock the existing round after card/round advisory locks and before the batch,
+  -- matching the lock order used by FTO Change Period.
+  select * into v_period
+  from public.vbgramg_periods
+  where id = v_initial_batch.period_id
+  for update;
+  if not found or v_period.contribution_month is distinct from v_initial_batch.ledger_charge_period then
+    raise exception 'The FTO contribution period no longer matches its saved month' using errcode = '23514';
+  end if;
 
   select * into v_batch
   from public.vbgramg_fto_batches

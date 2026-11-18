@@ -78,6 +78,15 @@ async function calculatePendingCO(){
  }catch(err){currentCalculations=[];$("calculation-summary").textContent="Calculation unavailable. "+(err.message||"Review the inputs and try again.");renderPendingTransactions();status("detail-status",err.message||"CO calculation failed.","error");}
  finally{button.disabled=false;button.textContent="Calculate CO";}
 }
+function escapeHtml(value){
+ return String(value??"").replace(/[&<>"']/g,char=>{
+  if(char==="&")return "&amp;";
+  if(char==="<")return "&lt;";
+  if(char===">")return "&gt;";
+  if(char==='"')return "&quot;";
+  return "&#39;";
+ });
+}
 function sameApplicant(a,b){
  if(!a||!b)return false;
  return (a.applicant_unique_id&&b.applicant_unique_id&&a.applicant_unique_id===b.applicant_unique_id)||(!a.applicant_unique_id&&!b.applicant_unique_id&&a.applicant_name===b.applicant_name&&String(a.applicant_number||"")===String(b.applicant_number||""));

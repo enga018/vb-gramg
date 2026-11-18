@@ -78,7 +78,7 @@ async function calculatePendingCO(){
  }catch(err){currentCalculations=[];$("calculation-summary").textContent="Calculation unavailable. "+(err.message||"Review the inputs and try again.");renderPendingTransactions();status("detail-status",err.message||"CO calculation failed.","error");}
  finally{button.disabled=false;button.textContent="Calculate CO";}
 }
-function invalidateFinalReview(){const panel=$("final-review");if(panel&&!panel.classList.contains("hidden")){$("final-review-confirm").checked=false;$("final-review-status").textContent="A review input changed. Reopen Final review to validate the updated selections.";}}
+function invalidateFinalReview(){finalReviewReady=false;$("import-fto").disabled=true;const panel=$("final-review");if(panel&&!panel.classList.contains("hidden")){$("final-review-confirm").checked=false;$("final-review-status").textContent="A review input changed. Reopen Final review to validate the updated selections.";}}
 function escapeHtml(value){
  return String(value??"").replace(/[&<>"']/g,char=>{
   if(char==="&")return "&amp;";

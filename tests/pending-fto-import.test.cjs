@@ -104,3 +104,23 @@ test("A saved applicant mapping that is no longer active always requires manual 
   assert.match(detail, /const automatic=savedMapping\?\(savedCandidate\|\|null\):\(/);
   assert.match(detail, /reason:savedMapping&&!savedCandidate\?/);
 });
+
+
+test("CO parameters must be whole positive numbers in both FTO workflows and the database", () => {
+  const initialImportPage = read("fto-import.html");
+  const calculationMigration = read("supabase/migrations/20261118110000_require_integer_fto_co_parameters.sql");
+  assert.match(page, /Number\.isInteger\(divisor\)/);
+  assert.match(page, /Number\.isInteger\(multiplier\)/);
+  assert.match(initialImportPage, /Number\.isInteger\(divisor\)/);
+  assert.match(initialImportPage, /Number\.isInteger\(multiplier\)/);
+  assert.match(edge, /!Number\.isInteger\(divisor\)/);
+  assert.match(edge, /!Number\.isInteger\(multiplier\)/);
+  assert.match(calculationMigration, /p_divisor <> trunc\(p_divisor\)/);
+  assert.match(calculationMigration, /p_multiplier <> trunc\(p_multiplier\)/);
+});
+
+test("Credit Amount remains the authoritative CO input for pending FTO calculation", () => {
+  assert.match(page, /credit_amount:tx\.creditAmount/);
+  assert.match(edge, /credit_amount:tx\.creditAmount/);
+  assert.match(edge, /credit_amount:raw\.credit_amount/);
+});

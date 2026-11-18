@@ -15,6 +15,7 @@ on:
       - "tests/fto-co-calculation-revision.test.cjs"
       - "supabase/migrations/20261118240000_atomic_fto_co_calculation_revision.sql"
       - "supabase/migrations/20261118241000_align_fto_co_revision_lock_order.sql"
+      - "supabase/migrations/20261118242000_guard_fto_co_revision_preview_snapshot.sql"
       - "fto.html"
       - "pending-imports.html"
       - "tests/government-fto-history-import.test.cjs"

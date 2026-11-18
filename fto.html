@@ -510,6 +510,29 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 }
 @media(max-width:370px){.fto-card{padding:10px 9px;grid-template-columns:minmax(0,1fr) 98px}.fto-number{font-size:.82rem}}
 
+.fto-recheck-button{background:#2457c5!important;color:#fff!important;border-color:#2457c5!important}
+.fto-recheck-button:hover:not(:disabled){background:#1d46a0!important}
+.fto-recheck-button:disabled{opacity:.48;cursor:not-allowed}
+.fto-recheck-result-modal{width:min(760px,calc(100% - 28px));max-width:none;max-height:min(88vh,820px);padding:0;border:1px solid #dfe5ee;border-radius:16px;background:#fff;color:#172033;box-shadow:0 22px 70px rgb(15 23 42 / 28%)}
+.fto-recheck-result-modal::backdrop{background:rgb(15 23 42 / 58%)}
+.fto-recheck-result-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid #e3e8f0}
+.fto-recheck-result-head h2{margin:0;font-size:1.05rem}.fto-recheck-result-head p{margin:3px 0 0;font-size:.82rem}
+.fto-recheck-result-head button{min-width:44px;min-height:44px;padding:8px}
+.fto-recheck-result-content{padding:16px 20px;max-height:calc(88vh - 150px);overflow:auto}
+.fto-recheck-result-state{margin:0 0 14px;padding:11px 13px;border:1px solid #dce5f1;border-radius:10px;background:#f7f9fc;color:#475467;font-size:.88rem;line-height:1.5}
+.fto-recheck-result-state.error{border-color:#ffd8d2;background:#fff4f2;color:#a12b20}
+.fto-recheck-result-state.success{border-color:#ccebd7;background:#effaf3;color:#17663a}
+.fto-recheck-result-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}
+.fto-recheck-result-stat{padding:11px;border:1px solid #e3e8f0;border-radius:10px;background:#fff;min-width:0}
+.fto-recheck-result-stat span{display:block;color:#667085;font-size:.73rem;font-weight:650;line-height:1.35}
+.fto-recheck-result-stat strong{display:block;margin-top:5px;font-size:1.15rem;font-weight:780;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.fto-recheck-result-section{margin-top:18px}.fto-recheck-result-section h3{margin:0 0 8px;font-size:.9rem}
+.fto-recheck-result-list{display:grid;gap:7px;margin:0;padding:0;list-style:none}
+.fto-recheck-result-list li{padding:10px 12px;border:1px solid #e3e8f0;border-radius:9px;background:#fff;font-size:.82rem;line-height:1.45;overflow-wrap:anywhere}
+.fto-recheck-result-list strong{display:block;color:#172033;margin-bottom:3px}
+.fto-recheck-result-footer{display:flex;justify-content:flex-end;padding:12px 20px;border-top:1px solid #e3e8f0}
+@media(max-width:700px){.fto-recheck-button{width:100%}.fto-recheck-result-modal{width:100%;height:100dvh;max-height:100dvh;border:0;border-radius:0}.fto-recheck-result-head{padding:12px 14px}.fto-recheck-result-content{padding:12px 14px;max-height:calc(100dvh - 140px)}.fto-recheck-result-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.fto-recheck-result-stat{padding:9px}.fto-recheck-result-stat strong{font-size:1.05rem}.fto-recheck-result-footer{padding:10px 14px}.fto-recheck-result-footer button{width:100%}}
+
 
 /* Compact FTO details header: keep the identifier and period on one line. */
 .fto-view-modal-header{padding:9px 14px;gap:10px}
@@ -583,7 +606,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 <div id="app-panel" class="hidden">
 <section class="panel">
 <div id="fto-history" class="history-section">
- <div class="section-head"><div></div><div class="actions"><a class="button secondary" href="./pending-imports.html">Pending Imports</a><button id="open-fto-import" type="button" class="secondary">New FTO Import</button></div></div>
+ <div class="section-head"><div></div><div class="actions"><button id="fto-recheck-deferred" type="button" class="fto-recheck-button" disabled>Recheck All Deferred FTOs</button><a class="button secondary" href="./pending-imports.html">Pending Imports</a><button id="open-fto-import" type="button" class="secondary">New FTO Import</button></div></div>
  <div class="fto-history-kpis" aria-label="FTO history summary">
   <div class="fto-history-kpi"><span>Imported FTOs</span><strong id="fto-kpi-batches">—</strong></div>
   <div class="fto-history-kpi"><span>Total transactions</span><strong id="fto-kpi-transactions">—</strong></div>
@@ -599,6 +622,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  <div class="history-list-foot"><span id="fto-history-count" class="muted"></span><div id="fto-history-pager" class="mobile-table-pager" hidden><button id="fto-history-prev" type="button" class="secondary">Previous</button><span id="fto-history-page-label"></span><button id="fto-history-next" type="button" class="secondary">Next</button></div></div>
 </section>
 </div>
+<dialog id="fto-recheck-result-modal" class="fto-recheck-result-modal" aria-labelledby="fto-recheck-result-title"><div class="fto-recheck-result-head"><div><h2 id="fto-recheck-result-title">Deferred FTO recheck results</h2><p id="fto-recheck-result-subtitle">Government status check summary</p></div><button id="fto-recheck-result-close" type="button" class="secondary" aria-label="Close recheck results">×</button></div><div id="fto-recheck-result-content" class="fto-recheck-result-content"></div><div class="fto-recheck-result-footer"><button id="fto-recheck-result-done" type="button">Done</button></div></dialog>
 <div id="period-modal-backdrop" class="period-modal-backdrop hidden" role="presentation">
  <section class="period-modal" role="dialog" aria-modal="true" aria-labelledby="period-modal-title" aria-describedby="period-modal-description">
   <div class="period-modal-header"><h2 id="period-modal-title">Change contribution period</h2><button id="period-modal-close" type="button" class="secondary" aria-label="Close dialog">×</button></div>
@@ -793,6 +817,8 @@ function updateFtoHistoryKpis(){
  $("fto-kpi-batches").textContent=ftoHistoryRows.length.toLocaleString("en-IN");
  $("fto-kpi-transactions").textContent=totals.transactions.toLocaleString("en-IN");
  $("fto-kpi-deferred").textContent=totals.deferred.toLocaleString("en-IN");
+ const recheckButton=$("fto-recheck-deferred");
+ if(recheckButton&&!recheckButton.dataset.running)recheckButton.disabled=totals.deferred===0;
 }
 function renderFtoHistory(reset=true){
   updateFtoHistoryKpis();
@@ -879,6 +905,88 @@ async function saveFtoPeriod(event){
   $("period-modal-save").disabled=false;$("period-modal-cancel").disabled=false;$("period-modal-save").textContent="Save";
  }
 }
+
+let ftoRecheckInProgress=false;
+function appendRecheckStat(grid,label,value){
+ const card=document.createElement("div");card.className="fto-recheck-result-stat";
+ const caption=document.createElement("span");caption.textContent=label;
+ const strong=document.createElement("strong");strong.textContent=Number(value||0).toLocaleString("en-IN");
+ card.append(caption,strong);grid.appendChild(card);
+}
+function appendRecheckList(content,title,items,formatter){
+ if(!Array.isArray(items)||!items.length)return;
+ const section=document.createElement("section");section.className="fto-recheck-result-section";
+ const heading=document.createElement("h3");heading.textContent=title;section.appendChild(heading);
+ const list=document.createElement("ul");list.className="fto-recheck-result-list";
+ for(const item of items){
+  const li=document.createElement("li"),strong=document.createElement("strong"),detail=document.createElement("span");
+  const formatted=formatter(item);strong.textContent=formatted.title;detail.textContent=formatted.detail;
+  li.append(strong,detail);list.appendChild(li);
+ }
+ section.appendChild(list);content.appendChild(section);
+}
+function showFtoRecheckResults(data,error){
+ const modal=$("fto-recheck-result-modal"),content=$("fto-recheck-result-content");
+ content.replaceChildren();
+ const valid=data&&typeof data==="object",failed=!!error||(valid&&data.success===false);
+ const state=document.createElement("p");
+ state.className="fto-recheck-result-state "+(failed?"error":(Number(data?.failedFtoCount||0)===0?"success":""));
+ state.textContent=error
+  ?"The recheck request did not return a complete result. "+String(error.message||error)+" The FTO history was refreshed to show any saved changes."
+  :(data.message||(failed?"The recheck did not complete successfully.":"Deferred FTO recheck completed."));
+ content.appendChild(state);
+ if(valid){
+  const grid=document.createElement("div");grid.className="fto-recheck-result-grid";
+  appendRecheckStat(grid,"Eligible FTOs",data.eligibleFtoCount);
+  appendRecheckStat(grid,"Checked",data.checkedFtoCount);
+  appendRecheckStat(grid,"Successful",data.successfulFtoCount);
+  appendRecheckStat(grid,"Failed",data.failedFtoCount);
+  appendRecheckStat(grid,"Unprocessed",data.unprocessedFtoCount);
+  appendRecheckStat(grid,"Transactions updated",data.updatedCount);
+  appendRecheckStat(grid,"Still deferred",data.stillDeferredCount);
+  appendRecheckStat(grid,"Unchanged",data.unchangedCount);
+  content.appendChild(grid);
+  appendRecheckList(content,"FTO results",data.results,item=>({
+   title:String(item.ftoNumber||"FTO"),
+   detail:"Updated: "+Number(item.updated_count||0)+" · Still deferred: "+Number(item.still_deferred_count||0)+" · Unchanged: "+Number(item.unchanged_count||0)
+  }));
+  appendRecheckList(content,"FTO checks that failed",data.failedChecks,item=>({
+   title:String(item.ftoNumber||"FTO"),
+   detail:String(item.error||"The Government check failed.")+(item.auditRecorded===false?" · Failure could not be saved to the audit log.":"")
+  }));
+  if(data.auditError){const audit=document.createElement("p");audit.className="fto-recheck-result-state error";audit.textContent="Audit persistence issue: "+String(data.auditError);content.appendChild(audit);}
+ }
+ modal.showModal();$("fto-recheck-result-done").focus();
+}
+async function runDeferredFtoRecheck(){
+ if(ftoRecheckInProgress)return;
+ const deferred=ftoHistoryRows.reduce((sum,b)=>sum+Number((b.status_counts||{}).blank||0),0);
+ if(deferred===0){historyMessage("There are no deferred transactions in imported FTO history.");return;}
+ const confirmed=window.confirm("Recheck all "+deferred.toLocaleString("en-IN")+" deferred transaction(s) across every imported FTO that still contains deferred records?\n\nThe Government FTO listing will be fetched once. Existing deferred statuses may be updated. No new transactions or Contribution ledger entries will be created.");
+ if(!confirmed)return;
+ const button=$("fto-recheck-deferred");
+ ftoRecheckInProgress=true;button.dataset.running="1";button.disabled=true;button.textContent="Rechecking…";
+ historyMessage("Rechecking all deferred FTOs against the Government records. This may take several minutes.","loading");
+ let resultData=null,resultError=null;
+ try{
+  const response=await supabaseClient.functions.invoke("vbgramg-fto-deferred-recheck",{body:{}});
+  resultData=response.data||null;resultError=response.error||null;
+  if(resultData&&resultData.error&&!resultError)resultError=new Error(String(resultData.error));
+ }catch(err){resultError=err;}
+ finally{
+  try{await loadFtoHistory();}catch(_){}
+  ftoRecheckInProgress=false;delete button.dataset.running;button.textContent="Recheck All Deferred FTOs";
+  const nowDeferred=ftoHistoryRows.reduce((sum,b)=>sum+Number((b.status_counts||{}).blank||0),0);
+  button.disabled=nowDeferred===0;
+ }
+ showFtoRecheckResults(resultData,resultError);
+}
+$("fto-recheck-deferred").addEventListener("click",runDeferredFtoRecheck);
+function closeFtoRecheckResults(){const modal=$("fto-recheck-result-modal");if(modal.open)modal.close();}
+$("fto-recheck-result-close").addEventListener("click",closeFtoRecheckResults);
+$("fto-recheck-result-done").addEventListener("click",closeFtoRecheckResults);
+$("fto-recheck-result-modal").addEventListener("click",event=>{if(event.target===$("fto-recheck-result-modal"))closeFtoRecheckResults();});
+
 async function loadFtoHistory(options={}){
  const afterSync=options.afterSync===true;
  const seq=++historyLoadSequence;

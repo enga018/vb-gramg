@@ -105,3 +105,12 @@ test("CO revision rollback test invokes the exact atomic RPC with PostgREST roll
   assert.match(page, /No financial records were changed/);
   assert.match(page, /coRevisionPreview=null;\$\("fto-co-apply"\)\.disabled=true;\$\("fto-co-test"\)\.disabled=true/);
 });
+
+
+test("CO revision reason is mandatory and requires at least 10 trimmed characters", () => {
+  assert.match(page, /id="fto-co-reason" type="text" minlength="10" maxlength="500" required/);
+  assert.match(page, /reason\.length<10/);
+  assert.match(page, /at least 10 characters/);
+  assert.equal((edge.match(/if\(reason\.length<10\)/g)||[]).length, 2);
+  assert.match(edge, /Enter a reason with at least 10 characters\./);
+});

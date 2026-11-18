@@ -243,7 +243,7 @@ async function importPendingFto(){
   if(!chosen){status("detail-status","Select an Active MIS applicant for every Job Card.","error");return;}
   applicant_mappings.push({job_card_number:card,applicant_name:chosen.applicant_name,applicant_number:chosen.applicant_number,applicant_unique_id:chosen.applicant_unique_id});
  }
- const manual_charge_actions={};
+ const manual_charge_actions={},manual_reconciliation_applicants={};
  for(const review of reconciliationPreview.manual_charge_reviews||[]){
   if(review.resolution!=="choose_link_or_keep_separate")continue;
   const action=manualChargeDecisions.get(review.job_card_number);
@@ -253,8 +253,7 @@ async function importPendingFto(){
    const selected=manualChargeDecisions.get(review.job_card_number+"_applicant");
    const candidate=currentApplicantMatches.get(review.job_card_number)?.candidates?.[Number(selected)];
    if(!candidate){status("detail-status","Select an Active MIS applicant for the manual charge on "+review.job_card_number+".","error");return;}
-   const existing=applicant_mappings.find(item=>item.job_card_number===review.job_card_number);
-   if(existing)Object.assign(existing,{applicant_name:candidate.applicant_name,applicant_number:candidate.applicant_number,applicant_unique_id:candidate.applicant_unique_id});
+   manual_reconciliation_applicants[review.job_card_number]={applicant_name:candidate.applicant_name,applicant_number:candidate.applicant_number,applicant_unique_id:candidate.applicant_unique_id};
   }
  }
  const confirm_mapping_replacements=[...currentApplicantMatches].filter(([card,match])=>match.confirm_replacement===true).map(([card])=>card);
@@ -265,7 +264,7 @@ async function importPendingFto(){
   const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{
    action:"import-pending-fto",fto_number:currentFtoNumber,period_id:selectedContributionPeriod()?.id,
    divisor:Number($("co-divisor").value),multiplier:Number($("co-multiplier").value),
-   applicant_mappings,confirm_mapping_replacements,manual_charge_actions,manual_charge_amount_confirmations
+   applicant_mappings,confirm_mapping_replacements,manual_charge_actions,manual_charge_amount_confirmations,manual_reconciliation_applicants
   },timeoutMs:120000,deduplicate:false});
   if(error||!data||data.approved!==true){
    const message=data?.error||error?.message||"The FTO import was not confirmed.";

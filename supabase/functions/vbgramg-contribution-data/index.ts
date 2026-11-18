@@ -903,7 +903,7 @@ Deno.serve(async(req:Request)=>{
     old_total:Number(oldTotal.toFixed(2)),new_total:Number(newTotal.toFixed(2)),
     difference:Number((newTotal-oldTotal).toFixed(2)),
     changed_transaction_count:changes.filter((item:any)=>Math.abs(item.difference)>0.00001).length,
-    changes,blocked_reasons:uniqueBlocked,can_apply:uniqueBlocked.length===0&&changes.some((item:any)=>Math.abs(item.difference)>0.00001),
+    changes,blocked_reasons:uniqueBlocked,can_apply:uniqueBlocked.length===0&&(batch.calculation_divisor===null||batch.calculation_multiplier===null||Number(batch.calculation_divisor)!==divisor||Number(batch.calculation_multiplier)!==multiplier||changes.some((item:any)=>Math.abs(item.difference)>0.00001)),
     allocations_preserved:true
    });
   }

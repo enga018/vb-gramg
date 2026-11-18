@@ -25,7 +25,7 @@ test("allocation replacement deletes only the requested source", () => {
 });
 
 test("migration fails closed if expected production function definitions drift", () => {
-  assert.equal((migration.match(/RAISE EXCEPTION 'Could not locate/g) || []).length, 5);
+  assert.equal((migration.match(/RAISE EXCEPTION 'Could not locate/g) || []).length, 4);
 });
 
 

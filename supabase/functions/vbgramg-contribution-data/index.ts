@@ -121,6 +121,48 @@ Deno.serve(async(req:Request)=>{
   const body=await req.json().catch(()=>({}));
   requestStageTimings.request_body_parse=Number((performance.now()-bodyParseStarted).toFixed(1));
   const action=String(body.action||"list");
+  if(action==="get-pending-fto"){
+   if(approved.role!=="admin")return reply({error:"Only an approved administrator can open Pending Imports."},403);
+   const ftoNumber=String(body.fto_number||"").trim().toUpperCase().slice(0,100);
+   if(!ftoNumber)return reply({error:"An FTO number is required."},400);
+   const {data:state,error:stateError}=await admin.from("vbgramg_fto_inspection_state")
+    .select("fto_number_normalized,fto_number,classification,last_inspected_at,transaction_count,unmatched_transaction_count,validated_transactions")
+    .eq("fto_number_normalized",ftoNumber).maybeSingle();
+   if(stateError)throw stateError;
+   if(!state||state.classification!=="ELIGIBLE")return reply({error:"This FTO is not available in Pending Imports."},404);
+   const {data:batch,error:batchError}=await admin.from("vbgramg_fto_batches").select("id")
+    .eq("fto_number",ftoNumber).maybeSingle();
+   if(batchError)throw batchError;
+   if(batch)return reply({error:"This FTO has already been imported and cannot be opened from Pending Imports."},409);
+   const {data:misState,error:misStateError}=await admin.from("vbgramg_mis_state")
+    .select("active_import_id,updated_at").eq("singleton",true).maybeSingle();
+   if(misStateError)throw misStateError;
+   if(!misState?.active_import_id)return reply({error:"There is no active MIS import. Load the active MIS before reviewing this FTO."},409);
+   const activeApplicants=await loadActiveMisApplicants(admin);
+   const activeCards=new Set([...activeApplicants.keys()].map(value=>String(value||"").trim().toUpperCase()).filter(Boolean));
+   const saved=Array.isArray(state.validated_transactions)?state.validated_transactions:[];
+   const matching=saved.filter((tx:any)=>activeCards.has(String(tx?.jobCardNumber||"").trim().toUpperCase()));
+   const uniqueCards=new Set(matching.map((tx:any)=>String(tx?.jobCardNumber||"").trim().toUpperCase()).filter(Boolean));
+   const unmatched=Math.max(0,Number(state.transaction_count||0)-matching.length);
+   if(!matching.length){
+    const {error:updateError}=await admin.from("vbgramg_fto_inspection_state").update({
+     classification:"OUT_OF_SCOPE",validated_transactions:[],matching_job_card_count:0,
+     unmatched_transaction_count:Number(state.transaction_count||0),updated_at:new Date().toISOString()
+    }).eq("fto_number_normalized",ftoNumber).eq("classification","ELIGIBLE");
+    if(updateError)throw updateError;
+    return reply({error:"No Government transactions remain in scope for the latest Active MIS. This FTO has been permanently excluded."},409);
+   }
+   const {error:updateError}=await admin.from("vbgramg_fto_inspection_state").update({
+    validated_transactions:matching,matching_job_card_count:uniqueCards.size,
+    unmatched_transaction_count:unmatched,active_mis_import_id:misState.active_import_id,
+    active_mis_updated_at:misState.updated_at||null,updated_at:new Date().toISOString()
+   }).eq("fto_number_normalized",ftoNumber).eq("classification","ELIGIBLE");
+   if(updateError)throw updateError;
+   return reply({approved:true,fto_number:state.fto_number,inspected_at:state.last_inspected_at,
+    government_transaction_count:Number(state.transaction_count||0),eligible_transaction_count:matching.length,
+    unmatched_transaction_count:unmatched,matching_job_card_count:uniqueCards.size,
+    transactions:matching,active_mis_import_id:misState.active_import_id,active_mis_updated_at:misState.updated_at||null});
+  }
   if(action==="list-pending-ftos"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can access Pending Imports."},403);
    const {data:states,error:statesError}=await admin.from("vbgramg_fto_inspection_state")

@@ -57,7 +57,7 @@ GRANT SELECT, UPDATE ON public.vbgramg_fto_batches TO service_role;
 GRANT SELECT, UPDATE ON public.vbgramg_fto_transactions TO service_role;
 GRANT INSERT ON public.vbgramg_fto_status_history TO service_role;
 
-\\ir ../supabase/migrations/20261118170000_add_atomic_deferred_fto_recheck.sql
+\ir ../supabase/migrations/20261118170000_add_atomic_deferred_fto_recheck.sql
 
 INSERT INTO auth.users(id,email)
 VALUES ('11111111-1111-4111-8111-111111111111','admin@example.test');

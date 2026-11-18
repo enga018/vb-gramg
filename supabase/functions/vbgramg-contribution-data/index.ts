@@ -1042,6 +1042,17 @@ Deno.serve(async(req:Request)=>{
     if(!chosen)return reply({error:"The selected applicant for "+card+" is not in the current active MIS. Refresh the preview and try again."},409);
     reconciliationApplicants.set(card,chosen);
    }
+   const rawManualApplicants=body.manual_reconciliation_applicants&&typeof body.manual_reconciliation_applicants==="object"?body.manual_reconciliation_applicants as Record<string,any>:{};
+   const manualReconciliationApplicants=new Map<string,Record<string,string|null>>();
+   for(const [rawCard,rawApplicant] of Object.entries(rawManualApplicants)){
+    const card=String(rawCard||"").trim().toUpperCase();
+    if(!card||!rawApplicant||typeof rawApplicant!=="object")return reply({error:"A manual-charge applicant selection is invalid."},400);
+    const candidates=activeMisApplicants.get(card)||[...(activeMisApplicants.entries())].find(([key])=>String(key).trim().toUpperCase()===card)?.[1]||[];
+    const uniqueId=String(rawApplicant.applicant_unique_id||"").trim(),name=String(rawApplicant.applicant_name||"").trim(),number=String(rawApplicant.applicant_number||"").trim();
+    const chosen=candidates.find(a=>(uniqueId&&a.applicant_unique_id===uniqueId)||(!uniqueId&&String(a.applicant_name)===name&&String(a.applicant_number||"")===number));
+    if(!chosen)return reply({error:"The selected manual-charge applicant for "+card+" is no longer in the latest Active MIS."},409);
+    manualReconciliationApplicants.set(card,chosen);
+   }
    // Refuse to replace a confirmed identity mapping implicitly.
    const mappingKeys=[...new Set(rows.map((raw:Record<string,any>)=>({card:String(raw?.job_card_number||"").trim().toUpperCase(),name:normalizeApplicantIdentity(String(raw?.person_name||"").trim())})).filter(x=>x.card&&x.name).map(x=>x.card+"|"+x.name))];
    const mappingCards=[...new Set(mappingKeys.map(key=>key.split("|")[0]))];
@@ -1343,7 +1354,7 @@ Deno.serve(async(req:Request)=>{
      const entryDate=ftoEntryDate(active,isDeferred);
      const activeApplicantName=String(normalized.find(r=>String(r.job_card_number)===card)?.person_name||"");
      const name=activeApplicantName||keeper?.person_name||manualKeeper?.person_name||"Name needs review";
-     const applicantChoice=reconciliationApplicants.get(card);
+     const applicantChoice=manualKeeper?manualReconciliationApplicants.get(card)||reconciliationApplicants.get(card):reconciliationApplicants.get(card);
      const ledgerId=String(manualKeeper?.id||keeper?.id||crypto.randomUUID());
      if(manualKeeper)manualLinkIds.push(ledgerId);
      ledgerPlan.push({id:ledgerId,job_card_number:card,person_name:name,entry_type:"charge",amount,

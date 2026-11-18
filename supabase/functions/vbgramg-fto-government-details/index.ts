@@ -47,26 +47,6 @@ function rowsOf(html: string) {
     .map(m => [...m[1].matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map(c => textOf(c[1])))
     .filter(row => row.some(Boolean));
 }
-function normalizeApplicantName(value: unknown) {
-  return String(value || "").normalize("NFKC").replace(/\s+/g, " ").trim().toLocaleLowerCase();
-}
-function normalizeApplicantIdentity(value: unknown) {
-  return normalizeApplicantName(value).replace(/[^\p{L}\p{N}]+/gu, "");
-}
-function applicantNameScore(left: unknown, right: unknown) {
-  const a = normalizeApplicantIdentity(left), b = normalizeApplicantIdentity(right);
-  if (!a || !b) return 0;
-  const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
-  for (let i = 1; i <= a.length; i++) {
-    let diagonal = prev[0]; prev[0] = i;
-    for (let j = 1; j <= b.length; j++) {
-      const above = prev[j];
-      prev[j] = Math.min(prev[j] + 1, prev[j - 1] + 1, diagonal + (a[i - 1] === b[j - 1] ? 0 : 1));
-      diagonal = above;
-    }
-  }
-  return Math.round((1 - prev[b.length] / Math.max(a.length, b.length)) * 1000) / 10;
-}
 async function loadActiveMisJobCards(admin: any) {
   const { data: state, error: stateError } = await admin.from("vbgramg_mis_state")
     .select("active_import_id,row_count,updated_at").eq("singleton", true).maybeSingle();
@@ -97,16 +77,6 @@ function base64UrlToBytes(value: string) {
   if (!/^[A-Za-z0-9_-]+$/.test(value) || value.length > 2_000_000) throw new Error("Invalid or oversized manifest token.");
   const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - value.length % 4) % 4);
   const binary = atob(padded); return Uint8Array.from(binary, c => c.charCodeAt(0));
-}
-async function makeImportPreviewToken(serviceKey: string, userId: string, payload: Record<string, unknown>) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("VBGRAMG-FTO-IMPORT-PREVIEW-v1:" + serviceKey));
-  const key = await crypto.subtle.importKey("raw", digest, { name: "AES-GCM" }, false, ["encrypt"]);
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const clear = new TextEncoder().encode(JSON.stringify({ v: 1, exp: Date.now() + 15 * 60 * 1000, userId, ...payload }));
-  const encrypted = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, clear));
-  const bytes = new Uint8Array(iv.length + encrypted.length); bytes.set(iv); bytes.set(encrypted, iv.length);
-  let binary = ""; for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 async function openManifest(token: string, serviceKey: string) {
   const bytes = base64UrlToBytes(token);
@@ -332,7 +302,7 @@ Deno.serve(async (req: Request) => {
             }
             // Keep only Job Cards present in Active MIS; applicant-name mismatches remain reviewable.
             const governmentTransactionCount = transactions.length;
-            const unmatchedTransactionCount = transactions.filter(tx => tx.misMatchStatus === "not_in_active_mis").length;
+            const unmatchedTransactionCount = transactions.filter(tx => !misIndex.activeCards.has(String(tx.jobCardNumber || "").trim().toUpperCase())).length;
             const matchingTransactions = transactions.filter(tx => misIndex.activeCards.has(String(tx.jobCardNumber || "").trim().toUpperCase()));
             const matchingCards = new Set(matchingTransactions.map(tx => String(tx.jobCardNumber || "").trim().toUpperCase()).filter(Boolean));
             const deferredInScope = matchingTransactions.filter(tx => tx.normalizedStatus === "blank").length;
@@ -358,7 +328,7 @@ Deno.serve(async (req: Request) => {
               deferredInScopeCount: deferredInScope,
               signatoryDate: item.listingRow[5] || "", listingTransactionCount: Number(item.listingRow[6] || 0),
               listingAmount: Number(item.listingRow[7] || 0), listingRow: item.listingRow,
-              listingHeaders: item.listingHeaders || [], ...detail, transactions: matchingTransactions };
+              listingHeaders: item.listingHeaders || [], ...detail };
             results.push(result);
           } else {
             results.push({ ftoNumber: item.ftoNumber, signatoryDate: item.listingRow[5] || "", listingTransactionCount: Number(item.listingRow[6] || 0), listingAmount: Number(item.listingRow[7] || 0), listingRow: item.listingRow, listingHeaders: item.listingHeaders || [], ...detail });

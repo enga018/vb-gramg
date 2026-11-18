@@ -40,8 +40,10 @@
     apply(); return { makeButton: makeButton };
   }
 
+  var sharedTheme = initTheme();
+
   function install() {
-    var theme = initTheme();
+    var theme = sharedTheme;
     if (window.self !== window.top) return;
     var path = window.location.pathname || "/";
     var cleanPath = path.replace(/\/+$/, "") || "/";

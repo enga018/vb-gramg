@@ -1152,7 +1152,12 @@ async function applyFtoCoCalculation(){
  try{
   const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{
    action:"apply-fto-co-revision",batch_id:batch.id,divisor:preview.divisor,multiplier:preview.multiplier,
-   expected_revision_number:preview.revision_number,reason
+   expected_revision_number:preview.revision_number,
+   expected_period_id:preview.expected_period_id,
+   expected_charge_period:preview.expected_charge_period,
+   expected_last_checked_at:preview.expected_last_checked_at,
+   expected_last_deferred_recheck_at:preview.expected_last_deferred_recheck_at,
+   reason
   },deduplicate:false,timeoutMs:false});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||"Could not apply the CO calculation revision.");
   closeFtoCoModal();await loadFtoHistory();

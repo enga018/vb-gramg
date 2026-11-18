@@ -55,7 +55,7 @@ GRANT SELECT ON auth.users TO service_role;
 GRANT SELECT ON public.vbgramg_approved_users TO service_role;
 GRANT SELECT, UPDATE ON public.vbgramg_fto_batches TO service_role;
 GRANT SELECT, UPDATE ON public.vbgramg_fto_transactions TO service_role;
-GRANT INSERT ON public.vbgramg_fto_status_history TO service_role;
+GRANT SELECT, INSERT ON public.vbgramg_fto_status_history TO service_role;
 
 \ir ../supabase/migrations/20261118170000_add_atomic_deferred_fto_recheck.sql
 \ir ../supabase/migrations/20261118190000_add_deferred_fto_recheck_audit.sql

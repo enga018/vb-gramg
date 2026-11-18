@@ -797,9 +797,143 @@ Deno.serve(async(req:Request)=>{
     ledger_voided:Number(result.ledger_voided)||0
    });
   }
+  if(action==="preview-fto-co-revision"){
+   if(approved.role!=="admin")return reply({error:"Only an approved administrator can preview a CO calculation change."},403);
+   const batchId=String(body.batch_id||"").trim();
+   const divisor=Number(body.divisor),multiplier=Number(body.multiplier);
+   if(!batchId)return reply({error:"Select an imported FTO first."},400);
+   if(!Number.isInteger(divisor)||divisor<=0||divisor>1000000000||!Number.isInteger(multiplier)||multiplier<=0||multiplier>1000000)return reply({error:"Divisor and multiplier must be whole positive numbers within the allowed range."},400);
+   const {data:batch,error:batchError}=await admin.from("vbgramg_fto_batches")
+    .select("id,fto_number,period_id,contribution_period,ledger_charge_period,calculation_divisor,calculation_multiplier,revision_number")
+    .eq("id",batchId).maybeSingle();
+   if(batchError)throw batchError;
+   if(!batch)return reply({error:"The selected FTO batch was not found."},404);
+   if(!batch.period_id||!batch.ledger_charge_period)return reply({error:"This FTO has no unambiguous Contribution Period. Correct its period before changing CO calculation."},409);
+   const {data:snapshot,error:snapshotError}=await admin.rpc("vbgramg_get_fto_revision_snapshot",{p_batch_id:batchId,p_target_period_id:null});
+   if(snapshotError)throw snapshotError;
+   if(!snapshot||!Array.isArray(snapshot.transactions)||!Array.isArray(snapshot.ledger_entries))return reply({error:"The database returned an incomplete FTO revision snapshot."},500);
+   const transactions=snapshot.transactions.filter((tx:any)=>tx.is_current===true&&tx.is_in_scope===true);
+   if(!transactions.length)return reply({error:"This FTO has no current in-scope transactions."},409);
+   const rows=transactions.map((tx:any,index:number)=>({
+    row_index:index,credit_amount:tx.credit_amount,status:String(tx.status||"").trim().toLowerCase()
+   }));
+   const {data:calculations,error:calculationError}=await admin.rpc("vbgramg_calculate_fto_charges",{
+    p_rows:rows,p_divisor:divisor,p_multiplier:multiplier
+   });
+   if(calculationError)throw calculationError;
+   if(!Array.isArray(calculations)||calculations.length!==transactions.length)return reply({error:"PostgreSQL returned an incomplete CO calculation."},500);
+   const calculatedByIndex=new Map(calculations.map((item:any)=>[Number(item.row_index),Number(item.calculated_charge||0)]));
+   const ledgerById=new Map(snapshot.ledger_entries.map((entry:any)=>[String(entry.id),entry]));
+   const exemptionHistory=Array.isArray(snapshot.exemption_history)?snapshot.exemption_history:[];
+   const isExemptAtImport=(tx:any)=>{
+    const created=Date.parse(String(tx.created_at||""));
+    if(!Number.isFinite(created))return false;
+    return exemptionHistory.some((item:any)=>{
+     if(String(item.job_card_number||"").trim().toUpperCase()!==String(tx.job_card_number||"").trim().toUpperCase())return false;
+     const started=Date.parse(String(item.started_at||"")),ended=item.ended_at?Date.parse(String(item.ended_at)):Infinity;
+     return Number.isFinite(started)&&created>=started&&created<ended;
+    });
+   };
+   const changes:any[]=[];
+   const blocked:string[]=[];
+   const seenLedgerIds=new Set<string>();
+   const newByCard=new Map<string,number>();
+   let oldTotal=0,newTotal=0,exemptCount=0;
+   for(let index=0;index<transactions.length;index++){
+    const tx=transactions[index],status=String(tx.status||"").trim().toLowerCase();
+    const next=Number(calculatedByIndex.get(index)||0);
+    const card=String(tx.job_card_number||"").trim().toUpperCase();
+    const ledgerId=String(tx.ledger_entry_id||"").trim();
+    if(["blank","processed"].includes(status)){
+     if(!ledgerId){
+      if(!isExemptAtImport(tx))blocked.push("Eligible reference "+String(tx.reference_no||"")+" has no linked charge or exemption evidence.");
+      else exemptCount++;
+      continue;
+     }
+     const ledger:any=ledgerById.get(ledgerId);
+     if(!ledger||String(ledger.job_card_number||"").trim().toUpperCase()!==card||ledger.entry_type!=="charge"||ledger.is_voided===true||String(ledger.period_id||"")!==String(batch.period_id)){
+      blocked.push("The linked charge for reference "+String(tx.reference_no||"")+" is missing, voided, or outside this FTO period.");
+      continue;
+     }
+     if(seenLedgerIds.has(ledgerId)){blocked.push("More than one transaction points to the same ledger charge.");continue;}
+     seenLedgerIds.add(ledgerId);
+     const old=Number(ledger.amount||0);
+     oldTotal+=old;newTotal+=next;
+     newByCard.set(card,(newByCard.get(card)||0)+next);
+     changes.push({reference_no:tx.reference_no,job_card_number:card,status,old_charge:old,new_charge:next,difference:Number((next-old).toFixed(2))});
+    }else if(["rejected","other"].includes(status)){
+     if(ledgerId)blocked.push("Rejected/other reference "+String(tx.reference_no||"")+" unexpectedly has a linked charge.");
+    }else blocked.push("Reference "+String(tx.reference_no||"")+" has an unsupported Government status.");
+   }
+   const periodId=String(batch.period_id),chargeMonth=String(batch.ledger_charge_period);
+   const ledgerEntries=snapshot.ledger_entries;
+   const paymentAllocations=Array.isArray(snapshot.payment_allocations)?snapshot.payment_allocations:[];
+   const waiverAllocations=Array.isArray(snapshot.waiver_allocations)?snapshot.waiver_allocations:[];
+   const chargePaymentAllocations=Array.isArray(snapshot.charge_payment_allocations)?snapshot.charge_payment_allocations:[];
+   const unlinkedWaivers=Array.isArray(snapshot.unlinked_legacy_waivers)?snapshot.unlinked_legacy_waivers:[];
+   for(const card of new Set(transactions.map((tx:any)=>String(tx.job_card_number||"").trim().toUpperCase()).filter(Boolean))){
+    const newCardTotal=Number(newByCard.get(card)||0);
+    const relevantEntries=ledgerEntries.filter((entry:any)=>String(entry.job_card_number||"").trim().toUpperCase()===card&&(
+     String(entry.period_id||"")===periodId||(!entry.period_id&&String(entry.charge_period||"")===chargeMonth)
+    ));
+    const nonFto=relevantEntries.filter((entry:any)=>{
+     if(!["charge","other_charge"].includes(String(entry.entry_type||""))||entry.is_deferred===true||entry.is_voided===true)return false;
+     const note=String(entry.note||"").trim().toUpperCase();
+     return !note.startsWith("FTO")||note.startsWith("FTO EXTRA");
+    }).reduce((sum:number,entry:any)=>sum+Number(entry.amount||0),0);
+    const allocated=paymentAllocations.filter((item:any)=>String(item.job_card_number||"").trim().toUpperCase()===card&&String(item.period_id||"")===periodId&&item.payment_entry_type==="payment"&&item.payment_is_voided!==true)
+     .reduce((sum:number,item:any)=>sum+Number(item.amount||0),0);
+    const waived=waiverAllocations.filter((item:any)=>String(item.job_card_number||"").trim().toUpperCase()===card&&String(item.period_id||"")===periodId&&["charge_waiver","forgive"].includes(String(item.waiver_entry_type||""))&&item.waiver_is_voided!==true)
+     .reduce((sum:number,item:any)=>sum+Number(item.amount||0),0);
+    if(unlinkedWaivers.some((item:any)=>String(item.job_card_number||"").trim().toUpperCase()===card&&Number(item.unlinked_amount||0)>0))blocked.push("Job Card "+card+" has an unlinked legacy waiver that must be resolved first.");
+    if(allocated+waived>nonFto+newCardTotal+0.00001)blocked.push("Job Card "+card+" has allocations/waivers exceeding the revised eligible charges.");
+    const cardLedgerIds=new Set(transactions.filter((tx:any)=>String(tx.job_card_number||"").trim().toUpperCase()===card&&tx.ledger_entry_id).map((tx:any)=>String(tx.ledger_entry_id)));
+    const directAllocated=chargePaymentAllocations.filter((item:any)=>cardLedgerIds.has(String(item.charge_id||""))&&item.charge_is_voided!==true&&item.payment_is_voided!==true)
+     .reduce((sum:number,item:any)=>sum+Number(item.amount||0),0);
+    if(directAllocated>newCardTotal+0.00001)blocked.push("Job Card "+card+" has charge-level allocations exceeding its revised FTO charge.");
+   }
+   const uniqueBlocked=[...new Set(blocked)];
+   return reply({
+    approved:true,preview:true,batch_id:batchId,fto_number:batch.fto_number,
+    revision_number:Number(batch.revision_number||1),
+    previous_parameters_recorded:batch.calculation_divisor!==null&&batch.calculation_multiplier!==null,
+    previous_divisor:batch.calculation_divisor,previous_multiplier:batch.calculation_multiplier,
+    divisor,multiplier,transaction_count:transactions.length,
+    charged_transaction_count:changes.length,exempt_transaction_count:exemptCount,
+    old_total:Number(oldTotal.toFixed(2)),new_total:Number(newTotal.toFixed(2)),
+    difference:Number((newTotal-oldTotal).toFixed(2)),
+    changed_transaction_count:changes.filter((item:any)=>Math.abs(item.difference)>0.00001).length,
+    changes,blocked_reasons:uniqueBlocked,can_apply:uniqueBlocked.length===0&&changes.some((item:any)=>Math.abs(item.difference)>0.00001),
+    allocations_preserved:true
+   });
+  }
+  if(action==="apply-fto-co-revision"){
+   if(approved.role!=="admin")return reply({error:"Only an approved administrator can apply a CO calculation change."},403);
+   const batchId=String(body.batch_id||"").trim(),reason=String(body.reason||"").trim();
+   const divisor=Number(body.divisor),multiplier=Number(body.multiplier),expectedRevision=Number(body.expected_revision_number);
+   if(!batchId||!reason)return reply({error:"The FTO batch and revision reason are required."},400);
+   if(!Number.isInteger(divisor)||divisor<=0||divisor>1000000000||!Number.isInteger(multiplier)||multiplier<=0||multiplier>1000000)return reply({error:"Divisor and multiplier must be whole positive numbers within the allowed range."},400);
+   if(!Number.isInteger(expectedRevision)||expectedRevision<1)return reply({error:"Reload the FTO and preview the calculation again."},400);
+   const {data:result,error}=await admin.rpc("vbgramg_apply_fto_co_revision",{
+    p_batch_id:batchId,p_expected_revision_number:expectedRevision,
+    p_divisor:divisor,p_multiplier:multiplier,p_revision_reason:reason,
+    p_actor_user_id:authData.user.id,p_actor_email:authData.user.email
+   });
+   if(error)throw error;
+   if(!result||result.ok!==true)return reply({error:"The database did not confirm the CO calculation revision."},500);
+   return reply({
+    approved:true,unchanged:result.unchanged===true,batch_id:batchId,
+    revision_number:Number(result.revision_number||expectedRevision),
+    transactions_changed:Number(result.transactions_changed||0),
+    ledger_updated:Number(result.ledger_updated||0),
+    old_eligible_total:Number(result.old_eligible_total||0),
+    new_eligible_total:Number(result.new_eligible_total||0),
+    allocations_preserved:result.allocations_preserved===true
+   });
+  }
   if(action==="list-fto-history"){
     if(approved.role!=="admin")return reply({error:"Only an approved administrator can access FTO tracking."},403);
-    const {data:batches,error:batchError}=await admin.from("vbgramg_fto_batches").select("id,fto_number,contribution_period,ledger_charge_period,period_id,village_scope,first_imported_at,last_checked_at,created_by,notes").order("last_checked_at",{ascending:false,nullsFirst:false}).order("first_imported_at",{ascending:false});
+    const {data:batches,error:batchError}=await admin.from("vbgramg_fto_batches").select("id,fto_number,contribution_period,ledger_charge_period,period_id,village_scope,first_imported_at,last_checked_at,created_by,notes,calculation_divisor,calculation_multiplier,revision_number").order("last_checked_at",{ascending:false,nullsFirst:false}).order("first_imported_at",{ascending:false});
     if(batchError)throw batchError;
     const batchRows=batches||[];
     if(!batchRows.length)return reply({approved:true,batches:[]});

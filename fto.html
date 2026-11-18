@@ -687,7 +687,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
     <label for="fto-co-divisor">Divisor<input id="fto-co-divisor" type="number" min="1" step="1" value="300" inputmode="numeric"></label>
     <label for="fto-co-multiplier">Multiplier<input id="fto-co-multiplier" type="number" min="1" step="1" value="100" inputmode="numeric"></label>
    </div>
-   <label for="fto-co-reason">Reason for changing calculation<input id="fto-co-reason" type="text" maxlength="500" placeholder="Enter the reason for this revision"></label>
+   <label for="fto-co-reason">Reason for changing calculation<input id="fto-co-reason" type="text" minlength="10" maxlength="500" required placeholder="Explain why this calculation is being changed (at least 10 characters)"></label>
    <div id="fto-co-preview-status" class="muted" aria-live="polite">Enter the new parameters and preview the calculation.</div>
    <div id="fto-co-preview-results"></div>
    <div class="fto-modal-actions co-revision-actions">
@@ -1156,7 +1156,7 @@ async function testFtoCoCalculation(){
  const batch=currentCoRevisionBatch,preview=coRevisionPreview;
  if(!batch||!preview||preview.can_apply!==true)return;
  const reason=$("fto-co-reason").value.trim();
- if(!reason){coRevisionStatus("Enter a reason before running the rollback test.","error");$("fto-co-reason").focus();return;}
+ if(reason.length<10){coRevisionStatus("Enter a reason with at least 10 characters before running the rollback test.","error");$("fto-co-reason").focus();return;}
  if(Number($("fto-co-divisor").value)!==Number(preview.divisor)||Number($("fto-co-multiplier").value)!==Number(preview.multiplier)){invalidateCoRevisionPreview();return;}
  if(!window.confirm("Run the real CO revision database operation in rollback mode? It will test all writes and constraints, then discard every database change. No contribution records will be changed."))return;
  $("fto-co-test").disabled=true;$("fto-co-test").textContent="Testing…";
@@ -1176,7 +1176,7 @@ async function applyFtoCoCalculation(){
  const batch=currentCoRevisionBatch,preview=coRevisionPreview;
  if(!batch||!preview||preview.can_apply!==true)return;
  const reason=$("fto-co-reason").value.trim();
- if(!reason){coRevisionStatus("Enter the reason for this revision.","error");$("fto-co-reason").focus();return;}
+ if(reason.length<10){coRevisionStatus("Enter a reason with at least 10 characters for this revision.","error");$("fto-co-reason").focus();return;}
  if(Number($("fto-co-divisor").value)!==Number(preview.divisor)||Number($("fto-co-multiplier").value)!==Number(preview.multiplier)){invalidateCoRevisionPreview();return;}
  if(!window.confirm("Apply the revised CO calculation to FTO "+String(batch.fto_number||"")+"? Existing payment allocations will remain unchanged."))return;
  $("fto-co-apply").disabled=true;$("fto-co-apply").textContent="Applying…";

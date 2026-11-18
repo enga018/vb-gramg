@@ -104,6 +104,7 @@ $$;
 
 \ir ../supabase/migrations/20261111110537_create_fto_revision_preview.sql
 \ir ../supabase/migrations/20261113190000_extend_fto_revision_snapshot.sql
+\ir ../supabase/migrations/20261119120000_rebuild_charge_level_fifo_on_co_revision.sql
 
 insert into public.vbgramg_fto_batches(id,fto_number,contribution_period)
 values ('00000000-0000-0000-0000-000000000001','TEST-FTOSNAP-001','JAN26');

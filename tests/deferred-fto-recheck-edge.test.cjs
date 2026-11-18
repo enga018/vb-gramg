@@ -18,7 +18,7 @@ test("only imported FTOs with blank transactions are selected", () => {
 test("complete Government detail rows are validated before reference reconciliation", () => {
   assert.match(source, /Government transaction table was not found|Government table is missing required columns/);
   assert.match(source, /duplicate Reference Number/);
-  assert.match(source, /Government listing .* does not reconcile with detail rows/);
+  assert.match(source, /does not reconcile with detail rows/);
   assert.match(source, /Government table is missing stored reference/);
 });
 

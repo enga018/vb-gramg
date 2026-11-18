@@ -1087,7 +1087,7 @@ function openFtoCoCalculation(batch){
  $("fto-co-multiplier").value=String(batch.calculation_multiplier??100);
  $("fto-co-reason").value="";
  $("fto-co-preview-results").replaceChildren();
- $("fto-co-apply").disabled=true;$("fto-co-test").disabled=true;
+ $("fto-co-apply").disabled=true;
  coRevisionStatus(batch.calculation_divisor==null||batch.calculation_multiplier==null
   ?"The original divisor and multiplier were not recorded for this FTO. The preview will compare the existing saved charges with the new calculation."
   :"Enter the new parameters and preview the calculation.");

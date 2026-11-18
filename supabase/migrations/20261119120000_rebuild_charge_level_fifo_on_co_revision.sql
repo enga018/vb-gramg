@@ -983,13 +983,13 @@ begin
 end;
 $function$;
 
-revoke all on function public.vbgramg_apply_fto_co_revision(uuid,integer,uuid,date,timestamptz,timestamptz,numeric,numeric,text,uuid,text)
+revoke all on function public.vbgramg_apply_fto_co_revision(uuid,integer,uuid,date,timestamptz,timestamptz,text,numeric,numeric,text,uuid,text)
   from public, anon, authenticated;
-grant execute on function public.vbgramg_apply_fto_co_revision(uuid,integer,uuid,date,timestamptz,timestamptz,numeric,numeric,text,uuid,text)
+grant execute on function public.vbgramg_apply_fto_co_revision(uuid,integer,uuid,date,timestamptz,timestamptz,text,numeric,numeric,text,uuid,text)
   to service_role;
 
-comment on function public.vbgramg_apply_fto_co_revision(uuid,integer,uuid,date,timestamptz,timestamptz,numeric,numeric,text,uuid,text) is
-  'Atomically recalculates one imported FTO batch, preserves fixed and legacy period allocations, rebuilds only charge-level fifo_auto allocations, and records before/after revision evidence.';
+comment on function public.vbgramg_apply_fto_co_revision(uuid,integer,uuid,date,timestamptz,timestamptz,text,numeric,numeric,text,uuid,text) is
+  'Atomically recalculates one imported FTO batch, verifies the preview allocation fingerprint, preserves fixed and legacy period allocations, rebuilds only charge-level fifo_auto allocations, and records before/after revision evidence.';
 
  then
     raise exception 'FTO batch, preview version, period, and actor are required' using errcode = '22023';
@@ -1648,11 +1648,11 @@ comment on function public.vbgramg_apply_fto_co_revision(uuid,integer,uuid,date,
 end;
 $function$;
 
-revoke all on function public.vbgramg_apply_fto_co_revision(uuid,integer,uuid,date,timestamptz,timestamptz,numeric,numeric,text,uuid,text)
+revoke all on function public.vbgramg_apply_fto_co_revision(uuid,integer,uuid,date,timestamptz,timestamptz,text,numeric,numeric,text,uuid,text)
   from public, anon, authenticated;
-grant execute on function public.vbgramg_apply_fto_co_revision(uuid,integer,uuid,date,timestamptz,timestamptz,numeric,numeric,text,uuid,text)
+grant execute on function public.vbgramg_apply_fto_co_revision(uuid,integer,uuid,date,timestamptz,timestamptz,text,numeric,numeric,text,uuid,text)
   to service_role;
 
-comment on function public.vbgramg_apply_fto_co_revision(uuid,integer,uuid,date,timestamptz,timestamptz,numeric,numeric,text,uuid,text) is
+comment on function public.vbgramg_apply_fto_co_revision(uuid,integer,uuid,date,timestamptz,timestamptz,text,numeric,numeric,text,uuid,text) is
   'Atomically recalculates one imported FTO batch, preserves fixed and legacy period allocations, rebuilds only charge-level fifo_auto allocations, and records before/after revision evidence.';
 

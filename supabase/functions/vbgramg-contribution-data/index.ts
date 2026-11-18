@@ -711,15 +711,23 @@ Deno.serve(async(req:Request)=>{
     if(!chosen)return reply({error:"The selected applicant for "+card+" is not in the current active MIS. Refresh the preview and try again."},409);
     reconciliationApplicants.set(card,chosen);
    }
-   // Persist explicit and automatically accepted matches for reuse on future FTOs.
-   const mappingRows:Record<string,unknown>[]=[];
-   for(const [card,chosen] of reconciliationApplicants){
-    const source=rows.find((raw:Record<string,any>)=>String(raw?.job_card_number||"").trim().toUpperCase()===card);
-    const governmentName=String(source?.person_name||"").trim(),normalizedName=normalizeApplicantIdentity(governmentName);
-    if(!normalizedName)continue;
-    mappingRows.push({job_card_number:card,normalized_fto_name:normalizedName,government_applicant_name:governmentName,applicant_name:chosen.applicant_name,applicant_number:chosen.applicant_number,applicant_unique_id:chosen.applicant_unique_id,confirmed_by:authData.user.id,confirmed_at:new Date().toISOString(),updated_at:new Date().toISOString()});
+   // Refuse to replace a confirmed identity mapping implicitly.
+   const mappingKeys=[...new Set(rows.map((raw:Record<string,any>)=>({card:String(raw?.job_card_number||"").trim().toUpperCase(),name:normalizeApplicantIdentity(String(raw?.person_name||"").trim())})).filter(x=>x.card&&x.name).map(x=>x.card+"|"+x.name))];
+   const mappingCards=[...new Set(mappingKeys.map(key=>key.split("|")[0]))];
+   if(mappingCards.length){
+    const {data:existingMappings,error:existingMappingsError}=await admin.from("vbgramg_fto_applicant_mappings").select("job_card_number,normalized_fto_name,applicant_name,applicant_number,applicant_unique_id").in("job_card_number",mappingCards);
+    if(existingMappingsError)throw existingMappingsError;
+    const existingByKey=new Map((existingMappings||[]).map((m:any)=>[String(m.job_card_number).trim().toUpperCase()+"|"+String(m.normalized_fto_name||""),m]));
+    const confirmedReplacements=new Set(Array.isArray(body.confirm_mapping_replacements)?body.confirm_mapping_replacements.map((v:unknown)=>String(v||"").trim().toUpperCase()):[]);
+    for(const [card,chosen] of reconciliationApplicants){
+     const source=rows.find((raw:Record<string,any>)=>String(raw?.job_card_number||"").trim().toUpperCase()===card);
+     const key=card+"|"+normalizeApplicantIdentity(String(source?.person_name||"").trim()),saved=existingByKey.get(key);
+     if(saved){
+      const same=(saved.applicant_unique_id&&chosen.applicant_unique_id===saved.applicant_unique_id)||(!saved.applicant_unique_id&&String(saved.applicant_name||"")===String(chosen.applicant_name||"")&&String(saved.applicant_number||"")===String(chosen.applicant_number||""));
+      if(!same&&!confirmedReplacements.has(card))return reply({error:"A confirmed applicant mapping already exists for "+card+". Select the saved MIS applicant or explicitly confirm the replacement in the review.",mapping_conflict:true,job_card_number:card,saved_applicant_name:saved.applicant_name},409);
+     }
+    }
    }
-   if(mappingRows.length){const {error:mappingSaveError}=await admin.from("vbgramg_fto_applicant_mappings").upsert(mappingRows,{onConflict:"job_card_number,normalized_fto_name"});if(mappingSaveError)throw mappingSaveError;}
    const localInputRows=rows;
    const {data:chargeCalculations,error:calculationError}=await admin.rpc("vbgramg_calculate_fto_charges",{p_rows:localInputRows.map((raw:Record<string,any>,row_index:number)=>({row_index,credit_amount:raw.credit_amount,status:raw.status})),p_divisor:divisor,p_multiplier:multiplier});
    if(calculationError)throw calculationError;
@@ -1036,6 +1044,15 @@ Deno.serve(async(req:Request)=>{
    const {data:rpcResult,error:rpcError}=await admin.rpc("vbgramg_apply_fto_snapshot",{p_plan:plan});
    if(rpcError)throw rpcError;
    if(!rpcResult?.committed)return reply({error:"The atomic FTO snapshot did not confirm a commit. No success was reported."},500);
+   // Persist applicant mappings only after the atomic FTO snapshot commits.
+   const mappingRows:Record<string,unknown>[]=[];
+   for(const [card,chosen] of reconciliationApplicants){
+    const source=rows.find((raw:Record<string,any>)=>String(raw?.job_card_number||"").trim().toUpperCase()===card);
+    const governmentName=String(source?.person_name||"").trim(),normalizedName=normalizeApplicantIdentity(governmentName);
+    if(!normalizedName)continue;
+    mappingRows.push({job_card_number:card,normalized_fto_name:normalizedName,government_applicant_name:governmentName,applicant_name:chosen.applicant_name,applicant_number:chosen.applicant_number,applicant_unique_id:chosen.applicant_unique_id,confirmed_by:authData.user.id,confirmed_at:new Date().toISOString(),updated_at:new Date().toISOString()});
+   }
+   if(mappingRows.length){const {error:mappingSaveError}=await admin.from("vbgramg_fto_applicant_mappings").upsert(mappingRows,{onConflict:"job_card_number,normalized_fto_name"});if(mappingSaveError)throw mappingSaveError;}
    // The atomic snapshot has committed. Any verification/repair failure below must
    // explicitly tell the caller not to retry the import as a fresh snapshot.
    try{

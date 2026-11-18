@@ -133,7 +133,7 @@ RETURNS jsonb LANGUAGE sql AS $$ SELECT pg_catalog.jsonb_build_object('committed
 
 \ir ../supabase/migrations/20261107200000_auto_allocate_unallocated_payments_on_new_charge.sql
 \ir ../supabase/migrations/20261108150000_auto_allocate_on_new_payment.sql
-\ir ../supabase/migrations/20261118100000_auto_allocate_after_deferred_reactivation.sql
+\ir ../supabase/migrations/20261118210000_auto_allocate_after_deferred_reactivation.sql
 
 INSERT INTO public.vbgramg_periods(id,period_name,period_date,contribution_month,created_at) VALUES
  ('00000000-0000-0000-0000-000000000001','NOV26','2026-11-01','2026-11-01','2026-10-01'),

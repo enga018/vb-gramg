@@ -77,15 +77,15 @@ async function fetchDetail(url: string, ftoNumber: string, listingRow: string[],
   if (new URL(response.url).hostname !== "vbgramgrep.dord.gov.in") throw new Error("Government detail redirected to an unexpected host.");
   onStage?.("detail_validation");
   const pageText = textOf(html);
-  if (!/FTO\\s+Transaction\\s+Details/i.test(pageText)) throw new Error("Government detail page did not validate.");
+  if (!/FTO\s+Transaction\s+Details/i.test(pageText)) throw new Error("Government detail page did not validate.");
   // The detail page contains other tables (including bank summaries), and its
   // transaction table itself contains bank SubTotal and final Total rows.
   // Scope extraction to the one table containing the transaction header.
-  const transactionTable = [...html.matchAll(/<table\\b[^>]*>([\\s\\S]*?)<\\/table>/gi)]
+  const transactionTable = [...html.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)]
     .map(match => rowsOf(match[1]))
-    .find(rows => rows.some(r => r.some(c => /job\\s*card\\s*no/i.test(c)) && r.some(c => /reference\\s*no/i.test(c))));
+    .find(rows => rows.some(r => r.some(c => /job\s*card\s*no/i.test(c)) && r.some(c => /reference\s*no/i.test(c))));
   if (!transactionTable) throw new Error("Government transaction table header was not found.");
-  const header = transactionTable.find(r => r.some(c => /job\\s*card\\s*no/i.test(c)) && r.some(c => /reference\\s*no/i.test(c)))!;
+  const header = transactionTable.find(r => r.some(c => /job\s*card\s*no/i.test(c)) && r.some(c => /reference\s*no/i.test(c)))!;
   const norm = (s:string) => s.toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
   const h = header.map(norm), find = (...names:string[]) => h.findIndex(v => names.includes(v));
   const job=find("job card no panchayat name","job card no","job card number");
@@ -97,7 +97,7 @@ async function fetchDetail(url: string, ftoNumber: string, listingRow: string[],
   const transactions = transactionTable.slice(transactionTable.indexOf(header)+1)
     // Government inserts bank-wise subtotal rows and one final total row in
     // the same table. They are summaries, not transaction records.
-    .filter(r => !r.some(c => /^(?:sub\\s*total|total)$/i.test(String(c||"").trim())))
+    .filter(r => !r.some(c => /^(?:sub\s*total|total)$/i.test(String(c||"").trim())))
     .map((r,i) => {
       const card=jobCard(r[job]||""), reference=String(r[ref]||"").trim();
       const rawStatus=String(r[state]||"").trim();

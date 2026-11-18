@@ -226,6 +226,20 @@ BEGIN
     RAISE EXCEPTION 'Deferred-charge reactivation did not write exactly one FIFO audit entry';
   END IF;
 
+  -- Atomic FTO Change Period stages rows under this transaction-local flag.
+  -- Its intermediate deferred -> eligible update must not allocate prematurely.
+  INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,charge_period,period_id,entry_date,note,is_deferred)
+  VALUES ('MZ-DEFER-GUARDED','Guarded Household','charge',50,'2026-11-01','00000000-0000-0000-0000-000000000001','2026-11-01','Staged FTO charge',true);
+  INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,entry_date,note)
+  VALUES ('MZ-DEFER-GUARDED','Guarded Household','payment',50,'2026-11-02','Payment');
+  PERFORM pg_catalog.set_config('app.vbgramg_allow_fto_period_rebuild','on',true);
+  UPDATE public.vbgramg_charge_ledger SET is_deferred=false
+  WHERE job_card_number='MZ-DEFER-GUARDED' AND entry_type='charge';
+  PERFORM pg_catalog.set_config('app.vbgramg_allow_fto_period_rebuild','off',true);
+  IF EXISTS (SELECT 1 FROM public.vbgramg_payment_allocations WHERE job_card_number='MZ-DEFER-GUARDED') THEN
+    RAISE EXCEPTION 'FTO Change Period staging unexpectedly triggered an intermediate FIFO allocation';
+  END IF;
+
   INSERT INTO public.vbgramg_contribution_exemptions VALUES ('MZ-EXEMPT','Exempt');
   INSERT INTO public.vbgramg_charge_ledger(job_card_number,person_name,entry_type,amount,entry_date,note)
   VALUES ('MZ-EXEMPT','Exempt Household','payment',100,'2026-11-02','Payment');

@@ -48,11 +48,14 @@ declare
   v_fto_unchanged_start integer;
   v_fto_result jsonb;
 begin
-  if p_payload is null
-     or jsonb_typeof(p_payload) <> 'object'
-     or jsonb_typeof(p_payload->'ftos') is distinct from 'array'
-     or jsonb_array_length(p_payload->'ftos') = 0 then
-    raise exception 'Deferred FTO recheck payload must contain a non-empty ftos array.';
+  if p_payload is null or jsonb_typeof(p_payload) <> 'object' then
+    raise exception 'Deferred FTO recheck payload must be a JSON object.';
+  end if;
+  if jsonb_typeof(p_payload->'ftos') is distinct from 'array' then
+    raise exception 'Deferred FTO recheck payload must contain an ftos array.';
+  end if;
+  if jsonb_array_length(p_payload->'ftos') = 0 then
+    raise exception 'Deferred FTO recheck payload must contain at least one FTO.';
   end if;
 
   if p_actor is null then

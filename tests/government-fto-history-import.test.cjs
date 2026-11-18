@@ -18,24 +18,21 @@ test("Government detail parser binds every transaction to its parent FTO", () =>
 
 test("Eligibility stores only Active MIS Job Card rows and keeps applicant review rows", () => {
   assert.match(details, /const governmentTransactionCount = transactions\.length/);
-  assert.match(details, /const unmatchedTransactionCount = transactions\.filter\(tx => tx\.misMatchStatus === "not_in_active_mis"\)\.length/);
-  assert.match(details, /const matchingTransactions = transactions\.filter\(tx => tx\.misMatchStatus !== "not_in_active_mis"\)/);
+  assert.match(details, /transactions\.filter\(tx => !misIndex\.activeCards\.has/);
+  assert.match(details, /const matchingTransactions = transactions\.filter\(tx => misIndex\.activeCards\.has/);
   assert.match(details, /importableTransactionCount: matchingTransactions\.length/);
-  assert.match(details, /rows: matchingTransactions/);
-  assert.match(details, /validateGovernmentTransactions\(transactions, item\.listingRow/);
+  assert.match(details, /validated_transactions: matchingTransactions/);
+  assert.match(details, /unmatched_transaction_count: unmatchedTransactionCount/);
+  assert.match(details, /validateGovernmentTransactions\(transactions, item\.listingRow\)/);
   assert.doesNotMatch(details, /village.*(?:filter|eligible|scope)/i);
-});
-
-test("Preview tokens are short-lived and bound to administrator and MIS snapshot", () => {
-  assert.match(details, /exp:\s*Date\.now\(\)\s*\+\s*15\s*\*\s*60\s*\*\s*1000/);
-  assert.match(details, /JSON\.stringify\(\{ v: 1, exp: Date\.now\(\) \+ 15 \* 60 \* 1000, userId,/);
-  assert.match(importer, /preview\.userId !== claims\.sub/);
-  assert.match(importer, /preview\.ftoNumber\.trim\(\)\.toUpperCase\(\) !== number/);
-  assert.match(importer, /activeImportId !== preview\.activeImportId/);
-  assert.match(importer, /misUpdatedAt !== preview\.misUpdatedAt/);
-});
-
-test("Import endpoint accepts only signed previews and caps each request", () => {
+});test("Government manifest is encrypted, expires, and detail inspection binds to current Active MIS", () => {
+  assert.match(fetcher, /exp: Date\.now\(\) \+ 45 \* 60 \* 1000/);
+  assert.match(fetcher, /VBGRAMG-FTO-MANIFEST-v1:/);
+  assert.match(fetcher, /AES-GCM/);
+  assert.match(details, /manifest\.exp < Date\.now\(\)/);
+  assert.match(details, /loadActiveMisJobCards\(admin\)/);
+  assert.match(details, /misSnapshot: \{ activeImportId: misIndex\.importId, misUpdatedAt: misIndex\.misUpdatedAt \}/);
+});test("Import endpoint accepts only signed previews and caps each request", () => {
   assert.match(importer, /body\.ftos\.length > 50/);
   assert.match(importer, /readJsonBody\(req, 10_000_000\)/);
   assert.match(importer, /openImportPreviewToken\(token, serviceKey\)/);
@@ -66,26 +63,23 @@ test("SQL independently validates normalized Active MIS matching and duplicate p
   assert.match(migration, /if not v_fto_has_active_mis_match then/i);
 });
 
-test("Inspection uses ELIGIBLE rather than COMPLETE and excludes imported/out-of-scope FTOs", () => {
+test("Inspection uses ELIGIBLE rather than COMPLETE and excludes previously inspected FTOs", () => {
   assert.match(details, /matchingCards\.size === 0 \? "OUT_OF_SCOPE" : "ELIGIBLE"/);
   assert.doesNotMatch(details, /COMPLETE/);
-  assert.match(fetcher, /ELIGIBLE but unimported FTOs remain/);
-  assert.match(fetcher, /inspectionByNumber\.get\(item\.ftoNumber\.trim\(\)\.toUpperCase\(\)\) === "OUT_OF_SCOPE"/);
-  assert.match(fetcher, /imported/);
+  assert.match(fetcher, /Every previously inspected FTO is excluded from another Government detail fetch/);
+  assert.match(fetcher, /inspectionByNumber\.has\(item\.ftoNumber\.trim\(\)\.toUpperCase\(\)\)/);
+  assert.match(fetcher, /const skippedInspectedFtos = newFtos\.filter\(isPreviouslyInspected\)/);
+  assert.match(fetcher, /const eligibleNewFtos = newFtos\.filter\(item => !isPreviouslyInspected\(item\)\)/);
+  assert.match(fetcher, /alreadyImported/);
   assert.doesNotMatch(fetcher, /RECHECK_REQUIRED|deferredNumbers|deferredFtos/);
-});
-
-test("Frontend chunks by FTO count and byte size, and warns about partial completion", () => {
-  assert.match(page, /candidate\.length>50/);
-  assert.match(page, /maxBytes=8_000_000/);
-  assert.match(page, /Earlier successful requests remain imported/);
+});test("Frontend inspects Government details in small batches and delegates import to Pending Imports", () => {
+  assert.match(page, /pending\.splice\(0,5\)/);
+  assert.match(page, /vbgramg-fto-government-details/);
+  assert.match(page, /Eligible FTOs will be available in Pending Imports/);
   assert.match(page, /Unmatched rows excluded from storage/);
-  assert.match(page, /stored_transaction_count/);
-  assert.doesNotMatch(page, /All transaction rows in eligible FTOs are retained/);
-  assert.match(page, /refresh the Government listing and FTO History before attempting another import/i);
-});
-
-
-test("Government FTO preview is independent of Contribution exemptions", () => {
+  assert.match(page, /stored transaction details:/i);
+  assert.match(page, /Open this FTO from Pending Imports to complete applicant matching and import/);
+  assert.doesNotMatch(page, /Earlier successful requests remain imported/);
+});test("Government FTO preview is independent of Contribution exemptions", () => {
   assert.doesNotMatch(details, /vbgramg_contribution_exemptions|exemptCards|contributionExempt/);
 });

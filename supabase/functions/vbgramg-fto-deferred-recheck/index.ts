@@ -147,16 +147,33 @@ Deno.serve(async (req: Request) => {
   let runId:string|null=null;
   let databaseChanged=false;
   try {
-    const {data:batches,error:batchError}=await admin.from("vbgramg_fto_batches").select("id,fto_number").order("fto_number");
-    if(batchError) throw new Error("Could not load imported FTO history.");
-    const batchIds=(batches||[]).map((b:any)=>b.id);
+    // Supabase applies a configured maximum row count to each response.
+    // Read in ordered pages so large villages are never silently truncated.
+    const pageSize=500;
+    const batches:any[]=[];
+    for(let offset=0;;offset+=pageSize) {
+      const {data:page,error:batchError}=await admin.from("vbgramg_fto_batches")
+        .select("id,fto_number").order("id",{ascending:true}).range(offset,offset+pageSize-1);
+      if(batchError) throw new Error("Could not load imported FTO history.");
+      batches.push(...(page||[]));
+      if(!page||page.length<pageSize) break;
+    }
+    const batchIds=batches.map((b:any)=>b.id);
     const deferredByBatch=new Map<string,any[]>();
     for(let offset=0;offset<batchIds.length;offset+=100) {
       const ids=batchIds.slice(offset,offset+100);
-      const {data:txs,error:txError}=await admin.from("vbgramg_fto_transactions")
-        .select("id,batch_id,reference_no,status").in("batch_id",ids).eq("status","blank");
-      if(txError) throw new Error("Could not identify deferred transactions.");
-      for(const tx of txs||[]) { const list=deferredByBatch.get(tx.batch_id)||[];list.push(tx);deferredByBatch.set(tx.batch_id,list); }
+      for(let pageOffset=0;;pageOffset+=pageSize) {
+        const {data:page,error:txError}=await admin.from("vbgramg_fto_transactions")
+          .select("id,batch_id,reference_no,status").in("batch_id",ids).eq("status","blank")
+          .order("id",{ascending:true}).range(pageOffset,pageOffset+pageSize-1);
+        if(txError) throw new Error("Could not identify deferred transactions.");
+        for(const tx of page||[]) {
+          const list=deferredByBatch.get(tx.batch_id)||[];
+          list.push(tx);
+          deferredByBatch.set(tx.batch_id,list);
+        }
+        if(!page||page.length<pageSize) break;
+      }
     }
     const eligible=(batches||[]).filter((b:any)=>(deferredByBatch.get(b.id)||[]).length>0);
     const deferredTransactionCount=[...deferredByBatch.values()].reduce((n,x)=>n+x.length,0);
@@ -212,11 +229,17 @@ Deno.serve(async (req: Request) => {
         stage="detail_fetch";
         const governmentRows=await fetchDetail(candidate.url,ftoNumber,candidate.row,nextStage=>{stage=nextStage;});
         stage="detail_validation";
-        const {data:stored,error:storedError}=await admin.from("vbgramg_fto_transactions")
-          .select("reference_no,status").eq("batch_id",batch.id);
-        if(storedError) throw new Error("Could not load stored transaction references.");
+        const stored:any[]=[];
+        for(let pageOffset=0;;pageOffset+=pageSize) {
+          const {data:page,error:storedError}=await admin.from("vbgramg_fto_transactions")
+            .select("id,reference_no,status").eq("batch_id",batch.id)
+            .order("id",{ascending:true}).range(pageOffset,pageOffset+pageSize-1);
+          if(storedError) throw new Error("Could not load stored transaction references.");
+          stored.push(...(page||[]));
+          if(!page||page.length<pageSize) break;
+        }
         const storedByRef=new Map<string,string>();
-        for(const item of stored||[]) {
+        for(const item of stored) {
           const key=String(item.reference_no||"").trim().toUpperCase();
           if(!key || storedByRef.has(key)) throw new Error("Stored FTO history contains a missing or duplicate reference number.");
           storedByRef.set(key,String(item.reference_no).trim());

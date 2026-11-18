@@ -19,7 +19,7 @@ button.secondary,.link.secondary{background:#f0f3f8;color:#344054;border-color:#
 <header><div><h1>Pending Imports</h1><p>Continue FTOs from their saved inspection. Government details are not fetched again.</p></div><div class="actions"><a class="link secondary" href="./fto.html">FTO History</a><a class="link secondary" href="./fto-government-fetch.html">New FTO Import</a><button id="refresh" type="button">Refresh</button></div></header>
 <section class="panel" id="access-panel"><h2>Administrator access</h2><p>Sign in with an approved VBGRAMG administrator account.</p><div id="access-status" class="status">Checking your session…</div></section>
 <section class="panel hidden" id="app-panel"><h2>Inspected FTOs awaiting import</h2><p>Only eligible, unimported FTOs are shown. Transaction counts are revalidated against the latest Active MIS whenever this page is refreshed or an FTO is opened.</p><div id="list-status" class="status">Loading Pending Imports…</div><div class="table-wrap"><table><thead><tr><th>FTO Number</th><th>Government Rows</th><th>Eligible Rows</th><th>Unmatched</th><th>Inspected On</th><th></th></tr></thead><tbody id="pending-rows"></tbody></table><div id="empty" class="empty hidden">There are no FTOs waiting in Pending Imports.</div></div></section>
-<section class="panel hidden" id="detail-panel"><div class="detail-head"><div><h2 id="detail-title">FTO details</h2><p id="detail-summary"></p></div><div><button id="save-mappings" type="button">Save applicant matches</button> <button id="close-detail" class="secondary" type="button">Back to list</button></div></div><div id="detail-status" class="status">Loading saved inspection…</div><div class="review-controls"><div><label for="contribution-period">Contribution Period</label><select id="contribution-period" disabled><option value="">Loading periods…</option></select></div><div><label for="co-divisor">CO Divisor</label><input id="co-divisor" type="number" min="0.01" step="any" value="300"></div><div><label for="co-multiplier">CO Multiplier</label><input id="co-multiplier" type="number" min="0.01" step="any" value="100"></div></div><div class="review-summary" id="calculation-summary">Select an open Contribution Period and calculate CO to preview charges.</div><section class="review-summary hidden" id="reconciliation-panel"><h3>Existing contribution charge review</h3><p>Review existing manual charges before import. These decisions are not saved or applied yet.</p><div id="reconciliation-content"></div></section><div class="actions"><button id="calculate-co" type="button">Calculate CO</button> <button id="open-final-review" class="secondary" type="button">Final review</button></div><section id="final-review" class="review-summary hidden" aria-live="polite"><h3>Final Review</h3><div id="final-review-content"></div><label style="display:block;margin-top:12px"><input id="final-review-confirm" type="checkbox" style="width:auto;min-height:0;margin-right:8px">I have checked the applicant selections, Contribution Period, and CO amounts.</label><p id="final-review-status">Complete all checks before proceeding.</p></section><div class="table-wrap detail-table"><table><thead><tr><th>Job Card</th><th>Government Applicant</th><th>Active MIS Applicant</th><th>Reference No.</th><th>Credit Amount</th><th>Calculated CO</th><th>Status</th><th>Transaction Date</th></tr></thead><tbody id="detail-rows"></tbody></table></div><p>These are saved Government rows revalidated against the latest Active MIS. Applicant matching, Contribution period selection, CO calculation, and final import controls are the next workflow step.</p></section>
+<section class="panel hidden" id="detail-panel"><div class="detail-head"><div><h2 id="detail-title">FTO details</h2><p id="detail-summary"></p></div><div><button id="save-mappings" type="button">Save applicant matches</button> <button id="close-detail" class="secondary" type="button">Back to list</button></div></div><div id="detail-status" class="status">Loading saved inspection…</div><div class="review-controls"><div><label for="contribution-period">Contribution Period</label><select id="contribution-period" disabled><option value="">Loading periods…</option></select></div><div><label for="co-divisor">CO Divisor</label><input id="co-divisor" type="number" min="0.01" step="any" value="300"></div><div><label for="co-multiplier">CO Multiplier</label><input id="co-multiplier" type="number" min="0.01" step="any" value="100"></div></div><div class="review-summary" id="calculation-summary">Select an open Contribution Period and calculate CO to preview charges.</div><section class="review-summary hidden" id="reconciliation-panel"><h3>Existing contribution charge review</h3><p>Review existing manual charges before import. These decisions are not saved or applied yet.</p><div id="reconciliation-content"></div></section><div class="actions"><button id="calculate-co" type="button">Calculate CO</button> <button id="open-final-review" class="secondary" type="button">Final review</button> <button id="import-fto" type="button" disabled>Import FTO</button></div><section id="final-review" class="review-summary hidden" aria-live="polite"><h3>Final Review</h3><div id="final-review-content"></div><label style="display:block;margin-top:12px"><input id="final-review-confirm" type="checkbox" style="width:auto;min-height:0;margin-right:8px">I have checked the applicant selections, Contribution Period, and CO amounts.</label><p id="final-review-status">Complete all checks before proceeding.</p></section><div class="table-wrap detail-table"><table><thead><tr><th>Job Card</th><th>Government Applicant</th><th>Active MIS Applicant</th><th>Reference No.</th><th>Credit Amount</th><th>Calculated CO</th><th>Status</th><th>Transaction Date</th></tr></thead><tbody id="detail-rows"></tbody></table></div><p>These are saved Government rows revalidated against the latest Active MIS. Applicant matching, Contribution period selection, CO calculation, and final import controls are the next workflow step.</p></section>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./js/supabase-client.js?v=20261117a"></script>
@@ -28,7 +28,7 @@ button.secondary,.link.secondary{background:#f0f3f8;color:#344054;border-color:#
 (function(){
 "use strict";
 const $=id=>document.getElementById(id),client=window.vbgramgSupabase;
-let authSequence=0,currentApplicantMatches=new Map(),currentFtoNumber="",currentTransactions=[],currentCalculations=[],sharedPeriods=[],reconciliationPreview=null,manualChargeDecisions=new Map(),manualAmountConfirmations=new Set();
+let authSequence=0,currentApplicantMatches=new Map(),currentFtoNumber="",currentTransactions=[],currentCalculations=[],sharedPeriods=[],reconciliationPreview=null,manualChargeDecisions=new Map(),manualAmountConfirmations=new Set(),finalReviewReady=false;
 function status(id,message,type){const el=$(id);el.textContent=message;el.className="status"+(type?" "+type:"");}
 function cell(row,value){const td=row.insertCell();td.textContent=value==null?"":String(value);return td;}
 function dateLabel(value){if(!value)return "—";const d=new Date(value);return Number.isNaN(d.getTime())?String(value):d.toLocaleString("en-IN");}
@@ -136,7 +136,7 @@ async function previewPendingReconciliation(){
  reconciliationPreview=data;manualChargeDecisions=new Map();manualAmountConfirmations=new Set();renderReconciliation();openFinalReview();
 }
 function openFinalReview(){
- const panel=$("final-review");panel.classList.remove("hidden");$("final-review-confirm").checked=false;
+ const panel=$("final-review");panel.classList.remove("hidden");$("final-review-confirm").checked=false;finalReviewReady=false;$("import-fto").disabled=true;
  const issues=[],details=[];
  if(!currentFtoNumber||!currentTransactions.length)issues.push("No Pending FTO is open.");
  if(!selectedContributionPeriod())issues.push("Select an open Contribution Period.");
@@ -233,6 +233,52 @@ async function saveApplicantMappings(){
   await openPending(currentFtoNumber);
  }finally{button.disabled=false;button.textContent="Save applicant matches";}
 }
+async function importPendingFto(){
+ if(!finalReviewReady||!$("final-review-confirm").checked){status("detail-status","Complete Final Review and confirm the checklist before importing.","error");return;}
+ if(!reconciliationPreview||reconciliationPreview.blocked){status("detail-status","Resolve the reconciliation blockers and run the preview again.","error");return;}
+ const applicant_mappings=[];
+ for(const [card,match] of currentApplicantMatches){
+  const index=match.selected_index!==undefined?match.selected_index:(match.candidates||[]).findIndex(candidate=>sameApplicant(candidate,match.suggested_applicant));
+  const chosen=(match.candidates||[])[index];
+  if(!chosen){status("detail-status","Select an Active MIS applicant for every Job Card.","error");return;}
+  applicant_mappings.push({job_card_number:card,applicant_name:chosen.applicant_name,applicant_number:chosen.applicant_number,applicant_unique_id:chosen.applicant_unique_id});
+ }
+ const manual_charge_actions={};
+ for(const review of reconciliationPreview.manual_charge_reviews||[]){
+  if(review.resolution!=="choose_link_or_keep_separate")continue;
+  const action=manualChargeDecisions.get(review.job_card_number);
+  if(!action){status("detail-status","A manual charge decision is missing for "+review.job_card_number+".","error");return;}
+  manual_charge_actions[review.job_card_number]=action;
+  if(action==="link"&&review.manual_charges?.[0]?.requires_applicant_selection){
+   const selected=manualChargeDecisions.get(review.job_card_number+"_applicant");
+   const candidate=currentApplicantMatches.get(review.job_card_number)?.candidates?.[Number(selected)];
+   if(!candidate){status("detail-status","Select an Active MIS applicant for the manual charge on "+review.job_card_number+".","error");return;}
+   const existing=applicant_mappings.find(item=>item.job_card_number===review.job_card_number);
+   if(existing)Object.assign(existing,{applicant_name:candidate.applicant_name,applicant_number:candidate.applicant_number,applicant_unique_id:candidate.applicant_unique_id});
+  }
+ }
+ const confirm_mapping_replacements=[...currentApplicantMatches].filter(([card,match])=>match.confirm_replacement===true).map(([card])=>card);
+ const manual_charge_amount_confirmations=[...manualAmountConfirmations];
+ const button=$("import-fto");button.disabled=true;button.textContent="Importing…";
+ status("detail-status","Server is revalidating the saved FTO, Active MIS, period, applicant mappings, and manual-charge decisions before the atomic import…");
+ try{
+  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{
+   action:"import-pending-fto",fto_number:currentFtoNumber,period_id:selectedContributionPeriod()?.id,
+   divisor:Number($("co-divisor").value),multiplier:Number($("co-multiplier").value),
+   applicant_mappings,confirm_mapping_replacements,manual_charge_actions,manual_charge_amount_confirmations
+  },timeoutMs:120000,deduplicate:false});
+  if(error||!data||data.approved!==true){
+   const message=data?.error||error?.message||"The FTO import was not confirmed.";
+   if(data?.snapshot_committed){status("detail-status",message+" The snapshot has committed; do not retry this FTO. Refresh Pending Imports and check FTO History.","error");await loadPending();}
+   else status("detail-status",message,"error");
+   return;
+  }
+  status("detail-status","FTO "+data.fto_number+" imported successfully. "+Number(data.local_transactions||0)+" transactions · "+Number(data.inserted||0)+" new charges · "+Number(data.updated||0)+" updated · "+Number(data.reconciled||0)+" reconciled. Total CO ₹"+Number(data.total_amount||0).toFixed(2)+".","success");
+  currentFtoNumber="";currentTransactions=[];currentCalculations=[];reconciliationPreview=null;
+  $("detail-panel").classList.add("hidden");await loadPending();
+ }catch(err){status("detail-status",err.message||"Import failed. Check FTO History before retrying.","error");}
+ finally{button.disabled=!finalReviewReady;button.textContent="Import FTO";}
+}
 async function verifyAccess(user){
  const seq=++authSequence;if(!user){window.location.replace("./");return;}
  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-app-access",{body:{}});
@@ -242,7 +288,7 @@ async function verifyAccess(user){
 }
 client.auth.onAuthStateChange((event,session)=>{if(event==="SIGNED_OUT"){authSequence++;window.location.replace("./");}else if(event==="TOKEN_REFRESHED"&&session)Promise.resolve().then(()=>verifyAccess(session.user));});
 client.auth.getSession().then(({data,error})=>{if(error||!data.session){window.location.replace("./");return;}verifyAccess(data.session.user);});
-$("refresh").addEventListener("click",loadPending);$("open-final-review").addEventListener("click",openFinalReview);$("final-review-confirm").addEventListener("change",()=>{$("final-review-status").textContent=$("final-review-confirm").checked?"Final review confirmed. This still does not import the FTO.":"Final review confirmation cleared.";});$("calculate-co").addEventListener("click",calculatePendingCO);$("contribution-period").addEventListener("change",()=>{currentCalculations=[];reconciliationPreview=null;renderReconciliation();invalidateFinalReview();$("calculation-summary").textContent="Period changed. Recalculate CO to refresh the preview.";renderPendingTransactions();});$("co-divisor").addEventListener("input",()=>{currentCalculations=[];reconciliationPreview=null;renderReconciliation();invalidateFinalReview();$("calculation-summary").textContent="Formula changed. Recalculate CO to refresh the preview.";renderPendingTransactions();});$("co-multiplier").addEventListener("input",()=>{currentCalculations=[];reconciliationPreview=null;renderReconciliation();invalidateFinalReview();$("calculation-summary").textContent="Formula changed. Recalculate CO to refresh the preview.";renderPendingTransactions();});$("save-mappings").addEventListener("click",saveApplicantMappings);$("close-detail").addEventListener("click",()=>{$("detail-panel").classList.add("hidden");});
+$("refresh").addEventListener("click",loadPending);$("open-final-review").addEventListener("click",openFinalReview);$("final-review-confirm").addEventListener("change",()=>{finalReviewReady=$("final-review-confirm").checked;$("import-fto").disabled=!finalReviewReady;$("final-review-status").textContent=finalReviewReady?"Final review confirmed. You can now import this FTO.":"Final review confirmation cleared.";});$("import-fto").addEventListener("click",importPendingFto);$("calculate-co").addEventListener("click",calculatePendingCO);$("contribution-period").addEventListener("change",()=>{currentCalculations=[];reconciliationPreview=null;renderReconciliation();invalidateFinalReview();$("calculation-summary").textContent="Period changed. Recalculate CO to refresh the preview.";renderPendingTransactions();});$("co-divisor").addEventListener("input",()=>{currentCalculations=[];reconciliationPreview=null;renderReconciliation();invalidateFinalReview();$("calculation-summary").textContent="Formula changed. Recalculate CO to refresh the preview.";renderPendingTransactions();});$("co-multiplier").addEventListener("input",()=>{currentCalculations=[];reconciliationPreview=null;renderReconciliation();invalidateFinalReview();$("calculation-summary").textContent="Formula changed. Recalculate CO to refresh the preview.";renderPendingTransactions();});$("save-mappings").addEventListener("click",saveApplicantMappings);$("close-detail").addEventListener("click",()=>{$("detail-panel").classList.add("hidden");});
 })();
 </script>
 </body></html>

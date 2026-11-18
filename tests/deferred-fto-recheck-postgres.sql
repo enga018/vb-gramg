@@ -276,8 +276,13 @@ BEGIN
     NULL;
   END;
 END
-$$;
+$;
 
+-- The production migrations intentionally revoke direct table access from
+-- service_role. After asserting that isolation above, grant SELECT only in
+-- this ephemeral test database so the RPC lifecycle assertions can inspect
+-- persisted attempts while exercising the RPCs as service_role.
+GRANT SELECT ON public.vbgramg_fto_recheck_attempts TO service_role;
 
 -- Exercise run lifecycle RPCs and the atomic success-attempt wrapper.
 SET ROLE service_role;

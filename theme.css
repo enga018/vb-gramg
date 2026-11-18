@@ -1,10 +1,10 @@
 /* VBGRAMG automatic device theme.
    Light remains the default. Dark styles apply only when the OS/browser requests dark mode. */
-@media screen and (prefers-color-scheme: dark) {
-  html {
+
+  html.theme-dark{
     color-scheme: dark !important;
   }
-  :root {
+  html.theme-dark{
     --ink: #f3f5f7;
     --muted: #9aa4b2;
     --line: rgba(255,255,255,.10);
@@ -26,172 +26,158 @@
     --blue-bg: rgba(111,151,255,.14);
   }
 
-  html, body {
+  html.theme-dark, html.theme-dark body{
     color: var(--ink) !important;
     background: #0b0d10 !important;
   }
 
-  body { color-scheme: dark; }
-  main, .app, .page { color: var(--ink); }
-  .topbar, .panel, .stat, .metric, .login-card, .table-wrap,
-  .history-section, .fto-history-kpi, .applicant-review,
-  .applicant-review-table-wrap, .import-grid .field,
-  .demand-unwilling-grid > .panel, .confirm-content {
+  html.theme-dark body{ color-scheme: dark; }
+  html.theme-dark main, html.theme-dark .app, html.theme-dark .page{ color: var(--ink); }
+  html.theme-dark .topbar, html.theme-dark .panel, html.theme-dark .stat, html.theme-dark .metric, html.theme-dark .login-card, html.theme-dark .table-wrap, html.theme-dark .history-section, html.theme-dark .fto-history-kpi, html.theme-dark .applicant-review, html.theme-dark .applicant-review-table-wrap, html.theme-dark .import-grid .field, html.theme-dark .demand-unwilling-grid > .panel, html.theme-dark .confirm-content{
     color: var(--ink);
     background: var(--surface) !important;
     border-color: var(--line) !important;
     box-shadow: none !important;
   }
 
-  h1, h2, h3, h4, strong, b, label, th, td,
-  .brand h1, .panel h2, .section-heading h2,
-  .jobcard-row, .contribution-row, .jobcard,
-  .mobile-jobcard-number, .mobile-jobcard-household {
+  html.theme-dark h1, html.theme-dark h2, html.theme-dark h3, html.theme-dark h4, html.theme-dark strong, html.theme-dark b, html.theme-dark label, html.theme-dark th, html.theme-dark td, html.theme-dark .brand h1, html.theme-dark .panel h2, html.theme-dark .section-heading h2, html.theme-dark .jobcard-row, html.theme-dark .contribution-row, html.theme-dark .jobcard, html.theme-dark .mobile-jobcard-number, html.theme-dark .mobile-jobcard-household{
     color: var(--ink);
   }
 
-  p, small, .brand p, .sub, .muted, .meta, .count,
-  .section-head p, .small-muted, .applicant, .person,
-  .mobile-person-inline, .mobile-subline, .table-foot,
-  .table-action-note, .import-help, .history-toolbar,
-  .fto-history-kpi span, #updated-at {
+  html.theme-dark p, html.theme-dark small, html.theme-dark .brand p, html.theme-dark .sub, html.theme-dark .muted, html.theme-dark .meta, html.theme-dark .count, html.theme-dark .section-head p, html.theme-dark .small-muted, html.theme-dark .applicant, html.theme-dark .person, html.theme-dark .mobile-person-inline, html.theme-dark .mobile-subline, html.theme-dark .table-foot, html.theme-dark .table-action-note, html.theme-dark .import-help, html.theme-dark .history-toolbar, html.theme-dark .fto-history-kpi span, html.theme-dark #updated-at{
     color: var(--muted) !important;
   }
 
-  a, .brand a { color: #a6bdff; }
-  a:hover, .brand a:hover { color: #c6d5ff; }
+  html.theme-dark a, html.theme-dark .brand a{ color: #a6bdff; }
+  html.theme-dark a:hover, html.theme-dark .brand a:hover{ color: #c6d5ff; }
 
-  input, select, textarea,
-  .search input, .search-wrap input, .toolbar input,
-  .filter-control select, .field input, .applicant-review-table select {
+  html.theme-dark input, html.theme-dark select, html.theme-dark textarea, html.theme-dark .search input, html.theme-dark .search-wrap input, html.theme-dark .toolbar input, html.theme-dark .filter-control select, html.theme-dark .field input, html.theme-dark .applicant-review-table select{
     color: var(--ink) !important;
     background: #0d1217 !important;
     border-color: var(--line) !important;
   }
-  input::placeholder, textarea::placeholder { color: #748091 !important; }
-  input:focus, select:focus, textarea:focus {
+  html.theme-dark input::placeholder, html.theme-dark textarea::placeholder{ color: #748091 !important; }
+  html.theme-dark input:focus, html.theme-dark select:focus, html.theme-dark textarea:focus{
     outline-color: #789cff;
     border-color: #789cff !important;
   }
 
-  button, .btn, .link-button {
+  html.theme-dark button, html.theme-dark .btn, html.theme-dark .link-button{
     color: var(--ink);
     background: #171e25;
     border-color: var(--line);
   }
-  button:hover, .btn:hover, .link-button:hover {
+  html.theme-dark button:hover, html.theme-dark .btn:hover, html.theme-dark .link-button:hover{
     background: #202a34;
     border-color: rgba(255,255,255,.22);
   }
-  button.secondary, .btn.ghost {
+  html.theme-dark button.secondary, html.theme-dark .btn.ghost{
     color: var(--ink);
     background: #151b22;
     border-color: var(--line);
   }
-  button.primary, .btn.primary, button:not(.secondary):not(.ghost):not(:disabled) {
+  html.theme-dark button.primary, html.theme-dark .btn.primary, html.theme-dark button:not(.secondary):not(.ghost):not(:disabled){
     border-color: var(--line);
   }
-  button:disabled { opacity: .48; }
+  html.theme-dark button:disabled{ opacity: .48; }
 
-  table { color: var(--ink); }
-  th, thead th {
+  html.theme-dark table{ color: var(--ink); }
+  html.theme-dark th, html.theme-dark thead th{
     color: #dce3eb !important;
     background: #171e25 !important;
     border-color: var(--line) !important;
   }
-  td, th { border-color: var(--line) !important; }
-  tbody tr, .jobcard-row, .contribution-row {
+  html.theme-dark td, html.theme-dark th{ border-color: var(--line) !important; }
+  html.theme-dark tbody tr, html.theme-dark .jobcard-row, html.theme-dark .contribution-row{
     background: #101419;
   }
-  tbody tr:nth-child(even), .applicant-detail tbody tr:nth-child(even) {
+  html.theme-dark tbody tr:nth-child(even), html.theme-dark .applicant-detail tbody tr:nth-child(even){
     background: #131a20 !important;
   }
-  tbody tr:hover, .jobcard-row:hover, .contribution-row:hover,
-  .applicant-detail tbody tr:hover {
+  html.theme-dark tbody tr:hover, html.theme-dark .jobcard-row:hover, html.theme-dark .contribution-row:hover, html.theme-dark .applicant-detail tbody tr:hover{
     background: #1a232c !important;
   }
-  .jobcard-row.has-selection { background: rgba(69,214,173,.09) !important; }
-  .jobcard-row.no-selection { background: #101419; }
+  html.theme-dark .jobcard-row.has-selection{ background: rgba(69,214,173,.09) !important; }
+  html.theme-dark .jobcard-row.no-selection{ background: #101419; }
 
-  .status, .notice, .demo, .status.success, .status.error,
-  .empty, .badge, .tag, .row-status, .mobile-applicant-count-badge {
+  html.theme-dark .status, html.theme-dark .notice, html.theme-dark .demo, html.theme-dark .status.success, html.theme-dark .status.error, html.theme-dark .empty, html.theme-dark .badge, html.theme-dark .tag, html.theme-dark .row-status, html.theme-dark .mobile-applicant-count-badge{
     border-color: var(--line);
   }
-  .status, .notice.info, .demo {
+  html.theme-dark .status, html.theme-dark .notice.info, html.theme-dark .demo{
     color: #b8caff !important;
     background: rgba(111,151,255,.10) !important;
   }
-  .status.success, .notice.success {
+  html.theme-dark .status.success, html.theme-dark .notice.success{
     color: #65e0bb !important;
     background: rgba(69,214,173,.10) !important;
   }
-  .status.error, .notice.err, .notice.error {
+  html.theme-dark .status.error, html.theme-dark .notice.err, html.theme-dark .notice.error{
     color: #ff9999 !important;
     background: rgba(255,112,112,.10) !important;
   }
 
-  .badge.paid, .row-status.settled, .tag.settled {
+  html.theme-dark .badge.paid, html.theme-dark .row-status.settled, html.theme-dark .tag.settled{
     color: #65e0bb !important;
     background: rgba(69,214,173,.13) !important;
   }
-  .badge.partial, .row-status.deferred, .tag.deferred {
+  html.theme-dark .badge.partial, html.theme-dark .row-status.deferred, html.theme-dark .tag.deferred{
     color: #f0ca78 !important;
     background: rgba(232,189,98,.13) !important;
   }
-  .badge.due, .row-status.due, .tag.due {
+  html.theme-dark .badge.due, html.theme-dark .row-status.due, html.theme-dark .tag.due{
     color: #ff9999 !important;
     background: rgba(255,112,112,.14) !important;
   }
-  .row-status.overpaid, .tag.overpaid {
+  html.theme-dark .row-status.overpaid, html.theme-dark .tag.overpaid{
     color: #a6bdff !important;
     background: rgba(111,151,255,.14) !important;
   }
-  .row-status.exempt { color: #c5cbd3 !important; background: #252d36 !important; }
+  html.theme-dark .row-status.exempt{ color: #c5cbd3 !important; background: #252d36 !important; }
 
-  .overlay { background: rgba(0,0,0,.72) !important; }
-  .sheet, .modal, dialog, .fto-import-modal {
+  html.theme-dark .overlay{ background: rgba(0,0,0,.72) !important; }
+  html.theme-dark .sheet, html.theme-dark .modal, html.theme-dark dialog, html.theme-dark .fto-import-modal{
     color: var(--ink) !important;
     background: #0f1419 !important;
     border-color: var(--line) !important;
     box-shadow: none;
   }
-  .sheet-head, .sheet-footer, .fto-import-modal-head {
+  html.theme-dark .sheet-head, html.theme-dark .sheet-footer, html.theme-dark .fto-import-modal-head{
     background: #11171d !important;
     border-color: var(--line) !important;
   }
-  dialog::backdrop, dialog#confirmDialog::backdrop {
+  html.theme-dark dialog::backdrop, html.theme-dark dialog#confirmDialog::backdrop{
     background: rgba(0,0,0,.72) !important;
   }
-  .balance, .confirm-summary, .metric, .stat {
+  html.theme-dark .balance, html.theme-dark .confirm-summary, html.theme-dark .metric, html.theme-dark .stat{
     background: #141b21 !important;
     border-color: var(--line) !important;
   }
-  .entry, .citizen, .record {
+  html.theme-dark .entry, html.theme-dark .citizen, html.theme-dark .record{
     color: var(--ink);
     background: #11171d !important;
     border-color: var(--line) !important;
   }
-  .entry.payment { background: rgba(69,214,173,.06) !important; }
-  .entry.payment .amount, .amount.paid, .stat .v.paid { color: #65e0bb !important; }
-  .entry.charge, .entry .amount { color: var(--ink); }
-  .outstanding, .amount.due, .stat .v.due { color: #ff9999 !important; }
-  .mobile-applicant-count-badge {
+  html.theme-dark .entry.payment{ background: rgba(69,214,173,.06) !important; }
+  html.theme-dark .entry.payment .amount, html.theme-dark .amount.paid, html.theme-dark .stat .v.paid{ color: #65e0bb !important; }
+  html.theme-dark .entry.charge, html.theme-dark .entry .amount{ color: var(--ink); }
+  html.theme-dark .outstanding, html.theme-dark .amount.due, html.theme-dark .stat .v.due{ color: #ff9999 !important; }
+  html.theme-dark .mobile-applicant-count-badge{
     color: #c5cbd3 !important;
     background: #202832 !important;
   }
-  .table-foot, .table-action-bar, .finalise-action-bar, .export-action-bar {
+  html.theme-dark .table-foot, html.theme-dark .table-action-bar, html.theme-dark .finalise-action-bar, html.theme-dark .export-action-bar{
     border-color: var(--line) !important;
   }
-  .fto-import-modal iframe { background: #0b0d10; }
-  .hidden { color: inherit; }
-}
+  html.theme-dark .fto-import-modal iframe{ background: #0b0d10; }
+  html.theme-dark .hidden{ color: inherit; }
+
 
 
 /* Component-level dark palette corrections.
    Keep data/status meaning intact while preventing light surfaces and dark text
    from leaking through page-specific component rules. */
-@media screen and (prefers-color-scheme: dark) {
-  :root {
+
+  html.theme-dark{
     --surface: #171d24;
     --surface-soft: #1d252e;
     --soft: #1d252e;
@@ -201,12 +187,7 @@
   }
 
   /* Shared page chrome and nested content surfaces */
-  .topbar, .panel, .stat, .metric, .table-wrap,
-  .login-card, .history-section, .fto-card,
-  .fto-transaction-mobile-card, .applicant-review,
-  .applicant-review-table-wrap, .period-modal,
-  .period-modal-content, .confirm-content,
-  .sheet, .modal, dialog {
+  html.theme-dark .topbar, html.theme-dark .panel, html.theme-dark .stat, html.theme-dark .metric, html.theme-dark .table-wrap, html.theme-dark .login-card, html.theme-dark .history-section, html.theme-dark .fto-card, html.theme-dark .fto-transaction-mobile-card, html.theme-dark .applicant-review, html.theme-dark .applicant-review-table-wrap, html.theme-dark .period-modal, html.theme-dark .period-modal-content, html.theme-dark .confirm-content, html.theme-dark .sheet, html.theme-dark .modal, html.theme-dark dialog{
     color: #edf2f7 !important;
     background: #171d24 !important;
     border-color: #303a45 !important;
@@ -214,243 +195,189 @@
   }
 
   /* Tables, MIS job cards, contribution rows and FTO history cards */
-  table, tbody, .jobcard-row, .contribution-row, .fto-card,
-  .applicant-detail td, .applicant-detail table,
-  .fto-transaction-mobile-card {
+  html.theme-dark table, html.theme-dark tbody, html.theme-dark .jobcard-row, html.theme-dark .contribution-row, html.theme-dark .fto-card, html.theme-dark .applicant-detail td, html.theme-dark .applicant-detail table, html.theme-dark .fto-transaction-mobile-card{
     color: #edf2f7 !important;
     background: #171d24 !important;
   }
-  tbody tr:nth-child(even), .applicant-detail tbody tr:nth-child(even) {
+  html.theme-dark tbody tr:nth-child(even), html.theme-dark .applicant-detail tbody tr:nth-child(even){
     background: #1c242d !important;
   }
-  .jobcard-row:hover, .jobcard-row:active,
-  .contribution-row:hover, .fto-card:hover,
-  .applicant-detail tbody tr:hover {
+  html.theme-dark .jobcard-row:hover, html.theme-dark .jobcard-row:active, html.theme-dark .contribution-row:hover, html.theme-dark .fto-card:hover, html.theme-dark .applicant-detail tbody tr:hover{
     background: #25313c !important;
   }
-  .jobcard-row.has-selection,
-  .jobcard-row[aria-expanded="true"],
-  #contribution-table tbody tr.selected {
+  html.theme-dark .jobcard-row.has-selection, html.theme-dark .jobcard-row[aria-expanded="true"], html.theme-dark #contribution-table tbody tr.selected{
     background: #18352f !important;
   }
-  .jobcard-row.no-selection { background: #211f1a !important; }
+  html.theme-dark .jobcard-row.no-selection{ background: #211f1a !important; }
 
-  th, thead th, .applicant-detail th {
+  html.theme-dark th, html.theme-dark thead th, html.theme-dark .applicant-detail th{
     color: #dbe4ee !important;
     background: #202a34 !important;
     border-color: #303a45 !important;
   }
-  td, th, .applicant-detail td, .fto-card {
+  html.theme-dark td, html.theme-dark th, html.theme-dark .applicant-detail td, html.theme-dark .fto-card{
     border-color: #303a45 !important;
   }
 
   /* Identity text was explicitly hard-coded dark in mobile layouts. */
-  .mobile-jobcard-line, .mobile-jobcard-line .suffix,
-  .mobile-jobcard-number, .mobile-jobcard-household,
-  #mis-table .mobile-jobcard-number,
-  #mis-table .mobile-jobcard-household,
-  .desktop-jobcard-cell, .desktop-household-cell,
-  .fto-number, .card-main, .card-main strong,
-  .fto-transaction-mobile-card strong,
-  .fto-transaction-mobile-card .tx-name {
+  html.theme-dark .mobile-jobcard-line, html.theme-dark .mobile-jobcard-line .suffix, html.theme-dark .mobile-jobcard-number, html.theme-dark .mobile-jobcard-household, html.theme-dark #mis-table .mobile-jobcard-number, html.theme-dark #mis-table .mobile-jobcard-household, html.theme-dark .desktop-jobcard-cell, html.theme-dark .desktop-household-cell, html.theme-dark .fto-number, html.theme-dark .card-main, html.theme-dark .card-main strong, html.theme-dark .fto-transaction-mobile-card strong, html.theme-dark .fto-transaction-mobile-card .tx-name{
     color: #edf2f7 !important;
   }
-  .fto-transaction-mobile-card .tx-meta,
-  .card-side, .header-actions-label {
+  html.theme-dark .fto-transaction-mobile-card .tx-meta, html.theme-dark .card-side, html.theme-dark .header-actions-label{
     color: #aab5c2 !important;
   }
 
   /* Form controls and native select option menus */
-  input, select, textarea, .field input, .field select,
-  .toolbar input, .toolbar select, .filter-control select,
-  #periodSelect, #days, .desktop-applicant-dropdown {
+  html.theme-dark input, html.theme-dark select, html.theme-dark textarea, html.theme-dark .field input, html.theme-dark .field select, html.theme-dark .toolbar input, html.theme-dark .toolbar select, html.theme-dark .filter-control select, html.theme-dark #periodSelect, html.theme-dark #days, html.theme-dark .desktop-applicant-dropdown{
     color: #edf2f7 !important;
     background: #10161c !important;
     border-color: #394653 !important;
   }
-  select option {
+  html.theme-dark select option{
     color: #edf2f7;
     background: #171d24;
   }
-  label, .field label, .filter-control label {
+  html.theme-dark label, html.theme-dark .field label, html.theme-dark .filter-control label{
     color: #d6dee8 !important;
   }
-  input::placeholder, textarea::placeholder {
+  html.theme-dark input::placeholder, html.theme-dark textarea::placeholder{
     color: #8794a3 !important;
   }
 
   /* Keep primary actions distinct; secondary actions remain neutral. */
-  button:not(.secondary):not(.ghost):not(.x):not(:disabled),
-  .btn:not(.ghost):not(.secondary):not(:disabled),
-  .link-button:not(.secondary):not(:disabled) {
+  html.theme-dark button:not(.secondary):not(.ghost):not(.x):not(:disabled), html.theme-dark .btn:not(.ghost):not(.secondary):not(:disabled), html.theme-dark .link-button:not(.secondary):not(:disabled){
     color: #f7fafc !important;
     background: #245c50 !important;
     border-color: #347765 !important;
   }
-  button:not(.secondary):not(.ghost):not(.x):not(:disabled):hover,
-  .btn:not(.ghost):not(.secondary):not(:disabled):hover {
+  html.theme-dark button:not(.secondary):not(.ghost):not(.x):not(:disabled):hover, html.theme-dark .btn:not(.ghost):not(.secondary):not(:disabled):hover{
     background: #2d705f !important;
   }
-  button.secondary, button.ghost, .btn.ghost, .btn.secondary,
-  .link-button.secondary {
+  html.theme-dark button.secondary, html.theme-dark button.ghost, html.theme-dark .btn.ghost, html.theme-dark .btn.secondary, html.theme-dark .link-button.secondary{
     color: #dce5ee !important;
     background: #252f39 !important;
     border-color: #3a4652 !important;
   }
 
   /* Semantic status colors */
-  .status.success, .notice.success,
-  .badge.paid, .row-status.settled, .tag.settled,
-  .mobile-selection-status.is-selected {
+  html.theme-dark .status.success, html.theme-dark .notice.success, html.theme-dark .badge.paid, html.theme-dark .row-status.settled, html.theme-dark .tag.settled, html.theme-dark .mobile-selection-status.is-selected{
     color: #75e0b7 !important;
     background: #15372d !important;
     border-color: #285a49 !important;
   }
-  .status.error, .notice.err, .notice.error,
-  .badge.due, .row-status.due, .tag.due,
-  .mobile-selection-status.is-unselected {
+  html.theme-dark .status.error, html.theme-dark .notice.err, html.theme-dark .notice.error, html.theme-dark .badge.due, html.theme-dark .row-status.due, html.theme-dark .tag.due, html.theme-dark .mobile-selection-status.is-unselected{
     color: #ffaaa5 !important;
     background: #3b2223 !important;
     border-color: #684044 !important;
   }
-  .badge.partial, .row-status.deferred, .tag.deferred {
+  html.theme-dark .badge.partial, html.theme-dark .row-status.deferred, html.theme-dark .tag.deferred{
     color: #f2cd7d !important;
     background: #3a3020 !important;
     border-color: #66502a !important;
   }
-  .row-status.overpaid, .tag.overpaid {
+  html.theme-dark .row-status.overpaid, html.theme-dark .tag.overpaid{
     color: #a9c3ff !important;
     background: #202e49 !important;
     border-color: #3c527b !important;
   }
-  .desktop-applicant-dropdown.no-applicant-selected {
+  html.theme-dark .desktop-applicant-dropdown.no-applicant-selected{
     color: #f2cd7d !important;
     background: #3a3020 !important;
     border-color: #66502a !important;
   }
 
-  .overlay { background: rgba(0,0,0,.76) !important; }
-  .sheet-head, .sheet-footer, .fto-import-modal-head {
+  html.theme-dark .overlay{ background: rgba(0,0,0,.76) !important; }
+  html.theme-dark .sheet-head, html.theme-dark .sheet-footer, html.theme-dark .fto-import-modal-head{
     color: #edf2f7 !important;
     background: #1d252e !important;
     border-color: #303a45 !important;
   }
-  .entry, .citizen, .record, .balance, .confirm-summary {
+  html.theme-dark .entry, html.theme-dark .citizen, html.theme-dark .record, html.theme-dark .balance, html.theme-dark .confirm-summary{
     color: #edf2f7 !important;
     background: #1d252e !important;
     border-color: #303a45 !important;
   }
-  .entry small, .muted, .sub, .meta, .count {
+  html.theme-dark .entry small, html.theme-dark .muted, html.theme-dark .sub, html.theme-dark .meta, html.theme-dark .count{
     color: #aab5c2 !important;
   }
-}
+
 
 
 /* Contribution detail sheet: this page intentionally keeps the sheet opaque,
    but its opaque surface must follow the active device theme. */
-@media screen and (prefers-color-scheme: dark) {
-  #overlay .sheet,
-  #overlay .sheet-head,
-  #overlay .sheet-body,
-  #overlay .sheet-footer {
+
+  html.theme-dark #overlay .sheet, html.theme-dark #overlay .sheet-head, html.theme-dark #overlay .sheet-body, html.theme-dark #overlay .sheet-footer{
     color: #edf2f7 !important;
     background: #171d24 !important;
     border-color: #303a45 !important;
   }
-  #overlay .sheet-head,
-  #overlay .sheet-footer {
+  html.theme-dark #overlay .sheet-head, html.theme-dark #overlay .sheet-footer{
     background: #1d252e !important;
   }
-  #overlay .sheet-body .entry,
-  #overlay .sheet-body .fifo-period,
-  #overlay .sheet-body .fifo-detail-row,
-  #overlay .sheet-body .split,
-  #overlay .sheet-body .balance,
-  #overlay .sheet-body .confirm-summary {
+  html.theme-dark #overlay .sheet-body .entry, html.theme-dark #overlay .sheet-body .fifo-period, html.theme-dark #overlay .sheet-body .fifo-detail-row, html.theme-dark #overlay .sheet-body .split, html.theme-dark #overlay .sheet-body .balance, html.theme-dark #overlay .sheet-body .confirm-summary{
     color: #edf2f7 !important;
     background-color: #1d252e !important;
     border-color: #303a45 !important;
   }
-  #overlay .sheet-body .fifo-period-toggle,
-  #overlay .sheet-body .fifo-period-toggle b,
-  #overlay .sheet-body .fifo-detail-main b,
-  #overlay .sheet-body .fifo-summary-row b,
-  #overlay .sheet-body .sheet-heading,
-  #overlay .sheet-body h2,
-  #overlay .sheet-body strong {
+  html.theme-dark #overlay .sheet-body .fifo-period-toggle, html.theme-dark #overlay .sheet-body .fifo-period-toggle b, html.theme-dark #overlay .sheet-body .fifo-detail-main b, html.theme-dark #overlay .sheet-body .fifo-summary-row b, html.theme-dark #overlay .sheet-body .sheet-heading, html.theme-dark #overlay .sheet-body h2, html.theme-dark #overlay .sheet-body strong{
     color: #edf2f7 !important;
   }
-  #overlay .sheet-body .fifo-main small,
-  #overlay .sheet-body .fifo-summary-row span,
-  #overlay .sheet-body .sheet-subtitle,
-  #overlay .sheet-body .balance .label,
-  #overlay .sheet-body .muted {
+  html.theme-dark #overlay .sheet-body .fifo-main small, html.theme-dark #overlay .sheet-body .fifo-summary-row span, html.theme-dark #overlay .sheet-body .sheet-subtitle, html.theme-dark #overlay .sheet-body .balance .label, html.theme-dark #overlay .sheet-body .muted{
     color: #aab5c2 !important;
   }
-  #overlay .sheet-body input,
-  #overlay .sheet-body select,
-  #overlay .sheet-body textarea {
+  html.theme-dark #overlay .sheet-body input, html.theme-dark #overlay .sheet-body select, html.theme-dark #overlay .sheet-body textarea{
     color: #edf2f7 !important;
     background: #10161c !important;
     border-color: #394653 !important;
   }
-  #overlay .sheet-body .fifo-status.paid {
+  html.theme-dark #overlay .sheet-body .fifo-status.paid{
     color: #75e0b7 !important;
     background: #15372d !important;
   }
-  #overlay .sheet-body .fifo-status.partial {
+  html.theme-dark #overlay .sheet-body .fifo-status.partial{
     color: #f2cd7d !important;
     background: #3a3020 !important;
   }
-  #overlay .sheet-body .fifo-status.due {
+  html.theme-dark #overlay .sheet-body .fifo-status.due{
     color: #ffaaa5 !important;
     background: #3b2223 !important;
   }
-}
+
 
 
 /* Final mobile-specific corrections for Contribution and Periods.
    These selectors intentionally outrank page-local inline stylesheet rules. */
-@media screen and (prefers-color-scheme: dark) and (max-width: 767px) {
+@media (max-width: 767px){
   /* Contribution's mobile table cells are explicitly painted white in-page. */
-  #table-wrap.table-wrap #contribution-table tbody tr.contribution-row,
-  #table-wrap.table-wrap #contribution-table tbody tr.contribution-row td,
-  #table-wrap.table-wrap #contribution-table tbody tr.contribution-row td.mobile-details {
+  html.theme-dark #table-wrap.table-wrap #contribution-table tbody tr.contribution-row, html.theme-dark #table-wrap.table-wrap #contribution-table tbody tr.contribution-row td, html.theme-dark #table-wrap.table-wrap #contribution-table tbody tr.contribution-row td.mobile-details{
     color: #edf2f7 !important;
     background: #1b232c !important;
     border-color: #35414d !important;
   }
-  #table-wrap.table-wrap #contribution-table tbody tr.contribution-row td.mobile-details {
+  html.theme-dark #table-wrap.table-wrap #contribution-table tbody tr.contribution-row td.mobile-details{
     background: #1b232c !important;
     box-shadow: inset 0 0 0 1px #35414d !important;
   }
-  #table-wrap.table-wrap #contribution-table .mobile-jobcard-line,
-  #table-wrap.table-wrap #contribution-table .mobile-jobcard-line .suffix,
-  #table-wrap.table-wrap #contribution-table .mobile-person-inline,
-  #table-wrap.table-wrap #contribution-table .jobcard,
-  #table-wrap.table-wrap #contribution-table .person {
+  html.theme-dark #table-wrap.table-wrap #contribution-table .mobile-jobcard-line, html.theme-dark #table-wrap.table-wrap #contribution-table .mobile-jobcard-line .suffix, html.theme-dark #table-wrap.table-wrap #contribution-table .mobile-person-inline, html.theme-dark #table-wrap.table-wrap #contribution-table .jobcard, html.theme-dark #table-wrap.table-wrap #contribution-table .person{
     color: #edf2f7 !important;
   }
-  #table-wrap.table-wrap #contribution-table .mobile-charge-line,
-  #table-wrap.table-wrap #contribution-table .muted {
+  html.theme-dark #table-wrap.table-wrap #contribution-table .mobile-charge-line, html.theme-dark #table-wrap.table-wrap #contribution-table .muted{
     color: #aab5c2 !important;
   }
 
   /* Periods page builds each mobile period as a custom grid row. */
-  #period-body tr:not(:has(.empty)),
-  #period-body tr:not(:has(.empty)) td,
-  #period-body tr:not(:has(.empty)) td[data-label="Period"] {
+  html.theme-dark #period-body tr:not(:has(.empty)), html.theme-dark #period-body tr:not(:has(.empty)) td, html.theme-dark #period-body tr:not(:has(.empty)) td[data-label="Period"]{
     color: #edf2f7 !important;
     background: #1b232c !important;
     border-color: #35414d !important;
   }
-  #period-body tr:not(:has(.empty)) td[data-label="Period"] {
+  html.theme-dark #period-body tr:not(:has(.empty)) td[data-label="Period"]{
     color: #edf2f7 !important;
   }
-  #period-body .period-mobile-meta {
+  html.theme-dark #period-body .period-mobile-meta{
     color: #aab5c2 !important;
   }
-  #period-body tr:not(:has(.empty)) .row-actions button[data-action="delete"] {
+  html.theme-dark #period-body tr:not(:has(.empty)) .row-actions button[data-action="delete"]{
     color: #dce5ee !important;
     background: #252f39 !important;
     border-color: #3a4652 !important;
@@ -461,150 +388,122 @@
 /* Contribution page: align the list and surrounding workspace with the
    charcoal ledger-transaction design. The transaction-history sheet itself
    is deliberately left unchanged. */
-@media screen and (prefers-color-scheme: dark) {
-  body:has(#contribution-table) .app-header,
-  body:has(#contribution-table) .topbar,
-  body:has(#contribution-table) .panel,
-  body:has(#contribution-table) .kpi-row,
-  body:has(#contribution-table) .table-foot {
+
+  html.theme-dark body:has(#contribution-table) .app-header, html.theme-dark body:has(#contribution-table) .topbar, html.theme-dark body:has(#contribution-table) .panel, html.theme-dark body:has(#contribution-table) .kpi-row, html.theme-dark body:has(#contribution-table) .table-foot{
     color: #e7edf3 !important;
     background: #171e25 !important;
     border-color: #303b46 !important;
     box-shadow: none !important;
   }
 
-  body:has(#contribution-table) .app-header .brand h1,
-  body:has(#contribution-table) .topbar .brand h1,
-  body:has(#contribution-table) .panel h2,
-  body:has(#contribution-table) .panel h3 {
+  html.theme-dark body:has(#contribution-table) .app-header .brand h1, html.theme-dark body:has(#contribution-table) .topbar .brand h1, html.theme-dark body:has(#contribution-table) .panel h2, html.theme-dark body:has(#contribution-table) .panel h3{
     color: #e7edf3 !important;
   }
 
-  body:has(#contribution-table) .table-wrap {
+  html.theme-dark body:has(#contribution-table) .table-wrap{
     background: #171e25 !important;
     border: 1px solid #303b46 !important;
     border-radius: 12px !important;
     box-shadow: none !important;
   }
 
-  body:has(#contribution-table) #contribution-table thead th {
+  html.theme-dark body:has(#contribution-table) #contribution-table thead th{
     color: #aeb9c5 !important;
     background: #1d252e !important;
     border-color: #303b46 !important;
   }
 
-  body:has(#contribution-table) #contribution-table tbody tr.contribution-row,
-  body:has(#contribution-table) #contribution-table tbody tr.contribution-row td {
+  html.theme-dark body:has(#contribution-table) #contribution-table tbody tr.contribution-row, html.theme-dark body:has(#contribution-table) #contribution-table tbody tr.contribution-row td{
     color: #e7edf3 !important;
     background: #1d252e !important;
     border-color: #303b46 !important;
   }
 
-  body:has(#contribution-table) #contribution-table tbody tr.contribution-row:nth-child(even),
-  body:has(#contribution-table) #contribution-table tbody tr.contribution-row:nth-child(even) td {
+  html.theme-dark body:has(#contribution-table) #contribution-table tbody tr.contribution-row:nth-child(even), html.theme-dark body:has(#contribution-table) #contribution-table tbody tr.contribution-row:nth-child(even) td{
     background: #202a34 !important;
   }
 
-  body:has(#contribution-table) #contribution-table tbody tr.contribution-row:hover,
-  body:has(#contribution-table) #contribution-table tbody tr.contribution-row:hover td {
+  html.theme-dark body:has(#contribution-table) #contribution-table tbody tr.contribution-row:hover, html.theme-dark body:has(#contribution-table) #contribution-table tbody tr.contribution-row:hover td{
     background: #26323d !important;
   }
 
-  body:has(#contribution-table) #contribution-table tbody tr.contribution-row.selected,
-  body:has(#contribution-table) #contribution-table tbody tr.contribution-row.selected td {
+  html.theme-dark body:has(#contribution-table) #contribution-table tbody tr.contribution-row.selected, html.theme-dark body:has(#contribution-table) #contribution-table tbody tr.contribution-row.selected td{
     background: #203b35 !important;
   }
 
-  body:has(#contribution-table) #contribution-table td.jobcard,
-  body:has(#contribution-table) #contribution-table td.person,
-  body:has(#contribution-table) #contribution-table .mobile-jobcard-line,
-  body:has(#contribution-table) #contribution-table .mobile-jobcard-line .suffix,
-  body:has(#contribution-table) #contribution-table .mobile-person-inline {
+  html.theme-dark body:has(#contribution-table) #contribution-table td.jobcard, html.theme-dark body:has(#contribution-table) #contribution-table td.person, html.theme-dark body:has(#contribution-table) #contribution-table .mobile-jobcard-line, html.theme-dark body:has(#contribution-table) #contribution-table .mobile-jobcard-line .suffix, html.theme-dark body:has(#contribution-table) #contribution-table .mobile-person-inline{
     color: #e7edf3 !important;
   }
 
-  body:has(#contribution-table) #contribution-table .mobile-charge-line,
-  body:has(#contribution-table) #contribution-table .muted,
-  body:has(#contribution-table) .table-foot,
-  body:has(#contribution-table) .table-foot .muted {
+  html.theme-dark body:has(#contribution-table) #contribution-table .mobile-charge-line, html.theme-dark body:has(#contribution-table) #contribution-table .muted, html.theme-dark body:has(#contribution-table) .table-foot, html.theme-dark body:has(#contribution-table) .table-foot .muted{
     color: #aab5c2 !important;
   }
 
-  body:has(#contribution-table) .stat,
-  body:has(#contribution-table) .stats .stat {
+  html.theme-dark body:has(#contribution-table) .stat, html.theme-dark body:has(#contribution-table) .stats .stat{
     color: #e7edf3 !important;
     background: #1d252e !important;
     border-color: #303b46 !important;
   }
 
-  body:has(#contribution-table) .stat .k {
+  html.theme-dark body:has(#contribution-table) .stat .k{
     color: #aab5c2 !important;
   }
 
-  body:has(#contribution-table) .stat .v {
+  html.theme-dark body:has(#contribution-table) .stat .v{
     color: #e7edf3 !important;
   }
 
-  body:has(#contribution-table) .stat .v.due,
-  body:has(#contribution-table) .stat .v.outstanding {
+  html.theme-dark body:has(#contribution-table) .stat .v.due, html.theme-dark body:has(#contribution-table) .stat .v.outstanding{
     color: #ff9999 !important;
   }
 
-  body:has(#contribution-table) .stat .v.deferred,
-  body:has(#contribution-table) .stat .v.partial {
+  html.theme-dark body:has(#contribution-table) .stat .v.deferred, html.theme-dark body:has(#contribution-table) .stat .v.partial{
     color: #f0ca78 !important;
   }
 
-  body:has(#contribution-table) #contribution-table .row-status.settled,
-  body:has(#contribution-table) #contribution-table .badge.paid {
+  html.theme-dark body:has(#contribution-table) #contribution-table .row-status.settled, html.theme-dark body:has(#contribution-table) #contribution-table .badge.paid{
     color: #75e0b7 !important;
     background: #15372d !important;
     border-color: #285a49 !important;
   }
 
-  body:has(#contribution-table) #contribution-table .row-status.deferred,
-  body:has(#contribution-table) #contribution-table .badge.partial {
+  html.theme-dark body:has(#contribution-table) #contribution-table .row-status.deferred, html.theme-dark body:has(#contribution-table) #contribution-table .badge.partial{
     color: #f2cd7d !important;
     background: #3a3020 !important;
     border-color: #66502a !important;
   }
 
-  body:has(#contribution-table) #contribution-table .row-status.due,
-  body:has(#contribution-table) #contribution-table .badge.due {
+  html.theme-dark body:has(#contribution-table) #contribution-table .row-status.due, html.theme-dark body:has(#contribution-table) #contribution-table .badge.due{
     color: #ffaaa5 !important;
     background: #3b2223 !important;
     border-color: #684044 !important;
   }
 
-  body:has(#contribution-table) #contribution-table .row-status.overpaid,
-  body:has(#contribution-table) #contribution-table .badge.overpaid {
+  html.theme-dark body:has(#contribution-table) #contribution-table .row-status.overpaid, html.theme-dark body:has(#contribution-table) #contribution-table .badge.overpaid{
     color: #a9c3ff !important;
     background: #202e49 !important;
     border-color: #3c527b !important;
   }
 
-  body:has(#contribution-table) .toolbar input,
-  body:has(#contribution-table) .toolbar select,
-  body:has(#contribution-table) .filter-control select {
+  html.theme-dark body:has(#contribution-table) .toolbar input, html.theme-dark body:has(#contribution-table) .toolbar select, html.theme-dark body:has(#contribution-table) .filter-control select{
     color: #e7edf3 !important;
     background: #10161c !important;
     border-color: #394653 !important;
   }
 
-  body:has(#contribution-table) .kpi-actions .btn.secondary,
-  body:has(#contribution-table) .kpi-actions button.secondary {
+  html.theme-dark body:has(#contribution-table) .kpi-actions .btn.secondary, html.theme-dark body:has(#contribution-table) .kpi-actions button.secondary{
     color: #dce5ee !important;
     background: #252f39 !important;
     border-color: #3a4652 !important;
   }
-}
+
 
 
 /* App-wide dark surface normalization.
    Catch page-specific cards and inline light backgrounds without changing
    semantic status badges, payment colors, or light mode. */
-@media screen and (prefers-color-scheme: dark) {
-  :root {
+
+  html.theme-dark{
     color-scheme: dark;
     --page-bg: #0b0f13;
     --card-bg: #171e25;
@@ -614,26 +513,13 @@
     --text-secondary: #aab5c2;
   }
 
-  html, body {
+  html.theme-dark, html.theme-dark body{
     color: var(--text-primary) !important;
     background: var(--page-bg) !important;
   }
 
   /* Common page-level surfaces used across the app. */
-  .panel, .topbar, .module, .sidebar, .stat, .paste-box,
-  .status:not(.error):not(.success), .notice:not(.err):not(.warn),
-  .card, .content-card, .section, .section-card, .form-card,
-  .summary-card, .kpi-card, .info-card, .list-card, .row-card,
-  .filter-card, .toolbar-card, .table-card, .data-card,
-  .container-card, .white-card, .bg-white,
-  .content-panel, .form-panel, .filter-panel,
-  .page-content, .main-content, .workspace,
-  .toolbar, .filters, .filter-bar, .search-panel,
-  .summary, .summary-box, .details-panel,
-  .empty-state, .empty-message,
-  .modal-content, .dialog-content, .drawer-content,
-  .accordion, .accordion-item, .accordion-content,
-  .tab-content, .tab-panel {
+  html.theme-dark .panel, html.theme-dark .topbar, html.theme-dark .module, html.theme-dark .sidebar, html.theme-dark .stat, html.theme-dark .paste-box, html.theme-dark .status:not(.error):not(.success), html.theme-dark .notice:not(.err):not(.warn), html.theme-dark .card, html.theme-dark .content-card, html.theme-dark .section, html.theme-dark .section-card, html.theme-dark .form-card, html.theme-dark .summary-card, html.theme-dark .kpi-card, html.theme-dark .info-card, html.theme-dark .list-card, html.theme-dark .row-card, html.theme-dark .filter-card, html.theme-dark .toolbar-card, html.theme-dark .table-card, html.theme-dark .data-card, html.theme-dark .container-card, html.theme-dark .white-card, html.theme-dark .bg-white, html.theme-dark .content-panel, html.theme-dark .form-panel, html.theme-dark .filter-panel, html.theme-dark .page-content, html.theme-dark .main-content, html.theme-dark .workspace, html.theme-dark .toolbar, html.theme-dark .filters, html.theme-dark .filter-bar, html.theme-dark .search-panel, html.theme-dark .summary, html.theme-dark .summary-box, html.theme-dark .details-panel, html.theme-dark .empty-state, html.theme-dark .empty-message, html.theme-dark .modal-content, html.theme-dark .dialog-content, html.theme-dark .drawer-content, html.theme-dark .accordion, html.theme-dark .accordion-item, html.theme-dark .accordion-content, html.theme-dark .tab-content, html.theme-dark .tab-panel{
     color: var(--text-primary) !important;
     background-color: var(--card-bg) !important;
     border-color: var(--card-border) !important;
@@ -641,291 +527,212 @@
   }
 
   /* Explicit white/light inline surfaces left by page-specific markup. */
-  [style*="background:#fff"], [style*="background: #fff"],
-  [style*="background-color:#fff"], [style*="background-color: #fff"],
-  [style*="background:white"], [style*="background: white"],
-  [style*="background-color:white"], [style*="background-color: white"],
-  [style*="background: rgb(255, 255, 255)"],
-  [style*="background-color: rgb(255, 255, 255)"],
-  [style*="background:#ffffff"], [style*="background: #ffffff"],
-  [style*="background-color:#ffffff"], [style*="background-color: #ffffff"] {
+  html.theme-dark [style*="background:#fff"], html.theme-dark [style*="background: #fff"], html.theme-dark [style*="background-color:#fff"], html.theme-dark [style*="background-color: #fff"], html.theme-dark [style*="background:white"], html.theme-dark [style*="background: white"], html.theme-dark [style*="background-color:white"], html.theme-dark [style*="background-color: white"], html.theme-dark [style*="background: rgb(255, 255, 255)"], html.theme-dark [style*="background-color: rgb(255, 255, 255)"], html.theme-dark [style*="background:#ffffff"], html.theme-dark [style*="background: #ffffff"], html.theme-dark [style*="background-color:#ffffff"], html.theme-dark [style*="background-color: #ffffff"]{
     color: var(--text-primary) !important;
     background-color: var(--card-bg) !important;
     border-color: var(--card-border) !important;
   }
 
   /* Nested content and alternating data rows. */
-  .card > *, .content-card > *, .section-card > *,
-  .form-card > *, .summary-card > *, .details-panel > * {
+  html.theme-dark .card > *, html.theme-dark .content-card > *, html.theme-dark .section-card > *, html.theme-dark .form-card > *, html.theme-dark .summary-card > *, html.theme-dark .details-panel > *{
     border-color: var(--card-border);
   }
-  .table-wrap, table, tbody, .table-responsive {
+  html.theme-dark .table-wrap, html.theme-dark table, html.theme-dark tbody, html.theme-dark .table-responsive{
     background-color: var(--card-bg) !important;
   }
-  tbody tr, tbody td {
+  html.theme-dark tbody tr, html.theme-dark tbody td{
     color: var(--text-primary);
     border-color: var(--card-border) !important;
   }
-  tbody tr:nth-child(even), tbody tr:nth-child(even) td {
+  html.theme-dark tbody tr:nth-child(even), html.theme-dark tbody tr:nth-child(even) td{
     background-color: var(--card-bg-alt) !important;
   }
 
   /* Text inside formerly white surfaces. */
-  .card, .content-card, .section, .section-card, .form-card,
-  .summary-card, .kpi-card, .info-card, .list-card, .row-card,
-  .filter-card, .toolbar-card, .table-card, .data-card,
-  .white-card, .bg-white, .content-panel, .form-panel,
-  .modal-content, .dialog-content, .drawer-content,
-  .tab-content, .tab-panel {
+  html.theme-dark .card, html.theme-dark .content-card, html.theme-dark .section, html.theme-dark .section-card, html.theme-dark .form-card, html.theme-dark .summary-card, html.theme-dark .kpi-card, html.theme-dark .info-card, html.theme-dark .list-card, html.theme-dark .row-card, html.theme-dark .filter-card, html.theme-dark .toolbar-card, html.theme-dark .table-card, html.theme-dark .data-card, html.theme-dark .white-card, html.theme-dark .bg-white, html.theme-dark .content-panel, html.theme-dark .form-panel, html.theme-dark .modal-content, html.theme-dark .dialog-content, html.theme-dark .drawer-content, html.theme-dark .tab-content, html.theme-dark .tab-panel{
     color: var(--text-primary) !important;
   }
-  .card p, .content-card p, .section-card p,
-  .form-card label, .summary-card small,
-  .info-card small, .list-card small, .row-card small {
+  html.theme-dark .card p, html.theme-dark .content-card p, html.theme-dark .section-card p, html.theme-dark .form-card label, html.theme-dark .summary-card small, html.theme-dark .info-card small, html.theme-dark .list-card small, html.theme-dark .row-card small{
     color: var(--text-secondary) !important;
   }
 
   /* Keep semantic colors and controls legible. */
-  input, select, textarea {
+  html.theme-dark input, html.theme-dark select, html.theme-dark textarea{
     color: var(--text-primary) !important;
     background-color: #10161c !important;
     border-color: var(--card-border) !important;
   }
-  select option { color: var(--text-primary); background: var(--card-bg); }
-  button.secondary, .btn.secondary, .btn.ghost,
-  .button-secondary {
+  html.theme-dark select option{ color: var(--text-primary); background: var(--card-bg); }
+  html.theme-dark button.secondary, html.theme-dark .btn.secondary, html.theme-dark .btn.ghost, html.theme-dark .button-secondary{
     color: var(--text-primary) !important;
     background-color: #252f39 !important;
     border-color: #3a4652 !important;
   }
-}
+
 
 
 /* Contribution dark-mode follow-up: page-local selectors and the dynamically
    injected mobile navigation header have higher specificity than the shared
    baseline. Override those exact surfaces without affecting light mode. */
-@media screen and (prefers-color-scheme: dark) {
-  body:has(#contribution-table) #contribution-layout > .panel.contribution-main-panel {
+
+  html.theme-dark body:has(#contribution-table) #contribution-layout > .panel.contribution-main-panel{
     color: #e7edf3 !important;
     background: #171e25 !important;
     border-color: #303b46 !important;
     box-shadow: none !important;
   }
 
-  body:has(#contribution-table) .global-mobile-header {
+  html.theme-dark body:has(#contribution-table) .global-mobile-header{
     color: #e7edf3 !important;
     background: #171e25 !important;
     border: 1px solid #303b46 !important;
     box-shadow: none !important;
   }
 
-  body:has(#contribution-table) .global-mobile-header-title {
+  html.theme-dark body:has(#contribution-table) .global-mobile-header-title{
     color: #e7edf3 !important;
   }
 
-  body:has(#contribution-table) .global-mobile-menu-button {
+  html.theme-dark body:has(#contribution-table) .global-mobile-menu-button{
     color: #e7edf3 !important;
     background: #252f39 !important;
     border-color: #3a4652 !important;
   }
-}
+
 
 
 /* Contribution loading UI and shared toast are injected/page-local surfaces.
    Keep both readable and charcoal while the ledger is being fetched. */
-@media screen and (prefers-color-scheme: dark) {
-  body:has(#contribution-table) > main > .contribution-loading,
-  body:has(#contribution-table) > main > #status:not(.hidden) {
+
+  html.theme-dark body:has(#contribution-table) > main > .contribution-loading, html.theme-dark body:has(#contribution-table) > main > #status:not(.hidden){
     color: #e7edf3 !important;
     background: #171e25 !important;
     border-color: #303b46 !important;
     box-shadow: none !important;
   }
 
-  body:has(#contribution-table) > main > .contribution-loading .loading-spinner {
+  html.theme-dark body:has(#contribution-table) > main > .contribution-loading .loading-spinner{
     border-color: #394653 !important;
     border-top-color: #8ab4ff !important;
   }
 
-  body:has(#contribution-table) #app-toast,
-  body:has(#contribution-table) #app-toast.info {
+  html.theme-dark body:has(#contribution-table) #app-toast, html.theme-dark body:has(#contribution-table) #app-toast.info{
     color: #e7edf3 !important;
     background: #202b36 !important;
     border-color: #405064 !important;
     box-shadow: 0 10px 30px rgba(0,0,0,.4) !important;
   }
 
-  body:has(#contribution-table) #app-toast.success {
+  html.theme-dark body:has(#contribution-table) #app-toast.success{
     color: #a7f0c8 !important;
     background: #15372d !important;
     border-color: #285a49 !important;
   }
 
-  body:has(#contribution-table) #app-toast.error {
+  html.theme-dark body:has(#contribution-table) #app-toast.error{
     color: #ffaaa5 !important;
     background: #3b2223 !important;
     border-color: #684044 !important;
   }
 
-  body:has(#contribution-table) #app-toast.warning {
+  html.theme-dark body:has(#contribution-table) #app-toast.warning{
     color: #f2cd7d !important;
     background: #3a3020 !important;
     border-color: #66502a !important;
   }
-}
+
 
 
 /* Shared header containers: keep every page header charcoal in automatic dark mode. */
-@media screen and (prefers-color-scheme: dark) {
-  .global-mobile-header,
-  header.app-header,
-  header.topbar,
-  .app-header,
-  .topbar,
-  .global-sidebar-header,
-  .sidebar-header,
-  .page-header,
-  .section-header,
-  .section-heading,
-  .mobile-page-header {
+
+  html.theme-dark .global-mobile-header, html.theme-dark header.app-header, html.theme-dark header.topbar, html.theme-dark .app-header, html.theme-dark .topbar, html.theme-dark .global-sidebar-header, html.theme-dark .sidebar-header, html.theme-dark .page-header, html.theme-dark .section-header, html.theme-dark .section-heading, html.theme-dark .mobile-page-header{
     color: #edf2f7 !important;
     background: #171e25 !important;
     border-color: #303b46 !important;
     box-shadow: none !important;
   }
 
-  .global-mobile-header-title,
-  .app-header h1, .app-header h2,
-  .topbar h1, .topbar h2,
-  .page-header h1, .page-header h2,
-  .section-header h1, .section-header h2,
-  .section-heading h1, .section-heading h2,
-  .mobile-page-header h1, .mobile-page-header h2 {
+  html.theme-dark .global-mobile-header-title, html.theme-dark .app-header h1, html.theme-dark .app-header h2, html.theme-dark .topbar h1, html.theme-dark .topbar h2, html.theme-dark .page-header h1, html.theme-dark .page-header h2, html.theme-dark .section-header h1, html.theme-dark .section-header h2, html.theme-dark .section-heading h1, html.theme-dark .section-heading h2, html.theme-dark .mobile-page-header h1, html.theme-dark .mobile-page-header h2{
     color: #edf2f7 !important;
   }
 
-  .global-mobile-menu-button,
-  .app-header button, .topbar button,
-  .page-header button, .section-header button,
-  .mobile-page-header button {
+  html.theme-dark .global-mobile-menu-button, html.theme-dark .app-header button, html.theme-dark .topbar button, html.theme-dark .page-header button, html.theme-dark .section-header button, html.theme-dark .mobile-page-header button{
     color: #edf2f7 !important;
     background: #252f39 !important;
     border-color: #3a4652 !important;
   }
-}
+
 
 
 /* Final override for Contribution's legacy page-local white panel rules.
    These selectors intentionally outrank the embedded page CSS in dark mode. */
-@media screen and (prefers-color-scheme: dark) {
-  body:has(#contribution-table) > main > #app > #contribution-layout > section.panel.contribution-main-panel,
-  body:has(#contribution-table) #contribution-layout > .panel.contribution-main-panel {
+
+  html.theme-dark body:has(#contribution-table) > main > #app > #contribution-layout > section.panel.contribution-main-panel, html.theme-dark body:has(#contribution-table) #contribution-layout > .panel.contribution-main-panel{
     color: #edf2f7 !important;
     background: #171e25 !important;
     border: 1px solid #303b46 !important;
     box-shadow: none !important;
   }
 
-  body:has(#contribution-table) .contribution-main-panel .stat,
-  body:has(#contribution-table) .contribution-main-panel .contribution-controls > .stat,
-  body:has(#contribution-table) .contribution-main-panel .kpi-row .stat {
+  html.theme-dark body:has(#contribution-table) .contribution-main-panel .stat, html.theme-dark body:has(#contribution-table) .contribution-main-panel .contribution-controls > .stat, html.theme-dark body:has(#contribution-table) .contribution-main-panel .kpi-row .stat{
     color: #edf2f7 !important;
     background: #1d252e !important;
     border-color: #303b46 !important;
     box-shadow: none !important;
   }
 
-  body:has(#contribution-table) .contribution-main-panel .stat .k,
-  body:has(#contribution-table) .contribution-main-panel .stat .v {
+  html.theme-dark body:has(#contribution-table) .contribution-main-panel .stat .k, html.theme-dark body:has(#contribution-table) .contribution-main-panel .stat .v{
     color: #edf2f7 !important;
   }
 
-  body:has(#contribution-table) .contribution-main-panel .search-wrap,
-  body:has(#contribution-table) .contribution-main-panel .filter-control,
-  body:has(#contribution-table) .contribution-main-panel .toolbar {
+  html.theme-dark body:has(#contribution-table) .contribution-main-panel .search-wrap, html.theme-dark body:has(#contribution-table) .contribution-main-panel .filter-control, html.theme-dark body:has(#contribution-table) .contribution-main-panel .toolbar{
     color: #edf2f7 !important;
     background: transparent !important;
   }
-}
+
 
 
 /* Focused dark-mode coverage for FTO Import, MIS Import and generated Demand tables. */
-@media screen and (prefers-color-scheme: dark) {
+
   /* FTO Import: page shell, paste/preview/settings panels and both table views. */
-  body:has(#parsed-table) main,
-  body:has(#parsed-table) #app-panel,
-  body:has(#parsed-table) #app-panel > .panel,
-  body:has(#parsed-table) #table-output,
-  body:has(#parsed-table) #settings-panel,
-  body:has(#parsed-table) #reconciliation-panel,
-  body:has(#parsed-table) .live-category-panel,
-  body:has(#parsed-table) .live-automatic-panel,
-  body:has(#parsed-table) .live-manual-panel,
-  body:has(#parsed-table) .live-already-panel,
-  body:has(#parsed-table) .live-cannot-panel,
-  body:has(#parsed-table) .manual-review-panel,
-  body:has(#parsed-table) .settings-panel,
-  body:has(#parsed-table) .table-wrap,
-  body:has(#parsed-table) .parsed-mobile-groups,
-  body:has(#parsed-table) .live-jobcard-view {
+  html.theme-dark body:has(#parsed-table) main, html.theme-dark body:has(#parsed-table) #app-panel, html.theme-dark body:has(#parsed-table) #app-panel > .panel, html.theme-dark body:has(#parsed-table) #table-output, html.theme-dark body:has(#parsed-table) #settings-panel, html.theme-dark body:has(#parsed-table) #reconciliation-panel, html.theme-dark body:has(#parsed-table) .live-category-panel, html.theme-dark body:has(#parsed-table) .live-automatic-panel, html.theme-dark body:has(#parsed-table) .live-manual-panel, html.theme-dark body:has(#parsed-table) .live-already-panel, html.theme-dark body:has(#parsed-table) .live-cannot-panel, html.theme-dark body:has(#parsed-table) .manual-review-panel, html.theme-dark body:has(#parsed-table) .settings-panel, html.theme-dark body:has(#parsed-table) .table-wrap, html.theme-dark body:has(#parsed-table) .parsed-mobile-groups, html.theme-dark body:has(#parsed-table) .live-jobcard-view{
     color: #e7edf3 !important;
     background: #171e25 !important;
     border-color: #303b46 !important;
     box-shadow: none !important;
   }
-  body:has(#parsed-table) #parsed-table,
-  body:has(#parsed-table) #parsed-table thead,
-  body:has(#parsed-table) #parsed-table tbody,
-  body:has(#parsed-table) #parsed-table th,
-  body:has(#parsed-table) #parsed-table td,
-  body:has(#parsed-table) .parsed-mobile-groups > *,
-  body:has(#parsed-table) .live-jobcard-view > * {
+  html.theme-dark body:has(#parsed-table) #parsed-table, html.theme-dark body:has(#parsed-table) #parsed-table thead, html.theme-dark body:has(#parsed-table) #parsed-table tbody, html.theme-dark body:has(#parsed-table) #parsed-table th, html.theme-dark body:has(#parsed-table) #parsed-table td, html.theme-dark body:has(#parsed-table) .parsed-mobile-groups > *, html.theme-dark body:has(#parsed-table) .live-jobcard-view > *{
     color: #e7edf3 !important;
     background: #1d252e !important;
     border-color: #35414d !important;
   }
-  body:has(#parsed-table) input,
-  body:has(#parsed-table) select,
-  body:has(#parsed-table) textarea {
+  html.theme-dark body:has(#parsed-table) input, html.theme-dark body:has(#parsed-table) select, html.theme-dark body:has(#parsed-table) textarea{
     color: #e7edf3 !important;
     background: #10171d !important;
     border-color: #3a4652 !important;
   }
-  body:has(#parsed-table) .status:not(.error):not(.success) {
+  html.theme-dark body:has(#parsed-table) .status:not(.error):not(.success){
     color: #c5d6ee !important;
     background: #202b36 !important;
     border-color: #405064 !important;
   }
 
   /* MIS Import: outer shell, paste area, comparison cards and change table. */
-  body:has(#diff-panel) main,
-  body:has(#diff-panel) .paste-box,
-  body:has(#diff-panel) #diff-panel,
-  body:has(#diff-panel) .diff-count,
-  body:has(#diff-panel) .table-wrap,
-  body:has(#diff-panel) .diff-table-wrap,
-  body:has(#diff-panel) .diff-actions {
+  html.theme-dark body:has(#diff-panel) main, html.theme-dark body:has(#diff-panel) .paste-box, html.theme-dark body:has(#diff-panel) #diff-panel, html.theme-dark body:has(#diff-panel) .diff-count, html.theme-dark body:has(#diff-panel) .table-wrap, html.theme-dark body:has(#diff-panel) .diff-table-wrap, html.theme-dark body:has(#diff-panel) .diff-actions{
     color: #e7edf3 !important;
     background: #171e25 !important;
     border-color: #303b46 !important;
     box-shadow: none !important;
   }
-  body:has(#diff-panel) .diff-table,
-  body:has(#diff-panel) .diff-table thead,
-  body:has(#diff-panel) .diff-table tbody,
-  body:has(#diff-panel) .diff-table th,
-  body:has(#diff-panel) .diff-table td {
+  html.theme-dark body:has(#diff-panel) .diff-table, html.theme-dark body:has(#diff-panel) .diff-table thead, html.theme-dark body:has(#diff-panel) .diff-table tbody, html.theme-dark body:has(#diff-panel) .diff-table th, html.theme-dark body:has(#diff-panel) .diff-table td{
     color: #e7edf3 !important;
     background: #1d252e !important;
     border-color: #35414d !important;
   }
-  body:has(#diff-panel) .diff-table tbody tr:nth-child(even),
-  body:has(#diff-panel) .diff-table tbody tr:nth-child(even) td {
+  html.theme-dark body:has(#diff-panel) .diff-table tbody tr:nth-child(even), html.theme-dark body:has(#diff-panel) .diff-table tbody tr:nth-child(even) td{
     background: #202a34 !important;
   }
-  body:has(#diff-panel) input,
-  body:has(#diff-panel) textarea,
-  body:has(#diff-panel) select {
+  html.theme-dark body:has(#diff-panel) input, html.theme-dark body:has(#diff-panel) textarea, html.theme-dark body:has(#diff-panel) select{
     color: #e7edf3 !important;
     background: #10171d !important;
     border-color: #3a4652 !important;
@@ -933,63 +740,37 @@
 
   /* Demand: explicitly style all three generated tables and their parent panels.
      The :has() selectors outrank page-local .table-wrap:has(#tableId) rules. */
-  body:has(#reviewTable) #reviewPanel,
-  body:has(#demandTable) #demandPanel,
-  body:has(#unwillingTable) #unwillingPanel,
-  body:has(#reviewTable) .table-wrap:has(#reviewTable),
-  body:has(#demandTable) .table-wrap:has(#demandTable),
-  body:has(#unwillingTable) .table-wrap:has(#unwillingTable) {
+  html.theme-dark body:has(#reviewTable) #reviewPanel, html.theme-dark body:has(#demandTable) #demandPanel, html.theme-dark body:has(#unwillingTable) #unwillingPanel, html.theme-dark body:has(#reviewTable) .table-wrap:has(#reviewTable), html.theme-dark body:has(#demandTable) .table-wrap:has(#demandTable), html.theme-dark body:has(#unwillingTable) .table-wrap:has(#unwillingTable){
     color: #e7edf3 !important;
     background: #171e25 !important;
     border-color: #303b46 !important;
     box-shadow: none !important;
   }
-  body:has(#reviewTable) #reviewTable,
-  body:has(#demandTable) #demandTable,
-  body:has(#unwillingTable) #unwillingTable,
-  body:has(#reviewTable) #reviewTable thead,
-  body:has(#demandTable) #demandTable thead,
-  body:has(#unwillingTable) #unwillingTable thead,
-  body:has(#reviewTable) #reviewTable th,
-  body:has(#demandTable) #demandTable th,
-  body:has(#unwillingTable) #unwillingTable th {
+  html.theme-dark body:has(#reviewTable) #reviewTable, html.theme-dark body:has(#demandTable) #demandTable, html.theme-dark body:has(#unwillingTable) #unwillingTable, html.theme-dark body:has(#reviewTable) #reviewTable thead, html.theme-dark body:has(#demandTable) #demandTable thead, html.theme-dark body:has(#unwillingTable) #unwillingTable thead, html.theme-dark body:has(#reviewTable) #reviewTable th, html.theme-dark body:has(#demandTable) #demandTable th, html.theme-dark body:has(#unwillingTable) #unwillingTable th{
     color: #e7edf3 !important;
     background: #202a34 !important;
     border-color: #35414d !important;
   }
-  body:has(#reviewTable) #reviewTable td,
-  body:has(#demandTable) #demandTable td,
-  body:has(#unwillingTable) #unwillingTable td {
+  html.theme-dark body:has(#reviewTable) #reviewTable td, html.theme-dark body:has(#demandTable) #demandTable td, html.theme-dark body:has(#unwillingTable) #unwillingTable td{
     color: #e7edf3 !important;
     background: #1a232c !important;
     border-color: #35414d !important;
   }
-  body:has(#reviewTable) #reviewTable tbody tr:nth-child(even) td,
-  body:has(#demandTable) #demandTable tbody tr:nth-child(even) td,
-  body:has(#unwillingTable) #unwillingTable tbody tr:nth-child(even) td {
+  html.theme-dark body:has(#reviewTable) #reviewTable tbody tr:nth-child(even) td, html.theme-dark body:has(#demandTable) #demandTable tbody tr:nth-child(even) td, html.theme-dark body:has(#unwillingTable) #unwillingTable tbody tr:nth-child(even) td{
     background: #202a34 !important;
   }
-  body:has(#reviewTable) .table-foot,
-  body:has(#demandTable) .table-foot,
-  body:has(#unwillingTable) .table-foot,
-  body:has(#reviewTable) .table-action-bar,
-  body:has(#demandTable) .table-action-bar,
-  body:has(#unwillingTable) .table-action-bar {
+  html.theme-dark body:has(#reviewTable) .table-foot, html.theme-dark body:has(#demandTable) .table-foot, html.theme-dark body:has(#unwillingTable) .table-foot, html.theme-dark body:has(#reviewTable) .table-action-bar, html.theme-dark body:has(#demandTable) .table-action-bar, html.theme-dark body:has(#unwillingTable) .table-action-bar{
     color: #aab5c2 !important;
     background: transparent !important;
     border-color: #303b46 !important;
   }
-}
+
 
 
 /* MIS mobile table: keep every job-card row on the same charcoal surface.
    Selection meaning remains visible only in the green/red applicant status. */
-@media screen and (prefers-color-scheme: dark) and (max-width: 767px) {
-  body:has(#mis-table) #mis-table tr.jobcard-row,
-  body:has(#mis-table) #mis-table tr.jobcard-row.has-selection,
-  body:has(#mis-table) #mis-table tr.jobcard-row.no-selection,
-  body:has(#mis-table) #mis-table tr.jobcard-row[aria-expanded="true"],
-  body:has(#mis-table) #mis-table tr.jobcard-row > td {
+@media (max-width: 767px){
+  html.theme-dark body:has(#mis-table) #mis-table tr.jobcard-row, html.theme-dark body:has(#mis-table) #mis-table tr.jobcard-row.has-selection, html.theme-dark body:has(#mis-table) #mis-table tr.jobcard-row.no-selection, html.theme-dark body:has(#mis-table) #mis-table tr.jobcard-row[aria-expanded="true"], html.theme-dark body:has(#mis-table) #mis-table tr.jobcard-row > td{
     color: #e7edf3 !important;
     background: #1b232c !important;
     border-color: #35414d !important;
@@ -998,28 +779,26 @@
 
 /* MIS mobile applicant expansion: the picker row and its label have
    page-local light backgrounds, so override them explicitly in dark mode. */
-@media screen and (prefers-color-scheme: dark) and (max-width: 767px) {
-  body:has(#mis-table) #mis-table .mobile-applicant-picker-row,
-  body:has(#mis-table) #mis-table .mobile-applicant-picker-row td {
+@media (max-width: 767px){
+  html.theme-dark body:has(#mis-table) #mis-table .mobile-applicant-picker-row, html.theme-dark body:has(#mis-table) #mis-table .mobile-applicant-picker-row td{
     color: #e7edf3 !important;
     background: #171e25 !important;
     border-color: #303b46 !important;
   }
 
-  body:has(#mis-table) #mis-table .mobile-applicant-picker,
-  body:has(#mis-table) #mis-table .mobile-applicant-picker label {
+  html.theme-dark body:has(#mis-table) #mis-table .mobile-applicant-picker, html.theme-dark body:has(#mis-table) #mis-table .mobile-applicant-picker label{
     color: #dce5ee !important;
     background: transparent !important;
   }
 
-  body:has(#mis-table) #mis-table .mobile-applicant-picker select {
+  html.theme-dark body:has(#mis-table) #mis-table .mobile-applicant-picker select{
     color: #e7edf3 !important;
     background-color: #10171d !important;
     border-color: #3a4652 !important;
     color-scheme: dark;
   }
 
-  body:has(#mis-table) #mis-table .mobile-applicant-picker select option {
+  html.theme-dark body:has(#mis-table) #mis-table .mobile-applicant-picker select option{
     color: #e7edf3 !important;
     background: #171e25 !important;
   }
@@ -1051,8 +830,8 @@
   --blue-bg: var(--color-status-info-bg);
 }
 
-@media screen and (prefers-color-scheme: dark) {
-  :root {
+
+  html.theme-dark{
     --ink: var(--color-text-primary);
     --muted: var(--color-text-secondary);
     --line: var(--color-border);
@@ -1073,7 +852,7 @@
     --blue: var(--color-status-info);
     --blue-bg: var(--color-status-info-bg);
   }
-}
+
 
 /* -------------------------------------------------------------------------
    VBGRAMG shared component layer
@@ -1377,18 +1156,17 @@ body:has(#mis-table) {
   opacity: .45;
 }
 
-@media (prefers-color-scheme: dark) {
-  body:has(#mis-table) { color-scheme: dark; }
-  #mis-table .desktop-applicant-dropdown.no-applicant-selected {
+
+  html.theme-dark body:has(#mis-table){ color-scheme: dark; }
+  html.theme-dark #mis-table .desktop-applicant-dropdown.no-applicant-selected{
     color: var(--color-status-warning);
     background: var(--color-status-warning-bg);
     border-color: var(--color-status-warning);
   }
-  #mis-table .mobile-selection-status.is-selected,
-  #mis-table .mobile-selection-status.is-unselected {
+  html.theme-dark #mis-table .mobile-selection-status.is-selected, html.theme-dark #mis-table .mobile-selection-status.is-unselected{
     border-color: transparent;
   }
-}
+
 
 
 /* FTO history and detail views: shared semantic design-system layer. */
@@ -1555,86 +1333,62 @@ body:has(#table-input) .applicant-review-table-wrap {
 }
 
 /* FTO page-specific surfaces follow the device dark-mode preference. */
-@media screen and (prefers-color-scheme: dark) {
-  body:has(#fto-history) .fto-history-kpi,
-  body:has(#fto-history) .fto-card,
-  body:has(#fto-history) .history-list .fto-card,
-  body:has(#fto-history) .history-action-menu,
-  body:has(#fto-history) .history-detail .detail-item,
-  body:has(#fto-history) .fto-view-modal,
-  body:has(#fto-history) .fto-view-modal-header,
-  body:has(#fto-history) .fto-transaction-mobile-card {
+
+  html.theme-dark body:has(#fto-history) .fto-history-kpi, html.theme-dark body:has(#fto-history) .fto-card, html.theme-dark body:has(#fto-history) .history-list .fto-card, html.theme-dark body:has(#fto-history) .history-action-menu, html.theme-dark body:has(#fto-history) .history-detail .detail-item, html.theme-dark body:has(#fto-history) .fto-view-modal, html.theme-dark body:has(#fto-history) .fto-view-modal-header, html.theme-dark body:has(#fto-history) .fto-transaction-mobile-card{
     color: #edf2f7 !important;
     background: #171d24 !important;
     border-color: #303a45 !important;
     box-shadow: none;
   }
-  body:has(#fto-history) .fto-card:hover,
-  body:has(#fto-history) .history-action-menu button:hover {
+  html.theme-dark body:has(#fto-history) .fto-card:hover, html.theme-dark body:has(#fto-history) .history-action-menu button:hover{
     background: #25313c !important;
   }
-  body:has(#fto-history) .fto-history-kpi strong,
-  body:has(#fto-history) .fto-number,
-  body:has(#fto-history) .fto-card strong,
-  body:has(#fto-history) .history-detail .detail-item span,
-  body:has(#fto-history) .history-action-menu button {
+  html.theme-dark body:has(#fto-history) .fto-history-kpi strong, html.theme-dark body:has(#fto-history) .fto-number, html.theme-dark body:has(#fto-history) .fto-card strong, html.theme-dark body:has(#fto-history) .history-detail .detail-item span, html.theme-dark body:has(#fto-history) .history-action-menu button{
     color: #edf2f7 !important;
   }
-  body:has(#fto-history) .history-detail td,
-  body:has(#fto-history) .fto-view-summary,
-  body:has(#fto-history) .fto-view-summary .summary-tile {
+  html.theme-dark body:has(#fto-history) .history-detail td, html.theme-dark body:has(#fto-history) .fto-view-summary, html.theme-dark body:has(#fto-history) .fto-view-summary .summary-tile{
     color: #edf2f7 !important;
     background: #1d252e !important;
     border-color: #303a45 !important;
   }
-  body:has(#fto-history) .history-status.processed {
+  html.theme-dark body:has(#fto-history) .history-status.processed{
     color: #75e0b7 !important; background: #15372d !important; border-color: #285a49 !important;
   }
-  body:has(#fto-history) .history-status.rejected {
+  html.theme-dark body:has(#fto-history) .history-status.rejected{
     color: #ffaaa5 !important; background: #3b2223 !important; border-color: #684044 !important;
   }
-  body:has(#fto-history) .history-status.blank {
+  html.theme-dark body:has(#fto-history) .history-status.blank{
     color: #f2cd7d !important; background: #3a3020 !important; border-color: #66502a !important;
   }
-  body:has(#table-input) .settings-panel,
-  body:has(#table-input) .reconciliation-panel,
-  body:has(#table-input) .live-category-panel,
-  body:has(#table-input) .live-category-kpi,
-  body:has(#table-input) .live-jobcard-view,
-  body:has(#table-input) .parsed-selected-jobcard,
-  body:has(#table-input) .parsed-transaction-card,
-  body:has(#table-input) .live-empty,
-  body:has(#table-input) .live-tx-item {
+  html.theme-dark body:has(#table-input) .settings-panel, html.theme-dark body:has(#table-input) .reconciliation-panel, html.theme-dark body:has(#table-input) .live-category-panel, html.theme-dark body:has(#table-input) .live-category-kpi, html.theme-dark body:has(#table-input) .live-jobcard-view, html.theme-dark body:has(#table-input) .parsed-selected-jobcard, html.theme-dark body:has(#table-input) .parsed-transaction-card, html.theme-dark body:has(#table-input) .live-empty, html.theme-dark body:has(#table-input) .live-tx-item{
     color: #edf2f7 !important;
     background: #171d24 !important;
     border-color: #303a45 !important;
     box-shadow: none;
   }
-  body:has(#table-input) .live-category-kpi.active {
+  html.theme-dark body:has(#table-input) .live-category-kpi.active{
     background: #202e49 !important;
     border-color: #789cff !important;
   }
-  body:has(#table-input) .live-jobcard-stats > div {
+  html.theme-dark body:has(#table-input) .live-jobcard-stats > div{
     background: #1d252e !important;
   }
-  body:has(#table-input) .live-category-kpi span,
-  body:has(#table-input) .live-pager span,
-  body:has(#table-input) .live-tx-title {
+  html.theme-dark body:has(#table-input) .live-category-kpi span, html.theme-dark body:has(#table-input) .live-pager span, html.theme-dark body:has(#table-input) .live-tx-title{
     color: #aab5c2 !important;
   }
-  body:has(#table-input) .live-badge.ready {
+  html.theme-dark body:has(#table-input) .live-badge.ready{
     color: #75e0b7 !important; background: #15372d !important;
   }
-  body:has(#table-input) .live-badge.action {
+  html.theme-dark body:has(#table-input) .live-badge.action{
     color: #f2cd7d !important; background: #3a3020 !important;
   }
-  body:has(#table-input) .live-badge.existing {
+  html.theme-dark body:has(#table-input) .live-badge.existing{
     color: #a9c3ff !important; background: #202e49 !important;
   }
-  body:has(#table-input) .live-badge.excluded {
+  html.theme-dark body:has(#table-input) .live-badge.excluded{
     color: #ffaaa5 !important; background: #3b2223 !important;
   }
-}
+
 
 
 /* Contribution ledger: shared design-system surfaces, scoped to this page. */
@@ -1763,69 +1517,43 @@ body:has(#contribution-table) .balance {
 }
 
 /* Preserve the existing financial-state meanings in dark mode. */
-@media screen and (prefers-color-scheme: dark) {
-  body:has(#contribution-table) .contribution-main-panel,
-  body:has(#contribution-table) #contribution-layout > .panel,
-  body:has(#contribution-table) .contribution-kpis .stat,
-  body:has(#contribution-table) .stat,
-  body:has(#contribution-table) #table-wrap,
-  body:has(#contribution-table) .sheet,
-  body:has(#contribution-table) .sheet-head,
-  body:has(#contribution-table) .sheet-footer,
-  body:has(#contribution-table) .entry,
-  body:has(#contribution-table) .fifo-detail-row,
-  body:has(#contribution-table) .fifo-period-details,
-  body:has(#contribution-table) .payment-allocation-row,
-  body:has(#contribution-table) .allocation-edit-row {
+
+  html.theme-dark body:has(#contribution-table) .contribution-main-panel, html.theme-dark body:has(#contribution-table) #contribution-layout > .panel, html.theme-dark body:has(#contribution-table) .contribution-kpis .stat, html.theme-dark body:has(#contribution-table) .stat, html.theme-dark body:has(#contribution-table) #table-wrap, html.theme-dark body:has(#contribution-table) .sheet, html.theme-dark body:has(#contribution-table) .sheet-head, html.theme-dark body:has(#contribution-table) .sheet-footer, html.theme-dark body:has(#contribution-table) .entry, html.theme-dark body:has(#contribution-table) .fifo-detail-row, html.theme-dark body:has(#contribution-table) .fifo-period-details, html.theme-dark body:has(#contribution-table) .payment-allocation-row, html.theme-dark body:has(#contribution-table) .allocation-edit-row{
     color: #edf2f7 !important;
     background: #171d24 !important;
     border-color: #303a45 !important;
     box-shadow: none;
   }
-  body:has(#contribution-table) #contribution-table thead th,
-  body:has(#contribution-table) #contribution-table tbody tr:hover td {
+  html.theme-dark body:has(#contribution-table) #contribution-table thead th, html.theme-dark body:has(#contribution-table) #contribution-table tbody tr:hover td{
     color: #edf2f7 !important;
     background: #202832 !important;
     border-color: #303a45 !important;
   }
-  body:has(#contribution-table) #contribution-table tbody td,
-  body:has(#contribution-table) .stat .v,
-  body:has(#contribution-table) .stat strong,
-  body:has(#contribution-table) .fifo-period-toggle,
-  body:has(#contribution-table) .fifo-main,
-  body:has(#contribution-table) .sheet-subtitle,
-  body:has(#contribution-table) .entry,
-  body:has(#contribution-table) .fifo-detail-row,
-  body:has(#contribution-table) .payment-allocation-row {
+  html.theme-dark body:has(#contribution-table) #contribution-table tbody td, html.theme-dark body:has(#contribution-table) .stat .v, html.theme-dark body:has(#contribution-table) .stat strong, html.theme-dark body:has(#contribution-table) .fifo-period-toggle, html.theme-dark body:has(#contribution-table) .fifo-main, html.theme-dark body:has(#contribution-table) .sheet-subtitle, html.theme-dark body:has(#contribution-table) .entry, html.theme-dark body:has(#contribution-table) .fifo-detail-row, html.theme-dark body:has(#contribution-table) .payment-allocation-row{
     color: #edf2f7 !important;
   }
-  body:has(#contribution-table) .contribution-controls input,
-  body:has(#contribution-table) .contribution-controls select,
-  body:has(#contribution-table) .field input,
-  body:has(#contribution-table) .field select,
-  body:has(#contribution-table) .field textarea {
+  html.theme-dark body:has(#contribution-table) .contribution-controls input, html.theme-dark body:has(#contribution-table) .contribution-controls select, html.theme-dark body:has(#contribution-table) .field input, html.theme-dark body:has(#contribution-table) .field select, html.theme-dark body:has(#contribution-table) .field textarea{
     color: #edf2f7 !important;
     background: #111820 !important;
     border-color: #3b4652 !important;
   }
-  body:has(#contribution-table) .outstanding-kpi {
+  html.theme-dark body:has(#contribution-table) .outstanding-kpi{
     border-color: #684044 !important;
   }
-  body:has(#contribution-table) .deferred-kpi {
+  html.theme-dark body:has(#contribution-table) .deferred-kpi{
     border-color: #66502a !important;
   }
-  body:has(#contribution-table) .payment-allocation-warning {
+  html.theme-dark body:has(#contribution-table) .payment-allocation-warning{
     color: #f2cd7d !important;
     background: #3a3020 !important;
     border-color: #66502a !important;
   }
-  body:has(#contribution-table) .payment-allocation-note,
-  body:has(#contribution-table) .notice.info {
+  html.theme-dark body:has(#contribution-table) .payment-allocation-note, html.theme-dark body:has(#contribution-table) .notice.info{
     color: #a9c3ff !important;
     background: #202e49 !important;
     border-color: #354d78 !important;
   }
-}
+
 
 
 /* Period management: period list, lifecycle labels and create dialog. */
@@ -2025,107 +1753,86 @@ body:has(#reviewTable) .confirm-summary dd {
 }
 
 /* Dark mode: retain legible data surfaces and semantic lifecycle states. */
-@media screen and (prefers-color-scheme: dark) {
-  body:has(#period-body) .panel,
-  body:has(#period-body) .table-wrap,
-  body:has(#period-body) dialog#create-dialog {
+
+  html.theme-dark body:has(#period-body) .panel, html.theme-dark body:has(#period-body) .table-wrap, html.theme-dark body:has(#period-body) dialog#create-dialog{
     color: #edf2f7 !important;
     background: #171d24 !important;
     border-color: #303a45 !important;
     box-shadow: none;
   }
-  body:has(#period-body) .table-wrap thead th,
-  body:has(#period-body) .table-wrap tbody tr:hover td {
+  html.theme-dark body:has(#period-body) .table-wrap thead th, html.theme-dark body:has(#period-body) .table-wrap tbody tr:hover td{
     color: #edf2f7 !important;
     background: #202832 !important;
     border-color: #303a45 !important;
   }
-  body:has(#period-body) .table-wrap tbody td,
-  body:has(#period-body) .panel-head h2,
-  body:has(#period-body) .dialog-content h2,
-  body:has(#period-body) .field label {
+  html.theme-dark body:has(#period-body) .table-wrap tbody td, html.theme-dark body:has(#period-body) .panel-head h2, html.theme-dark body:has(#period-body) .dialog-content h2, html.theme-dark body:has(#period-body) .field label{
     color: #edf2f7 !important;
   }
-  body:has(#period-body) .field input,
-  body:has(#period-body) .field select {
+  html.theme-dark body:has(#period-body) .field input, html.theme-dark body:has(#period-body) .field select{
     color: #edf2f7 !important;
     background: #111820 !important;
     border-color: #3b4652 !important;
   }
-  body:has(#period-body) .pill {
+  html.theme-dark body:has(#period-body) .pill{
     color: #75e0b7 !important;
     background: #15372d !important;
   }
-  body:has(#period-body) .pill.closed {
+  html.theme-dark body:has(#period-body) .pill.closed{
     color: #b5bfca !important;
     background: #29313a !important;
   }
-  body:has(#period-body) .status {
+  html.theme-dark body:has(#period-body) .status{
     color: #c6d0db !important;
     background: #202832 !important;
     border-color: #3b4652 !important;
   }
-  body:has(#period-body) .status.error {
+  html.theme-dark body:has(#period-body) .status.error{
     color: #ffaaa5 !important; background: #3b2223 !important; border-color: #684044 !important;
   }
-  body:has(#period-body) .status.success {
+  html.theme-dark body:has(#period-body) .status.success{
     color: #75e0b7 !important; background: #15372d !important; border-color: #285a49 !important;
   }
-  body:has(#reviewTable) .topbar,
-  body:has(#reviewTable) main > .panel,
-  body:has(#reviewTable) .demand-unwilling-grid > .panel,
-  body:has(#reviewTable) .metric,
-  body:has(#reviewTable) .table-wrap,
-  body:has(#reviewTable) dialog#confirmDialog,
-  body:has(#reviewTable) dialog#exportFormatDialog {
+  html.theme-dark body:has(#reviewTable) .topbar, html.theme-dark body:has(#reviewTable) main > .panel, html.theme-dark body:has(#reviewTable) .demand-unwilling-grid > .panel, html.theme-dark body:has(#reviewTable) .metric, html.theme-dark body:has(#reviewTable) .table-wrap, html.theme-dark body:has(#reviewTable) dialog#confirmDialog, html.theme-dark body:has(#reviewTable) dialog#exportFormatDialog{
     color: #edf2f7 !important;
     background: #171d24 !important;
     border-color: #303a45 !important;
     box-shadow: none;
   }
-  body:has(#reviewTable) .table-wrap th,
-  body:has(#reviewTable) .table-wrap tbody tr:hover td {
+  html.theme-dark body:has(#reviewTable) .table-wrap th, html.theme-dark body:has(#reviewTable) .table-wrap tbody tr:hover td{
     color: #edf2f7 !important;
     background: #202832 !important;
     border-color: #303a45 !important;
   }
-  body:has(#reviewTable) .table-wrap td,
-  body:has(#reviewTable) .metric strong,
-  body:has(#reviewTable) .brand h1,
-  body:has(#reviewTable) .panel h2,
-  body:has(#reviewTable) .section-heading h2,
-  body:has(#reviewTable) .confirm-summary dd {
+  html.theme-dark body:has(#reviewTable) .table-wrap td, html.theme-dark body:has(#reviewTable) .metric strong, html.theme-dark body:has(#reviewTable) .brand h1, html.theme-dark body:has(#reviewTable) .panel h2, html.theme-dark body:has(#reviewTable) .section-heading h2, html.theme-dark body:has(#reviewTable) .confirm-summary dd{
     color: #edf2f7 !important;
   }
-  body:has(#reviewTable) .field input,
-  body:has(#reviewTable) .field select {
+  html.theme-dark body:has(#reviewTable) .field input, html.theme-dark body:has(#reviewTable) .field select{
     color: #edf2f7 !important;
     background: #111820 !important;
     border-color: #3b4652 !important;
   }
-  body:has(#reviewTable) .count {
+  html.theme-dark body:has(#reviewTable) .count{
     color: #c6d0db !important;
     background: #29313a !important;
   }
-  body:has(#reviewTable) .outstanding {
+  html.theme-dark body:has(#reviewTable) .outstanding{
     color: #ffaaa5 !important;
   }
-  body:has(#reviewTable) .status {
+  html.theme-dark body:has(#reviewTable) .status{
     color: #c6d0db !important;
     background: #202832 !important;
     border-color: #3b4652 !important;
   }
-  body:has(#reviewTable) .status.error {
+  html.theme-dark body:has(#reviewTable) .status.error{
     color: #ffaaa5 !important; background: #3b2223 !important; border-color: #684044 !important;
   }
-  body:has(#reviewTable) .status.success {
+  html.theme-dark body:has(#reviewTable) .status.success{
     color: #75e0b7 !important; background: #15372d !important; border-color: #285a49 !important;
   }
-  body:has(#reviewTable) .confirm-summary,
-  body:has(#reviewTable) .confirm-summary div {
+  html.theme-dark body:has(#reviewTable) .confirm-summary, html.theme-dark body:has(#reviewTable) .confirm-summary div{
     border-color: #303a45 !important;
   }
-}
+
 
 
 /* Legacy page-token compatibility bridge.
@@ -2224,19 +1931,19 @@ body:has(#reviewTable) .confirm-summary dd {
 :where(table td.amount, table td.amt, table td.balance) {
   font-variant-numeric: tabular-nums;
 }
-@media (prefers-color-scheme: dark) {
-  :where(table thead th) {
+
+  html.theme-dark :where(table thead th){
     color: var(--color-text-secondary);
     background: var(--color-bg-subtle);
     border-color: var(--color-border);
   }
-  :where(table th, table td) {
+  html.theme-dark :where(table th, table td){
     border-color: var(--color-border);
   }
-  :where(table tbody tr:hover td) {
+  html.theme-dark :where(table tbody tr:hover td){
     background: var(--color-bg-muted);
   }
-}
+
 @media (max-width: 700px) {
   :where(.table-wrap, .table-responsive, .table-container, .table-scroll) {
     max-width: 100%;
@@ -2261,198 +1968,166 @@ body:has(#desktop-fetch-preview) #desktop-fetch-preview table {
 
 /* Final page-specific dark-mode fixes based on mobile screenshots.
    Explicit page selectors outrank the pages' own light-mode card rules. */
-@media screen and (prefers-color-scheme: dark) {
+
   /* Contribution: this page's own mobile rules hard-code white row cards. */
-  body:has(#contribution-table) .panel,
-  body:has(#contribution-table) .table-wrap {
+  html.theme-dark body:has(#contribution-table) .panel, html.theme-dark body:has(#contribution-table) .table-wrap{
     color: #edf2f7 !important;
     background: #171d24 !important;
     border-color: #303a45 !important;
   }
-  #contribution-table,
-  #contribution-table tbody,
-  #contribution-table tbody tr.contribution-row,
-  #contribution-table tbody tr.contribution-row td {
+  html.theme-dark #contribution-table, html.theme-dark #contribution-table tbody, html.theme-dark #contribution-table tbody tr.contribution-row, html.theme-dark #contribution-table tbody tr.contribution-row td{
     color: #edf2f7 !important;
     background: #171d24 !important;
     border-color: #303a45 !important;
   }
-  #contribution-table tbody tr.contribution-row:nth-child(even),
-  #contribution-table tbody tr.contribution-row:nth-child(even) td {
+  html.theme-dark #contribution-table tbody tr.contribution-row:nth-child(even), html.theme-dark #contribution-table tbody tr.contribution-row:nth-child(even) td{
     background: #1d252e !important;
   }
-  #contribution-table .mobile-jobcard-line,
-  #contribution-table .mobile-jobcard-line .suffix,
-  #contribution-table .mobile-person-inline,
-  #contribution-table .contribution-row .jobcard,
-  #contribution-table .contribution-row .person {
+  html.theme-dark #contribution-table .mobile-jobcard-line, html.theme-dark #contribution-table .mobile-jobcard-line .suffix, html.theme-dark #contribution-table .mobile-person-inline, html.theme-dark #contribution-table .contribution-row .jobcard, html.theme-dark #contribution-table .contribution-row .person{
     color: #edf2f7 !important;
   }
-  #contribution-table .mobile-charge-line,
-  #contribution-table .contribution-row td:first-child {
+  html.theme-dark #contribution-table .mobile-charge-line, html.theme-dark #contribution-table .contribution-row td:first-child{
     color: #aab5c2 !important;
   }
-  #contribution-table .mobile-outstanding { color: #ffaaa5 !important; }
-  #contribution-table .mobile-settled { color: #75e0b7 !important; }
+  html.theme-dark #contribution-table .mobile-outstanding{ color: #ffaaa5 !important; }
+  html.theme-dark #contribution-table .mobile-settled{ color: #75e0b7 !important; }
 
   /* The detail drawer uses explicit white surfaces in contribution.html. */
-  #overlay .sheet-body .entry,
-  #overlay .sheet-body .entry-payment,
-  #overlay .sheet-body .entry-refund,
-  #overlay .sheet-body .entry-waiver,
-  #overlay .sheet-body .entry-charge,
-  #overlay .sheet-body .entry-voided,
-  #overlay .sheet-body .entry-other,
-  #overlay .sheet-body .payment-allocation-list {
+  html.theme-dark #overlay .sheet-body .entry, html.theme-dark #overlay .sheet-body .entry-payment, html.theme-dark #overlay .sheet-body .entry-refund, html.theme-dark #overlay .sheet-body .entry-waiver, html.theme-dark #overlay .sheet-body .entry-charge, html.theme-dark #overlay .sheet-body .entry-voided, html.theme-dark #overlay .sheet-body .entry-other, html.theme-dark #overlay .sheet-body .payment-allocation-list{
     color: #edf2f7 !important;
     background: #1d252e !important;
     border-color: #394653 !important;
   }
-  #overlay .sheet-body .entry .desc b,
-  #overlay .sheet-body .entry .amt,
-  #overlay .sheet-body .payment-allocation-total,
-  #overlay .sheet-body .payment-allocation-note {
+  html.theme-dark #overlay .sheet-body .entry .desc b, html.theme-dark #overlay .sheet-body .entry .amt, html.theme-dark #overlay .sheet-body .payment-allocation-total, html.theme-dark #overlay .sheet-body .payment-allocation-note{
     color: #edf2f7 !important;
   }
 
   /* Periods: override the high-specificity mobile white-card declarations. */
-  body:has(#period-body) {
+  html.theme-dark body:has(#period-body){
     color: #edf2f7 !important;
     background: #0d1217 !important;
   }
-  body:has(#period-body) .panel,
-  body:has(#period-body) .table-wrap {
+  html.theme-dark body:has(#period-body) .panel, html.theme-dark body:has(#period-body) .table-wrap{
     color: #edf2f7 !important;
     background: #171d24 !important;
     border-color: #303a45 !important;
   }
-  #period-body tr:not(:has(.empty)),
-  #period-body tr:not(:has(.empty)):nth-child(even),
-  #period-body tr:not(:has(.empty)) td {
+  html.theme-dark #period-body tr:not(:has(.empty)), html.theme-dark #period-body tr:not(:has(.empty)):nth-child(even), html.theme-dark #period-body tr:not(:has(.empty)) td{
     color: #edf2f7 !important;
     background: #1d252e !important;
     border-color: #394653 !important;
   }
-  #period-body tr:not(:has(.empty)):nth-child(even) {
+  html.theme-dark #period-body tr:not(:has(.empty)):nth-child(even){
     background: #202a34 !important;
   }
-  #period-body td[data-label="Period"],
-  #period-body .period-name-cell {
+  html.theme-dark #period-body td[data-label="Period"], html.theme-dark #period-body .period-name-cell{
     color: #edf2f7 !important;
   }
-  #period-body .period-mobile-meta {
+  html.theme-dark #period-body .period-mobile-meta{
     color: #aab5c2 !important;
   }
-  body:has(#period-body) .field label {
+  html.theme-dark body:has(#period-body) .field label{
     color: #d6dee8 !important;
   }
-  body:has(#period-body) .field input,
-  body:has(#period-body) .field select {
+  html.theme-dark body:has(#period-body) .field input, html.theme-dark body:has(#period-body) .field select{
     color: #edf2f7 !important;
     background: #10161c !important;
     border-color: #394653 !important;
   }
-  body:has(#period-body) button.secondary,
-  body:has(#period-body) .row-actions button[data-action="delete"] {
+  html.theme-dark body:has(#period-body) button.secondary, html.theme-dark body:has(#period-body) .row-actions button[data-action="delete"]{
     color: #dce5ee !important;
     background: #252f39 !important;
     border-color: #3a4652 !important;
   }
-  body:has(#period-body) .status {
+  html.theme-dark body:has(#period-body) .status{
     color: #dce5ee !important;
     background: #202a34 !important;
     border-color: #394653 !important;
   }
-  body:has(#period-body) .status.success {
+  html.theme-dark body:has(#period-body) .status.success{
     color: #75e0b7 !important;
     background: #15372d !important;
   }
-  body:has(#period-body) .status.error {
+  html.theme-dark body:has(#period-body) .status.error{
     color: #ffaaa5 !important;
     background: #3b2223 !important;
   }
-}
+
 
 /* Contribution mobile action panel: keep every action surface readable in dark mode. */
-@media screen and (prefers-color-scheme: dark) {
-  body:has(#contribution-table) .contribution-actions-row td {
+
+  html.theme-dark body:has(#contribution-table) .contribution-actions-row td{
     color: #edf2f7 !important;
     background: #171d24 !important;
     border-color: #303a45 !important;
   }
-  body:has(#contribution-table) .mobile-action-panel {
+  html.theme-dark body:has(#contribution-table) .mobile-action-panel{
     color: #edf2f7 !important;
     background: #171d24 !important;
     border-color: #394653 !important;
     box-shadow: none !important;
   }
-  body:has(#contribution-table) .mobile-action-panel-head {
+  html.theme-dark body:has(#contribution-table) .mobile-action-panel-head{
     color: #edf2f7 !important;
     border-color: #394653 !important;
   }
-  body:has(#contribution-table) .mobile-action-grid .action-tile {
+  html.theme-dark body:has(#contribution-table) .mobile-action-grid .action-tile{
     color: #e7edf3 !important;
     background: #26323d !important;
     border-color: #43515e !important;
   }
-  body:has(#contribution-table) .mobile-action-grid .action-tile.primary-action {
+  html.theme-dark body:has(#contribution-table) .mobile-action-grid .action-tile.primary-action{
     color: #f3fffb !important;
     background: #216653 !important;
     border-color: #32836d !important;
   }
-  body:has(#contribution-table) .action-tile-icon {
+  html.theme-dark body:has(#contribution-table) .action-tile-icon{
     color: #edf2f7 !important;
     background: #3a4855 !important;
   }
-  body:has(#contribution-table) .mobile-action-grid .primary-action .action-tile-icon {
+  html.theme-dark body:has(#contribution-table) .mobile-action-grid .primary-action .action-tile-icon{
     color: #f3fffb !important;
     background: rgba(255,255,255,.16) !important;
   }
-  body:has(#contribution-table) .mobile-history-button {
+  html.theme-dark body:has(#contribution-table) .mobile-history-button{
     color: #e7edf3 !important;
     background: #26323d !important;
     border-color: #43515e !important;
   }
-  body:has(#contribution-table) .mobile-history-button .action-tile-icon {
+  html.theme-dark body:has(#contribution-table) .mobile-history-button .action-tile-icon{
     color: #edf2f7 !important;
     background: #3a4855 !important;
   }
-}
+
 
 
 /* Contribution action modals: explicitly override legacy white drawer surfaces in dark mode. */
-@media screen and (prefers-color-scheme: dark) {
-  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal,
-  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .sheet-head,
-  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .sheet-body {
+
+  html.theme-dark body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal, html.theme-dark body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .sheet-head, html.theme-dark body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .sheet-body{
     color: #edf2f7 !important;
     background: #171d24 !important;
     border-color: #303a45 !important;
   }
-  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .sheet-head {
+  html.theme-dark body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .sheet-head{
     background: #1d252e !important;
     border-bottom-color: #303a45 !important;
   }
-  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .sheet-subtitle,
-  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .field label,
-  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .muted {
+  html.theme-dark body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .sheet-subtitle, html.theme-dark body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .field label, html.theme-dark body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .muted{
     color: #aab5c2 !important;
   }
-  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .field input,
-  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .field select,
-  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .field textarea {
+  html.theme-dark body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .field input, html.theme-dark body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .field select, html.theme-dark body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .field textarea{
     color: #edf2f7 !important;
     background: #10161c !important;
     border-color: #3b4652 !important;
   }
-  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .balance {
+  html.theme-dark body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .balance{
     color: #edf2f7 !important;
     background: #202832 !important;
     border-color: #394653 !important;
   }
-  body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .notice.info {
+  html.theme-dark body:has(#contribution-table) #overlay.action-modal-overlay > .sheet.action-modal .notice.info{
     color: #a9c3ff !important;
     background: #202e49 !important;
     border-color: #354d78 !important;
   }
-}
+

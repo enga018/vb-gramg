@@ -69,3 +69,8 @@ test("successful reconciliation and its audit attempt use the atomic run RPC", (
   assert.match(source, /p_run_id:runId/);
   assert.doesNotMatch(source, /admin\.rpc\("vbgramg_recheck_deferred_ftos"/);
 });
+
+test("detail fetch and Government table validation are audited as separate stages", () => {
+  assert.match(source, /onStage\?\.\("detail_validation"\)/);
+  assert.match(source, /nextStage=>\{stage=nextStage;\}/);
+});

@@ -79,3 +79,11 @@ test("detail aggregate validation uses the supplied FTO listing row", () => {
   assert.match(source, /String\(listingRow\[i\]\|\|""\)/);
   assert.doesNotMatch(source, /String\(listing\[i\]\|\|""\)/);
 });
+
+test("error responses preserve whether any reconciliation transaction committed", () => {
+  assert.match(source, /let databaseChanged=false/);
+  assert.match(source, /databaseChanged=true/);
+  assert.match(source, /auditPersistenceError[\s\S]*?databaseChanged\},500/);
+  assert.match(source, /Audit finalization failed\.[\s\S]*?databaseChanged\},500/);
+  assert.match(source, /Deferred FTO recheck failed\.[\s\S]*?databaseChanged\},502/);
+});

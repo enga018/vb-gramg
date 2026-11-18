@@ -1071,14 +1071,14 @@ let currentCoRevisionBatch=null,coRevisionPreview=null;
 function coMoney(value){return "₹"+Number(value||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});}
 function coRevisionStatus(message,type=""){const el=$("fto-co-preview-status");el.textContent=message;el.classList.remove("error","success");if(type)el.classList.add(type);}
 function invalidateCoRevisionPreview(){
- coRevisionPreview=null;$("fto-co-apply").disabled=true;
+ coRevisionPreview=null;$("fto-co-apply").disabled=true;$("fto-co-test").disabled=true;
  $("fto-co-preview-results").replaceChildren();
  coRevisionStatus("Calculation parameters changed. Preview again.");
 }
 function closeFtoCoModal(){
  $("fto-co-modal-backdrop").classList.add("hidden");
  currentCoRevisionBatch=null;coRevisionPreview=null;
- $("fto-co-apply").disabled=true;
+ $("fto-co-apply").disabled=true;$("fto-co-test").disabled=true;
 }
 function openFtoCoCalculation(batch){
  currentCoRevisionBatch=batch;coRevisionPreview=null;

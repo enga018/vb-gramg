@@ -929,6 +929,7 @@ Deno.serve(async(req:Request)=>{
   }
   if(action==="import-pending-fto"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can import a Pending FTO."},403);
+   if(body.final_review_confirmed!==true)return reply({error:"Confirm the final FTO review before importing."},400);
    const fto=String(body.fto_number||"").trim().toUpperCase().slice(0,100);
    const {data:pending,error:pendingError}=await admin.from("vbgramg_fto_inspection_state")
     .select("fto_number,fto_number_normalized,classification,validated_transactions")

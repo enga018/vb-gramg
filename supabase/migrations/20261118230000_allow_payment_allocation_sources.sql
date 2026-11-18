@@ -21,8 +21,8 @@ BEGIN
   v_original := v_definition;
   v_definition := pg_catalog.replace(
     v_definition,
-    'AND a.period_id = v_period.id;',
-    'AND a.period_id = v_period.id
+    'WHERE a.transaction_id = v_payment.id AND a.period_id = v_period.id;',
+    'WHERE a.transaction_id = v_payment.id AND a.period_id = v_period.id
         AND a.allocation_source = ''fifo_auto'';'
   );
   IF v_definition = v_original THEN

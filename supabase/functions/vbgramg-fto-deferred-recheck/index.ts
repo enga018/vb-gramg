@@ -64,7 +64,7 @@ function status(value: string) {
 function jobCard(value: string) {
   return String(value || "").match(/\bMZ-\d{2}-(?:\d{3}-){2,3}\d{3}\/\d+(?:-[A-Z]+)?\b/i)?.[0].toUpperCase() || "";
 }
-async function fetchDetail(url: string, ftoNumber: string) {
+async function fetchDetail(url: string, ftoNumber: string, listingRow: string[]) {
   const parsed = new URL(url);
   if (parsed.hostname !== "vbgramgrep.dord.gov.in" || parsed.pathname.toLowerCase() !== "/vbgramg/fto/fto_trasction_dtl.aspx" || !parsed.searchParams.has("payload"))
     throw new Error("Government detail URL failed host/path validation.");
@@ -83,14 +83,15 @@ async function fetchDetail(url: string, ftoNumber: string) {
   const h = header.map(norm), find = (...names:string[]) => h.findIndex(v => names.includes(v));
   const job=find("job card no panchayat name","job card no","job card number");
   const ref=find("reference no","reference number");
+  const amountToBeCredited=find("amount to be credited in rs","amount to be credited");
   const credit=find("credit amount in rs","credit amount");
   const state=find("status"), processed=find("processed date"), reason=find("rejection reason");
-  if ([job,ref,credit,state].some(v=>v<0)) throw new Error("Government table is missing required columns.");
+  if ([job,ref,amountToBeCredited,credit,state].some(v=>v<0)) throw new Error("Government table is missing required columns.");
   const transactions = allRows.slice(allRows.indexOf(header)+1).map((r,i) => {
     const card=jobCard(r[job]||""), reference=String(r[ref]||"").trim();
     const rawStatus=String(r[state]||"").trim();
     return { ftoNumber, jobCardNumber:card, referenceNo:reference, normalizedStatus:status(rawStatus),
-      creditAmount:amount(r[credit]||""), processedDate:processed>=0?parseDate(r[processed]||""):"",
+      amountToBeCredited:amount(r[amountToBeCredited]||""), creditAmount:amount(r[credit]||""), processedDate:processed>=0?parseDate(r[processed]||""):"",
       rejectionReason:reason>=0?String(r[reason]||"").trim():"", rowNumber:i+1 };
   });
   if (!transactions.length) throw new Error("Government transaction table is empty.");
@@ -101,13 +102,13 @@ async function fetchDetail(url: string, ftoNumber: string) {
     const key=tx.referenceNo.toUpperCase();
     if (key && refs.has(key)) errors.push("Government row "+tx.rowNumber+": duplicate Reference Number "+key+".");
     if (key) refs.add(key);
+    if (tx.amountToBeCredited===null) errors.push("Government row "+tx.rowNumber+": invalid Amount to Be Credited.");
     if (tx.creditAmount===null) errors.push("Government row "+tx.rowNumber+": invalid Credit Amount.");
     if (tx.normalizedStatus==="other") errors.push("Government row "+tx.rowNumber+": unrecognized status.");
   }
-  const listing=(fetchDetail as any).__listingRow as string[]|undefined;
-  if (listing) {
+  {
     const expectedCount=(i:number)=>{const s=String(listing[i]||"").replace(/,/g,"").trim();return /^\d+$/.test(s)?Number(s):null;};
-    const expectedAmount=(i:number)=>amount(listing[i]||"");
+    const expectedAmount=(i:number)=>amount(listingRow[i]||"");
     const sum=(xs:any[])=>xs.reduce((n,x)=>n+Number(x.creditAmount||0),0);
     const checks=[
       ["Processed count",expectedCount(8),transactions.filter(x=>x.normalizedStatus==="processed").length],
@@ -170,8 +171,7 @@ Deno.serve(async (req: Request) => {
       const ftoNumber=String(batch.fto_number||"").trim(), candidate=candidates.get(ftoNumber.toUpperCase());
       try {
         if(!candidate) throw new Error("FTO was not found in the current Government listing.");
-        (fetchDetail as any).__listingRow=candidate.row;
-        const governmentRows=await fetchDetail(candidate.url,ftoNumber);
+        const governmentRows=await fetchDetail(candidate.url,ftoNumber,candidate.row);
         const {data:stored,error:storedError}=await admin.from("vbgramg_fto_transactions")
           .select("reference_no,status").eq("batch_id",batch.id);
         if(storedError) throw new Error("Could not load stored transaction references.");

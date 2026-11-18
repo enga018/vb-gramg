@@ -125,23 +125,10 @@ async function runDetailBatches(numbers){
   addStat("Rejected",checks.reduce((n,x)=>n+x.statusCounts.rejected,0));
   addStat("Deferred / blank",checks.reduce((n,x)=>n+x.statusCounts.deferred,0));
   addStat("Unrecognized status",checks.reduce((n,x)=>n+x.statusCounts.unknown,0));
-  const allTransactions=successful.flatMap(item=>Array.isArray(item.transactions)?item.transactions:[]);
-  const misCounts={not_in_active_mis:0,exempt:0};
-  const uniqueCards={not_in_active_mis:new Set(),exempt:new Set()};
-  for(const tx of allTransactions){
-   const card=String(tx.jobCardNumber||"").trim().toUpperCase();
-   if(tx.contributionExempt){misCounts.exempt++;if(card)uniqueCards.exempt.add(card);}
-   if(tx.misMatchStatus in misCounts){misCounts[tx.misMatchStatus]++;if(card)uniqueCards[tx.misMatchStatus].add(card);}
-  }
-  const misHeading=document.createElement("h3");misHeading.textContent="Job Card scope validation";validation.append(misHeading);
-  const misNote=document.createElement("p");misNote.className="section-note";misNote.textContent="Counts below show unique Job Cards, not transaction rows. Only Active MIS Job Cards are included in the import preview. Out-of-scope transaction details are not retained.";validation.append(misNote);
-  addStat("Matched Job Cards",uniqueCards.matched.size);
-  addStat("Applicant review Job Cards",uniqueCards.applicant_review.size);
-  addStat("Outside Active MIS / not found",uniqueCards.not_in_active_mis.size);
-  addStat("Exempt Job Cards",uniqueCards.exempt.size);
   const misDetail=document.createElement("p");misDetail.className="section-note";
-  misDetail.textContent="Applicant matching is deferred until an FTO is opened from Pending Imports. Only aggregate counts for unmatched Government rows are retained.";
+  misDetail.textContent="Inspection validates Government rows and Active MIS Job Card scope only. Applicant matching is deferred until an FTO is opened from Pending Imports. Only aggregate counts for unmatched Government rows are retained.";
   validation.append(misDetail);
+
   progress.textContent="Processed "+done+" of "+total+" FTOs · "+successful.length+" successful · "+failed.length+" failed · "+passed+" passed validation · "+warningCount+" with warnings";
   target.replaceChildren();
   for(const item of detailResults){

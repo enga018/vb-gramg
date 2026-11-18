@@ -371,7 +371,8 @@ BEGIN
   );
 
   v_result := public.vbgramg_complete_fto_recheck_run(
-    v_run_id, v_actor, 0, 1, 'failed', null
+    v_run_id, v_actor, 0, 1, 'failed',
+    'All eligible FTO checks failed.'
   );
 
   IF (v_result->>'failed_ftos')::integer <> 1 THEN

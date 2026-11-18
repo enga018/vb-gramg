@@ -158,10 +158,28 @@ Deno.serve(async(req:Request)=>{
     active_mis_updated_at:misState.updated_at||null,updated_at:new Date().toISOString()
    }).eq("fto_number_normalized",ftoNumber).eq("classification","ELIGIBLE");
    if(updateError)throw updateError;
+   const mappingCards=[...uniqueCards];
+   const {data:savedMappings,error:mappingError}=mappingCards.length
+    ?await admin.from("vbgramg_fto_applicant_mappings").select("job_card_number,normalized_fto_name,applicant_name,applicant_number,applicant_unique_id").in("job_card_number",mappingCards)
+    :{data:[],error:null};
+   if(mappingError)throw mappingError;
+   const mappingsByKey=new Map((savedMappings||[]).map((row:any)=>[String(row.job_card_number||"").trim().toUpperCase()+"|"+String(row.normalized_fto_name||""),row]));
+   const applicantMatches=matching.map((tx:any)=>{
+    const card=String(tx.jobCardNumber||"").trim().toUpperCase(),ftoName=String(tx.personName||"").trim();
+    const candidates=rankActiveMisApplicants(activeApplicants,card,ftoName);
+    const best=candidates[0],second=candidates[1],gap=second?best.match_percentage-second.match_percentage:100;
+    const savedMapping=mappingsByKey.get(card+"|"+normalizeApplicantIdentity(ftoName))||null;
+    const savedCandidate=savedMapping?candidates.find((candidate:any)=>
+     (savedMapping.applicant_unique_id&&candidate.applicant_unique_id===savedMapping.applicant_unique_id)||
+     (!savedMapping.applicant_unique_id&&candidate.applicant_name===savedMapping.applicant_name&&String(candidate.applicant_number||"")===String(savedMapping.applicant_number||""))
+    ):null;
+    const automatic=savedCandidate? savedCandidate : (candidates.length===1||best&&best.match_percentage>=80&&(!second||second.match_percentage<80||gap>=10)?best:null);
+    return {job_card_number:card,fto_name:ftoName,candidates:candidates.slice(0,10),suggested_applicant:automatic,saved_mapping:savedMapping,requires_manual:!automatic,reason:savedMapping&&!savedCandidate?"Saved applicant is no longer active in the latest MIS":!automatic?(best?.match_percentage<80?"Best match is below 80%":second&&second.match_percentage>=80&&gap<10?"Top two candidates are less than 10 percentage points apart":"Needs manual review"):null};
+   });
    return reply({approved:true,fto_number:state.fto_number,inspected_at:state.last_inspected_at,
     government_transaction_count:Number(state.transaction_count||0),eligible_transaction_count:matching.length,
     unmatched_transaction_count:unmatched,matching_job_card_count:uniqueCards.size,
-    transactions:matching,active_mis_import_id:misState.active_import_id,active_mis_updated_at:misState.updated_at||null});
+    transactions:matching,applicant_matches:applicantMatches,active_mis_import_id:misState.active_import_id,active_mis_updated_at:misState.updated_at||null});
   }
   if(action==="list-pending-ftos"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can access Pending Imports."},403);

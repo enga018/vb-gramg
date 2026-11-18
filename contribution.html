@@ -1164,6 +1164,8 @@ body>main>#app #contribution-layout>.panel.contribution-main-panel{margin:0!impo
  display:flex!important;align-items:center!important;justify-content:center!important;
  padding:16px!important;box-sizing:border-box!important;
 }
+/* The ID-level flex rule above must not override the shared hidden utility. */
+#overlay.action-modal-overlay.hidden{display:none!important;}
 #overlay.action-modal-overlay>.sheet.action-modal{
  display:flex!important;flex-direction:column!important;
  flex:0 1 auto!important;align-self:center!important;

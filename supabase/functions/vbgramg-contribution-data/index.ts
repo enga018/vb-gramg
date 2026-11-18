@@ -121,6 +121,51 @@ Deno.serve(async(req:Request)=>{
   const body=await req.json().catch(()=>({}));
   requestStageTimings.request_body_parse=Number((performance.now()-bodyParseStarted).toFixed(1));
   const action=String(body.action||"list");
+  if(action==="list-pending-ftos"){
+   if(approved.role!=="admin")return reply({error:"Only an approved administrator can access Pending Imports."},403);
+   const {data:states,error:statesError}=await admin.from("vbgramg_fto_inspection_state")
+    .select("fto_number_normalized,fto_number,classification,last_inspected_at,transaction_count,unmatched_transaction_count,validated_transactions")
+    .eq("classification","ELIGIBLE").order("last_inspected_at",{ascending:false});
+   if(statesError)throw statesError;
+   const {data:misState,error:misStateError}=await admin.from("vbgramg_mis_state")
+    .select("active_import_id,updated_at").eq("singleton",true).maybeSingle();
+   if(misStateError)throw misStateError;
+   if(!misState?.active_import_id)return reply({error:"There is no active MIS import. Load the active MIS before reviewing Pending Imports."},409);
+   const activeApplicants=await loadActiveMisApplicants(admin);
+   const activeCards=new Set([...activeApplicants.keys()].map(value=>String(value||"").trim().toUpperCase()).filter(Boolean));
+   const pending:any[]=[];
+   for(const state of states||[]){
+    const saved=Array.isArray(state.validated_transactions)?state.validated_transactions:[];
+    const matching=saved.filter((tx:any)=>activeCards.has(String(tx?.jobCardNumber||"").trim().toUpperCase()));
+    const uniqueCards=new Set(matching.map((tx:any)=>String(tx?.jobCardNumber||"").trim().toUpperCase()).filter(Boolean));
+    const unmatched=Math.max(0,Number(state.transaction_count||0)-matching.length);
+    if(!matching.length){
+     const {error:updateError}=await admin.from("vbgramg_fto_inspection_state").update({
+      classification:"OUT_OF_SCOPE",validated_transactions:[],matching_job_card_count:0,
+      unmatched_transaction_count:Number(state.transaction_count||0),updated_at:new Date().toISOString()
+     }).eq("fto_number_normalized",state.fto_number_normalized).eq("classification","ELIGIBLE");
+     if(updateError)throw updateError;
+     continue;
+    }
+    if(matching.length!==saved.length||unmatched!==Number(state.unmatched_transaction_count||0)){
+     const {error:updateError}=await admin.from("vbgramg_fto_inspection_state").update({
+      validated_transactions:matching,matching_job_card_count:uniqueCards.size,
+      unmatched_transaction_count:unmatched,active_mis_import_id:misState.active_import_id,
+      active_mis_updated_at:misState.updated_at||null,updated_at:new Date().toISOString()
+     }).eq("fto_number_normalized",state.fto_number_normalized).eq("classification","ELIGIBLE");
+     if(updateError)throw updateError;
+    }
+    pending.push({
+     fto_number:state.fto_number,
+     government_transaction_count:Number(state.transaction_count||0),
+     eligible_transaction_count:matching.length,
+     unmatched_transaction_count:unmatched,
+     matching_job_card_count:uniqueCards.size,
+     inspected_at:state.last_inspected_at
+    });
+   }
+   return reply({approved:true,pending,active_mis_import_id:misState.active_import_id,active_mis_updated_at:misState.updated_at||null});
+  }
   if(action==="save-exemption"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can manage exempt job cards."},403);
    const jobCard=String(body.job_card_number||"").trim().slice(0,100);

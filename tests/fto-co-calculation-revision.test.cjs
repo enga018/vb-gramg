@@ -93,3 +93,14 @@ test("CO revision preview exposes allocation and waiver validation results in th
   assert.match(page, /Legacy waiver links/);
   assert.match(page, /unique job cards checked across these safeguards/);
 });
+
+
+test("CO revision rollback test invokes the exact atomic RPC with PostgREST rollback", () => {
+  assert.match(edge, /action==="test-fto-co-revision"/);
+  assert.match(edge, /admin\.rpc\("vbgramg_apply_fto_co_revision"/);
+  assert.match(edge, /\}\.rollback\(\)/);
+  assert.match(edge, /rolled_back:true/);
+  assert.match(page, /Test Apply \(Rollback\)/);
+  assert.match(page, /test-fto-co-revision/);
+  assert.match(page, /No financial records were changed/);
+});

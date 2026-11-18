@@ -78,6 +78,7 @@ async function calculatePendingCO(){
  }catch(err){currentCalculations=[];$("calculation-summary").textContent="Calculation unavailable. "+(err.message||"Review the inputs and try again.");renderPendingTransactions();status("detail-status",err.message||"CO calculation failed.","error");}
  finally{button.disabled=false;button.textContent="Calculate CO";}
 }
+function invalidateFinalReview(){const panel=$("final-review");if(panel&&!panel.classList.contains("hidden")){$("final-review-confirm").checked=false;$("final-review-status").textContent="A review input changed. Reopen Final review to validate the updated selections.";}}
 function escapeHtml(value){
  return String(value??"").replace(/[&<>"']/g,char=>{
   if(char==="&")return "&amp;";
@@ -133,10 +134,10 @@ function renderPendingTransactions(){
    (match.candidates||[]).forEach((candidate,candidateIndex)=>{const option=document.createElement("option");option.value=String(candidateIndex);option.textContent=candidate.applicant_name+(candidate.applicant_number?" · "+candidate.applicant_number:"")+" · "+candidate.match_percentage+"%";select.append(option);});
    const selected=(match.candidates||[]).findIndex(candidate=>match.suggested_applicant&&((match.suggested_applicant.applicant_unique_id&&candidate.applicant_unique_id===match.suggested_applicant.applicant_unique_id)||(!match.suggested_applicant.applicant_unique_id&&candidate.applicant_name===match.suggested_applicant.applicant_name&&String(candidate.applicant_number||"")===String(match.suggested_applicant.applicant_number||""))));
    select.value=match.selected_index!==undefined&&match.selected_index!==null?String(match.selected_index):(selected>=0?String(selected):"");
-   select.addEventListener("change",()=>{match.selected_index=select.value===""?null:Number(select.value);});applicantCell.append(select);
+   select.addEventListener("change",()=>{match.selected_index=select.value===""?null:Number(select.value);invalidateFinalReview();});applicantCell.append(select);
    if(match.saved_mapping){const note=document.createElement("small");note.style.display="block";note.style.marginTop="6px";note.textContent="Saved mapping: "+match.saved_mapping.applicant_name;applicantCell.append(note);
     const label=document.createElement("label"),confirm=document.createElement("input");confirm.type="checkbox";confirm.style.width="auto";confirm.style.minHeight="0";confirm.style.marginRight="6px";label.style.marginTop="7px";label.style.fontWeight="500";label.textContent="Confirm replacement";label.prepend(confirm);applicantCell.append(label);
-    confirm.checked=match.confirm_replacement===true;confirm.addEventListener("change",()=>{match.confirm_replacement=confirm.checked;});
+    confirm.checked=match.confirm_replacement===true;confirm.addEventListener("change",()=>{match.confirm_replacement=confirm.checked;invalidateFinalReview();});
    }
    if(match.reason){const note=document.createElement("small");note.style.display="block";note.style.marginTop="5px";note.textContent=match.reason;applicantCell.append(note);}
   }
@@ -185,7 +186,7 @@ async function verifyAccess(user){
 }
 client.auth.onAuthStateChange((event,session)=>{if(event==="SIGNED_OUT"){authSequence++;window.location.replace("./");}else if(event==="TOKEN_REFRESHED"&&session)Promise.resolve().then(()=>verifyAccess(session.user));});
 client.auth.getSession().then(({data,error})=>{if(error||!data.session){window.location.replace("./");return;}verifyAccess(data.session.user);});
-$("refresh").addEventListener("click",loadPending);$("open-final-review").addEventListener("click",openFinalReview);$("final-review-confirm").addEventListener("change",()=>{$("final-review-status").textContent=$("final-review-confirm").checked?"Final review confirmed. This still does not import the FTO.":"Final review confirmation cleared.";});$("calculate-co").addEventListener("click",calculatePendingCO);$("contribution-period").addEventListener("change",()=>{currentCalculations=[];$("calculation-summary").textContent="Period changed. Recalculate CO to refresh the preview.";renderPendingTransactions();});$("co-divisor").addEventListener("input",()=>{currentCalculations=[];$("calculation-summary").textContent="Formula changed. Recalculate CO to refresh the preview.";renderPendingTransactions();});$("co-multiplier").addEventListener("input",()=>{currentCalculations=[];$("calculation-summary").textContent="Formula changed. Recalculate CO to refresh the preview.";renderPendingTransactions();});$("save-mappings").addEventListener("click",saveApplicantMappings);$("close-detail").addEventListener("click",()=>{$("detail-panel").classList.add("hidden");});
+$("refresh").addEventListener("click",loadPending);$("open-final-review").addEventListener("click",openFinalReview);$("final-review-confirm").addEventListener("change",()=>{$("final-review-status").textContent=$("final-review-confirm").checked?"Final review confirmed. This still does not import the FTO.":"Final review confirmation cleared.";});$("calculate-co").addEventListener("click",calculatePendingCO);$("contribution-period").addEventListener("change",()=>{currentCalculations=[];invalidateFinalReview();$("calculation-summary").textContent="Period changed. Recalculate CO to refresh the preview.";renderPendingTransactions();});$("co-divisor").addEventListener("input",()=>{currentCalculations=[];invalidateFinalReview();$("calculation-summary").textContent="Formula changed. Recalculate CO to refresh the preview.";renderPendingTransactions();});$("co-multiplier").addEventListener("input",()=>{currentCalculations=[];$("calculation-summary").textContent="Formula changed. Recalculate CO to refresh the preview.";renderPendingTransactions();});$("save-mappings").addEventListener("click",saveApplicantMappings);$("close-detail").addEventListener("click",()=>{$("detail-panel").classList.add("hidden");});
 })();
 </script>
 </body></html>

@@ -35,8 +35,7 @@ BEGIN
     PERFORM 1
     FROM public.vbgramg_payment_allocations a
     WHERE a.job_card_number = p_job_card_number
-      AND a.period_id = v_period.id
-      AND a.allocation_source = 'fifo_auto';
+      AND a.period_id = v_period.id;
 
     INSERT INTO public.vbgramg_payment_allocations
       (transaction_id, period_id, job_card_number, amount, allocation_source)
@@ -84,7 +83,7 @@ BEGIN
 
   INSERT INTO public.vbgramg_payment_allocations
     (transaction_id, period_id, job_card_number, amount, allocation_source)
-  SELECT p_transaction_id, (item->>'period_id')::uuid, p_job_card_number,
+  SELECT p_transaction_id, (item->>'period_id')::uuid, 'MZ-TEST',
          (item->>'amount')::numeric, p_allocation_source
   FROM jsonb_array_elements(p_allocations) item;
 

@@ -422,8 +422,8 @@ header .app-header-actions > button {
  <div class="import-grid">
   <div class="field"><label for="fto-number">FTO number</label><input id="fto-number" type="text" maxlength="100" placeholder="Detected from pasted table" readonly required></div>
   <div class="field"><label for="charge-period">Period</label><select id="charge-period" required disabled aria-busy="true"><option value="">Loading open periods…</option></select></div>
-  <div class="field"><label for="amount-divisor">Divisor (Credit Amount ÷)</label><input id="amount-divisor" type="number" min="0.01" step="any" value="300" required></div>
-  <div class="field"><label for="amount-multiplier">Multiplier (×)</label><input id="amount-multiplier" type="number" min="0.01" step="any" value="100" required></div>
+  <div class="field"><label for="amount-divisor">Divisor (Credit Amount ÷)</label><input id="amount-divisor" type="number" min="1" step="1" value="300" required></div>
+  <div class="field"><label for="amount-multiplier">Multiplier (×)</label><input id="amount-multiplier" type="number" min="1" step="1" value="100" required></div>
 
  </div>
  </div>
@@ -615,7 +615,7 @@ function calculatedChargeForRow(row){const index=parsedDataRows.indexOf(row);ret
 async function buildImportGroups(){
  const seq=++calculationSequence;calculationPending=true;calculationError='';updateImportButton();
  const divisor=Number($('amount-divisor').value),multiplier=Number($('amount-multiplier').value);
- if(!Number.isFinite(divisor)||divisor<=0||!Number.isFinite(multiplier)||multiplier<=0){calculationPending=false;calculationError='Enter a positive divisor and multiplier.';importGroups=[];renderImportPreview();return;}
+ if(!Number.isInteger(divisor)||divisor<=0||!Number.isInteger(multiplier)||multiplier<=0){calculationPending=false;calculationError='Enter whole positive divisor and multiplier values.';importGroups=[];renderImportPreview();return;}
  try{
   const {data,error}=await window.VBGRAMGData.invoke('vbgramg-contribution-data',{body:{action:'calculate-fto-charges',divisor,multiplier,rows:parsedDataRows.map((row,row_index)=>({row_index,credit_amount:parseAmount(row[11]),status:rawStatus(row)}))},deduplicate:false});
   if(seq!==calculationSequence)return;

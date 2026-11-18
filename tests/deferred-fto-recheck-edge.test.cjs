@@ -122,3 +122,11 @@ test("listing-level and outer errors return consistent summary fields", () => {
   assert.match(source, /failedFtoCount:failedFtOs/);
   assert.match(source, /unchangedCount,failedCheckCount:failedChecks\.length/);
 });
+
+test("detail parsing is scoped to the Government transaction table and ignores subtotal/total rows", () => {
+  assert.match(source, /const transactionTable = \\[\.\.\.html\.matchAll\(\/<table/);
+  assert.match(source, /\.map\(match => rowsOf\(match\[1\]\)\)/);
+  assert.match(source, /transactionTable\.slice\(transactionTable\.indexOf\(header\)\+1\)/);
+  assert.match(source, /sub\\\\s\*total\|total/);
+  assert.doesNotMatch(source, /allRows\.slice\(allRows\.indexOf\(header\)\+1\)/);
+});

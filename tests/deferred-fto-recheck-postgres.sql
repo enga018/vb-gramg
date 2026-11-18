@@ -384,3 +384,68 @@ BEGIN
 END
 $$;
 RESET ROLE;
+
+-- Verify active heartbeats protect a run and stale runs are safely finalized.
+SET ROLE service_role;
+DO $$
+DECLARE
+  v_actor uuid := '11111111-1111-4111-8111-111111111111';
+  v_run_id uuid;
+  v_recovered integer;
+BEGIN
+  v_run_id := public.vbgramg_start_fto_recheck_run(v_actor, 1);
+  v_recovered := public.vbgramg_recover_stale_fto_recheck_runs(v_actor);
+  IF v_recovered <> 0 THEN
+    RAISE EXCEPTION 'An active run was incorrectly recovered';
+  END IF;
+  PERFORM public.vbgramg_heartbeat_fto_recheck_run(v_run_id, v_actor);
+END
+$$;
+RESET ROLE;
+
+INSERT INTO public.vbgramg_fto_recheck_runs (
+  id, status, total_ftos, actor, heartbeat_at
+) VALUES (
+  'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  'running', 2, '11111111-1111-4111-8111-111111111111',
+  clock_timestamp() - interval '31 minutes'
+);
+
+INSERT INTO public.vbgramg_fto_recheck_attempts (
+  run_id, batch_id, status, stage, result, actor
+) VALUES (
+  'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  'success', 'reconciliation', '{"updated_count":1}'::jsonb,
+  '11111111-1111-4111-8111-111111111111'
+);
+
+SET ROLE service_role;
+DO $$
+DECLARE
+  v_actor uuid := '11111111-1111-4111-8111-111111111111';
+  v_recovered integer;
+BEGIN
+  v_recovered := public.vbgramg_recover_stale_fto_recheck_runs(v_actor);
+  IF v_recovered <> 1 THEN
+    RAISE EXCEPTION 'Expected exactly one stale run to be recovered, got %', v_recovered;
+  END IF;
+END
+$$;
+RESET ROLE;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.vbgramg_fto_recheck_runs
+    WHERE id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+      AND status = 'failed'
+      AND completed_at IS NOT NULL
+      AND successful_ftos = 1
+      AND failed_ftos = 0
+      AND error_message ILIKE '%interrupted%'
+  ) THEN
+    RAISE EXCEPTION 'Stale run was not finalized with its persisted attempt totals';
+  END IF;
+END
+$$;

@@ -927,7 +927,63 @@ Deno.serve(async(req:Request)=>{
    if(!Array.isArray(calculations)||calculations.length!==rows.length)return reply({error:"PostgreSQL returned an incomplete FTO calculation."},500);
    return reply({approved:true,calculations});
   }
-  if(action==="sync-fto-batch"){
+  if(action==="import-pending-fto"){
+   if(approved.role!=="admin")return reply({error:"Only an approved administrator can import a Pending FTO."},403);
+   const fto=String(body.fto_number||"").trim().toUpperCase().slice(0,100);
+   const {data:pending,error:pendingError}=await admin.from("vbgramg_fto_inspection_state")
+    .select("fto_number,fto_number_normalized,classification,validated_transactions")
+    .eq("fto_number_normalized",fto).maybeSingle();
+   if(pendingError)throw pendingError;
+   if(!pending||pending.classification!=="ELIGIBLE")return reply({error:"This FTO is no longer available in Pending Imports."},409);
+   const {data:alreadyImported,error:alreadyImportedError}=await admin.from("vbgramg_fto_batches").select("id").eq("fto_number",fto).maybeSingle();
+   if(alreadyImportedError)throw alreadyImportedError;
+   if(alreadyImported)return reply({error:"This FTO has already been imported."},409);
+   const periodId=String(body.period_id||"").trim();
+   const {data:period,error:periodError}=await admin.from("vbgramg_periods")
+    .select("id,period_name,contribution_month,status").eq("id",periodId).maybeSingle();
+   if(periodError)throw periodError;
+   if(!period||period.status!=="open"||!period.contribution_month)return reply({error:"Select an existing open Contribution Period."},409);
+   const activeApplicants=await loadActiveMisApplicants(admin);
+   const activeCards=new Set([...activeApplicants.keys()].map(card=>String(card||"").trim().toUpperCase()));
+   const saved=Array.isArray(pending.validated_transactions)?pending.validated_transactions:[];
+   const transactions=saved.filter((tx:any)=>activeCards.has(String(tx?.jobCardNumber||"").trim().toUpperCase()));
+   if(!transactions.length)return reply({error:"No saved FTO transactions remain in scope for the latest Active MIS."},409);
+   const seen=new Set<string>();
+   for(const tx of transactions){const card=String(tx.jobCardNumber||"").trim().toUpperCase();if(!card||seen.has(card))return reply({error:"The saved FTO contains duplicate Job Cards. No import was made."},409);seen.add(card);}
+   const applicantMappings=Array.isArray(body.applicant_mappings)?body.applicant_mappings:[];
+   if(applicantMappings.length!==transactions.length)return reply({error:"Select an Active MIS applicant for every Job Card before importing."},400);
+   const mappingByCard=new Map<string,any>();
+   for(const raw of applicantMappings){
+    const card=String(raw?.job_card_number||"").trim().toUpperCase();
+    const candidates=activeApplicants.get(card)||[...(activeApplicants.entries())].find(([key])=>String(key).trim().toUpperCase()===card)?.[1]||[];
+    const uniqueId=String(raw?.applicant_unique_id||"").trim(),name=String(raw?.applicant_name||"").trim(),number=String(raw?.applicant_number||"").trim();
+    const chosen=candidates.find(a=>(uniqueId&&a.applicant_unique_id===uniqueId)||(!uniqueId&&String(a.applicant_name)===name&&String(a.applicant_number||"")===number));
+    if(!chosen||mappingByCard.has(card))return reply({error:"An applicant selection is missing, duplicated, or no longer active for "+card+"."},409);
+    mappingByCard.set(card,chosen);
+   }
+   const rows=transactions.map((tx:any)=>({
+    reference_no:String(tx.referenceNumber||"").trim(),job_card_number:String(tx.jobCardNumber||"").trim().toUpperCase(),
+    village_name:String(tx.villageName||""),person_name:String(tx.personName||"").trim(),
+    transaction_date:tx.transactionDate||null,processed_date:tx.processedDate||null,
+    amount_to_be_credited:tx.amountToBeCredited??null,credit_amount:tx.creditAmount,
+    status:String(tx.normalizedStatus||tx.status||"").trim().toLowerCase(),
+    rejection_reason:tx.rejectionReason||null,source_row:{}
+   }));
+   const divisor=Number(body.divisor),multiplier=Number(body.multiplier);
+   if(!Number.isFinite(divisor)||divisor<=0||!Number.isFinite(multiplier)||multiplier<=0)return reply({error:"Enter valid positive CO formula values."},400);
+   const sourcePayload=JSON.stringify({fto_number:fto,rows});
+   const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(sourcePayload));
+   const sourceSha=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,"0")).join("");
+   body.fto_number=fto;body.period_id=periodId;body.contribution_period=period.period_name;
+   body.charge_period=period.contribution_month;body.divisor=divisor;body.multiplier=multiplier;
+   body.rows=rows;body.source_sha256=sourceSha;
+   body.reconciliation_applicants=Object.fromEntries([...mappingByCard.entries()].map(([card,a])=>[card,a]));
+   body.confirm_mapping_replacements=Array.isArray(body.confirm_mapping_replacements)?body.confirm_mapping_replacements:[];
+   body.reviewed_duplicates=[];body.reviewed_new_job_cards=[];
+   body.manual_charge_actions=body.manual_charge_actions&&typeof body.manual_charge_actions==="object"?body.manual_charge_actions:{};
+   body.manual_charge_amount_confirmations=Array.isArray(body.manual_charge_amount_confirmations)?body.manual_charge_amount_confirmations:[];
+  }
+  if(action==="sync-fto-batch"||action==="import-pending-fto"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can synchronize FTO transactions."},403);
    const ftoNumber=String(body.fto_number||"").trim().toUpperCase().slice(0,100);
    let periodId=String(body.period_id||"").trim();

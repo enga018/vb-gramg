@@ -25,7 +25,9 @@ test("Eligibility stores only Active MIS Job Card rows and keeps applicant revie
   assert.match(details, /unmatched_transaction_count: unmatchedTransactionCount/);
   assert.match(details, /validateGovernmentTransactions\(transactions, item\.listingRow\)/);
   assert.doesNotMatch(details, /village.*(?:filter|eligible|scope)/i);
-});test("Government manifest is encrypted, expires, and detail inspection binds to current Active MIS", () => {
+});
+
+test("Government manifest is encrypted, expires, and detail inspection binds to current Active MIS", () => {
   assert.match(fetcher, /exp: Date\.now\(\) \+ 45 \* 60 \* 1000/);
   assert.match(fetcher, /VBGRAMG-FTO-MANIFEST-v1:/);
   assert.match(fetcher, /AES-GCM/);

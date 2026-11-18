@@ -87,3 +87,9 @@ test("error responses preserve whether any reconciliation transaction committed"
   assert.match(source, /Audit finalization failed\.[\s\S]*?databaseChanged\},500/);
   assert.match(source, /Deferred FTO recheck failed\.[\s\S]*?databaseChanged\},502/);
 });
+
+test("active recheck runs heartbeat and stale runs are recovered before a new run", () => {
+  assert.match(source, /admin\.rpc\("vbgramg_recover_stale_fto_recheck_runs"/);
+  assert.match(source, /admin\.rpc\("vbgramg_heartbeat_fto_recheck_run"/);
+  assert.match(source, /for\(const batch of eligible\)[\s\S]*?heartbeatError/);
+});

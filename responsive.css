@@ -124,7 +124,7 @@ body.has-global-sidebar{padding-right:252px!important;box-sizing:border-box}
 @media(prefers-reduced-motion:reduce){.global-sidebar{transition:none}}
 
 
-/* Automatic dark theme for the shared workspace sidebar and navigation drawer. */
+/* Dark theme styling for the shared workspace sidebar and navigation drawer. */
 
   html.theme-dark .global-sidebar{
     color: #e7edf3 !important;

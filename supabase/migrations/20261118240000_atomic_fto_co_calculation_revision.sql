@@ -101,17 +101,6 @@ begin
      or v_batch.ledger_charge_period is distinct from v_initial_batch.ledger_charge_period then
     raise exception 'The FTO period changed concurrently. Reload history and try again' using errcode = '40001';
   end if;
-  if v_batch.calculation_divisor = p_divisor
-     and v_batch.calculation_multiplier = p_multiplier then
-    return pg_catalog.jsonb_build_object(
-      'ok',true,'unchanged',true,'batch_id',p_batch_id,
-      'revision_number',v_batch.revision_number,
-      'transactions_changed',0,'ledger_updated',0,
-      'old_eligible_total',0,'new_eligible_total',0,
-      'allocations_preserved',true
-    );
-  end if;
-
   perform tx.id
   from public.vbgramg_fto_transactions tx
   where tx.batch_id = p_batch_id and tx.is_current = true and tx.is_in_scope = true
@@ -133,11 +122,12 @@ begin
     raise exception 'This FTO affects a Job Card with an unlinked legacy waiver. Resolve the waiver before changing CO calculation' using errcode = '23514';
   end if;
 
-  select coalesce(sum(coalesce(calculated_charge,0)),0)::numeric(14,2)
+  select coalesce(sum(coalesce(l.amount,0)),0)::numeric(14,2)
     into v_old_total
-  from public.vbgramg_fto_transactions
-  where batch_id = p_batch_id and is_current = true and is_in_scope = true
-    and status in ('blank','processed') and ledger_entry_id is not null;
+  from public.vbgramg_fto_transactions tx
+  join public.vbgramg_charge_ledger l on l.id = tx.ledger_entry_id
+  where tx.batch_id = p_batch_id and tx.is_current = true and tx.is_in_scope = true
+    and tx.status in ('blank','processed');
 
   for v_tx in
     select *

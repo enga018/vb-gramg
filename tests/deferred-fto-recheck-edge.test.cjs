@@ -6,7 +6,7 @@ const path = require("node:path");
 const source = fs.readFileSync(path.join(__dirname, "..", "supabase/functions/vbgramg-fto-deferred-recheck/index.ts"), "utf8");
 
 test("deferred recheck is isolated from the initial import endpoints", () => {
-  assert.match(source, /vbgramg_recheck_deferred_ftos/);
+  assert.match(source, /vbgramg_recheck_deferred_ftos_with_run/);
   assert.doesNotMatch(source, /vbgramg_import_government_fto_history/);
 });
 
@@ -32,7 +32,7 @@ test("recheck validates both Government amount columns and passes listing data e
 
 test("recheck RPC receives only existing references and never calls an insert path", () => {
   assert.match(source, /storedByRef/);
-  assert.match(source, /admin\.rpc\("vbgramg_recheck_deferred_ftos"/);
+  assert.match(source, /admin\.rpc\("vbgramg_recheck_deferred_ftos_with_run"/);
   assert.doesNotMatch(source, /\.insert\(/);
   assert.doesNotMatch(source, /vbgramg_import_government_fto_history/);
 });
@@ -41,4 +41,31 @@ test("per-FTO failures are isolated and reported", () => {
   assert.match(source, /failedChecks\.push/);
   assert.match(source, /failedCheckCount/);
   assert.match(source, /data\?\.batches\?\.\[0\]\?\.result/);
+});
+
+test("each operation starts and finalizes a durable audit run", () => {
+  assert.match(source, /admin\.rpc\("vbgramg_start_fto_recheck_run"/);
+  assert.match(source, /p_total_ftos:eligible\.length/);
+  assert.match(source, /admin\.rpc\("vbgramg_complete_fto_recheck_run"/);
+  assert.match(source, /p_successful_ftos:successfulFtOs,p_failed_ftos:failedFtOs/);
+  assert.match(source, /runId,runStatus/);
+});
+
+test("listing-level failures finalize the run without creating per-FTO attempts", () => {
+  assert.match(source, /p_successful_ftos:0,p_failed_ftos:0,p_status:"failed"/);
+  assert.match(source, /Government FTO listing request failed/);
+  assert.match(source, /Could not finalize the failed audit run/);
+});
+
+test("individual FTO failures are persisted with the stage and safe error message", () => {
+  assert.match(source, /admin\.rpc\("vbgramg_record_fto_recheck_failure"/);
+  assert.match(source, /p_stage:stage,p_error_message:message/);
+  assert.match(source, /auditRecorded:true/);
+  assert.match(source, /auditPersistenceError/);
+});
+
+test("successful reconciliation and its audit attempt use the atomic run RPC", () => {
+  assert.match(source, /admin\.rpc\("vbgramg_recheck_deferred_ftos_with_run"/);
+  assert.match(source, /p_run_id:runId/);
+  assert.doesNotMatch(source, /admin\.rpc\("vbgramg_recheck_deferred_ftos"/);
 });

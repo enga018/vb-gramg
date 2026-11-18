@@ -108,7 +108,7 @@ async function fetchDetail(url: string, ftoNumber: string, listingRow: string[],
     if (tx.normalizedStatus==="other") errors.push("Government row "+tx.rowNumber+": unrecognized status.");
   }
   {
-    const expectedCount=(i:number)=>{const s=String(listing[i]||"").replace(/,/g,"").trim();return /^\d+$/.test(s)?Number(s):null;};
+    const expectedCount=(i:number)=>{const s=String(listingRow[i]||"").replace(/,/g,"").trim();return /^\d+$/.test(s)?Number(s):null;};
     const expectedAmount=(i:number)=>amount(listingRow[i]||"");
     const sum=(xs:any[])=>xs.reduce((n,x)=>n+Number(x.creditAmount||0),0);
     const checks=[

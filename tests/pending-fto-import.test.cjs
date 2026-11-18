@@ -96,5 +96,5 @@ test("Import UI sends explicit decisions and handles committed failures without 
   assert.match(page, /manual_charge_amount_confirmations/);
   assert.match(page, /manual_reconciliation_applicants/);
   assert.match(page, /snapshot_committed/);
-  assert.match(page, /Do not retry this FTO/);
+  assert.match(page, /do not retry this FTO/i);
 });

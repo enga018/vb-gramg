@@ -418,6 +418,14 @@ Deno.serve(async(req:Request)=>{
      }
      const exact=findExactActiveMisApplicant(activeMisApplicants,jobCard,ftoName);
      if(exact)return {applicant:exact,source:"exact_name"};
+     const best=candidates[0],second=candidates[1],gap=second?best.match_percentage-second.match_percentage:100;
+     const confident=Boolean(best&&(candidates.length===1||best.match_percentage>=80&&(!second||second.match_percentage<80||gap>=10)));
+     return {applicant:confident?best:null,source:confident?"similarity":"manual"};
+    };
+    const duplicateRows=[...new Map((existing||[]).filter(r=>!r.is_voided&&(!r.period_id||String(r.period_id)===periodId)&&!exemptedSet.has(String(r.job_card_number||"").trim().toUpperCase())&&!(/^FTO\\b/i.test(String(r.note||"")))).map(r=>[r.job_card_number,r])).values()];
+    const duplicates=duplicateRows.map(r=>{
+     const input=referenceRows.find(item=>item.job_card_number===String(r.job_card_number)),ftoName=String(input?.person_name||"");
+     const candidates=rankActiveMisApplicants(activeMisApplicants,String(r.job_card_number),ftoName).slice(0,10);
      const resolution=resolveApplicant(String(r.job_card_number),ftoName,candidates);
      const matchConfident=Boolean(resolution.applicant);
      const hasAttachedApplicant=Boolean(r.applicant_unique_id||r.applicant_name||r.applicant_number);

@@ -809,6 +809,9 @@ Deno.serve(async(req:Request)=>{
    if(batchError)throw batchError;
    if(!batch)return reply({error:"The selected FTO batch was not found."},404);
    if(!batch.period_id||!batch.ledger_charge_period)return reply({error:"This FTO has no unambiguous Contribution Period. Correct its period before changing CO calculation."},409);
+   const {data:initialFingerprint,error:initialFingerprintError}=await admin.rpc("vbgramg_fto_co_revision_fingerprint",{p_batch_id:batchId});
+   if(initialFingerprintError)throw initialFingerprintError;
+   if(typeof initialFingerprint!=="string"||! /^[a-f0-9]{32}$/.test(initialFingerprint))throw new Error("Could not establish a reliable allocation snapshot for this preview.");
    const {data:snapshot,error:snapshotError}=await admin.rpc("vbgramg_get_fto_revision_snapshot",{p_batch_id:batchId,p_target_period_id:null});
    if(snapshotError)throw snapshotError;
    if(!snapshot||!Array.isArray(snapshot.transactions)||!Array.isArray(snapshot.ledger_entries))return reply({error:"The database returned an incomplete FTO revision snapshot."},500);
@@ -849,6 +852,7 @@ Deno.serve(async(req:Request)=>{
    const blocked:string[]=[];
    const seenLedgerIds=new Set<string>();
    const newByCard=new Map<string,number>();
+   const newByLedger=new Map<string,number>();
    let oldTotal=0,newTotal=0,exemptCount=0;
    for(let index=0;index<transactions.length;index++){
     const tx=transactions[index],status=String(tx.status||"").trim().toLowerCase();
@@ -870,7 +874,10 @@ Deno.serve(async(req:Request)=>{
      seenLedgerIds.add(ledgerId);
      const old=Number(ledger.amount||0);
      oldTotal+=old;newTotal+=next;
-     if(ledger.is_deferred!==true)newByCard.set(card,(newByCard.get(card)||0)+next);
+     if(ledger.is_deferred!==true){
+      newByCard.set(card,(newByCard.get(card)||0)+next);
+      newByLedger.set(ledgerId,next);
+     }
      changes.push({reference_no:tx.reference_no,job_card_number:card,status,old_charge:old,new_charge:next,difference:Number((next-old).toFixed(2))});
     }else if(["rejected","other"].includes(status)){
      if(ledgerId)blocked.push("Rejected/other reference "+String(tx.reference_no||"")+" unexpectedly has a linked charge.");
@@ -881,12 +888,21 @@ Deno.serve(async(req:Request)=>{
    const paymentAllocations=Array.isArray(snapshot.payment_allocations)?snapshot.payment_allocations:[];
    const waiverAllocations=Array.isArray(snapshot.waiver_allocations)?snapshot.waiver_allocations:[];
    const chargePaymentAllocations=Array.isArray(snapshot.charge_payment_allocations)?snapshot.charge_payment_allocations:[];
+   const refunds=Array.isArray(snapshot.payment_refunds)?snapshot.payment_refunds:[];
+   const periods=Array.isArray(snapshot.periods)?snapshot.periods:[];
    const unlinkedWaivers=Array.isArray(snapshot.unlinked_legacy_waivers)?snapshot.unlinked_legacy_waivers:[];
-   const checkedCards=new Set<string>(),paymentWaiverChecked=new Set<string>(),chargeAllocationChecked=new Set<string>(),unlinkedWaiverChecked=new Set<string>();
-   let paymentWaiverChecksPassed=true,chargeAllocationChecksPassed=true,unlinkedWaiverChecksPassed=true;
+   const activeExemptions=Array.isArray(snapshot.active_exemptions)?snapshot.active_exemptions:[];
+   const manualChargeLinks=Array.isArray(snapshot.manual_charge_links)?snapshot.manual_charge_links:[];
+   const checkedCards=new Set<string>(),paymentWaiverChecked=new Set<string>(),chargeAllocationChecked=new Set<string>(),unlinkedWaiverChecked=new Set<string>(),fifoChecked=new Set<string>();
+   let paymentWaiverChecksPassed=true,chargeAllocationChecksPassed=true,unlinkedWaiverChecksPassed=true,fifoChecksPassed=true;
+   const fifoRebuilds:any[]=[];
+   let fifoAllocatedTotal=0;
    for(const card of new Set(transactions.map((tx:any)=>String(tx.job_card_number||"").trim().toUpperCase()).filter(Boolean))){
-    checkedCards.add(card);paymentWaiverChecked.add(card);chargeAllocationChecked.add(card);unlinkedWaiverChecked.add(card);
+    checkedCards.add(card);paymentWaiverChecked.add(card);chargeAllocationChecked.add(card);unlinkedWaiverChecked.add(card);fifoChecked.add(card);
     const newCardTotal=Number(newByCard.get(card)||0);
+    if(manualChargeLinks.some((item:any)=>String(item.job_card_number||"").trim().toUpperCase()===card)){
+     fifoChecksPassed=false;blocked.push("Job Card "+card+" has historical manual FTO charge-link evidence that needs review before FIFO can be rebuilt.");
+    }
     const relevantEntries=ledgerEntries.filter((entry:any)=>String(entry.job_card_number||"").trim().toUpperCase()===card&&(
      String(entry.period_id||"")===periodId||(!entry.period_id&&String(entry.charge_period||"")===chargeMonth)
     ));
@@ -899,13 +915,95 @@ Deno.serve(async(req:Request)=>{
      .reduce((sum:number,item:any)=>sum+Number(item.amount||0),0);
     const waived=waiverAllocations.filter((item:any)=>String(item.job_card_number||"").trim().toUpperCase()===card&&String(item.period_id||"")===periodId&&["charge_waiver","forgive"].includes(String(item.waiver_entry_type||""))&&item.waiver_is_voided!==true)
      .reduce((sum:number,item:any)=>sum+Number(item.amount||0),0);
-    if(unlinkedWaivers.some((item:any)=>String(item.job_card_number||"").trim().toUpperCase()===card&&Number(item.unlinked_amount||0)>0)){unlinkedWaiverChecksPassed=false;blocked.push("Job Card "+card+" has an unlinked legacy waiver that must be resolved first.");}
-    if(allocated+waived>nonFto+newCardTotal+0.00001){paymentWaiverChecksPassed=false;blocked.push("Job Card "+card+" has allocations/waivers exceeding the revised eligible charges.");}
+    if(unlinkedWaivers.some((item:any)=>String(item.job_card_number||"").trim().toUpperCase()===card&&Number(item.unlinked_amount||0)>0)){
+     unlinkedWaiverChecksPassed=false;blocked.push("Job Card "+card+" has an unlinked legacy waiver that must be resolved first.");
+    }
+    if(allocated+waived>nonFto+newCardTotal+0.00001){
+     paymentWaiverChecksPassed=false;blocked.push("Job Card "+card+" has allocations/waivers exceeding the revised eligible charges.");
+    }
+
+    const cardLedger=ledgerEntries.filter((entry:any)=>String(entry.job_card_number||"").trim().toUpperCase()===card);
+    const periodById=new Map(periods.map((p:any)=>[String(p.id),p]));
+    const allocatableCharges=cardLedger.filter((entry:any)=>["charge","other_charge","sanitationFee"].includes(String(entry.entry_type||""))
+     &&entry.is_voided!==true&&entry.is_deferred!==true&&!(entry.entry_type==="charge"&&String(entry.note||"").trim()==="Return")&&Number(entry.amount||0)>0);
+    if(allocatableCharges.some((entry:any)=>!entry.period_id||!periodById.has(String(entry.period_id)))){
+     fifoChecksPassed=false;blocked.push("Job Card "+card+" has an eligible charge without a valid Contribution Period.");
+     continue;
+    }
+    const chargeInputs=allocatableCharges.map((entry:any)=>({
+     charge_id:entry.id,period_id:entry.period_id,period_order:Number(periodById.get(String(entry.period_id))?.fifo_order),
+     amount:Number(newByLedger.has(String(entry.id))?newByLedger.get(String(entry.id)):entry.amount||0),
+     charge_created_at:entry.created_at||null
+    }));
+    if(chargeInputs.some((entry:any)=>!Number.isInteger(entry.period_order))){
+     fifoChecksPassed=false;blocked.push("Job Card "+card+" has a Contribution Period without a valid FIFO order.");
+     continue;
+    }
+
+    const cardPayments=cardLedger.filter((entry:any)=>entry.entry_type==="payment"&&entry.is_voided!==true);
+    const paymentIds=new Set(cardPayments.map((entry:any)=>String(entry.id)));
+    const legacyRows=paymentAllocations.filter((item:any)=>String(item.job_card_number||"").trim().toUpperCase()===card);
+    if(legacyRows.some((item:any)=>item.payment_is_voided===true||!paymentIds.has(String(item.transaction_id)))){
+     fifoChecksPassed=false;blocked.push("Job Card "+card+" has a legacy period allocation linked to a voided or unavailable payment.");
+     continue;
+    }
+    const chargeRows=chargePaymentAllocations.filter((item:any)=>String(item.job_card_number||"").trim().toUpperCase()===card);
+    if(chargeRows.some((item:any)=>item.payment_is_voided===true||item.charge_is_voided===true||item.charge_is_deferred===true
+      ||!paymentIds.has(String(item.payment_id))||!allocatableCharges.some((charge:any)=>String(charge.id)===String(item.charge_id)))){
+     fifoChecksPassed=false;blocked.push("Job Card "+card+" has a charge-level allocation linked to a voided, deferred, or unavailable payment/charge.");
+     continue;
+    }
+    if(chargeRows.some((item:any)=>!["fifo_auto","manual","historical_fifo_reviewed","historical_evidence"].includes(String(item.allocation_source||"")))){
+     fifoChecksPassed=false;blocked.push("Job Card "+card+" has an unknown charge-level allocation source.");
+     continue;
+    }
+    const fixedChargeAllocations=chargeRows.filter((item:any)=>item.allocation_source!=="fifo_auto").map((item:any)=>({
+     payment_id:item.payment_id,charge_id:item.charge_id,period_id:item.charge_period_id,
+     amount:Number(item.amount),allocation_source:String(item.allocation_source)
+    }));
+    const legacyPeriodAllocations=legacyRows.map((item:any)=>({
+     payment_id:item.transaction_id,period_id:item.period_id,amount:Number(item.amount)
+    }));
+    const periodWaivers=waiverAllocations.filter((item:any)=>String(item.job_card_number||"").trim().toUpperCase()===card
+      &&["charge_waiver","forgive"].includes(String(item.waiver_entry_type||""))
+      &&item.waiver_is_voided!==true)
+     .map((item:any)=>({period_id:item.period_id,amount:Number(item.amount)}));
+    const refundInputs=refunds.filter((item:any)=>String(item.job_card_number||"").trim().toUpperCase()===card&&paymentIds.has(String(item.payment_id)))
+     .map((item:any)=>({payment_id:item.payment_id,amount:Number(item.amount)}));
+    const paymentInputs=cardPayments.map((entry:any)=>({
+     payment_id:entry.id,amount:Number(entry.amount),payment_date:entry.entry_date||null,created_at:entry.created_at||null
+    }));
+    const currentlyExempt=activeExemptions.some((item:any)=>String(item.job_card_number||"").trim().toUpperCase()===card);
+    const {data:simulation,error:simulationError}=await admin.rpc("vbgramg_simulate_charge_level_fifo",{
+     p_charges:chargeInputs,p_payments:paymentInputs,p_refunds:refundInputs,
+     p_fixed_charge_allocations:fixedChargeAllocations,
+     p_legacy_period_allocations:legacyPeriodAllocations,
+     p_period_waivers:periodWaivers,p_is_exempt:currentlyExempt
+    });
+    if(simulationError||!simulation||!["simulated","exempt"].includes(String(simulation.status))){
+     fifoChecksPassed=false;
+     blocked.push("Job Card "+card+" cannot safely rebuild charge-level FIFO allocations: "+String(simulationError?.message||"simulation returned an invalid result"));
+     continue;
+    }
+    const autoRows=(simulation.proposed_allocations||[]).filter((item:any)=>item.allocation_source==="fifo_auto");
+    const cardFifoTotal=Number(simulation.fifo_allocated_total)||0;
+    fifoAllocatedTotal+=cardFifoTotal;
+    fifoRebuilds.push({
+     job_card_number:card,status:simulation.status,
+     fifo_allocated_total:cardFifoTotal,auto_allocation_count:autoRows.length,
+     periods:simulation.periods||[],payments:simulation.payments||[],
+     proposed_auto_allocations:autoRows
+    });
     const cardLedgerIds=new Set(transactions.filter((tx:any)=>String(tx.job_card_number||"").trim().toUpperCase()===card&&tx.ledger_entry_id).map((tx:any)=>String(tx.ledger_entry_id)));
-    const directAllocated=chargePaymentAllocations.filter((item:any)=>cardLedgerIds.has(String(item.charge_id||""))&&item.charge_is_voided!==true&&item.payment_is_voided!==true)
+    const directFixedAllocated=chargeRows.filter((item:any)=>item.allocation_source!=="fifo_auto"&&cardLedgerIds.has(String(item.charge_id||"")))
      .reduce((sum:number,item:any)=>sum+Number(item.amount||0),0);
-    if(directAllocated>newCardTotal+0.00001){chargeAllocationChecksPassed=false;blocked.push("Job Card "+card+" has charge-level allocations exceeding its revised FTO charge.");}
+    if(directFixedAllocated>newCardTotal+0.00001){
+     chargeAllocationChecksPassed=false;blocked.push("Job Card "+card+" has fixed charge-level allocations exceeding its revised FTO charge.");
+    }
    }
+   const {data:finalFingerprint,error:finalFingerprintError}=await admin.rpc("vbgramg_fto_co_revision_fingerprint",{p_batch_id:batchId});
+   if(finalFingerprintError)throw finalFingerprintError;
+   if(finalFingerprint!==initialFingerprint)return reply({error:"Contribution payments or allocations changed while the preview was being prepared. Preview the calculation again."},409);
    const uniqueBlocked=[...new Set(blocked)];
    return reply({
     approved:true,preview:true,batch_id:batchId,fto_number:batch.fto_number,
@@ -914,6 +1012,7 @@ Deno.serve(async(req:Request)=>{
     expected_charge_period:batch.ledger_charge_period,
     expected_last_checked_at:batch.last_checked_at,
     expected_last_deferred_recheck_at:batch.last_deferred_recheck_at,
+    allocation_fingerprint:finalFingerprint,
     previous_parameters_recorded:batch.calculation_divisor!==null&&batch.calculation_multiplier!==null,
     previous_divisor:batch.calculation_divisor,previous_multiplier:batch.calculation_multiplier,
     divisor,multiplier,transaction_count:transactions.length,
@@ -921,9 +1020,10 @@ Deno.serve(async(req:Request)=>{
     old_total:Number(oldTotal.toFixed(2)),new_total:Number(newTotal.toFixed(2)),
     difference:Number((newTotal-oldTotal).toFixed(2)),
     changed_transaction_count:changes.filter((item:any)=>Math.abs(item.difference)>0.00001).length,
-    validation_summary:{job_cards_checked:checkedCards.size,payment_and_waiver_allocations:{checked:paymentWaiverChecked.size,passed:paymentWaiverChecksPassed},charge_level_allocations:{checked:chargeAllocationChecked.size,passed:chargeAllocationChecksPassed},unlinked_waivers:{checked:unlinkedWaiverChecked.size,passed:unlinkedWaiverChecksPassed}},
+    validation_summary:{job_cards_checked:checkedCards.size,payment_and_waiver_allocations:{checked:paymentWaiverChecked.size,passed:paymentWaiverChecksPassed},charge_level_allocations:{checked:chargeAllocationChecked.size,passed:chargeAllocationChecksPassed},unlinked_waivers:{checked:unlinkedWaiverChecked.size,passed:unlinkedWaiverChecksPassed},charge_level_fifo_rebuild:{checked:fifoChecked.size,passed:fifoChecksPassed,fifo_allocated_total:Number(fifoAllocatedTotal.toFixed(2))}},
+    fifo_rebuilds:fifoRebuilds,
     changes,blocked_reasons:uniqueBlocked,can_apply:uniqueBlocked.length===0&&(batch.calculation_divisor===null||batch.calculation_multiplier===null||Number(batch.calculation_divisor)!==divisor||Number(batch.calculation_multiplier)!==multiplier||changes.some((item:any)=>Math.abs(item.difference)>0.00001)),
-    allocations_preserved:true
+    allocations_preserved:true,fixed_allocations_preserved:true,legacy_period_allocations_preserved:true,fifo_auto_rebuilt:true
    });
   }
   if(action==="apply-fto-co-revision"){
@@ -933,7 +1033,8 @@ Deno.serve(async(req:Request)=>{
    const expectedPeriodId=String(body.expected_period_id||"").trim(),expectedChargePeriod=String(body.expected_charge_period||"").trim();
    const expectedLastCheckedAt=String(body.expected_last_checked_at||"").trim();
    const expectedLastDeferredRecheckAt=body.expected_last_deferred_recheck_at===null?null:String(body.expected_last_deferred_recheck_at||"").trim()||null;
-   if(!batchId||!expectedPeriodId||!expectedChargePeriod||!expectedLastCheckedAt)return reply({error:"The FTO preview is incomplete. Preview the calculation again."},400);
+   const expectedAllocationFingerprint=String(body.expected_allocation_fingerprint||"").trim();
+   if(!batchId||!expectedPeriodId||!expectedChargePeriod||!expectedLastCheckedAt||! /^[a-f0-9]{32}$/.test(expectedAllocationFingerprint))return reply({error:"The FTO preview is incomplete or stale. Preview the calculation again."},400);
    if(reason.length<10)return reply({error:"Enter a reason with at least 10 characters."},400);
    if(!Number.isInteger(divisor)||divisor<=0||divisor>1000000000||!Number.isInteger(multiplier)||multiplier<=0||multiplier>1000000)return reply({error:"Divisor and multiplier must be whole positive numbers within the allowed range."},400);
    if(!Number.isInteger(expectedRevision)||expectedRevision<1)return reply({error:"Reload the FTO and preview the calculation again."},400);
@@ -942,6 +1043,7 @@ Deno.serve(async(req:Request)=>{
     p_expected_period_id:expectedPeriodId,p_expected_charge_period:expectedChargePeriod,
     p_expected_last_checked_at:expectedLastCheckedAt,
     p_expected_last_deferred_recheck_at:expectedLastDeferredRecheckAt,
+    p_expected_allocation_fingerprint:expectedAllocationFingerprint,
     p_divisor:divisor,p_multiplier:multiplier,p_revision_reason:reason,
     p_actor_user_id:authData.user.id,p_actor_email:authData.user.email
    });
@@ -954,7 +1056,9 @@ Deno.serve(async(req:Request)=>{
     ledger_updated:Number(result.ledger_updated||0),
     old_eligible_total:Number(result.old_eligible_total||0),
     new_eligible_total:Number(result.new_eligible_total||0),
-    allocations_preserved:result.allocations_preserved===true
+    allocations_preserved:result.allocations_preserved===true,
+    charge_fifo_rebuilt:result.charge_fifo_rebuilt===true,
+    charge_fifo_rebuilt:result.charge_fifo_rebuilt===true
    });
   }
   if(action==="list-fto-history"){

@@ -67,7 +67,7 @@ async function calculatePendingCO(){
  if(!Number.isFinite(divisor)||divisor<=0||!Number.isFinite(multiplier)||multiplier<=0){status("detail-status","Divisor and multiplier must be positive numbers.","error");return;}
  const button=$("calculate-co");button.disabled=true;button.textContent="Calculating…";
  try{
-  const rows=currentTransactions.map((tx,row_index)=>({row_index,credit_amount:tx.creditAmount,status:tx.status}));
+  const rows=currentTransactions.map((tx,row_index)=>({row_index,credit_amount:tx.creditAmount,status:tx.normalizedStatus}));
   const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"calculate-fto-charges",divisor,multiplier,rows},timeoutMs:60000,deduplicate:false});
   if(error||!data||data.approved!==true||!Array.isArray(data.calculations)||data.calculations.length!==currentTransactions.length)throw new Error(data?.error||error?.message||"The CO calculation was incomplete.");
   currentCalculations=data.calculations.map((item,index)=>{if(Number(item.row_index)!==index||!Number.isFinite(Number(item.calculated_charge)))throw new Error("The CO calculation returned an invalid row.");return Number(item.calculated_charge);});
@@ -109,9 +109,9 @@ async function openPending(number){
  $("detail-summary").textContent=Number(data.eligible_transaction_count||0)+" eligible rows · "+Number(data.unmatched_transaction_count||0)+" unmatched rows (count only)";
  currentFtoNumber=number;currentApplicantMatches=new Map((data.applicant_matches||[]).map(match=>[String(match.job_card_number||"").toUpperCase(),match]));
  currentTransactions=data.transactions||[];currentCalculations=[];$("calculation-summary").textContent="Select an open Contribution Period and calculate CO to preview charges.";
- try{await loadContributionPeriods();}catch(err){$("contribution-period").disabled=true;status("detail-status",err.message||"Could not load Contribution Periods.","error");}
+ let periodsLoaded=true;try{await loadContributionPeriods();}catch(err){periodsLoaded=false;$("contribution-period").disabled=true;status("detail-status",err.message||"Could not load Contribution Periods.","error");}
  renderPendingTransactions();
- status("detail-status","Applicant suggestions are based on the latest Active MIS. Save confirmed selections to reuse them on future FTOs. Saving mappings does not import this FTO.","success");
+ if(periodsLoaded)status("detail-status","Applicant suggestions are based on the latest Active MIS. Save confirmed selections to reuse them on future FTOs. Saving mappings does not import this FTO.","success");
 }
 async function saveApplicantMappings(){
  if(!currentFtoNumber||!currentApplicantMatches.size){status("detail-status","Open a Pending FTO before saving.","error");return;}

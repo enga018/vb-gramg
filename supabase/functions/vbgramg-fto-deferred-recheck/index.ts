@@ -142,16 +142,9 @@ Deno.serve(async (req: Request) => {
     .eq("email",claims.email.trim().toLowerCase()).maybeSingle();
   if(approvalError) return reply({error:"Could not verify app access."},500);
   if(!approved||approved.role!=="admin") return reply({error:"Only an approved VBGRAMG administrator can recheck deferred FTOs."},403);
+
+  let runId:string|null=null;
   try {
-    const listingResponse=await fetch(LISTING_URL,{redirect:"follow",headers:{
-      "User-Agent":"VBGRAMG-FTO-Rechecker/1.0","Accept":"text/html,application/xhtml+xml",
-      "Accept-Encoding":"identity","Cache-Control":"no-cache","Pragma":"no-cache"
-    },signal:AbortSignal.timeout(20000)});
-    const listingHtml=await listingResponse.text();
-    if(!listingResponse.ok) throw new Error("Government FTO listing request failed (HTTP "+listingResponse.status+").");
-    if(new URL(listingResponse.url).hostname!=="vbgramgrep.dord.gov.in"||!/FTO\s+First\s+Signatory/i.test(textOf(listingHtml)))
-      throw new Error("Government listing failed source validation.");
-    const candidates=discoverCandidates(listingHtml,listingResponse.url);
     const {data:batches,error:batchError}=await admin.from("vbgramg_fto_batches").select("id,fto_number").order("fto_number");
     if(batchError) throw new Error("Could not load imported FTO history.");
     const batchIds=(batches||[]).map((b:any)=>b.id);
@@ -164,14 +157,49 @@ Deno.serve(async (req: Request) => {
       for(const tx of txs||[]) { const list=deferredByBatch.get(tx.batch_id)||[];list.push(tx);deferredByBatch.set(tx.batch_id,list); }
     }
     const eligible=(batches||[]).filter((b:any)=>(deferredByBatch.get(b.id)||[]).length>0);
-    if(!eligible.length) return reply({success:true,ftoCount:0,deferredTransactionCount:0,updatedCount:0,stillDeferredCount:0,failedChecks:[],message:"No imported FTOs currently contain Deferred transactions."});
+    const deferredTransactionCount=[...deferredByBatch.values()].reduce((n,x)=>n+x.length,0);
+    if(!eligible.length) return reply({success:true,ftoCount:0,deferredTransactionCount:0,updatedCount:0,stillDeferredCount:0,failedCheckCount:0,failedChecks:[],results:[],message:"No imported FTOs currently contain Deferred transactions."});
+
+    const {data:startedRun,error:startError}=await admin.rpc("vbgramg_start_fto_recheck_run",{
+      p_actor:claims.sub,p_total_ftos:eligible.length
+    });
+    if(startError||!startedRun) throw new Error("Could not start the deferred FTO recheck audit run.");
+    runId=typeof startedRun==="string"?startedRun:(startedRun.run_id||startedRun.id||null);
+    if(!runId) throw new Error("The deferred FTO recheck audit run did not return an ID.");
+
+    let listingHtml:string, listingUrl:string, candidates:Map<string,{url:string;row:string[]}>;
+    try {
+      const listingResponse=await fetch(LISTING_URL,{redirect:"follow",headers:{
+        "User-Agent":"VBGRAMG-FTO-Rechecker/1.0","Accept":"text/html,application/xhtml+xml",
+        "Accept-Encoding":"identity","Cache-Control":"no-cache","Pragma":"no-cache"
+      },signal:AbortSignal.timeout(20000)});
+      listingHtml=await listingResponse.text();
+      if(!listingResponse.ok) throw new Error("Government FTO listing request failed (HTTP "+listingResponse.status+").");
+      listingUrl=listingResponse.url;
+      if(new URL(listingUrl).hostname!=="vbgramgrep.dord.gov.in"||!/FTO\s+First\s+Signatory/i.test(textOf(listingHtml)))
+        throw new Error("Government listing failed source validation.");
+      candidates=discoverCandidates(listingHtml,listingUrl);
+    } catch(error) {
+      const message=error instanceof Error?error.message:"Government FTO listing could not be validated.";
+      const {error:completeError}=await admin.rpc("vbgramg_complete_fto_recheck_run",{
+        p_run_id:runId,p_actor:claims.sub,p_successful_ftos:0,p_failed_ftos:0,p_status:"failed",p_error_message:message
+      });
+      if(completeError) return reply({success:false,error:message,runId,auditError:"Could not finalize the failed audit run.",databaseChanged:false},502);
+      return reply({success:false,error:message,runId,runStatus:"failed",databaseChanged:false},502);
+    }
+
     const failedChecks:any[]=[], results:any[]=[];
-    let updatedCount=0,stillDeferredCount=0;
+    let updatedCount=0,stillDeferredCount=0,successfulFtOs=0,failedFtOs=0;
+    let auditPersistenceError:string|null=null;
     for(const batch of eligible) {
-      const ftoNumber=String(batch.fto_number||"").trim(), candidate=candidates.get(ftoNumber.toUpperCase());
+      const ftoNumber=String(batch.fto_number||"").trim();
+      let stage:"listing_match"|"detail_fetch"|"detail_validation"|"reconciliation"="listing_match";
       try {
+        const candidate=candidates.get(ftoNumber.toUpperCase());
         if(!candidate) throw new Error("FTO was not found in the current Government listing.");
+        stage="detail_fetch";
         const governmentRows=await fetchDetail(candidate.url,ftoNumber,candidate.row);
+        stage="detail_validation";
         const {data:stored,error:storedError}=await admin.from("vbgramg_fto_transactions")
           .select("reference_no,status").eq("batch_id",batch.id);
         if(storedError) throw new Error("Could not load stored transaction references.");
@@ -188,21 +216,49 @@ Deno.serve(async (req: Request) => {
           const x=governmentByRef.get(key)!;
           return {referenceNo:storedReference,normalizedStatus:x.normalizedStatus,processedDate:x.processedDate,rejectionReason:x.rejectionReason};
         });
-        const {data,error}=await admin.rpc("vbgramg_recheck_deferred_ftos",{p_payload:{ftos:[{ftoNumber,rows:payloadRows}]},p_actor:claims.sub});
+        stage="reconciliation";
+        const {data,error}=await admin.rpc("vbgramg_recheck_deferred_ftos_with_run",{
+          p_payload:{ftos:[{ftoNumber,rows:payloadRows}]},p_actor:claims.sub,p_run_id:runId
+        });
         if(error) throw new Error(error.message||"Database recheck failed.");
         const resultBatch=data?.batches?.[0]?.result||{};
+        successfulFtOs++;
         updatedCount+=Number(resultBatch.updated_count||0);
         stillDeferredCount+=Number(resultBatch.still_deferred_count||0);
         results.push({ftoNumber,...resultBatch});
       } catch(error) {
-        failedChecks.push({ftoNumber,error:error instanceof Error?error.message:"Recheck failed."});
+        const message=error instanceof Error?error.message:"Recheck failed.";
+        const {error:recordError}=await admin.rpc("vbgramg_record_fto_recheck_failure",{
+          p_run_id:runId,p_batch_id:batch.id,p_actor:claims.sub,p_stage:stage,p_error_message:message
+        });
+        if(recordError) {
+          auditPersistenceError=recordError.message||"Could not persist an FTO failure record.";
+          failedChecks.push({ftoNumber,error:message,auditRecorded:false});
+        } else {
+          failedFtOs++;
+          failedChecks.push({ftoNumber,error:message,auditRecorded:true});
+        }
       }
     }
-    return reply({success:true,ftoCount:eligible.length,
-      deferredTransactionCount:[...deferredByBatch.values()].reduce((n,x)=>n+x.length,0),
-      updatedCount,stillDeferredCount,failedCheckCount:failedChecks.length,failedChecks,results,
+
+    if(auditPersistenceError) {
+      return reply({success:false,error:"One or more FTO failure records could not be saved. The audit run was left open for investigation.",
+        runId,updatedCount,stillDeferredCount,failedChecks,auditError:auditPersistenceError,databaseChanged:updatedCount>0},500);
+    }
+    const runStatus=successfulFtOs===eligible.length?"completed":successfulFtOs>0&&failedFtOs>0?"partial":"failed";
+    const {data:completed,error:completeError}=await admin.rpc("vbgramg_complete_fto_recheck_run",{
+      p_run_id:runId,p_actor:claims.sub,p_successful_ftos:successfulFtOs,p_failed_ftos:failedFtOs,
+      p_status:runStatus,p_error_message:runStatus==="failed"?"All eligible FTO checks failed.":null
+    });
+    if(completeError) {
+      return reply({success:false,error:"FTO checks finished, but the audit run could not be finalized.",
+        runId,updatedCount,stillDeferredCount,failedChecks,auditError:completeError.message||"Audit finalization failed.",databaseChanged:updatedCount>0},500);
+    }
+    return reply({success:true,ftoCount:eligible.length,deferredTransactionCount,updatedCount,stillDeferredCount,
+      failedCheckCount:failedChecks.length,failedChecks,results,runId,runStatus:completed?.status||runStatus,
       message:"Deferred FTO recheck completed. Existing Processed and Rejected records were not changed."});
   } catch(error) {
-    return reply({success:false,error:error instanceof Error?error.message:"Deferred FTO recheck failed.",databaseChanged:false},502);
+    return reply({success:false,error:error instanceof Error?error.message:"Deferred FTO recheck failed.",
+      ...(runId?{runId}:{}),databaseChanged:false},502);
   }
 });

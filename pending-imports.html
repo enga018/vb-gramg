@@ -140,7 +140,9 @@ function openFinalReview(){
  const issues=[],details=[];
  if(!currentFtoNumber||!currentTransactions.length)issues.push("No Pending FTO is open.");
  if(!selectedContributionPeriod())issues.push("Select an open Contribution Period.");
- if(currentCalculations.length!==currentTransactions.length)issues.push("Calculate CO after the latest period and formula changes.");\n if(!reconciliationPreview)issues.push("Run the existing contribution charge review.");\n if(reconciliationPreview?.blocked)issues.push("Resolve blocking duplicate or conflicting FTO issues before import.");
+ if(currentCalculations.length!==currentTransactions.length)issues.push("Calculate CO after the latest period and formula changes.");
+ if(!reconciliationPreview)issues.push("Run the existing contribution charge review.");
+ if(reconciliationPreview?.blocked)issues.push("Resolve blocking duplicate or conflicting FTO issues before import.");
  if(reconciliationPreview){
   for(const review of reconciliationPreview.manual_charge_reviews||[]){
    if(review.resolution!=="choose_link_or_keep_separate")continue;
@@ -172,7 +174,8 @@ function openFinalReview(){
  details.push("<p><strong>Contribution Period:</strong> "+escapeHtml(period?.period_name||"Not selected")+"</p>");
  details.push("<p><strong>CO formula:</strong> Credit Amount ÷ "+(Number.isFinite(divisor)?divisor:"—")+" × "+(Number.isFinite(multiplier)?multiplier:"—")+"</p>");
  details.push("<p><strong>Total CO:</strong> "+(total===null?"Not calculated":"₹"+total.toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2}))+"</p>");
- details.push("<p><strong>Saved mapping replacements confirmed:</strong> "+replacementCount+"</p>");\n details.push("<p><strong>Manual charge decisions:</strong> "+(reconciliationPreview?(reconciliationPreview.manual_charge_reviews||[]).length:"Not reviewed")+"</p>");
+ details.push("<p><strong>Saved mapping replacements confirmed:</strong> "+replacementCount+"</p>");
+ details.push("<p><strong>Manual charge decisions:</strong> "+(reconciliationPreview?(reconciliationPreview.manual_charge_reviews||[]).length:"Not reviewed")+"</p>");
  details.push("<p><strong>Readiness:</strong> "+(issues.length?"Not ready":"All review checks passed")+"</p>");
  details.push(issues.length?"<ul>"+issues.map(issue=>"<li>"+escapeHtml(issue)+"</li>").join("")+"</ul>":"<p>Applicant selections, period, CO calculation, and reconciliation checks are complete. Confirm below to enable Import FTO.</p>");
  $("final-review-content").innerHTML=details.join("");

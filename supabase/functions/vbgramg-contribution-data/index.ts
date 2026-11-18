@@ -962,6 +962,7 @@ Deno.serve(async(req:Request)=>{
     if(!chosen||mappingByCard.has(card))return reply({error:"An applicant selection is missing, duplicated, or no longer active for "+card+"."},409);
     mappingByCard.set(card,chosen);
    }
+   if(mappingByCard.size!==transactions.length||transactions.some((tx:any)=>!mappingByCard.has(String(tx?.jobCardNumber||"").trim().toUpperCase())))return reply({error:"Applicant selections must cover exactly the Job Cards in this FTO. Refresh the review and select each applicant again."},400);
    const rows=transactions.map((tx:any)=>({
     reference_no:String(tx.referenceNumber||"").trim(),job_card_number:String(tx.jobCardNumber||"").trim().toUpperCase(),
     village_name:String(tx.villageName||""),person_name:String(tx.personName||"").trim(),
@@ -1178,6 +1179,7 @@ Deno.serve(async(req:Request)=>{
     }
    }
    skippedDuplicateReferences=[...new Set(skippedDuplicateReferences)];
+   if(action==="import-pending-fto"&&skippedDuplicateReferences.length)return reply({error:"A reference number became duplicated after the preview. No FTO was imported. Refresh the reconciliation preview and resolve the duplicate references.",duplicate_references:skippedDuplicateReferences},409);
    const skippedDuplicateSet=new Set(skippedDuplicateReferences);
    if(skippedDuplicateSet.size){
     // Keep duplicate rows in the FTO snapshot/history, but exclude them from

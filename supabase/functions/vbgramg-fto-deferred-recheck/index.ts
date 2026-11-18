@@ -103,7 +103,6 @@ async function fetchDetail(url: string, ftoNumber: string) {
     if (key) refs.add(key);
     if (tx.creditAmount===null) errors.push("Government row "+tx.rowNumber+": invalid Credit Amount.");
     if (tx.normalizedStatus==="other") errors.push("Government row "+tx.rowNumber+": unrecognized status.");
-    if (tx.normalizedStatus==="processed" && !tx.processedDate) errors.push("Government row "+tx.rowNumber+": Processed date is missing or invalid.");
   }
   const listing=(fetchDetail as any).__listingRow as string[]|undefined;
   if (listing) {
@@ -176,16 +175,22 @@ Deno.serve(async (req: Request) => {
         const {data:stored,error:storedError}=await admin.from("vbgramg_fto_transactions")
           .select("reference_no,status").eq("batch_id",batch.id);
         if(storedError) throw new Error("Could not load stored transaction references.");
-        const storedRefs=new Set((stored||[]).map((x:any)=>String(x.reference_no||"").trim().toUpperCase()));
-        const governmentRefs=new Set(governmentRows.map(x=>x.referenceNo.toUpperCase()));
-        const missing=[...storedRefs].filter(x=>!governmentRefs.has(x));
+        const storedByRef=new Map<string,string>();
+        for(const item of stored||[]) {
+          const key=String(item.reference_no||"").trim().toUpperCase();
+          if(!key || storedByRef.has(key)) throw new Error("Stored FTO history contains a missing or duplicate reference number.");
+          storedByRef.set(key,String(item.reference_no).trim());
+        }
+        const governmentByRef=new Map(governmentRows.map(x=>[x.referenceNo.toUpperCase(),x]));
+        const missing=[...storedByRef.keys()].filter(x=>!governmentByRef.has(x));
         if(missing.length) throw new Error("Government table is missing stored reference(s): "+missing.slice(0,5).join(", ")+".");
-        const matched=governmentRows.filter(x=>storedRefs.has(x.referenceNo.toUpperCase()));
-        if(matched.length!==storedRefs.size) throw new Error("Government-to-history reference reconciliation failed.");
-        const payloadRows=matched.map(x=>({referenceNo:x.referenceNo,normalizedStatus:x.normalizedStatus,processedDate:x.processedDate,rejectionReason:x.rejectionReason}));
+        const payloadRows=[...storedByRef.entries()].map(([key,storedReference])=>{
+          const x=governmentByRef.get(key)!;
+          return {referenceNo:storedReference,normalizedStatus:x.normalizedStatus,processedDate:x.processedDate,rejectionReason:x.rejectionReason};
+        });
         const {data,error}=await admin.rpc("vbgramg_recheck_deferred_ftos",{p_payload:{ftos:[{ftoNumber,rows:payloadRows}]},p_actor:claims.sub});
         if(error) throw new Error(error.message||"Database recheck failed.");
-        const resultBatch=data?.batches?.[0]||{};
+        const resultBatch=data?.batches?.[0]?.result||{};
         updatedCount+=Number(resultBatch.updated_count||0);
         stillDeferredCount+=Number(resultBatch.still_deferred_count||0);
         results.push({ftoNumber,...resultBatch});

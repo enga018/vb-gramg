@@ -167,13 +167,13 @@ Deno.serve(async (req: Request) => {
     runId=typeof startedRun==="string"?startedRun:(startedRun.run_id||startedRun.id||null);
     if(!runId) throw new Error("The deferred FTO recheck audit run did not return an ID.");
 
-    let listingHtml:string, listingUrl:string, candidates:Map<string,{url:string;row:string[]}>;
+    let listingUrl:string, candidates:Map<string,{url:string;row:string[]}>;
     try {
       const listingResponse=await fetch(LISTING_URL,{redirect:"follow",headers:{
         "User-Agent":"VBGRAMG-FTO-Rechecker/1.0","Accept":"text/html,application/xhtml+xml",
         "Accept-Encoding":"identity","Cache-Control":"no-cache","Pragma":"no-cache"
       },signal:AbortSignal.timeout(20000)});
-      listingHtml=await listingResponse.text();
+      const listingHtml=await listingResponse.text();
       if(!listingResponse.ok) throw new Error("Government FTO listing request failed (HTTP "+listingResponse.status+").");
       listingUrl=listingResponse.url;
       if(new URL(listingUrl).hostname!=="vbgramgrep.dord.gov.in"||!/FTO\s+First\s+Signatory/i.test(textOf(listingHtml)))

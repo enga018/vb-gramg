@@ -176,7 +176,7 @@ function openFinalReview(){
  details.push("<p><strong>Readiness:</strong> "+(issues.length?"Not ready":"All review checks passed")+"</p>");
  details.push(issues.length?"<ul>"+issues.map(issue=>"<li>"+escapeHtml(issue)+"</li>").join("")+"</ul>":"<p>Applicant selections, period, and CO calculation are complete. This is a review confirmation only; it does not import the FTO.</p>");
  $("final-review-content").innerHTML=details.join("");
- $("final-review-status").textContent=issues.length?"Resolve the items above before confirming.":"Review checklist complete. No import action is available at this stage.";
+ $("final-review-status").textContent=issues.length?"Resolve the items above before confirming.":"Review checklist complete. Confirm the checklist to enable Import FTO.";
  $("final-review-confirm").disabled=issues.length>0;
 }
 function renderPendingTransactions(){

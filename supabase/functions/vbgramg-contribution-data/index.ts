@@ -182,6 +182,124 @@ Deno.serve(async(req:Request)=>{
     unmatched_transaction_count:unmatched,matching_job_card_count:uniqueCards.size,
     transactions:matching,applicant_matches:applicantMatches,active_mis_import_id:misState.active_import_id,active_mis_updated_at:misState.updated_at||null});
   }
+  if(action==="preview-pending-fto-reconciliation"){
+   if(approved.role!=="admin")return reply({error:"Only an approved administrator can preview FTO reconciliation."},403);
+   const ftoNumber=String(body.fto_number||"").trim().toUpperCase().slice(0,100);
+   const periodId=String(body.period_id||"").trim();
+   const divisor=Number(body.divisor),multiplier=Number(body.multiplier);
+   if(!ftoNumber||!periodId)return reply({error:"An FTO and an open Contribution Period are required."},400);
+   if(!Number.isFinite(divisor)||divisor<=0||divisor>1000000000||!Number.isFinite(multiplier)||multiplier<=0||multiplier>1000000)return reply({error:"Divisor and multiplier must be finite positive numbers within the allowed range."},400);
+   const {data:state,error:stateError}=await admin.from("vbgramg_fto_inspection_state")
+    .select("fto_number,fto_number_normalized,classification,transaction_count,validated_transactions")
+    .eq("fto_number_normalized",ftoNumber).maybeSingle();
+   if(stateError)throw stateError;
+   if(!state||state.classification!=="ELIGIBLE")return reply({error:"This FTO is no longer available in Pending Imports."},409);
+   const {data:batch,error:batchError}=await admin.from("vbgramg_fto_batches").select("id").eq("fto_number",ftoNumber).maybeSingle();
+   if(batchError)throw batchError;
+   if(batch)return reply({error:"This FTO has already been imported."},409);
+   const {data:period,error:periodError}=await admin.from("vbgramg_periods")
+    .select("id,period_name,contribution_month,status").eq("id",periodId).maybeSingle();
+   if(periodError)throw periodError;
+   if(!period||period.status!=="open"||!period.contribution_month)return reply({error:"Select an existing open Contribution Period."},409);
+   const activeApplicants=await loadActiveMisApplicants(admin);
+   if(!activeApplicants.size)return reply({error:"There is no active MIS import. Load the active MIS before reviewing this FTO."},409);
+   const activeCards=new Set([...activeApplicants.keys()].map(card=>String(card||"").trim().toUpperCase()));
+   const saved=Array.isArray(state.validated_transactions)?state.validated_transactions:[];
+   const transactions=saved.filter((tx:any)=>activeCards.has(String(tx?.jobCardNumber||"").trim().toUpperCase()));
+   if(!transactions.length)return reply({error:"No saved FTO transactions remain in scope for the latest Active MIS."},409);
+   const seenCards=new Set<string>();
+   for(const tx of transactions){
+    const card=String(tx?.jobCardNumber||"").trim().toUpperCase();
+    if(!card||seenCards.has(card))return reply({error:"This FTO contains more than one transaction for a Job Card. Administrator review is required."},409);
+    seenCards.add(card);
+   }
+   const calculationRows=transactions.map((tx:any,row_index:number)=>({
+    row_index,credit_amount:tx.creditAmount,
+    status:String(tx.normalizedStatus||tx.status||"").trim().toLowerCase()
+   }));
+   const {data:calculated,error:calculationError}=await admin.rpc("vbgramg_calculate_fto_charges",{
+    p_rows:calculationRows,p_divisor:divisor,p_multiplier:multiplier
+   });
+   if(calculationError)throw calculationError;
+   if(!Array.isArray(calculated)||calculated.length!==transactions.length)throw new Error("PostgreSQL returned an incomplete FTO calculation.");
+   const amountByIndex=new Map<number,number>();
+   for(const item of calculated){
+    const index=Number(item.row_index),amount=Number(item.calculated_charge);
+    if(!Number.isInteger(index)||index<0||index>=transactions.length||!Number.isFinite(amount)||amount<0)throw new Error("PostgreSQL returned an invalid FTO charge calculation.");
+    amountByIndex.set(index,amount);
+   }
+   if(amountByIndex.size!==transactions.length)throw new Error("PostgreSQL returned an incomplete FTO calculation.");
+   const {data:exemptions,error:exemptionError}=await admin.from("vbgramg_contribution_exemptions").select("job_card_number");
+   if(exemptionError)throw exemptionError;
+   const exemptCards=new Set((exemptions||[]).map((row:any)=>String(row.job_card_number||"").trim().toUpperCase()));
+   const candidates=transactions.map((tx:any,index:number)=>({
+    job_card_number:String(tx.jobCardNumber||"").trim().toUpperCase(),
+    person_name:String(tx.personName||"").trim(),
+    reference_no:String(tx.referenceNumber||"").trim(),
+    status:String(tx.normalizedStatus||tx.status||"").trim().toLowerCase(),
+    credit_amount:Number(tx.creditAmount),
+    calculated_charge:amountByIndex.get(index)||0
+   })).filter((tx:any)=>!exemptCards.has(tx.job_card_number)&&["blank","processed"].includes(tx.status)&&tx.calculated_charge>0);
+   const cards=[...new Set(candidates.map((tx:any)=>tx.job_card_number))];
+   const refs=[...new Set(transactions.map((tx:any)=>String(tx.referenceNumber||"").trim()).filter(Boolean))];
+   const {data:ledgerRows,error:ledgerError}=cards.length?await admin.from("vbgramg_charge_ledger")
+    .select("id,job_card_number,person_name,entry_type,amount,charge_period,note,is_deferred,is_voided,reference_numbers,period_id,applicant_name,applicant_number,applicant_unique_id,fto_applicant_name")
+    .in("job_card_number",cards).eq("charge_period",period.contribution_month).in("entry_type",["charge","other_charge"]):{data:[],error:null};
+   if(ledgerError)throw ledgerError;
+   const manualReviews:any[]=[];
+   for(const card of cards){
+    const input=candidates.find((tx:any)=>tx.job_card_number===card);
+    const cardRows=(ledgerRows||[]).filter((row:any)=>String(row.job_card_number).trim().toUpperCase()===card&&row.entry_type==="charge"&&(!row.period_id||String(row.period_id)===periodId)&&!row.is_voided);
+    const manualRows=cardRows.filter((row:any)=>!/^FTO\\b/i.test(String(row.note||""))&&!(Array.isArray(row.reference_numbers)?row.reference_numbers:[]).some((ref:any)=>refs.includes(String(ref))));
+    if(!manualRows.length)continue;
+    manualReviews.push({
+     job_card_number:card,government_applicant_name:input?.person_name||null,
+     incoming_calculated_charge:Number(candidates.filter((tx:any)=>tx.job_card_number===card).reduce((sum:number,tx:any)=>sum+tx.calculated_charge,0).toFixed(2)),
+     decision_required:true,
+     resolution:manualRows.length===1?"choose_link_or_keep_separate":"multiple_manual_charges_require_individual_resolution",
+     manual_charges:manualRows.map((row:any)=>({
+      id:row.id,amount:Number(row.amount||0),person_name:row.person_name||null,
+      applicant_name:row.applicant_name||null,applicant_number:row.applicant_number||null,
+      applicant_unique_id:row.applicant_unique_id||null,fto_applicant_name:row.fto_applicant_name||null,
+      requires_applicant_selection:!row.applicant_name&&!row.applicant_unique_id&&!row.applicant_number,
+      amount_differs:Math.abs(Number(row.amount||0)-Number(candidates.filter((tx:any)=>tx.job_card_number===card).reduce((sum:number,tx:any)=>sum+tx.calculated_charge,0)))>0.009
+     }))
+    });
+   }
+   const {data:referenceMatches,error:referenceError}=refs.length?await admin.from("vbgramg_charge_ledger")
+    .select("job_card_number,charge_period,period_id,note,reference_numbers").overlaps("reference_numbers",refs):{data:[],error:null};
+   if(referenceError)throw referenceError;
+   const duplicateReferences:any[]=[];
+   for(const tx of candidates){
+    for(const old of referenceMatches||[]){
+     if(!(old.reference_numbers||[]).includes(tx.reference_no))continue;
+     const sameLedger=String(old.job_card_number).trim().toUpperCase()===tx.job_card_number&&String(old.charge_period||"")===String(period.contribution_month)&&(!old.period_id||String(old.period_id)===periodId);
+     if(!sameLedger)duplicateReferences.push({reference_no:tx.reference_no,job_card_number:tx.job_card_number});
+    }
+   }
+   const {data:tracked,error:trackedError}=cards.length?await admin.from("vbgramg_fto_transactions")
+    .select("job_card_number,batch_id,calculated_charge,status,is_in_scope").in("job_card_number",cards):{data:[],error:null};
+   if(trackedError)throw trackedError;
+   const batchIds=[...new Set((tracked||[]).map((row:any)=>String(row.batch_id)))];
+   const {data:otherBatches,error:otherBatchError}=batchIds.length?await admin.from("vbgramg_fto_batches")
+    .select("id,fto_number,period_id").in("id",batchIds):{data:[],error:null};
+   if(otherBatchError)throw otherBatchError;
+   const batchById=new Map((otherBatches||[]).map((row:any)=>[String(row.id),row]));
+   const conflictingFtos=[...new Set((tracked||[]).filter((row:any)=>row.is_in_scope===true&&["blank","processed"].includes(String(row.status||""))&&Number(row.calculated_charge||0)>0)
+    .filter((row:any)=>{const old:any=batchById.get(String(row.batch_id));return old&&String(old.period_id||"")===periodId&&String(old.fto_number||"")!==ftoNumber;})
+    .map((row:any)=>String(row.job_card_number||"").trim().toUpperCase()))];
+   const total=candidates.reduce((sum:number,tx:any)=>sum+tx.calculated_charge,0);
+   return reply({
+    approved:true,fto_number:state.fto_number,period:{id:period.id,name:period.period_name,contribution_month:period.contribution_month},
+    formula:{divisor,multiplier},eligible_transaction_count:transactions.length,charge_candidate_count:candidates.length,
+    total_calculated_charge:Number(total.toFixed(2)),
+    rows:candidates.map((tx:any)=>({...tx,exempt:false})),
+    manual_charge_reviews:manualReviews,
+    duplicate_references:[...new Map(duplicateReferences.map((item:any)=>[item.reference_no,item])).values()],
+    conflicting_fto_job_cards:conflictingFtos,
+    blocked:manualReviews.some((item:any)=>item.resolution==="multiple_manual_charges_require_individual_resolution")||duplicateReferences.length>0||conflictingFtos.length>0
+   });
+  }
   if(action==="save-pending-fto-mappings"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can save applicant mappings."},403);
    const ftoNumber=String(body.fto_number||"").trim().toUpperCase().slice(0,100);

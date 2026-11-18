@@ -95,22 +95,18 @@ test("CO revision preview exposes allocation and waiver validation results in th
 });
 
 
-test("CO revision rollback test invokes the exact atomic RPC with PostgREST rollback", () => {
-  assert.match(edge, /action==="test-fto-co-revision"/);
-  assert.match(edge, /admin\.rpc\("vbgramg_apply_fto_co_revision"/);
-  assert.match(edge, /\}\.rollback\(\)/);
-  assert.match(edge, /rolled_back:true/);
-  assert.match(page, /Test Apply \(Rollback\)/);
-  assert.match(page, /test-fto-co-revision/);
-  assert.match(page, /No financial records were changed/);
-  assert.match(page, /coRevisionPreview=null;\$\("fto-co-apply"\)\.disabled=true;\$\("fto-co-test"\)\.disabled=true/);
+test("CO revision rollback test endpoint and UI control are removed from final workflow", () => {
+  assert.doesNotMatch(edge, /test-fto-co-revision/);
+  assert.doesNotMatch(edge, /\.rollback\(\)/);
+  assert.doesNotMatch(page, /Test Apply \(Rollback\)/);
+  assert.doesNotMatch(page, /testFtoCoCalculation/);
+  assert.doesNotMatch(page, /fto-co-test/);
+  assert.match(page, /Apply Calculation/);
 });
-
-
 test("CO revision reason is mandatory and requires at least 10 trimmed characters", () => {
   assert.match(page, /id="fto-co-reason" type="text" minlength="10" maxlength="500" required/);
   assert.match(page, /reason\.length<10/);
   assert.match(page, /at least 10 characters/);
-  assert.equal((edge.match(/if\(reason\.length<10\)/g)||[]).length, 2);
+  assert.equal((edge.match(/if\(reason\.length<10\)/g)||[]).length, 1);
   assert.match(edge, /Enter a reason with at least 10 characters\./);
 });

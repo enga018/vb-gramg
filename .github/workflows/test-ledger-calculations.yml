@@ -73,6 +73,8 @@ on:
       - "supabase/migrations/20261106190000_include_active_mis_cards_in_financial_summary.sql"
       - "tests/data-loader.test.cjs"
       - "tests/auto-allocate-unallocated-payments.test.cjs"
+      - "tests/payment-allocation-source-compatibility.test.cjs"
+      - "supabase/migrations/20261118230000_allow_payment_allocation_sources.sql"
       - "tests/auto-allocate-unallocated-payments-postgres.sql"
       - "supabase/migrations/20261107200000_auto_allocate_unallocated_payments_on_new_charge.sql"
       - "supabase/migrations/20261108150000_auto_allocate_on_new_payment.sql"
@@ -119,6 +121,8 @@ jobs:
         run: node --test tests/charge-level-payment-allocations.test.cjs
       - name: Run automatic unallocated payment FIFO static tests
         run: node --test tests/auto-allocate-unallocated-payments.test.cjs
+      - name: Run payment allocation source compatibility tests
+        run: node --test tests/payment-allocation-source-compatibility.test.cjs
       - name: Run new waiver allocation static tests
         run: node --test tests/new-waiver-period-allocation.test.cjs
       - name: Run voided payment allocation safeguard tests
@@ -304,6 +308,10 @@ jobs:
         run: |
           createdb vbgramg_voided_payment_test
           PGDATABASE=vbgramg_voided_payment_test psql -v ON_ERROR_STOP=1 -f tests/voided-payment-allocation-safeguards-postgres.sql
+      - name: Run payment allocation source compatibility PostgreSQL tests
+        run: |
+          createdb vbgramg_allocation_sources_test
+          PGDATABASE=vbgramg_allocation_sources_test psql -v ON_ERROR_STOP=1 -f tests/payment-allocation-source-compatibility-postgres.sql
       - name: Run refund-aware payment allocation guard PostgreSQL tests
         run: |
           createdb vbgramg_refund_guard_test

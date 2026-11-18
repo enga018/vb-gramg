@@ -64,7 +64,7 @@ function status(value: string) {
 function jobCard(value: string) {
   return String(value || "").match(/\bMZ-\d{2}-(?:\d{3}-){2,3}\d{3}\/\d+(?:-[A-Z]+)?\b/i)?.[0].toUpperCase() || "";
 }
-async function fetchDetail(url: string, ftoNumber: string, listingRow: string[]) {
+async function fetchDetail(url: string, ftoNumber: string, listingRow: string[], onStage?: (stage: "detail_fetch" | "detail_validation") => void) {
   const parsed = new URL(url);
   if (parsed.hostname !== "vbgramgrep.dord.gov.in" || parsed.pathname.toLowerCase() !== "/vbgramg/fto/fto_trasction_dtl.aspx" || !parsed.searchParams.has("payload"))
     throw new Error("Government detail URL failed host/path validation.");
@@ -75,6 +75,7 @@ async function fetchDetail(url: string, ftoNumber: string, listingRow: string[])
   const html = await response.text();
   if (!response.ok) throw new Error("Government detail request failed (HTTP " + response.status + ").");
   if (new URL(response.url).hostname !== "vbgramgrep.dord.gov.in") throw new Error("Government detail redirected to an unexpected host.");
+  onStage?.("detail_validation");
   const allRows = rowsOf(html), pageText = textOf(html);
   if (!/FTO\s+Transaction\s+Details/i.test(pageText)) throw new Error("Government detail page did not validate.");
   const header = allRows.find(r => r.some(c => /job\s*card\s*no/i.test(c)) && r.some(c => /reference\s*no/i.test(c)));
@@ -198,7 +199,7 @@ Deno.serve(async (req: Request) => {
         const candidate=candidates.get(ftoNumber.toUpperCase());
         if(!candidate) throw new Error("FTO was not found in the current Government listing.");
         stage="detail_fetch";
-        const governmentRows=await fetchDetail(candidate.url,ftoNumber,candidate.row);
+        const governmentRows=await fetchDetail(candidate.url,ftoNumber,candidate.row,nextStage=>{stage=nextStage;});
         stage="detail_validation";
         const {data:stored,error:storedError}=await admin.from("vbgramg_fto_transactions")
           .select("reference_no,status").eq("batch_id",batch.id);

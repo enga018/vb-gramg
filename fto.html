@@ -232,6 +232,7 @@ tbody tr:last-child td{border-bottom:0}
 .co-revision-stat span{display:block;color:#667085;font-size:.72rem;font-weight:650}
 .co-revision-stat strong{display:block;margin-top:4px;font-size:1.02rem;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
 .co-revision-blocked{margin:12px 0;padding:11px 13px;border:1px solid #f3c7bd;border-radius:9px;background:#fff6f3;color:#8c2d1c}
+.co-revision-checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:12px 0}.co-revision-check{padding:10px 11px;border:1px solid #cfe8d7;border-radius:9px;background:#f0faf3;min-width:0}.co-revision-check.failed{border-color:#f3c7bd;background:#fff6f3}.co-revision-check strong{display:block;font-size:.84rem;color:#17663a}.co-revision-check.failed strong{color:#8c2d1c}.co-revision-check span{display:block;margin-top:3px;color:#667085;font-size:.76rem;line-height:1.4}@media(max-width:600px){.co-revision-checks{grid-template-columns:minmax(0,1fr)}}
 .co-revision-blocked ul{margin:7px 0 0;padding-left:20px}
 .co-revision-table-wrap{max-height:260px;overflow:auto;margin:12px 0;border:1px solid #e3e8f0;border-radius:9px}
 .co-revision-table{width:100%;border-collapse:collapse;font-size:.8rem}
@@ -1108,6 +1109,15 @@ function renderCoRevisionPreview(data){
  for(const [label,value] of stats){const card=document.createElement("div");card.className="co-revision-stat";const caption=document.createElement("span");caption.textContent=label;const strong=document.createElement("strong");strong.textContent=value;card.append(caption,strong);summary.appendChild(card);}
  root.appendChild(summary);
  if(!data.previous_parameters_recorded){const note=document.createElement("p");note.className="muted";note.textContent="Original divisor/multiplier unavailable: existing ledger charges are used as the baseline. New calculations use Credit Amount.";root.appendChild(note);}
+ const validation=data.validation_summary;
+ if(validation){
+  const checks=document.createElement("div");checks.className="co-revision-checks";
+  const addCheck=(label,detail,passed)=>{const card=document.createElement("div");card.className="co-revision-check"+(passed?"":" failed");const title=document.createElement("strong");title.textContent=(passed?"✓ ":"⚠ ")+label;const description=document.createElement("span");description.textContent=detail;card.append(title,description);checks.appendChild(card);};
+  addCheck("Payment and waiver allocations",validation.payment_and_waiver_allocations?.checked===0?"No affected job cards had allocations to validate.":Number(validation.payment_and_waiver_allocations?.checked||0).toLocaleString("en-IN")+" job cards checked · "+(validation.payment_and_waiver_allocations?.passed?"within revised eligible charges":"one or more checks failed"),validation.payment_and_waiver_allocations?.passed===true);
+  addCheck("Direct charge-level allocations",validation.charge_level_allocations?.checked===0?"No affected job cards had direct charge allocations to validate.":Number(validation.charge_level_allocations?.checked||0).toLocaleString("en-IN")+" job cards checked · "+(validation.charge_level_allocations?.passed?"within revised FTO charges":"one or more checks failed"),validation.charge_level_allocations?.passed===true);
+  addCheck("Legacy waiver links",validation.unlinked_waivers?.checked===0?"No unlinked legacy waivers found.":Number(validation.unlinked_waivers?.checked||0).toLocaleString("en-IN")+" job cards checked · "+(validation.unlinked_waivers?.passed?"no unresolved unlinked waivers":"unlinked waivers need review"),validation.unlinked_waivers?.passed===true);
+  const count=document.createElement("p");count.className="muted";count.textContent=Number(validation.job_cards_checked||0).toLocaleString("en-IN")+" unique job cards checked across these safeguards.";root.append(checks,count);
+ }
  if(Array.isArray(data.blocked_reasons)&&data.blocked_reasons.length){
   const blocked=document.createElement("div");blocked.className="co-revision-blocked";const heading=document.createElement("strong");heading.textContent="Cannot apply this revision yet";const list=document.createElement("ul");
   for(const reason of data.blocked_reasons){const item=document.createElement("li");item.textContent=String(reason);list.appendChild(item);}

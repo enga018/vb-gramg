@@ -14,6 +14,10 @@ on:
       - "tests/pending-fto-import.test.cjs"
       - "pending-imports.html"
       - "tests/government-fto-history-import.test.cjs"
+      - "tests/deferred-fto-recheck-edge.test.cjs"
+      - "tests/deferred-fto-recheck-postgres.sql"
+      - "supabase/functions/vbgramg-fto-deferred-recheck/index.ts"
+      - "supabase/migrations/20261118170000_add_atomic_deferred_fto_recheck.sql"
       - "supabase/functions/vbgramg-fto-government-fetch/index.ts"
       - "supabase/functions/vbgramg-fto-government-details/index.ts"
       - "supabase/functions/vbgramg-fto-government-import/index.ts"
@@ -125,6 +129,8 @@ jobs:
         run: node --test tests/atomic-fto-change-period.test.cjs
       - name: Run Government FTO history import regression tests
         run: node --test tests/government-fto-history-import.test.cjs
+      - name: Run deferred FTO recheck Edge Function safeguards
+        run: node --test tests/deferred-fto-recheck-edge.test.cjs
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
@@ -231,6 +237,10 @@ jobs:
           "$RUNNER_TEMP/pg-client/createdb" --version
       - name: Run atomic contribution PostgreSQL integration tests
         run: psql -v ON_ERROR_STOP=1 -f tests/atomic-contribution-writes-postgres.sql
+      - name: Run deferred FTO recheck PostgreSQL integration tests
+        run: |
+          createdb vbgramg_deferred_fto_recheck_test
+          PGDATABASE=vbgramg_deferred_fto_recheck_test psql -v ON_ERROR_STOP=1 -f tests/deferred-fto-recheck-postgres.sql
       - name: Run FTO revision history PostgreSQL tests
         run: |
           createdb vbgramg_fto_revision_test

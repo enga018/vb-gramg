@@ -262,7 +262,7 @@ async function importPendingFto(){
  status("detail-status","Server is revalidating the saved FTO, Active MIS, period, applicant mappings, and manual-charge decisions before the atomic import…");
  try{
   const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{
-   action:"import-pending-fto",fto_number:currentFtoNumber,period_id:selectedContributionPeriod()?.id,
+   action:"import-pending-fto",final_review_confirmed:true,fto_number:currentFtoNumber,period_id:selectedContributionPeriod()?.id,
    divisor:Number($("co-divisor").value),multiplier:Number($("co-multiplier").value),
    applicant_mappings,confirm_mapping_replacements,manual_charge_actions,manual_charge_amount_confirmations,manual_reconciliation_applicants
   },timeoutMs:120000,deduplicate:false});

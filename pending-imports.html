@@ -19,7 +19,7 @@ button.secondary,.link.secondary{background:#f0f3f8;color:#344054;border-color:#
 <header><div><h1>Pending Imports</h1><p>Continue FTOs from their saved inspection. Government details are not fetched again.</p></div><div class="actions"><a class="link secondary" href="./fto.html">FTO History</a><a class="link secondary" href="./fto-government-fetch.html">New FTO Import</a><button id="refresh" type="button">Refresh</button></div></header>
 <section class="panel" id="access-panel"><h2>Administrator access</h2><p>Sign in with an approved VBGRAMG administrator account.</p><div id="access-status" class="status">Checking your session…</div></section>
 <section class="panel hidden" id="app-panel"><h2>Inspected FTOs awaiting import</h2><p>Only eligible, unimported FTOs are shown. Transaction counts are revalidated against the latest Active MIS whenever this page is refreshed or an FTO is opened.</p><div id="list-status" class="status">Loading Pending Imports…</div><div class="table-wrap"><table><thead><tr><th>FTO Number</th><th>Government Rows</th><th>Eligible Rows</th><th>Unmatched</th><th>Inspected On</th><th></th></tr></thead><tbody id="pending-rows"></tbody></table><div id="empty" class="empty hidden">There are no FTOs waiting in Pending Imports.</div></div></section>
-<section class="panel hidden" id="detail-panel"><div class="detail-head"><div><h2 id="detail-title">FTO details</h2><p id="detail-summary"></p></div><button id="close-detail" class="secondary" type="button">Back to list</button></div><div id="detail-status" class="status">Loading saved inspection…</div><div class="table-wrap detail-table"><table><thead><tr><th>Job Card</th><th>Government Applicant</th><th>Reference No.</th><th>Credit Amount</th><th>Status</th><th>Transaction Date</th></tr></thead><tbody id="detail-rows"></tbody></table></div><p>These are saved Government rows revalidated against the latest Active MIS. Applicant matching, Contribution period selection, CO calculation, and final import controls are the next workflow step.</p></section>
+<section class="panel hidden" id="detail-panel"><div class="detail-head"><div><h2 id="detail-title">FTO details</h2><p id="detail-summary"></p></div><button id="close-detail" class="secondary" type="button">Back to list</button></div><div id="detail-status" class="status">Loading saved inspection…</div><div class="table-wrap detail-table"><table><thead><tr><th>Job Card</th><th>Government Applicant</th><th>Active MIS Applicant</th><th>Reference No.</th><th>Credit Amount</th><th>Status</th><th>Transaction Date</th></tr></thead><tbody id="detail-rows"></tbody></table></div><p>These are saved Government rows revalidated against the latest Active MIS. Applicant matching, Contribution period selection, CO calculation, and final import controls are the next workflow step.</p></section>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./js/supabase-client.js?v=20261117a"></script>
@@ -28,7 +28,7 @@ button.secondary,.link.secondary{background:#f0f3f8;color:#344054;border-color:#
 (function(){
 "use strict";
 const $=id=>document.getElementById(id),client=window.vbgramgSupabase;
-let authSequence=0;
+let authSequence=0,currentApplicantMatches=new Map(),currentFtoNumber="";
 function status(id,message,type){const el=$(id);el.textContent=message;el.className="status"+(type?" "+type:"");}
 function cell(row,value){const td=row.insertCell();td.textContent=value==null?"":String(value);return td;}
 function dateLabel(value){if(!value)return "—";const d=new Date(value);return Number.isNaN(d.getTime())?String(value):d.toLocaleString("en-IN");}
@@ -57,8 +57,27 @@ async function openPending(number){
  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"get-pending-fto",fto_number:number},timeoutMs:60000});
  if(error||!data||data.approved!==true){status("detail-status",data?.error||error?.message||"Could not open this FTO.","error");await loadPending();return;}
  $("detail-summary").textContent=Number(data.eligible_transaction_count||0)+" eligible rows · "+Number(data.unmatched_transaction_count||0)+" unmatched rows (count only)";
- for(const tx of data.transactions||[]){const tr=document.createElement("tr");cell(tr,tx.jobCardNumber);cell(tr,tx.personName);cell(tr,tx.referenceNumber);cell(tr,tx.creditAmount);cell(tr,tx.status);cell(tr,tx.transactionDate);$("detail-rows").append(tr);}
- status("detail-status","Saved inspection loaded and revalidated. Government details were not fetched again.","success");
+ currentFtoNumber=number;currentApplicantMatches=new Map((data.applicant_matches||[]).map(match=>[String(match.job_card_number||"").toUpperCase(),match]));
+ for(const tx of data.transactions||[]){
+  const tr=document.createElement("tr");cell(tr,tx.jobCardNumber);cell(tr,tx.personName);
+  const applicantCell=tr.insertCell(),card=String(tx.jobCardNumber||"").toUpperCase(),match=currentApplicantMatches.get(card);
+  if(!match){applicantCell.textContent="No Active MIS match";}else{
+   const select=document.createElement("select");select.setAttribute("aria-label","Active MIS applicant for "+card);
+   const placeholder=document.createElement("option");placeholder.value="";placeholder.textContent="Select applicant";select.append(placeholder);
+   (match.candidates||[]).forEach((candidate,index)=>{const option=document.createElement("option");option.value=String(index);option.textContent=candidate.applicant_name+(candidate.applicant_number?" · "+candidate.applicant_number:"")+" · "+candidate.match_percentage+"%";select.append(option);});
+   const selected=(match.candidates||[]).findIndex(candidate=>match.suggested_applicant&&((match.suggested_applicant.applicant_unique_id&&candidate.applicant_unique_id===match.suggested_applicant.applicant_unique_id)||(!match.suggested_applicant.applicant_unique_id&&candidate.applicant_name===match.suggested_applicant.applicant_name&&String(candidate.applicant_number||"")===String(match.suggested_applicant.applicant_number||""))));
+   select.value=selected>=0?String(selected):"";
+   select.addEventListener("change",()=>{match.selected_index=select.value===""?null:Number(select.value);});
+   applicantCell.append(select);
+   if(match.saved_mapping){const note=document.createElement("small");note.style.display="block";note.style.marginTop="6px";note.textContent="Saved mapping: "+match.saved_mapping.applicant_name;applicantCell.append(note);
+    const label=document.createElement("label"),confirm=document.createElement("input");confirm.type="checkbox";confirm.style.width="auto";confirm.style.minHeight="0";confirm.style.marginRight="6px";label.style.marginTop="7px";label.style.fontWeight="500";label.textContent="Confirm replacement";label.prepend(confirm);applicantCell.append(label);
+    confirm.addEventListener("change",()=>{match.confirm_replacement=confirm.checked;});
+   }
+   if(match.reason){const note=document.createElement("small");note.style.display="block";note.style.marginTop="5px";note.textContent=match.reason;applicantCell.append(note);}
+  }
+  cell(tr,tx.referenceNumber);cell(tr,tx.creditAmount);cell(tr,tx.status);cell(tr,tx.transactionDate);$("detail-rows").append(tr);
+ }
+ status("detail-status","Applicant suggestions are based on the latest Active MIS. Confirm uncertain matches manually. No applicant mapping is saved and no import has been performed yet.","success");
 }
 async function verifyAccess(user){
  const seq=++authSequence;if(!user){window.location.replace("./");return;}

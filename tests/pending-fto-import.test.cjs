@@ -98,3 +98,9 @@ test("Import UI sends explicit decisions and handles committed failures without 
   assert.match(page, /snapshot_committed/);
   assert.match(page, /do not retry this FTO/i);
 });
+
+test("A saved applicant mapping that is no longer active always requires manual review", () => {
+  const detail = read("supabase/functions/vbgramg-contribution-data/index.ts");
+  assert.match(detail, /const automatic=savedMapping\?\(savedCandidate\|\|null\):\(/);
+  assert.match(detail, /reason:savedMapping&&!savedCandidate\?/);
+});

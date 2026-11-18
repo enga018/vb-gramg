@@ -103,4 +103,5 @@ test("CO revision rollback test invokes the exact atomic RPC with PostgREST roll
   assert.match(page, /Test Apply \(Rollback\)/);
   assert.match(page, /test-fto-co-revision/);
   assert.match(page, /No financial records were changed/);
+  assert.match(page, /coRevisionPreview=null;\$\("fto-co-apply"\)\.disabled=true;\$\("fto-co-test"\)\.disabled=true/);
 });

@@ -143,7 +143,7 @@ test("FTO charge calculation is PostgreSQL-authoritative and preserves admin par
   assert.match(ftoMigration, /calculation_multiplier = excluded\.calculation_multiplier/i);
   assert.match(ftoMigration, /TO service_role/i);
   assert.match(edge, /admin\.rpc\("vbgramg_calculate_fto_charges"/);
-  const syncStart = edge.indexOf('if(action==="sync-fto-batch"){');
+  const syncStart = edge.indexOf('if(action==="sync-fto-batch"||action==="import-pending-fto"){');
   const syncEnd = edge.indexOf('if(action==="sync-fto-status"){', syncStart);
   const syncBlock = edge.slice(syncStart, syncEnd);
   assert.match(syncBlock, /calculatedByIndex\.get\(rowIndex\)/);

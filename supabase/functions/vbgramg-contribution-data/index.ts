@@ -250,7 +250,7 @@ Deno.serve(async(req:Request)=>{
    for(const card of cards){
     const input=candidates.find((tx:any)=>tx.job_card_number===card);
     const cardRows=(ledgerRows||[]).filter((row:any)=>String(row.job_card_number).trim().toUpperCase()===card&&row.entry_type==="charge"&&(!row.period_id||String(row.period_id)===periodId)&&!row.is_voided);
-    const manualRows=cardRows.filter((row:any)=>!/^FTO\\b/i.test(String(row.note||""))&&!(Array.isArray(row.reference_numbers)?row.reference_numbers:[]).some((ref:any)=>refs.includes(String(ref))));
+    const manualRows=cardRows.filter((row:any)=>!/^FTO\b/i.test(String(row.note||""))&&!(Array.isArray(row.reference_numbers)?row.reference_numbers:[]).some((ref:any)=>refs.includes(String(ref))));
     if(!manualRows.length)continue;
     manualReviews.push({
      job_card_number:card,government_applicant_name:input?.person_name||null,

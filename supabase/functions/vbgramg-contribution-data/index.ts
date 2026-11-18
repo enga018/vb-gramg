@@ -933,7 +933,8 @@ Deno.serve(async(req:Request)=>{
    const expectedPeriodId=String(body.expected_period_id||"").trim(),expectedChargePeriod=String(body.expected_charge_period||"").trim();
    const expectedLastCheckedAt=String(body.expected_last_checked_at||"").trim();
    const expectedLastDeferredRecheckAt=body.expected_last_deferred_recheck_at===null?null:String(body.expected_last_deferred_recheck_at||"").trim()||null;
-   if(!batchId||!reason||!expectedPeriodId||!expectedChargePeriod||!expectedLastCheckedAt)return reply({error:"The FTO preview is incomplete. Preview the calculation again."},400);
+   if(!batchId||!expectedPeriodId||!expectedChargePeriod||!expectedLastCheckedAt)return reply({error:"The FTO preview is incomplete. Preview the calculation again."},400);
+   if(reason.length<10)return reply({error:"Enter a reason with at least 10 characters."},400);
    if(!Number.isInteger(divisor)||divisor<=0||divisor>1000000000||!Number.isInteger(multiplier)||multiplier<=0||multiplier>1000000)return reply({error:"Divisor and multiplier must be whole positive numbers within the allowed range."},400);
    if(!Number.isInteger(expectedRevision)||expectedRevision<1)return reply({error:"Reload the FTO and preview the calculation again."},400);
    const {data:result,error}=await admin.rpc("vbgramg_apply_fto_co_revision",{
@@ -964,7 +965,8 @@ Deno.serve(async(req:Request)=>{
    const expectedPeriodId=String(body.expected_period_id||"").trim(),expectedChargePeriod=String(body.expected_charge_period||"").trim();
    const expectedLastCheckedAt=String(body.expected_last_checked_at||"").trim();
    const expectedLastDeferredRecheckAt=body.expected_last_deferred_recheck_at===null?null:String(body.expected_last_deferred_recheck_at||"").trim()||null;
-   if(!batchId||!reason||!expectedPeriodId||!expectedChargePeriod||!expectedLastCheckedAt)return reply({error:"The FTO preview is incomplete. Preview the calculation again."},400);
+   if(!batchId||!expectedPeriodId||!expectedChargePeriod||!expectedLastCheckedAt)return reply({error:"The FTO preview is incomplete. Preview the calculation again."},400);
+   if(reason.length<10)return reply({error:"Enter a reason with at least 10 characters."},400);
    if(!Number.isInteger(divisor)||divisor<=0||divisor>1000000000||!Number.isInteger(multiplier)||multiplier<=0||multiplier>1000000)return reply({error:"Divisor and multiplier must be whole positive numbers within the allowed range."},400);
    if(!Number.isInteger(expectedRevision)||expectedRevision<1)return reply({error:"Reload the FTO and preview the calculation again."},400);
    const {data:result,error}=await admin.rpc("vbgramg_apply_fto_co_revision",{

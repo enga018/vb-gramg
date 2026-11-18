@@ -146,21 +146,46 @@ Deno.serve(async (req: Request) => {
 
   let runId:string|null=null;
   let databaseChanged=false;
+  let eligibleFtoCount=0, checkedFtoCount=0, successfulFtOs=0, failedFtOs=0;
+  let unprocessedFtoCount=0, deferredTransactionCount=0;
+  let updatedCount=0, stillDeferredCount=0, unchangedCount=0;
+  const failedChecks:any[]=[], results:any[]=[];
   try {
-    const {data:batches,error:batchError}=await admin.from("vbgramg_fto_batches").select("id,fto_number").order("fto_number");
-    if(batchError) throw new Error("Could not load imported FTO history.");
-    const batchIds=(batches||[]).map((b:any)=>b.id);
+    // Supabase applies a configured maximum row count to each response.
+    // Read in ordered pages so large villages are never silently truncated.
+    const pageSize=500;
+    const batches:any[]=[];
+    for(let offset=0;;offset+=pageSize) {
+      const {data:page,error:batchError}=await admin.from("vbgramg_fto_batches")
+        .select("id,fto_number").order("id",{ascending:true}).range(offset,offset+pageSize-1);
+      if(batchError) throw new Error("Could not load imported FTO history.");
+      batches.push(...(page||[]));
+      if(!page||page.length<pageSize) break;
+    }
+    const batchIds=batches.map((b:any)=>b.id);
     const deferredByBatch=new Map<string,any[]>();
     for(let offset=0;offset<batchIds.length;offset+=100) {
       const ids=batchIds.slice(offset,offset+100);
-      const {data:txs,error:txError}=await admin.from("vbgramg_fto_transactions")
-        .select("id,batch_id,reference_no,status").in("batch_id",ids).eq("status","blank");
-      if(txError) throw new Error("Could not identify deferred transactions.");
-      for(const tx of txs||[]) { const list=deferredByBatch.get(tx.batch_id)||[];list.push(tx);deferredByBatch.set(tx.batch_id,list); }
+      for(let pageOffset=0;;pageOffset+=pageSize) {
+        const {data:page,error:txError}=await admin.from("vbgramg_fto_transactions")
+          .select("id,batch_id,reference_no,status").in("batch_id",ids).eq("status","blank")
+          .order("id",{ascending:true}).range(pageOffset,pageOffset+pageSize-1);
+        if(txError) throw new Error("Could not identify deferred transactions.");
+        for(const tx of page||[]) {
+          const list=deferredByBatch.get(tx.batch_id)||[];
+          list.push(tx);
+          deferredByBatch.set(tx.batch_id,list);
+        }
+        if(!page||page.length<pageSize) break;
+      }
     }
     const eligible=(batches||[]).filter((b:any)=>(deferredByBatch.get(b.id)||[]).length>0);
-    const deferredTransactionCount=[...deferredByBatch.values()].reduce((n,x)=>n+x.length,0);
-    if(!eligible.length) return reply({success:true,ftoCount:0,deferredTransactionCount:0,updatedCount:0,stillDeferredCount:0,failedCheckCount:0,failedChecks:[],results:[],message:"No imported FTOs currently contain Deferred transactions."});
+    deferredTransactionCount=[...deferredByBatch.values()].reduce((n,x)=>n+x.length,0);
+    eligibleFtoCount=eligible.length;
+    unprocessedFtoCount=eligibleFtoCount;
+    if(!eligible.length) return reply({success:true,eligibleFtoCount:0,checkedFtoCount:0,successfulFtoCount:0,failedFtoCount:0,unprocessedFtoCount:0,
+      deferredTransactionCount:0,updatedCount:0,stillDeferredCount:0,unchangedCount:0,failedCheckCount:0,failedChecks:[],results:[],
+      message:"No imported FTOs currently contain Deferred transactions."});
 
     const {error:recoveryError}=await admin.rpc("vbgramg_recover_stale_fto_recheck_runs",{
       p_actor:claims.sub
@@ -191,12 +216,14 @@ Deno.serve(async (req: Request) => {
       const {error:completeError}=await admin.rpc("vbgramg_complete_fto_recheck_run",{
         p_run_id:runId,p_actor:claims.sub,p_successful_ftos:0,p_failed_ftos:0,p_status:"failed",p_error_message:message
       });
-      if(completeError) return reply({success:false,error:message,runId,auditError:"Could not finalize the failed audit run.",databaseChanged:false},502);
-      return reply({success:false,error:message,runId,runStatus:"failed",databaseChanged:false},502);
+      if(completeError) return reply({success:false,error:message,runId,eligibleFtoCount,checkedFtoCount:0,successfulFtoCount:0,failedFtoCount:0,
+        unprocessedFtoCount:eligibleFtoCount,deferredTransactionCount,updatedCount:0,stillDeferredCount:0,unchangedCount:0,
+        failedCheckCount:0,failedChecks:[],results:[],auditError:"Could not finalize the failed audit run.",databaseChanged:false},502);
+      return reply({success:false,error:message,runId,runStatus:"failed",eligibleFtoCount,checkedFtoCount:0,successfulFtoCount:0,
+        failedFtoCount:0,unprocessedFtoCount:eligibleFtoCount,deferredTransactionCount,updatedCount:0,stillDeferredCount:0,
+        unchangedCount:0,failedCheckCount:0,failedChecks:[],results:[],databaseChanged:false},502);
     }
 
-    const failedChecks:any[]=[], results:any[]=[];
-    let updatedCount=0,stillDeferredCount=0,successfulFtOs=0,failedFtOs=0;
     let auditPersistenceError:string|null=null;
     for(const batch of eligible) {
       const {error:heartbeatError}=await admin.rpc("vbgramg_heartbeat_fto_recheck_run",{
@@ -204,6 +231,8 @@ Deno.serve(async (req: Request) => {
       });
       if(heartbeatError) throw new Error("The deferred FTO recheck run heartbeat failed.");
 
+      checkedFtoCount++;
+      unprocessedFtoCount=eligibleFtoCount-checkedFtoCount;
       const ftoNumber=String(batch.fto_number||"").trim();
       let stage:"listing_match"|"detail_fetch"|"detail_validation"|"reconciliation"="listing_match";
       try {
@@ -212,11 +241,17 @@ Deno.serve(async (req: Request) => {
         stage="detail_fetch";
         const governmentRows=await fetchDetail(candidate.url,ftoNumber,candidate.row,nextStage=>{stage=nextStage;});
         stage="detail_validation";
-        const {data:stored,error:storedError}=await admin.from("vbgramg_fto_transactions")
-          .select("reference_no,status").eq("batch_id",batch.id);
-        if(storedError) throw new Error("Could not load stored transaction references.");
+        const stored:any[]=[];
+        for(let pageOffset=0;;pageOffset+=pageSize) {
+          const {data:page,error:storedError}=await admin.from("vbgramg_fto_transactions")
+            .select("id,reference_no,status").eq("batch_id",batch.id)
+            .order("id",{ascending:true}).range(pageOffset,pageOffset+pageSize-1);
+          if(storedError) throw new Error("Could not load stored transaction references.");
+          stored.push(...(page||[]));
+          if(!page||page.length<pageSize) break;
+        }
         const storedByRef=new Map<string,string>();
-        for(const item of stored||[]) {
+        for(const item of stored) {
           const key=String(item.reference_no||"").trim().toUpperCase();
           if(!key || storedByRef.has(key)) throw new Error("Stored FTO history contains a missing or duplicate reference number.");
           storedByRef.set(key,String(item.reference_no).trim());
@@ -238,9 +273,11 @@ Deno.serve(async (req: Request) => {
         databaseChanged=true;
         updatedCount+=Number(resultBatch.updated_count||0);
         stillDeferredCount+=Number(resultBatch.still_deferred_count||0);
+        unchangedCount+=Number(resultBatch.unchanged_count||0);
         results.push({ftoNumber,...resultBatch});
       } catch(error) {
         const message=error instanceof Error?error.message:"Recheck failed.";
+        failedFtOs++;
         try {
           const {error:recordError}=await admin.rpc("vbgramg_record_fto_recheck_failure",{
             p_run_id:runId,p_batch_id:batch.id,p_actor:claims.sub,p_stage:stage,p_error_message:message
@@ -249,19 +286,24 @@ Deno.serve(async (req: Request) => {
             auditPersistenceError=recordError.message||"Could not persist an FTO failure record.";
             failedChecks.push({ftoNumber,error:message,auditRecorded:false});
           } else {
-            failedFtOs++;
             failedChecks.push({ftoNumber,error:message,auditRecorded:true});
           }
         } catch(recordException) {
           auditPersistenceError=recordException instanceof Error?recordException.message:"Could not persist an FTO failure record.";
           failedChecks.push({ftoNumber,error:message,auditRecorded:false});
         }
+        if(auditPersistenceError) {
+          unprocessedFtoCount=eligibleFtoCount-checkedFtoCount;
+          break;
+        }
       }
     }
 
     if(auditPersistenceError) {
       return reply({success:false,error:"One or more FTO failure records could not be saved. The audit run was left open for investigation.",
-        runId,updatedCount,stillDeferredCount,failedChecks,auditError:auditPersistenceError,databaseChanged},500);
+        runId,eligibleFtoCount,checkedFtoCount,successfulFtoCount:successfulFtOs,failedFtoCount:failedFtOs,unprocessedFtoCount,
+        deferredTransactionCount,updatedCount,stillDeferredCount,unchangedCount,failedCheckCount:failedChecks.length,
+        failedChecks,results,auditError:auditPersistenceError,databaseChanged},500);
     }
     const runStatus=successfulFtOs===eligible.length?"completed":successfulFtOs>0&&failedFtOs>0?"partial":"failed";
     const {data:completed,error:completeError}=await admin.rpc("vbgramg_complete_fto_recheck_run",{
@@ -270,13 +312,19 @@ Deno.serve(async (req: Request) => {
     });
     if(completeError) {
       return reply({success:false,error:"FTO checks finished, but the audit run could not be finalized.",
-        runId,updatedCount,stillDeferredCount,failedChecks,auditError:completeError.message||"Audit finalization failed.",databaseChanged},500);
+        runId,eligibleFtoCount,checkedFtoCount,successfulFtoCount:successfulFtOs,failedFtoCount:failedFtOs,unprocessedFtoCount,
+        deferredTransactionCount,updatedCount,stillDeferredCount,unchangedCount,failedCheckCount:failedChecks.length,
+        failedChecks,results,auditError:completeError.message||"Audit finalization failed.",databaseChanged},500);
     }
-    return reply({success:true,ftoCount:eligible.length,deferredTransactionCount,updatedCount,stillDeferredCount,
-      failedCheckCount:failedChecks.length,failedChecks,results,runId,runStatus:completed?.status||runStatus,
+    return reply({success:true,eligibleFtoCount,checkedFtoCount,successfulFtoCount:successfulFtOs,failedFtoCount:failedFtOs,unprocessedFtoCount,
+      deferredTransactionCount,updatedCount,stillDeferredCount,unchangedCount,failedCheckCount:failedChecks.length,
+      failedChecks,results,runId,runStatus:completed?.status||runStatus,
       message:"Deferred FTO recheck completed. Existing Processed and Rejected records were not changed."});
   } catch(error) {
+    unprocessedFtoCount=Math.max(0,eligibleFtoCount-checkedFtoCount);
     return reply({success:false,error:error instanceof Error?error.message:"Deferred FTO recheck failed.",
-      ...(runId?{runId}:{}),databaseChanged},502);
+      ...(runId?{runId}:{}),eligibleFtoCount,checkedFtoCount,successfulFtoCount:successfulFtOs,failedFtoCount:failedFtOs,
+      unprocessedFtoCount,deferredTransactionCount,updatedCount,stillDeferredCount,unchangedCount,
+      failedCheckCount:failedChecks.length,failedChecks,results,databaseChanged},502);
   }
 });

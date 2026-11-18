@@ -44,7 +44,7 @@
     var theme = initTheme();
     if (window.self !== window.top) return;
     var path = window.location.pathname || "/";
-    var cleanPath = path.replace(/\\/+$/, "") || "/";
+    var cleanPath = path.replace(/\/+$/, "") || "/";
     if (cleanPath.endsWith("/index.html") || cleanPath === "/" || path.endsWith("/")) {
       var homeAccount = document.querySelector(".account");
       if (homeAccount && !homeAccount.querySelector(".global-theme-toggle-home")) {

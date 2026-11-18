@@ -1327,7 +1327,7 @@ Deno.serve(async(req:Request)=>{
     if(manualRows.length===1){
      const action=manualChargeActions.get(card);
      if(!action){manualReviewIssues.push(card+" (choose Link to FTO or Keep manual charge separate)");continue;}
-     if(action==="link"&&!manualRows[0].applicant_name&&!manualRows[0].applicant_unique_id&&!manualRows[0].applicant_number&&!reconciliationApplicants.has(card))
+     if(action==="link"&&!manualRows[0].applicant_name&&!manualRows[0].applicant_unique_id&&!manualRows[0].applicant_number&&!manualReconciliationApplicants.has(card))
       manualReviewIssues.push(card+" (MIS applicant not selected for linking)");
      const incomingAmount=Number(active.reduce((sum,tx)=>sum+Number(tx.calculated_charge||0),0).toFixed(2));
      if(action==="link"&&Math.abs(Number(manualRows[0].amount||0)-incomingAmount)>0.009&&!manualAmountConfirmations.has(card))

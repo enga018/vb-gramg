@@ -84,10 +84,10 @@ test("FTO history UI exposes Change CO Calculation instead of the obsolete Revis
 
 
 test("CO revision preview exposes allocation and waiver validation results in the UI", () => {
-  assert.match(edge, /validation_summary:\\{job_cards_checked:checkedCards\\.size/);
-  assert.match(edge, /payment_and_waiver_allocations:\\{checked:paymentWaiverChecked\\.size,passed:paymentWaiverChecksPassed\\}/);
-  assert.match(edge, /charge_level_allocations:\\{checked:chargeAllocationChecked\\.size,passed:chargeAllocationChecksPassed\\}/);
-  assert.match(edge, /unlinked_waivers:\\{checked:unlinkedWaiverChecked\\.size,passed:unlinkedWaiverChecksPassed\\}/);
+  assert.ok(edge.includes("validation_summary:{job_cards_checked:checkedCards.size"));
+  assert.ok(edge.includes("payment_and_waiver_allocations:{checked:paymentWaiverChecked.size,passed:paymentWaiverChecksPassed}"));
+  assert.ok(edge.includes("charge_level_allocations:{checked:chargeAllocationChecked.size,passed:chargeAllocationChecksPassed}"));
+  assert.ok(edge.includes("unlinked_waivers:{checked:unlinkedWaiverChecked.size,passed:unlinkedWaiverChecksPassed}"));
   assert.match(page, /Payment and waiver allocations/);
   assert.match(page, /Direct charge-level allocations/);
   assert.match(page, /Legacy waiver links/);

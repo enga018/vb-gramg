@@ -162,6 +162,11 @@ Deno.serve(async (req: Request) => {
     const deferredTransactionCount=[...deferredByBatch.values()].reduce((n,x)=>n+x.length,0);
     if(!eligible.length) return reply({success:true,ftoCount:0,deferredTransactionCount:0,updatedCount:0,stillDeferredCount:0,failedCheckCount:0,failedChecks:[],results:[],message:"No imported FTOs currently contain Deferred transactions."});
 
+    const {error:recoveryError}=await admin.rpc("vbgramg_recover_stale_fto_recheck_runs",{
+      p_actor:claims.sub
+    });
+    if(recoveryError) throw new Error("Could not check for interrupted deferred FTO recheck runs.");
+
     const {data:startedRun,error:startError}=await admin.rpc("vbgramg_start_fto_recheck_run",{
       p_actor:claims.sub,p_total_ftos:eligible.length
     });
@@ -194,6 +199,11 @@ Deno.serve(async (req: Request) => {
     let updatedCount=0,stillDeferredCount=0,successfulFtOs=0,failedFtOs=0;
     let auditPersistenceError:string|null=null;
     for(const batch of eligible) {
+      const {error:heartbeatError}=await admin.rpc("vbgramg_heartbeat_fto_recheck_run",{
+        p_run_id:runId,p_actor:claims.sub
+      });
+      if(heartbeatError) throw new Error("The deferred FTO recheck run heartbeat failed.");
+
       const ftoNumber=String(batch.fto_number||"").trim();
       let stage:"listing_match"|"detail_fetch"|"detail_validation"|"reconciliation"="listing_match";
       try {

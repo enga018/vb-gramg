@@ -26,7 +26,7 @@ test("recheck validates both Government amount columns and passes listing data e
   assert.match(source, /amount to be credited in rs/);
   assert.match(source, /invalid Amount to Be Credited/);
   assert.match(source, /async function fetchDetail\(url: string, ftoNumber: string, listingRow: string\[\], onStage\?/);
-  assert.match(source, /fetchDetail\\(candidate\\.url,ftoNumber,candidate\\.row,nextStage/);
+  assert.match(source, /fetchDetail\(candidate\.url,ftoNumber,candidate\.row,nextStage/);
   assert.doesNotMatch(source, /fetchDetail as any/);
 });
 

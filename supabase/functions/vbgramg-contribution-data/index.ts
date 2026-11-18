@@ -188,7 +188,7 @@ Deno.serve(async(req:Request)=>{
    const periodId=String(body.period_id||"").trim();
    const divisor=Number(body.divisor),multiplier=Number(body.multiplier);
    if(!ftoNumber||!periodId)return reply({error:"An FTO and an open Contribution Period are required."},400);
-   if(!Number.isFinite(divisor)||divisor<=0||divisor>1000000000||!Number.isFinite(multiplier)||multiplier<=0||multiplier>1000000)return reply({error:"Divisor and multiplier must be finite positive numbers within the allowed range."},400);
+   if(!Number.isInteger(divisor)||divisor<=0||divisor>1000000000||!Number.isInteger(multiplier)||multiplier<=0||multiplier>1000000)return reply({error:"Divisor and multiplier must be whole positive numbers within the allowed range."},400);
    const {data:state,error:stateError}=await admin.from("vbgramg_fto_inspection_state")
     .select("fto_number,fto_number_normalized,classification,transaction_count,validated_transactions")
     .eq("fto_number_normalized",ftoNumber).maybeSingle();
@@ -920,7 +920,7 @@ Deno.serve(async(req:Request)=>{
   if(action==="calculate-fto-charges"){
    if(approved.role!=="admin")return reply({error:"Only an approved administrator can calculate FTO charges."},403);
    const divisor=Number(body.divisor),multiplier=Number(body.multiplier),rows=body.rows;
-   if(!Number.isFinite(divisor)||divisor<=0||divisor>1000000000||!Number.isFinite(multiplier)||multiplier<=0||multiplier>1000000)return reply({error:"Divisor and multiplier must be finite positive numbers within the allowed range."},400);
+   if(!Number.isInteger(divisor)||divisor<=0||divisor>1000000000||!Number.isInteger(multiplier)||multiplier<=0||multiplier>1000000)return reply({error:"Divisor and multiplier must be whole positive numbers within the allowed range."},400);
    if(!Array.isArray(rows)||rows.length<1||rows.length>5000)return reply({error:"The FTO calculation must contain 1–5,000 rows."},400);
    const {data:calculations,error}=await admin.rpc("vbgramg_calculate_fto_charges",{p_rows:rows,p_divisor:divisor,p_multiplier:multiplier});
    if(error)throw error;
@@ -995,7 +995,7 @@ Deno.serve(async(req:Request)=>{
    const villageScope="ACTIVE MIS JOB CARDS";
    const rows=body.rows;
    const divisor=Number(body.divisor),multiplier=Number(body.multiplier);
-   if(!Number.isFinite(divisor)||divisor<=0||divisor>1000000000||!Number.isFinite(multiplier)||multiplier<=0||multiplier>1000000)return reply({error:"Divisor and multiplier must be finite positive numbers within the allowed range."},400);
+   if(!Number.isInteger(divisor)||divisor<=0||divisor>1000000000||!Number.isInteger(multiplier)||multiplier<=0||multiplier>1000000)return reply({error:"Divisor and multiplier must be whole positive numbers within the allowed range."},400);
    if(!ftoNumber)return reply({error:"Enter the FTO number shown on the government page."},400);
    if(!contributionPeriod)return reply({error:"Select a contribution period from the shared list."},400);
    if(!periodMatch||Number(periodMatch[2])<1||Number(periodMatch[2])>12)return reply({error:"Enter a recognizable month and year, such as August 2026."},400);

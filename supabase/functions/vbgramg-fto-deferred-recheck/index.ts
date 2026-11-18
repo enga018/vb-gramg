@@ -105,9 +105,6 @@ async function fetchDetail(url: string, ftoNumber: string) {
     if (tx.normalizedStatus==="other") errors.push("Government row "+tx.rowNumber+": unrecognized status.");
     if (tx.normalizedStatus==="processed" && !tx.processedDate) errors.push("Government row "+tx.rowNumber+": Processed date is missing or invalid.");
   }
-  const countAt=(i:number)=>{const s=String(argumentsSafe(rowValue(i))||"").replace(/,/g,"").trim();return /^\d+$/.test(s)?Number(s):null;};
-  function rowValue(i:number){return (fetchDetail as any).__listingRow?.[i]??"";}
-  function argumentsSafe(v:unknown){return v;}
   const listing=(fetchDetail as any).__listingRow as string[]|undefined;
   if (listing) {
     const expectedCount=(i:number)=>{const s=String(listing[i]||"").replace(/,/g,"").trim();return /^\d+$/.test(s)?Number(s):null;};
@@ -176,12 +173,8 @@ Deno.serve(async (req: Request) => {
         if(!candidate) throw new Error("FTO was not found in the current Government listing.");
         (fetchDetail as any).__listingRow=candidate.row;
         const governmentRows=await fetchDetail(candidate.url,ftoNumber);
-        const existing=deferredByBatch.get(batch.id)||[];
-        const existingRefs=new Set(existing.map((x:any)=>String(x.reference_no||"").trim().toUpperCase()));
-        const allStored={data:null as any,error:null as any};
         const {data:stored,error:storedError}=await admin.from("vbgramg_fto_transactions")
           .select("reference_no,status").eq("batch_id",batch.id);
-        allStored.data=stored;allStored.error=storedError;
         if(storedError) throw new Error("Could not load stored transaction references.");
         const storedRefs=new Set((stored||[]).map((x:any)=>String(x.reference_no||"").trim().toUpperCase()));
         const governmentRefs=new Set(governmentRows.map(x=>x.referenceNo.toUpperCase()));

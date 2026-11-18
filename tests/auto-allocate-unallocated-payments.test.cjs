@@ -84,7 +84,7 @@ test("manual replacement locks periods before payment rows", () => {
 
 test("automatic allocations retain the original payment and write an audit entry", () => {
   assert.match(migration, /INSERT INTO public\.vbgramg_payment_allocations/);
-  assert.match(migration, /ON CONFLICT \(transaction_id, period_id, allocation_source\) DO UPDATE/);
+  assert.match(migration, /ON CONFLICT \(transaction_id, period_id\) DO UPDATE/);
   assert.match(migration, /INSERT INTO public\.vbgramg_ledger_audit/);
   assert.match(migration, /'automatic_fifo_allocation'/);
   assert.doesNotMatch(migration, /UPDATE public\.vbgramg_charge_ledger\s+SET amount/);

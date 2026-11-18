@@ -720,6 +720,9 @@ begin
     perform pg_catalog.pg_advisory_xact_lock(
       pg_catalog.hashtextextended('contribution:' || v_card || ':' || v_initial_batch.period_id::text, 0)
     );
+    perform pg_catalog.pg_advisory_xact_lock(
+      pg_catalog.hashtextextended('contribution-exemption:' || v_card, 0)
+    );
   end loop;
 
   -- Lock the existing round after card/round advisory locks and before the batch,

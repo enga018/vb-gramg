@@ -9,7 +9,7 @@ const migration = fs.readFileSync(
 );
 
 test("payment allocation uniqueness includes allocation source", () => {
-  assert.match(migration, /DROP INDEX IF EXISTS public\.vbgramg_payment_allocations_transaction_id_period_id_key/);
+  assert.match(migration, /ALTER TABLE public\.vbgramg_payment_allocations[\s\S]*?DROP CONSTRAINT IF EXISTS vbgramg_payment_allocations_transaction_id_period_id_key/);
   assert.match(migration, /CREATE UNIQUE INDEX vbgramg_payment_allocations_transaction_period_source_key[\s\S]*?\(transaction_id, period_id, allocation_source\)/);
 });
 

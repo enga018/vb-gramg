@@ -59,6 +59,7 @@ GRANT INSERT ON public.vbgramg_fto_status_history TO service_role;
 
 \ir ../supabase/migrations/20261118170000_add_atomic_deferred_fto_recheck.sql
 \ir ../supabase/migrations/20261118190000_add_deferred_fto_recheck_audit.sql
+\ir ../supabase/migrations/20261118193000_add_deferred_fto_recheck_run_rpcs.sql
 
 INSERT INTO auth.users(id,email)
 VALUES ('11111111-1111-4111-8111-111111111111','admin@example.test');
@@ -275,3 +276,111 @@ BEGIN
   END;
 END
 $$;
+
+
+-- Exercise run lifecycle RPCs and the atomic success-attempt wrapper.
+SET ROLE service_role;
+DO $$
+DECLARE
+  v_actor uuid := '11111111-1111-4111-8111-111111111111';
+  v_run_id uuid;
+  v_result jsonb;
+  v_count integer;
+BEGIN
+  v_run_id := public.vbgramg_start_fto_recheck_run(v_actor, 1);
+
+  v_result := public.vbgramg_recheck_deferred_ftos_with_run(
+    '{
+      "ftos":[{
+        "ftoNumber":"TEST-DEFERRED-001",
+        "rows":[
+          {"referenceNo":"REF001","normalizedStatus":"processed"},
+          {"referenceNo":"REF002","normalizedStatus":"processed"},
+          {"referenceNo":"REF003","normalizedStatus":"blank"},
+          {"referenceNo":"REF004","normalizedStatus":"rejected"},
+          {"referenceNo":"REF005","normalizedStatus":"rejected"}
+        ]
+      }]
+    }'::jsonb,
+    v_actor,
+    v_run_id
+  );
+
+  IF (v_result->>'fto_count')::integer <> 1 THEN
+    RAISE EXCEPTION 'Run wrapper did not return the successful FTO reconciliation result';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.vbgramg_fto_recheck_attempts
+  WHERE run_id = v_run_id
+    AND batch_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+    AND status = 'success'
+    AND stage = 'reconciliation'
+    AND result ? 'updated_count';
+
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Successful reconciliation and attempt were not committed together';
+  END IF;
+
+  v_result := public.vbgramg_complete_fto_recheck_run(
+    v_run_id, v_actor, 1, 0, 'completed', null
+  );
+
+  IF v_result->>'status' <> 'completed'
+     OR (v_result->>'successful_ftos')::integer <> 1 THEN
+    RAISE EXCEPTION 'Successful run was not finalized with accurate totals: %', v_result;
+  END IF;
+
+  -- A listing-level failure has no FTO attempt records, even if eligible FTOs
+  -- were known before the Government listing fetch was attempted.
+  v_run_id := public.vbgramg_start_fto_recheck_run(v_actor, 1);
+  v_result := public.vbgramg_complete_fto_recheck_run(
+    v_run_id, v_actor, 0, 0, 'failed',
+    'Government FTO listing could not be fetched or validated.'
+  );
+
+  IF v_result->>'status' <> 'failed'
+     OR (v_result->>'attempted_ftos')::integer <> 0
+     OR (v_result->>'total_ftos')::integer <> 1 THEN
+    RAISE EXCEPTION 'Run-level listing failure totals are incorrect: %', v_result;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.vbgramg_fto_recheck_attempts
+  WHERE run_id = v_run_id;
+
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'Listing-level failure unexpectedly created FTO attempt records';
+  END IF;
+
+  -- An individual FTO failure is recorded separately and contributes to the
+  -- finalized failed count.
+  v_run_id := public.vbgramg_start_fto_recheck_run(v_actor, 1);
+  PERFORM public.vbgramg_record_fto_recheck_failure(
+    v_run_id,
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    v_actor,
+    'detail_fetch',
+    'Government detail page could not be retrieved.'
+  );
+
+  v_result := public.vbgramg_complete_fto_recheck_run(
+    v_run_id, v_actor, 0, 1, 'failed', null
+  );
+
+  IF (v_result->>'failed_ftos')::integer <> 1 THEN
+    RAISE EXCEPTION 'Individual FTO failure was not included in run totals';
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM public.vbgramg_fto_recheck_attempts
+  WHERE run_id = v_run_id
+    AND status = 'failed'
+    AND stage = 'detail_fetch';
+
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Individual FTO failure attempt was not persisted';
+  END IF;
+END
+$$;
+RESET ROLE;

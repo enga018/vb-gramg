@@ -1116,7 +1116,19 @@ function renderCoRevisionPreview(data){
   addCheck("Payment and waiver allocations",validation.payment_and_waiver_allocations?.checked===0?"No affected job cards had allocations to validate.":Number(validation.payment_and_waiver_allocations?.checked||0).toLocaleString("en-IN")+" job cards checked · "+(validation.payment_and_waiver_allocations?.passed?"within revised eligible charges":"one or more checks failed"),validation.payment_and_waiver_allocations?.passed===true);
   addCheck("Direct charge-level allocations",validation.charge_level_allocations?.checked===0?"No affected job cards had direct charge allocations to validate.":Number(validation.charge_level_allocations?.checked||0).toLocaleString("en-IN")+" job cards checked · "+(validation.charge_level_allocations?.passed?"within revised FTO charges":"one or more checks failed"),validation.charge_level_allocations?.passed===true);
   addCheck("Legacy waiver links",validation.unlinked_waivers?.checked===0?"No unlinked legacy waivers found.":Number(validation.unlinked_waivers?.checked||0).toLocaleString("en-IN")+" job cards checked · "+(validation.unlinked_waivers?.passed?"no unresolved unlinked waivers":"unlinked waivers need review"),validation.unlinked_waivers?.passed===true);
+  addCheck("Automatic FIFO rebuild",validation.charge_level_fifo_rebuild?.checked===0?"No affected Job Cards required a FIFO rebuild.":Number(validation.charge_level_fifo_rebuild?.checked||0).toLocaleString("en-IN")+" job cards checked · "+coMoney(validation.charge_level_fifo_rebuild?.fifo_allocated_total||0)+" will be allocated automatically",validation.charge_level_fifo_rebuild?.passed===true);
   const count=document.createElement("p");count.className="muted";count.textContent=Number(validation.job_cards_checked||0).toLocaleString("en-IN")+" unique job cards checked across these safeguards.";root.append(checks,count);
+ }
+ if(Array.isArray(data.fifo_rebuilds)&&data.fifo_rebuilds.length){
+  const section=document.createElement("div");section.className="co-revision-checks";
+  const heading=document.createElement("strong");heading.textContent="Charge-level FIFO allocation preview";section.appendChild(heading);
+  for(const item of data.fifo_rebuilds){
+   const line=document.createElement("p");line.className="muted";
+   line.textContent=String(item.job_card_number||"")+" · "+(item.status==="exempt"?"Exempt — no automatic allocation":Number(item.auto_allocation_count||0).toLocaleString("en-IN")+" automatic rows · "+coMoney(item.fifo_allocated_total||0));
+   section.appendChild(line);
+  }
+  const note=document.createElement("p");note.className="muted";note.textContent="Apply replaces only automatic charge-level FIFO rows. Manual/reviewed allocations and legacy period-level allocations remain unchanged.";
+  section.appendChild(note);root.appendChild(section);
  }
  if(Array.isArray(data.blocked_reasons)&&data.blocked_reasons.length){
   const blocked=document.createElement("div");blocked.className="co-revision-blocked";const heading=document.createElement("strong");heading.textContent="Cannot apply this revision yet";const list=document.createElement("ul");
@@ -1157,7 +1169,7 @@ async function applyFtoCoCalculation(){
  const reason=$("fto-co-reason").value.trim();
  if(reason.length<10){coRevisionStatus("Enter a reason with at least 10 characters for this revision.","error");$("fto-co-reason").focus();return;}
  if(Number($("fto-co-divisor").value)!==Number(preview.divisor)||Number($("fto-co-multiplier").value)!==Number(preview.multiplier)){invalidateCoRevisionPreview();return;}
- if(!window.confirm("Apply the revised CO calculation to FTO "+String(batch.fto_number||"")+"? Existing payment allocations will remain unchanged."))return;
+ if(!window.confirm("Apply the revised CO calculation to FTO "+String(batch.fto_number||"")+"? Automatic charge-level FIFO allocations will be rebuilt. Manual/reviewed and legacy period allocations will remain unchanged."))return;
  $("fto-co-apply").disabled=true;$("fto-co-apply").textContent="Applying…";
  try{
   const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{
@@ -1167,11 +1179,12 @@ async function applyFtoCoCalculation(){
    expected_charge_period:preview.expected_charge_period,
    expected_last_checked_at:preview.expected_last_checked_at,
    expected_last_deferred_recheck_at:preview.expected_last_deferred_recheck_at,
+   expected_allocation_fingerprint:preview.allocation_fingerprint,
    reason
   },deduplicate:false,timeoutMs:false});
   if(error||!data||data.error)throw new Error((data&&data.error)||(error&&error.message)||"Could not apply the CO calculation revision.");
   closeFtoCoModal();await loadFtoHistory();
-  historyMessage(data.unchanged?"The CO calculation is unchanged.":"Updated FTO "+String(batch.fto_number||"")+". "+Number(data.transactions_changed||0)+" transactions recalculated; "+Number(data.ledger_updated||0)+" ledger charges updated. Payment allocations were preserved.","success");
+  historyMessage(data.unchanged?"The CO calculation is unchanged.":"Updated FTO "+String(batch.fto_number||"")+". "+Number(data.transactions_changed||0)+" transactions recalculated; "+Number(data.ledger_updated||0)+" ledger charges updated. Automatic FIFO allocations rebuilt; manual/reviewed and legacy period allocations preserved.","success");
  }catch(err){coRevisionStatus(err.message||"Could not apply the CO calculation revision.","error");$("fto-co-apply").disabled=false;}
  finally{$("fto-co-apply").textContent="Apply Calculation";}
 }

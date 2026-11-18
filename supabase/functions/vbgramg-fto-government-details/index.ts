@@ -105,11 +105,11 @@ function validateGovernmentTransactions(transactions: Record<string, any>[], lis
     const ref = String(tx.referenceNumber || "").trim().toUpperCase();
     if (ref && refs.has(ref)) errors.push(label + ": duplicate Reference Number " + ref + ".");
     if (ref) refs.add(ref);
-    if (!tx.amountToBeCredited) errors.push(label + ": missing or invalid Amount to be Credited.");
+    if (!tx.creditAmount) errors.push(label + ": missing or invalid Credit Amount.");
     if (!tx.creditAmount) errors.push(label + ": missing or invalid Credit Amount.");
     if (tx.normalizedStatus === "other") errors.push(label + ": unrecognized Government status.");
   }
-  const sum = (rows: Record<string, any>[]) => rows.reduce((n, tx) => n + Number(tx.amountToBeCredited || 0), 0);
+  const sum = (rows: Record<string, any>[]) => rows.reduce((n, tx) => n + Number(tx.creditAmount || 0), 0);
   const countAt = (i: number) => { const v=String(listingRow[i]??"").replace(/,/g,"").trim(); return /^\d+$/.test(v)?Number(v):null; };
   const amountAt = (i: number) => { const v=String(listingRow[i]??"").replace(/[₹,\s]/g,""); return /^\d+(?:\.\d+)?$/.test(v)?Number(v):null; };
   const checks = [
@@ -208,7 +208,7 @@ async function getPage(url: string, ftoNumber: string) {
       status: normalizedStatus === "blank" ? "deferred" : normalizedStatus,
       normalizedStatus,
       governmentStatus: rawStatus || "blank",
-      amount: row[amountToBeCredited] || "",
+      amount: row[creditAmount] || "",
       jobCardNo: jobCardNumber,
       referenceNo: referenceNumber,
       amountToBeCredited: parseGovernmentAmount(row[amountToBeCredited] || ""),

@@ -93,3 +93,11 @@ test("active recheck runs heartbeat and stale runs are recovered before a new ru
   assert.match(source, /admin\.rpc\("vbgramg_heartbeat_fto_recheck_run"/);
   assert.match(source, /for\(const batch of eligible\)[\s\S]*?heartbeatError/);
 });
+
+test("recheck pages imported batches, deferred transactions, and stored FTO rows", () => {
+  assert.match(source, /const pageSize=500/);
+  assert.match(source, /from\("vbgramg_fto_batches"\)[\s\S]*?\.order\("id",\{ascending:true\}\)\.range\(offset,offset\+pageSize-1\)/);
+  assert.match(source, /from\("vbgramg_fto_transactions"\)[\s\S]*?\.eq\("status","blank"\)[\s\S]*?\.order\("id",\{ascending:true\}\)\.range\(pageOffset,pageOffset\+pageSize-1\)/);
+  assert.match(source, /\.eq\("batch_id",batch\.id\)[\s\S]*?\.order\("id",\{ascending:true\}\)\.range\(pageOffset,pageOffset\+pageSize-1\)/);
+  assert.match(source, /if\(!page\|\|page\.length<pageSize\) break/);
+});

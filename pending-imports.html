@@ -141,6 +141,19 @@ function openFinalReview(){
  if(!currentFtoNumber||!currentTransactions.length)issues.push("No Pending FTO is open.");
  if(!selectedContributionPeriod())issues.push("Select an open Contribution Period.");
  if(currentCalculations.length!==currentTransactions.length)issues.push("Calculate CO after the latest period and formula changes.");\n if(!reconciliationPreview)issues.push("Run the existing contribution charge review.");\n if(reconciliationPreview?.blocked)issues.push("Resolve blocking duplicate or conflicting FTO issues before import.");
+ if(reconciliationPreview){
+  for(const review of reconciliationPreview.manual_charge_reviews||[]){
+   if(review.resolution!=="choose_link_or_keep_separate")continue;
+   const action=manualChargeDecisions.get(review.job_card_number);
+   if(!action){issues.push("Choose how to handle the manual charge for "+review.job_card_number+".");continue;}
+   const charge=review.manual_charges?.[0];
+   if(action==="link"&&charge?.requires_applicant_selection){
+    const selected=manualChargeDecisions.get(review.job_card_number+"_applicant");
+    if(selected===undefined||selected==="")issues.push("Select an Active MIS applicant for linking "+review.job_card_number+".");
+   }
+   if(action==="link"&&charge?.amount_differs&&!manualAmountConfirmations.has(review.job_card_number))issues.push("Confirm the amount difference for "+review.job_card_number+".");
+  }
+ }
  let mappingCount=0,replacementCount=0;
  for(const [card,match] of currentApplicantMatches){
   const index=match.selected_index!==undefined?match.selected_index:(match.candidates||[]).findIndex(candidate=>sameApplicant(candidate,match.suggested_applicant));

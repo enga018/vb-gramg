@@ -1,7 +1,8 @@
 -- Allow payment allocations from different sources to coexist for one payment/period.
 -- Preserve existing rows; source-aware replacement and FIFO upsert remain atomic.
 
-DROP INDEX IF EXISTS public.vbgramg_payment_allocations_transaction_id_period_id_key;
+ALTER TABLE public.vbgramg_payment_allocations
+  DROP CONSTRAINT IF EXISTS vbgramg_payment_allocations_transaction_id_period_id_key;
 
 CREATE UNIQUE INDEX vbgramg_payment_allocations_transaction_period_source_key
   ON public.vbgramg_payment_allocations

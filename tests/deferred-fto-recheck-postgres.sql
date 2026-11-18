@@ -181,3 +181,96 @@ END
 $$;
 
 RESET ROLE;
+
+
+-- Verify the new run/attempt audit schema, referential integrity, and API isolation.
+DO $$
+DECLARE
+  v_run_id uuid;
+  v_attempt_id uuid;
+  v_count integer;
+BEGIN
+  IF NOT (
+    SELECT c.relrowsecurity
+    FROM pg_catalog.pg_class c
+    JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relname = 'vbgramg_fto_recheck_runs'
+  ) THEN
+    RAISE EXCEPTION 'RLS is not enabled on recheck runs';
+  END IF;
+
+  IF NOT (
+    SELECT c.relrowsecurity
+    FROM pg_catalog.pg_class c
+    JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relname = 'vbgramg_fto_recheck_attempts'
+  ) THEN
+    RAISE EXCEPTION 'RLS is not enabled on recheck attempts';
+  END IF;
+
+  IF has_table_privilege('anon', 'public.vbgramg_fto_recheck_runs', 'SELECT')
+     OR has_table_privilege('authenticated', 'public.vbgramg_fto_recheck_runs', 'SELECT')
+     OR has_table_privilege('service_role', 'public.vbgramg_fto_recheck_runs', 'SELECT') THEN
+    RAISE EXCEPTION 'Recheck run table unexpectedly has direct API read grants';
+  END IF;
+
+  IF has_table_privilege('anon', 'public.vbgramg_fto_recheck_attempts', 'SELECT')
+     OR has_table_privilege('authenticated', 'public.vbgramg_fto_recheck_attempts', 'SELECT')
+     OR has_table_privilege('service_role', 'public.vbgramg_fto_recheck_attempts', 'SELECT') THEN
+    RAISE EXCEPTION 'Recheck attempt table unexpectedly has direct API read grants';
+  END IF;
+
+  INSERT INTO public.vbgramg_fto_recheck_runs (
+    status, total_ftos, actor
+  ) VALUES (
+    'running', 1, '11111111-1111-4111-8111-111111111111'
+  ) RETURNING id INTO v_run_id;
+
+  INSERT INTO public.vbgramg_fto_recheck_attempts (
+    run_id, batch_id, status, stage, result, actor
+  ) VALUES (
+    v_run_id,
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    'success',
+    'reconciliation',
+    '{"updated_count":2,"still_deferred_count":1,"unchanged_count":2}'::jsonb,
+    '11111111-1111-4111-8111-111111111111'
+  ) RETURNING id INTO v_attempt_id;
+
+  UPDATE public.vbgramg_fto_recheck_runs
+  SET status = 'completed',
+      completed_at = clock_timestamp(),
+      successful_ftos = 1
+  WHERE id = v_run_id;
+
+  SELECT count(*) INTO v_count
+  FROM public.vbgramg_fto_recheck_attempts
+  WHERE id = v_attempt_id
+    AND run_id = v_run_id
+    AND batch_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+    AND status = 'success'
+    AND result->>'updated_count' = '2';
+
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'Could not persist and retrieve a successful FTO attempt';
+  END IF;
+
+  BEGIN
+    INSERT INTO public.vbgramg_fto_recheck_attempts (
+      run_id, batch_id, status, stage, error_message, actor
+    ) VALUES (
+      v_run_id,
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      'failed',
+      'detail_fetch',
+      'Duplicate attempt should fail',
+      '11111111-1111-4111-8111-111111111111'
+    );
+    RAISE EXCEPTION 'Duplicate FTO attempt in one run should have been rejected';
+  EXCEPTION WHEN unique_violation THEN
+    NULL;
+  END;
+END
+$$;

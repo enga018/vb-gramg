@@ -1,3 +1,13 @@
+-- Persist a dedicated deferred-recheck timestamp and per-FTO result summary.
+alter table public.vbgramg_fto_batches
+  add column if not exists last_deferred_recheck_at timestamptz,
+  add column if not exists last_deferred_recheck_result jsonb;
+
+comment on column public.vbgramg_fto_batches.last_deferred_recheck_at
+  is 'Timestamp of the most recent successful full Government-table deferred recheck.';
+comment on column public.vbgramg_fto_batches.last_deferred_recheck_result
+  is 'Counts from the most recent successful full Government-table deferred recheck.';
+
 -- Atomic reconciliation of already-imported Government FTO transactions.
 -- Only existing Deferred (blank) transactions may change status. No transaction
 -- or ledger rows are inserted, and Processed/Rejected records are immutable here.
@@ -33,6 +43,10 @@ declare
   v_seen_ftos text[] := array[]::text[];
   v_seen_refs text[];
   v_results jsonb := '[]'::jsonb;
+  v_fto_updated_start integer;
+  v_fto_deferred_start integer;
+  v_fto_unchanged_start integer;
+  v_fto_result jsonb;
 begin
   if p_payload is null
      or jsonb_typeof(p_payload) <> 'object'
@@ -141,6 +155,9 @@ begin
     select e.value from jsonb_array_elements(p_payload->'ftos') as e(value)
   loop
     v_fto_number := btrim(v_fto->>'ftoNumber');
+    v_fto_updated_start := v_updated;
+    v_fto_deferred_start := v_still_deferred;
+    v_fto_unchanged_start := v_unchanged;
     select b.id into v_batch_id
     from public.vbgramg_fto_batches b
     where upper(btrim(b.fto_number)) = upper(v_fto_number);
@@ -197,13 +214,22 @@ begin
       end if;
     end loop;
 
+    v_fto_result := jsonb_build_object(
+      'updated_count', v_updated - v_fto_updated_start,
+      'still_deferred_count', v_still_deferred - v_fto_deferred_start,
+      'unchanged_count', v_unchanged - v_fto_unchanged_start
+    );
+
     update public.vbgramg_fto_batches
-    set last_checked_at = pg_catalog.clock_timestamp()
+    set last_checked_at = pg_catalog.clock_timestamp(),
+        last_deferred_recheck_at = pg_catalog.clock_timestamp(),
+        last_deferred_recheck_result = v_fto_result
     where id = v_batch_id;
 
     v_results := v_results || jsonb_build_array(jsonb_build_object(
       'fto_number', v_fto_number,
-      'batch_id', v_batch_id
+      'batch_id', v_batch_id,
+      'result', v_fto_result
     ));
   end loop;
 

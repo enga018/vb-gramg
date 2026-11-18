@@ -156,7 +156,7 @@ function openFinalReview(){
  }
  let mappingCount=0,replacementCount=0;
  for(const [card,match] of currentApplicantMatches){
-  const index=match.selected_index!==undefined?match.selected_index:(match.candidates||[]).findIndex(candidate=>sameApplicant(candidate,match.suggested_applicant));
+  const index=match.selected_index!==undefined?(match.selected_index===null?-1:match.selected_index):(match.candidates||[]).findIndex(candidate=>sameApplicant(candidate,match.suggested_applicant));
   const chosen=(match.candidates||[])[index];
   if(!chosen){issues.push("Select an Active MIS applicant for "+card+".");continue;}
   mappingCount++;
@@ -174,7 +174,7 @@ function openFinalReview(){
  details.push("<p><strong>Total CO:</strong> "+(total===null?"Not calculated":"₹"+total.toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2}))+"</p>");
  details.push("<p><strong>Saved mapping replacements confirmed:</strong> "+replacementCount+"</p>");\n details.push("<p><strong>Manual charge decisions:</strong> "+(reconciliationPreview?(reconciliationPreview.manual_charge_reviews||[]).length:"Not reviewed")+"</p>");
  details.push("<p><strong>Readiness:</strong> "+(issues.length?"Not ready":"All review checks passed")+"</p>");
- details.push(issues.length?"<ul>"+issues.map(issue=>"<li>"+escapeHtml(issue)+"</li>").join("")+"</ul>":"<p>Applicant selections, period, and CO calculation are complete. This is a review confirmation only; it does not import the FTO.</p>");
+ details.push(issues.length?"<ul>"+issues.map(issue=>"<li>"+escapeHtml(issue)+"</li>").join("")+"</ul>":"<p>Applicant selections, period, CO calculation, and reconciliation checks are complete. Confirm below to enable Import FTO.</p>");
  $("final-review-content").innerHTML=details.join("");
  $("final-review-status").textContent=issues.length?"Resolve the items above before confirming.":"Review checklist complete. Confirm the checklist to enable Import FTO.";
  $("final-review-confirm").disabled=issues.length>0;
@@ -218,7 +218,7 @@ async function saveApplicantMappings(){
  if(!currentFtoNumber||!currentApplicantMatches.size){status("detail-status","Open a Pending FTO before saving.","error");return;}
  const applicant_mappings=[],confirm_mapping_replacements=[];
  for(const [card,match] of currentApplicantMatches){
-  const index=match.selected_index!==undefined?match.selected_index:(match.candidates||[]).findIndex(candidate=>match.suggested_applicant&&((match.suggested_applicant.applicant_unique_id&&candidate.applicant_unique_id===match.suggested_applicant.applicant_unique_id)||(!match.suggested_applicant.applicant_unique_id&&candidate.applicant_name===match.suggested_applicant.applicant_name&&String(candidate.applicant_number||"")===String(match.suggested_applicant.applicant_number||""))));
+  const index=match.selected_index!==undefined?(match.selected_index===null?-1:match.selected_index):(match.candidates||[]).findIndex(candidate=>match.suggested_applicant&&((match.suggested_applicant.applicant_unique_id&&candidate.applicant_unique_id===match.suggested_applicant.applicant_unique_id)||(!match.suggested_applicant.applicant_unique_id&&candidate.applicant_name===match.suggested_applicant.applicant_name&&String(candidate.applicant_number||"")===String(match.suggested_applicant.applicant_number||""))));
   const chosen=(match.candidates||[])[index];
   if(!chosen){status("detail-status","Select an Active MIS applicant for every Job Card before saving.","error");return;}
   applicant_mappings.push({job_card_number:card,applicant_name:chosen.applicant_name,applicant_number:chosen.applicant_number,applicant_unique_id:chosen.applicant_unique_id});
@@ -238,7 +238,7 @@ async function importPendingFto(){
  if(!reconciliationPreview||reconciliationPreview.blocked){status("detail-status","Resolve the reconciliation blockers and run the preview again.","error");return;}
  const applicant_mappings=[];
  for(const [card,match] of currentApplicantMatches){
-  const index=match.selected_index!==undefined?match.selected_index:(match.candidates||[]).findIndex(candidate=>sameApplicant(candidate,match.suggested_applicant));
+  const index=match.selected_index!==undefined?(match.selected_index===null?-1:match.selected_index):(match.candidates||[]).findIndex(candidate=>sameApplicant(candidate,match.suggested_applicant));
   const chosen=(match.candidates||[])[index];
   if(!chosen){status("detail-status","Select an Active MIS applicant for every Job Card.","error");return;}
   applicant_mappings.push({job_card_number:card,applicant_name:chosen.applicant_name,applicant_number:chosen.applicant_number,applicant_unique_id:chosen.applicant_unique_id});

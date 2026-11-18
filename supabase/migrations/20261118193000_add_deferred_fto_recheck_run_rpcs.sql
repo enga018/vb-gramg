@@ -86,8 +86,10 @@ begin
   -- PostgreSQL transaction: any error rolls back both.
   v_result := public.vbgramg_recheck_deferred_ftos(p_payload, p_actor);
 
-  if jsonb_typeof(v_result->'batches') is distinct from 'array'
-     or jsonb_array_length(v_result->'batches') = 0 then
+  if jsonb_typeof(v_result->'batches') is distinct from 'array' then
+    raise exception 'The FTO reconciliation returned no per-FTO results.';
+  end if;
+  if jsonb_array_length(v_result->'batches') = 0 then
     raise exception 'The FTO reconciliation returned no per-FTO results.';
   end if;
 
@@ -173,9 +175,17 @@ begin
   end if;
 
   if not exists (
-    select 1 from public.vbgramg_fto_batches b where b.id = p_batch_id
+    select 1
+    from public.vbgramg_fto_batches b
+    where b.id = p_batch_id
+      and exists (
+        select 1
+        from public.vbgramg_fto_transactions tx
+        where tx.batch_id = b.id
+          and lower(btrim(coalesce(tx.status, ''))) = 'blank'
+      )
   ) then
-    raise exception 'The FTO batch for this failed attempt does not exist.';
+    raise exception 'The FTO batch does not exist or has no Deferred transactions eligible for recheck.';
   end if;
 
   select count(*)::integer into v_attempt_count

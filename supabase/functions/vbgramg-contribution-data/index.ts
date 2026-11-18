@@ -969,7 +969,7 @@ Deno.serve(async(req:Request)=>{
     transaction_date:tx.transactionDate||null,processed_date:tx.processedDate||null,
     amount_to_be_credited:tx.amountToBeCredited??null,credit_amount:tx.creditAmount,
     status:String(tx.normalizedStatus||tx.status||"").trim().toLowerCase(),
-    rejection_reason:tx.rejectionReason||null,source_row:{}
+    rejection_reason:tx.rejectionReason||null,source_row:tx.sourceRow&&typeof tx.sourceRow==="object"?tx.sourceRow:{}
    }));
    const divisor=Number(body.divisor),multiplier=Number(body.multiplier);
    if(!Number.isFinite(divisor)||divisor<=0||!Number.isFinite(multiplier)||multiplier<=0)return reply({error:"Enter valid positive CO formula values."},400);
@@ -1397,7 +1397,13 @@ Deno.serve(async(req:Request)=>{
     if(!normalizedName)continue;
     mappingRows.push({job_card_number:card,normalized_fto_name:normalizedName,government_applicant_name:governmentName,applicant_name:chosen.applicant_name,applicant_number:chosen.applicant_number,applicant_unique_id:chosen.applicant_unique_id,confirmed_by:authData.user.id,confirmed_at:new Date().toISOString(),updated_at:new Date().toISOString()});
    }
-   if(mappingRows.length){const {error:mappingSaveError}=await admin.from("vbgramg_fto_applicant_mappings").upsert(mappingRows,{onConflict:"job_card_number,normalized_fto_name"});if(mappingSaveError)throw mappingSaveError;}
+   if(mappingRows.length){
+    const {error:mappingSaveError}=await admin.from("vbgramg_fto_applicant_mappings").upsert(mappingRows,{onConflict:"job_card_number,normalized_fto_name"});
+    if(mappingSaveError){
+     console.error("FTO snapshot committed; applicant mapping persistence failed:",mappingSaveError);
+     return reply({error:"FTO snapshot committed, but confirmed applicant mappings could not be saved. Do not re-import this FTO. Administrator review is required.",snapshot_committed:true,mapping_save_failed:true},500);
+    }
+   }
    // The atomic snapshot has committed. Any verification/repair failure below must
    // explicitly tell the caller not to retry the import as a fresh snapshot.
    try{

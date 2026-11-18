@@ -11,7 +11,7 @@ header{display:flex;justify-content:space-between;align-items:center;gap:14px;fl
 button,.link{font:inherit;font-size:.9rem;font-weight:650;border:1px solid transparent;border-radius:10px;min-height:40px;padding:9px 14px;background:var(--ink);color:white;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
 button.secondary,.link.secondary{background:#f0f3f8;color:#344054;border-color:#e0e6ef}
 .status{margin:14px 0;padding:11px 13px;border:1px solid #e5eaf2;border-radius:10px;background:#f7f9fc;color:#475467;font-size:.88rem;line-height:1.45;white-space:pre-wrap}.status.error{background:#fff4f2;border-color:#ffd8d2;color:#a12b20}
-.hidden{display:none!important}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px;margin-top:14px}table{border-collapse:collapse;width:100%;font-size:.9rem}th,td{text-align:left;padding:12px 13px;border-bottom:1px solid #edf0f5;vertical-align:middle}th{background:#f5f7fb;color:#5b6577;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em}tr:last-child td{border-bottom:0}.num{font-variant-numeric:tabular-nums}.detail-head{display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap}.detail-table{max-height:60vh;overflow:auto}.empty{padding:28px;text-align:center;color:var(--muted)}
+.hidden{display:none!important}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px;margin-top:14px}table{border-collapse:collapse;width:100%;font-size:.9rem}th,td{text-align:left;padding:12px 13px;border-bottom:1px solid #edf0f5;vertical-align:middle}th{background:#f5f7fb;color:#5b6577;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em}tr:last-child td{border-bottom:0}.num{font-variant-numeric:tabular-nums}.detail-head{display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap}.detail-table{max-height:60vh;overflow:auto}.empty{padding:28px;text-align:center;color:var(--muted)}.review-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0}.review-controls label{display:block;font-size:.84rem;font-weight:650;margin-bottom:6px}.review-controls input,.review-controls select{font:inherit;width:100%;min-height:42px;padding:9px 11px;border:1px solid #cfd7e4;border-radius:9px;background:#fff}.review-summary{padding:12px;border:1px solid var(--line);border-radius:10px;background:#f7f9fc;margin:12px 0}.review-summary strong{font-variant-numeric:tabular-nums}@media(max-width:650px){.review-controls{grid-template-columns:1fr}}
 @media(max-width:650px){body{padding:10px}header,.panel{padding:15px}th,td{padding:10px 9px;font-size:.82rem}}
 </style>
 </head>
@@ -19,7 +19,7 @@ button.secondary,.link.secondary{background:#f0f3f8;color:#344054;border-color:#
 <header><div><h1>Pending Imports</h1><p>Continue FTOs from their saved inspection. Government details are not fetched again.</p></div><div class="actions"><a class="link secondary" href="./fto.html">FTO History</a><a class="link secondary" href="./fto-government-fetch.html">New FTO Import</a><button id="refresh" type="button">Refresh</button></div></header>
 <section class="panel" id="access-panel"><h2>Administrator access</h2><p>Sign in with an approved VBGRAMG administrator account.</p><div id="access-status" class="status">Checking your session…</div></section>
 <section class="panel hidden" id="app-panel"><h2>Inspected FTOs awaiting import</h2><p>Only eligible, unimported FTOs are shown. Transaction counts are revalidated against the latest Active MIS whenever this page is refreshed or an FTO is opened.</p><div id="list-status" class="status">Loading Pending Imports…</div><div class="table-wrap"><table><thead><tr><th>FTO Number</th><th>Government Rows</th><th>Eligible Rows</th><th>Unmatched</th><th>Inspected On</th><th></th></tr></thead><tbody id="pending-rows"></tbody></table><div id="empty" class="empty hidden">There are no FTOs waiting in Pending Imports.</div></div></section>
-<section class="panel hidden" id="detail-panel"><div class="detail-head"><div><h2 id="detail-title">FTO details</h2><p id="detail-summary"></p></div><div><button id="save-mappings" type="button">Save applicant matches</button> <button id="close-detail" class="secondary" type="button">Back to list</button></div></div><div id="detail-status" class="status">Loading saved inspection…</div><div class="table-wrap detail-table"><table><thead><tr><th>Job Card</th><th>Government Applicant</th><th>Active MIS Applicant</th><th>Reference No.</th><th>Credit Amount</th><th>Status</th><th>Transaction Date</th></tr></thead><tbody id="detail-rows"></tbody></table></div><p>These are saved Government rows revalidated against the latest Active MIS. Applicant matching, Contribution period selection, CO calculation, and final import controls are the next workflow step.</p></section>
+<section class="panel hidden" id="detail-panel"><div class="detail-head"><div><h2 id="detail-title">FTO details</h2><p id="detail-summary"></p></div><div><button id="save-mappings" type="button">Save applicant matches</button> <button id="close-detail" class="secondary" type="button">Back to list</button></div></div><div id="detail-status" class="status">Loading saved inspection…</div><div class="review-controls"><div><label for="contribution-period">Contribution Period</label><select id="contribution-period" disabled><option value="">Loading periods…</option></select></div><div><label for="co-divisor">CO Divisor</label><input id="co-divisor" type="number" min="0.01" step="any" value="300"></div><div><label for="co-multiplier">CO Multiplier</label><input id="co-multiplier" type="number" min="0.01" step="any" value="100"></div></div><div class="review-summary" id="calculation-summary">Select an open Contribution Period and calculate CO to preview charges.</div><div class="actions"><button id="calculate-co" type="button">Calculate CO</button></div><div class="table-wrap detail-table"><table><thead><tr><th>Job Card</th><th>Government Applicant</th><th>Active MIS Applicant</th><th>Reference No.</th><th>Credit Amount</th><th>Calculated CO</th><th>Status</th><th>Transaction Date</th></tr></thead><tbody id="detail-rows"></tbody></table></div><p>These are saved Government rows revalidated against the latest Active MIS. Applicant matching, Contribution period selection, CO calculation, and final import controls are the next workflow step.</p></section>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./js/supabase-client.js?v=20261117a"></script>
@@ -28,7 +28,7 @@ button.secondary,.link.secondary{background:#f0f3f8;color:#344054;border-color:#
 (function(){
 "use strict";
 const $=id=>document.getElementById(id),client=window.vbgramgSupabase;
-let authSequence=0,currentApplicantMatches=new Map(),currentFtoNumber="";
+let authSequence=0,currentApplicantMatches=new Map(),currentFtoNumber="",currentTransactions=[],currentCalculations=[],sharedPeriods=[];
 function status(id,message,type){const el=$(id);el.textContent=message;el.className="status"+(type?" "+type:"");}
 function cell(row,value){const td=row.insertCell();td.textContent=value==null?"":String(value);return td;}
 function dateLabel(value){if(!value)return "—";const d=new Date(value);return Number.isNaN(d.getTime())?String(value):d.toLocaleString("en-IN");}
@@ -49,6 +49,56 @@ async function loadPending(){
  if(!(data.pending||[]).length)$("empty").classList.remove("hidden");
  status("list-status",(data.pending||[]).length+" FTO(s) ready to continue. No Government detail fetch was performed.","success");
 }
+function selectedContributionPeriod(){return sharedPeriods.find(period=>period.id===$("contribution-period").value)||null;}
+async function loadContributionPeriods(){
+ const select=$("contribution-period");select.disabled=true;
+ const {data,error}=await window.VBGRAMGData.request("vbgramg-periods",{body:{action:"list"}});
+ if(error||!data||data.approved!==true)throw new Error(data?.error||error?.message||"Could not load Contribution Periods.");
+ sharedPeriods=Array.isArray(data.periods)?data.periods:[];
+ const open=sharedPeriods.filter(period=>period.status==="open"&&period.contribution_month);
+ select.replaceChildren();const placeholder=document.createElement("option");placeholder.value="";placeholder.textContent=open.length?"Select an open Contribution Period":"No open Contribution Periods";select.append(placeholder);
+ for(const period of open){const option=document.createElement("option");option.value=period.id;option.textContent=period.period_name;select.append(option);}
+ select.disabled=false;
+}
+async function calculatePendingCO(){
+ if(!currentTransactions.length){status("detail-status","Open an FTO before calculating CO.","error");return;}
+ const period=selectedContributionPeriod(),divisor=Number($("co-divisor").value),multiplier=Number($("co-multiplier").value);
+ if(!period){status("detail-status","Select an open Contribution Period.","error");return;}
+ if(!Number.isFinite(divisor)||divisor<=0||!Number.isFinite(multiplier)||multiplier<=0){status("detail-status","Divisor and multiplier must be positive numbers.","error");return;}
+ const button=$("calculate-co");button.disabled=true;button.textContent="Calculating…";
+ try{
+  const rows=currentTransactions.map((tx,row_index)=>({row_index,credit_amount:tx.creditAmount,status:tx.status}));
+  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"calculate-fto-charges",divisor,multiplier,rows},timeoutMs:60000,deduplicate:false});
+  if(error||!data||data.approved!==true||!Array.isArray(data.calculations)||data.calculations.length!==currentTransactions.length)throw new Error(data?.error||error?.message||"The CO calculation was incomplete.");
+  currentCalculations=data.calculations.map((item,index)=>{if(Number(item.row_index)!==index||!Number.isFinite(Number(item.calculated_charge)))throw new Error("The CO calculation returned an invalid row.");return Number(item.calculated_charge);});
+  const total=currentCalculations.reduce((sum,value)=>sum+value,0);
+  $("calculation-summary").textContent="Period: "+period.period_name+" · Formula: Credit Amount ÷ "+divisor+" × "+multiplier+" · Total calculated CO: ₹"+total.toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2})+". Preview only; nothing has been imported.";
+  renderPendingTransactions();
+  status("detail-status","CO calculated successfully. Review the period, formula, and row amounts. No import has been performed.","success");
+ }catch(err){currentCalculations=[];$("calculation-summary").textContent="Calculation unavailable. "+(err.message||"Review the inputs and try again.");renderPendingTransactions();status("detail-status",err.message||"CO calculation failed.","error");}
+ finally{button.disabled=false;button.textContent="Calculate CO";}
+}
+function renderPendingTransactions(){
+ $("detail-rows").replaceChildren();
+ currentTransactions.forEach((tx,index)=>{
+  const tr=document.createElement("tr");cell(tr,tx.jobCardNumber);cell(tr,tx.personName);
+  const applicantCell=tr.insertCell(),card=String(tx.jobCardNumber||"").toUpperCase(),match=currentApplicantMatches.get(card);
+  if(!match){applicantCell.textContent="No Active MIS match";}else{
+   const select=document.createElement("select");select.setAttribute("aria-label","Active MIS applicant for "+card);
+   const placeholder=document.createElement("option");placeholder.value="";placeholder.textContent="Select applicant";select.append(placeholder);
+   (match.candidates||[]).forEach((candidate,candidateIndex)=>{const option=document.createElement("option");option.value=String(candidateIndex);option.textContent=candidate.applicant_name+(candidate.applicant_number?" · "+candidate.applicant_number:"")+" · "+candidate.match_percentage+"%";select.append(option);});
+   const selected=(match.candidates||[]).findIndex(candidate=>match.suggested_applicant&&((match.suggested_applicant.applicant_unique_id&&candidate.applicant_unique_id===match.suggested_applicant.applicant_unique_id)||(!match.suggested_applicant.applicant_unique_id&&candidate.applicant_name===match.suggested_applicant.applicant_name&&String(candidate.applicant_number||"")===String(match.suggested_applicant.applicant_number||""))));
+   select.value=match.selected_index!==undefined&&match.selected_index!==null?String(match.selected_index):(selected>=0?String(selected):"");
+   select.addEventListener("change",()=>{match.selected_index=select.value===""?null:Number(select.value);});applicantCell.append(select);
+   if(match.saved_mapping){const note=document.createElement("small");note.style.display="block";note.style.marginTop="6px";note.textContent="Saved mapping: "+match.saved_mapping.applicant_name;applicantCell.append(note);
+    const label=document.createElement("label"),confirm=document.createElement("input");confirm.type="checkbox";confirm.style.width="auto";confirm.style.minHeight="0";confirm.style.marginRight="6px";label.style.marginTop="7px";label.style.fontWeight="500";label.textContent="Confirm replacement";label.prepend(confirm);applicantCell.append(label);
+    confirm.checked=match.confirm_replacement===true;confirm.addEventListener("change",()=>{match.confirm_replacement=confirm.checked;});
+   }
+   if(match.reason){const note=document.createElement("small");note.style.display="block";note.style.marginTop="5px";note.textContent=match.reason;applicantCell.append(note);}
+  }
+  cell(tr,tx.referenceNumber);cell(tr,tx.creditAmount);cell(tr,currentCalculations.length?"₹"+currentCalculations[index].toFixed(2):"—");cell(tr,tx.status);cell(tr,tx.transactionDate);$("detail-rows").append(tr);
+ });
+}
 async function openPending(number){
  $("detail-panel").classList.remove("hidden");$("detail-title").textContent=number;
  $("detail-summary").textContent="Revalidating saved rows against the current Active MIS…";
@@ -58,25 +108,9 @@ async function openPending(number){
  if(error||!data||data.approved!==true){status("detail-status",data?.error||error?.message||"Could not open this FTO.","error");await loadPending();return;}
  $("detail-summary").textContent=Number(data.eligible_transaction_count||0)+" eligible rows · "+Number(data.unmatched_transaction_count||0)+" unmatched rows (count only)";
  currentFtoNumber=number;currentApplicantMatches=new Map((data.applicant_matches||[]).map(match=>[String(match.job_card_number||"").toUpperCase(),match]));
- for(const tx of data.transactions||[]){
-  const tr=document.createElement("tr");cell(tr,tx.jobCardNumber);cell(tr,tx.personName);
-  const applicantCell=tr.insertCell(),card=String(tx.jobCardNumber||"").toUpperCase(),match=currentApplicantMatches.get(card);
-  if(!match){applicantCell.textContent="No Active MIS match";}else{
-   const select=document.createElement("select");select.setAttribute("aria-label","Active MIS applicant for "+card);
-   const placeholder=document.createElement("option");placeholder.value="";placeholder.textContent="Select applicant";select.append(placeholder);
-   (match.candidates||[]).forEach((candidate,index)=>{const option=document.createElement("option");option.value=String(index);option.textContent=candidate.applicant_name+(candidate.applicant_number?" · "+candidate.applicant_number:"")+" · "+candidate.match_percentage+"%";select.append(option);});
-   const selected=(match.candidates||[]).findIndex(candidate=>match.suggested_applicant&&((match.suggested_applicant.applicant_unique_id&&candidate.applicant_unique_id===match.suggested_applicant.applicant_unique_id)||(!match.suggested_applicant.applicant_unique_id&&candidate.applicant_name===match.suggested_applicant.applicant_name&&String(candidate.applicant_number||"")===String(match.suggested_applicant.applicant_number||""))));
-   select.value=selected>=0?String(selected):"";
-   select.addEventListener("change",()=>{match.selected_index=select.value===""?null:Number(select.value);});
-   applicantCell.append(select);
-   if(match.saved_mapping){const note=document.createElement("small");note.style.display="block";note.style.marginTop="6px";note.textContent="Saved mapping: "+match.saved_mapping.applicant_name;applicantCell.append(note);
-    const label=document.createElement("label"),confirm=document.createElement("input");confirm.type="checkbox";confirm.style.width="auto";confirm.style.minHeight="0";confirm.style.marginRight="6px";label.style.marginTop="7px";label.style.fontWeight="500";label.textContent="Confirm replacement";label.prepend(confirm);applicantCell.append(label);
-    confirm.addEventListener("change",()=>{match.confirm_replacement=confirm.checked;});
-   }
-   if(match.reason){const note=document.createElement("small");note.style.display="block";note.style.marginTop="5px";note.textContent=match.reason;applicantCell.append(note);}
-  }
-  cell(tr,tx.referenceNumber);cell(tr,tx.creditAmount);cell(tr,tx.status);cell(tr,tx.transactionDate);$("detail-rows").append(tr);
- }
+ currentTransactions=data.transactions||[];currentCalculations=[];$("calculation-summary").textContent="Select an open Contribution Period and calculate CO to preview charges.";
+ try{await loadContributionPeriods();}catch(err){$("contribution-period").disabled=true;status("detail-status",err.message||"Could not load Contribution Periods.","error");}
+ renderPendingTransactions();
  status("detail-status","Applicant suggestions are based on the latest Active MIS. Save confirmed selections to reuse them on future FTOs. Saving mappings does not import this FTO.","success");
 }
 async function saveApplicantMappings(){
@@ -107,7 +141,7 @@ async function verifyAccess(user){
 }
 client.auth.onAuthStateChange((event,session)=>{if(event==="SIGNED_OUT"){authSequence++;window.location.replace("./");}else if(event==="TOKEN_REFRESHED"&&session)Promise.resolve().then(()=>verifyAccess(session.user));});
 client.auth.getSession().then(({data,error})=>{if(error||!data.session){window.location.replace("./");return;}verifyAccess(data.session.user);});
-$("refresh").addEventListener("click",loadPending);$("save-mappings").addEventListener("click",saveApplicantMappings);$("close-detail").addEventListener("click",()=>{$("detail-panel").classList.add("hidden");});
+$("refresh").addEventListener("click",loadPending);$("calculate-co").addEventListener("click",calculatePendingCO);$("contribution-period").addEventListener("change",()=>{currentCalculations=[];$("calculation-summary").textContent="Period changed. Recalculate CO to refresh the preview.";renderPendingTransactions();});$("co-divisor").addEventListener("input",()=>{currentCalculations=[];$("calculation-summary").textContent="Formula changed. Recalculate CO to refresh the preview.";renderPendingTransactions();});$("co-multiplier").addEventListener("input",()=>{currentCalculations=[];$("calculation-summary").textContent="Formula changed. Recalculate CO to refresh the preview.";renderPendingTransactions();});$("save-mappings").addEventListener("click",saveApplicantMappings);$("close-detail").addEventListener("click",()=>{$("detail-panel").classList.add("hidden");});
 })();
 </script>
 </body></html>

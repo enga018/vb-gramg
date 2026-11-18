@@ -30,12 +30,12 @@ CREATE FUNCTION public.vbgramg_auto_allocate_unallocated_payments(p_job_card_num
 RETURNS void LANGUAGE plpgsql AS $function$
 DECLARE
   v_period record;
+  v_payment record;
 BEGIN
   FOR v_period IN SELECT gen_random_uuid() AS id LOOP
     PERFORM 1
     FROM public.vbgramg_payment_allocations a
-    WHERE a.job_card_number = p_job_card_number
-      AND a.period_id = v_period.id;
+    WHERE a.transaction_id = v_payment.id AND a.period_id = v_period.id;
 
     INSERT INTO public.vbgramg_payment_allocations
       (transaction_id, period_id, job_card_number, amount, allocation_source)

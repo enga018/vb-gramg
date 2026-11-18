@@ -513,26 +513,27 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 .fto-recheck-button{background:#2457c5!important;color:#fff!important;border-color:#2457c5!important}
 .fto-recheck-button:hover:not(:disabled){background:#1d46a0!important}
 .fto-recheck-button:disabled{opacity:.48;cursor:not-allowed}
-.fto-recheck-result-modal{width:min(760px,calc(100% - 28px));max-width:none;max-height:min(88vh,820px);padding:0;border:1px solid #dfe5ee;border-radius:16px;background:#fff;color:#172033;box-shadow:0 22px 70px rgb(15 23 42 / 28%)}
+.fto-recheck-result-modal{width:min(700px,calc(100% - 28px));max-width:none;max-height:min(88vh,820px);padding:0;border:1px solid #dfe5ee;border-radius:16px;background:#fff;color:#172033;box-shadow:0 22px 70px rgb(15 23 42 / 28%)}
 .fto-recheck-result-modal::backdrop{background:rgb(15 23 42 / 58%)}
-.fto-recheck-result-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid #e3e8f0}
-.fto-recheck-result-head h2{margin:0;font-size:1.05rem}.fto-recheck-result-head p{margin:3px 0 0;font-size:.82rem}
-.fto-recheck-result-head button{min-width:44px;min-height:44px;padding:8px}
-.fto-recheck-result-content{padding:16px 20px;max-height:calc(88vh - 150px);overflow:auto}
-.fto-recheck-result-state{margin:0 0 14px;padding:11px 13px;border:1px solid #dce5f1;border-radius:10px;background:#f7f9fc;color:#475467;font-size:.88rem;line-height:1.5}
+.fto-recheck-result-head{display:flex;align-items:center;gap:12px;padding:15px 20px;border-bottom:1px solid #e3e8f0}
+.fto-recheck-result-head h2{margin:0;font-size:1.02rem}.fto-recheck-result-head p{margin:3px 0 0;font-size:.8rem}
+.fto-recheck-result-content{padding:15px 20px;max-height:calc(88vh - 132px);overflow:auto}
+.fto-recheck-result-state{margin:0 0 12px;padding:9px 12px;border:1px solid #dce5f1;border-radius:9px;background:#f7f9fc;color:#475467;font-size:.84rem;line-height:1.45}
 .fto-recheck-result-state.error{border-color:#ffd8d2;background:#fff4f2;color:#a12b20}
 .fto-recheck-result-state.warning{border-color:#f2d7a0;background:#fff8e8;color:#80520b}
 .fto-recheck-result-state.success{border-color:#ccebd7;background:#effaf3;color:#17663a}
-.fto-recheck-result-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}
-.fto-recheck-result-stat{padding:11px;border:1px solid #e3e8f0;border-radius:10px;background:#fff;min-width:0}
-.fto-recheck-result-stat span{display:block;color:#667085;font-size:.73rem;font-weight:650;line-height:1.35}
-.fto-recheck-result-stat strong{display:block;margin-top:5px;font-size:1.15rem;font-weight:780;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
-.fto-recheck-result-section{margin-top:18px}.fto-recheck-result-section h3{margin:0 0 8px;font-size:.9rem}
-.fto-recheck-result-list{display:grid;gap:7px;margin:0;padding:0;list-style:none}
-.fto-recheck-result-list li{padding:10px 12px;border:1px solid #e3e8f0;border-radius:9px;background:#fff;font-size:.82rem;line-height:1.45;overflow-wrap:anywhere}
-.fto-recheck-result-list strong{display:block;color:#172033;margin-bottom:3px}
-.fto-recheck-result-footer{display:flex;justify-content:flex-end;padding:12px 20px;border-top:1px solid #e3e8f0}
-@media(max-width:700px){.fto-recheck-button{width:100%}.fto-recheck-result-modal{width:100%;height:100dvh;max-height:100dvh;border:0;border-radius:0}.fto-recheck-result-head{padding:12px 14px}.fto-recheck-result-content{padding:12px 14px;max-height:calc(100dvh - 140px)}.fto-recheck-result-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.fto-recheck-result-stat{padding:9px}.fto-recheck-result-stat strong{font-size:1.05rem}.fto-recheck-result-footer{padding:10px 14px}.fto-recheck-result-footer button{width:100%}}
+.fto-recheck-result-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:10px 0}
+.fto-recheck-result-stat{padding:10px;border:1px solid #e3e8f0;border-radius:9px;background:#fff;min-width:0}
+.fto-recheck-result-stat span{display:block;color:#667085;font-size:.71rem;font-weight:650;line-height:1.35}
+.fto-recheck-result-stat strong{display:block;margin-top:4px;font-size:1.12rem;font-weight:780;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.fto-recheck-result-secondary{display:flex;flex-wrap:wrap;gap:5px 16px;margin:0 0 14px;padding:9px 11px;border:1px solid #e8edf4;border-radius:9px;background:#f8fafc;color:#667085;font-size:.76rem}
+.fto-recheck-result-secondary strong{color:#172033;font-variant-numeric:tabular-nums}
+.fto-recheck-result-section{margin-top:14px}.fto-recheck-result-section h3{margin:0 0 7px;font-size:.86rem}
+.fto-recheck-result-list{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.fto-recheck-result-list li{padding:9px 11px;border:1px solid #e3e8f0;border-radius:9px;background:#fff;font-size:.8rem;line-height:1.4;overflow-wrap:anywhere}
+.fto-recheck-result-list strong{display:block;color:#172033;margin-bottom:2px}
+.fto-recheck-result-footer{display:flex;justify-content:flex-end;padding:10px 20px;border-top:1px solid #e3e8f0}
+@media(max-width:700px){.fto-recheck-button{width:100%}.fto-recheck-result-modal{width:100%;height:100dvh;max-height:100dvh;border:0;border-radius:0}.fto-recheck-result-head{padding:12px 14px}.fto-recheck-result-content{padding:12px 14px;max-height:calc(100dvh - 120px)}.fto-recheck-result-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.fto-recheck-result-stat{padding:9px}.fto-recheck-result-stat strong{font-size:1.02rem}.fto-recheck-result-footer{padding:10px 14px}.fto-recheck-result-footer button{width:100%}}
 
 
 /* Compact FTO details header: keep the identifier and period on one line. */
@@ -623,7 +624,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  <div class="history-list-foot"><span id="fto-history-count" class="muted"></span><div id="fto-history-pager" class="mobile-table-pager" hidden><button id="fto-history-prev" type="button" class="secondary">Previous</button><span id="fto-history-page-label"></span><button id="fto-history-next" type="button" class="secondary">Next</button></div></div>
 </section>
 </div>
-<dialog id="fto-recheck-result-modal" class="fto-recheck-result-modal" aria-labelledby="fto-recheck-result-title"><div class="fto-recheck-result-head"><div><h2 id="fto-recheck-result-title">Deferred FTO recheck results</h2><p id="fto-recheck-result-subtitle">Government status check summary</p></div><button id="fto-recheck-result-close" type="button" class="secondary" aria-label="Close recheck results">×</button></div><div id="fto-recheck-result-content" class="fto-recheck-result-content"></div><div class="fto-recheck-result-footer"><button id="fto-recheck-result-done" type="button">Done</button></div></dialog>
+<dialog id="fto-recheck-result-modal" class="fto-recheck-result-modal" aria-labelledby="fto-recheck-result-title"><div class="fto-recheck-result-head"><div><h2 id="fto-recheck-result-title">Deferred FTO recheck results</h2><p id="fto-recheck-result-subtitle">Government status check summary</p></div></div><div id="fto-recheck-result-content" class="fto-recheck-result-content"></div><div class="fto-recheck-result-footer"><button id="fto-recheck-result-done" type="button">Done</button></div></dialog>
 <div id="period-modal-backdrop" class="period-modal-backdrop hidden" role="presentation">
  <section class="period-modal" role="dialog" aria-modal="true" aria-labelledby="period-modal-title" aria-describedby="period-modal-description">
   <div class="period-modal-header"><h2 id="period-modal-title">Change contribution period</h2><button id="period-modal-close" type="button" class="secondary" aria-label="Close dialog">×</button></div>
@@ -945,11 +946,13 @@ function showFtoRecheckResults(data,error){
   appendRecheckStat(grid,"Checked",data.checkedFtoCount);
   appendRecheckStat(grid,"Successful",data.successfulFtoCount);
   appendRecheckStat(grid,"Failed",data.failedFtoCount);
-  appendRecheckStat(grid,"Unprocessed",data.unprocessedFtoCount);
-  appendRecheckStat(grid,"Transactions updated",data.updatedCount);
-  appendRecheckStat(grid,"Still deferred",data.stillDeferredCount);
-  appendRecheckStat(grid,"Unchanged",data.unchangedCount);
   content.appendChild(grid);
+  const secondary=document.createElement("div");secondary.className="fto-recheck-result-secondary";
+  for(const [label,value] of [["Unprocessed",data.unprocessedFtoCount],["Transactions updated",data.updatedCount],["Still deferred",data.stillDeferredCount],["Unchanged",data.unchangedCount]]){
+   const item=document.createElement("span");item.append(label+" ");
+   const strong=document.createElement("strong");strong.textContent=Number(value||0).toLocaleString("en-IN");item.appendChild(strong);secondary.appendChild(item);
+  }
+  content.appendChild(secondary);
   appendRecheckList(content,"FTO results",data.results,item=>({
    title:String(item.ftoNumber||"FTO"),
    detail:"Updated: "+Number(item.updated_count||0)+" · Still deferred: "+Number(item.still_deferred_count||0)+" · Unchanged: "+Number(item.unchanged_count||0)

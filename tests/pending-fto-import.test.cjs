@@ -64,7 +64,7 @@ test("Manual charge and mapping replacement choices are independently revalidate
   assert.match(sync, /manual_reconciliation_applicants/);
   assert.match(sync, /confirm_mapping_replacements/);
   assert.match(sync, /!manualReconciliationApplicants\.has\(card\)/);
-  assert.match(sync, /amount confirmation/i);
+  assert.match(sync, /confirm the manual charge amount change/i);
 });
 
 test("Duplicate references and conflicting transactions block Pending FTO import", () => {

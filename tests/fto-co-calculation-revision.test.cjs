@@ -8,6 +8,7 @@ const edge = read("supabase/functions/vbgramg-contribution-data/index.ts");
 const page = read("fto.html");
 const migration = read("supabase/migrations/20261118240000_atomic_fto_co_calculation_revision.sql");
 const snapshotGuard = read("supabase/migrations/20261118242000_guard_fto_co_revision_preview_snapshot.sql");
+const cleanup = read("supabase/migrations/20261118243000_drop_legacy_fto_co_revision_rpc.sql");
 
 test("CO revision preview is admin-only and recalculates saved Credit Amount values", () => {
   const start = edge.indexOf('if(action==="preview-fto-co-revision"){');
@@ -45,6 +46,7 @@ test("CO revision apply delegates to a service-role-only atomic database operati
   assert.match(apply, /p_expected_last_checked_at/);
   assert.match(apply, /p_expected_last_deferred_recheck_at/);
   assert.match(snapshotGuard, /last_deferred_recheck_at is distinct from p_expected_last_deferred_recheck_at/);
+  assert.match(cleanup, /drop function if exists public\\.vbgramg_apply_fto_co_revision\\(uuid,integer,numeric,numeric,text,uuid,text\\)/);
   assert.match(migration, /revoke all on function public\.vbgramg_apply_fto_co_revision/);
   assert.match(migration, /grant execute on function public\.vbgramg_apply_fto_co_revision[\s\S]*to service_role/);
 });

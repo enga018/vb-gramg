@@ -84,8 +84,8 @@ header .top-actions > button:hover {
 body>main{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 </style>
-  <link rel="stylesheet" href="./responsive.css">
-<link rel="stylesheet" href="./theme.css?v=20261109-all-headers-dark">
+  <link rel="stylesheet" href="./responsive.css?v=20261118-theme-toggle">
+<link rel="stylesheet" href="./theme.css?v=20261118-theme-toggle">
 <link rel="stylesheet" href="./button-system.css?v=20261113-buttons">
 </head>
 <body><main>
@@ -142,4 +142,4 @@ $('login-form').addEventListener('submit',async e=>{e.preventDefault();$('login-
 $('logout-button').addEventListener('click',async()=>{const {error}=await supabaseClient.auth.signOut();showLoggedOut();setStatus($('login-status'),error?'Sign-out error: '+error.message:'You are signed out.',error?'error':'')});
 supabaseClient.auth.onAuthStateChange((event)=>{if(event==='SIGNED_OUT'){authSequence++;showLoggedOut();setStatus($('login-status'),'You are signed out.')}else if(event==='TOKEN_REFRESHED')Promise.resolve().then(()=>supabaseClient.auth.getSession()).then(({data})=>data&&data.session?verifyAccess(data.session.user):false)});
 supabaseClient.auth.getSession().then(({data,error})=>{if(error){showLoggedOut();setStatus($('login-status'),error.message,'error');return}return verifyAccess(data.session?data.session.user:null)});
-</script><script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261031f"></script></body></html>
+</script><script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261118-theme-toggle"></script></body></html>

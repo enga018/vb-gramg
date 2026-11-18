@@ -29,7 +29,7 @@ const sync = section(
 test("Pending FTO import is a separate admin-only action requiring final confirmation", () => {
   assert.match(pendingImport, /approved\.role!=="admin"/);
   assert.match(pendingImport, /body\.final_review_confirmed!==true/);
-  assert.match(pendingImport, /classification!==\\"ELIGIBLE\\"/);
+  assert.match(pendingImport, /classification!=="ELIGIBLE"/);
   assert.match(pendingImport, /vbgramg_fto_batches/);
   assert.match(pendingImport, /alreadyImported/);
 });
@@ -70,7 +70,7 @@ test("Manual charge and mapping replacement choices are independently revalidate
 test("Duplicate references and conflicting transactions block Pending FTO import", () => {
   assert.match(sync, /A reference number became duplicated after the preview/);
   assert.match(sync, /duplicateReferences\.length/);
-  assert.match(sync, /conflicting FTO/i);
+  assert.match(sync, /different FTO number already has a charge/i);
 });
 
 test("Import uses the atomic snapshot RPC and verifies its committed result", () => {

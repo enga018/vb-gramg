@@ -599,8 +599,8 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 }
 
 </style>
-  <link rel="stylesheet" href="./responsive.css?v=20261111-design-system">
-<link rel="stylesheet" href="./theme.css?v=20261111-design-system">
+  <link rel="stylesheet" href="./responsive.css?v=20261118-theme-toggle">
+<link rel="stylesheet" href="./theme.css?v=20261118-theme-toggle">
 <link rel="stylesheet" href="./button-system.css?v=20261113-buttons">
 </head>
 <body>
@@ -1052,7 +1052,7 @@ supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_OUT')
 supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){window.location.replace('./');return}return verifyAccess(data.session.user)});
 
 </script>
-<script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261105-unified-header"></script><script>
+<script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261118-theme-toggle"></script><script>
 (function(){
  const modal=document.getElementById('fto-import-modal'),frame=document.getElementById('fto-import-frame');
  const open=document.getElementById('open-fto-import'),close=document.getElementById('close-fto-import');

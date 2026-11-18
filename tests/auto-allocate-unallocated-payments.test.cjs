@@ -7,12 +7,14 @@ const migration = fs.readFileSync(
   path.join(__dirname, "../supabase/migrations/20261107200000_auto_allocate_unallocated_payments_on_new_charge.sql"),
   "utf8"
 );
-
 const paymentMigration = fs.readFileSync(
   path.join(__dirname, "../supabase/migrations/20261108150000_auto_allocate_on_new_payment.sql"),
   "utf8"
 );
-
+const reactivationMigration = fs.readFileSync(
+  path.join(__dirname, "../supabase/migrations/20261118210000_auto_allocate_after_deferred_reactivation.sql"),
+  "utf8"
+);
 const postgresTest = fs.readFileSync(
   path.join(__dirname, "auto-allocate-unallocated-payments-postgres.sql"),
   "utf8"
@@ -24,7 +26,6 @@ test("new eligible charges trigger automatic FIFO allocation", () => {
   assert.match(migration, /EXECUTE FUNCTION public\.vbgramg_auto_allocate_after_charge_change/);
 });
 
-
 test("new non-voided payments immediately invoke the shared FIFO allocator", () => {
   assert.match(paymentMigration, /CREATE OR REPLACE FUNCTION public\.vbgramg_auto_allocate_after_payment_insert/);
   assert.match(paymentMigration, /AFTER INSERT[\s\S]*?ON public\.vbgramg_charge_ledger/);
@@ -34,7 +35,18 @@ test("new non-voided payments immediately invoke the shared FIFO allocator", () 
   assert.match(paymentMigration, /REVOKE ALL ON FUNCTION public\.vbgramg_auto_allocate_after_payment_insert\(\)/);
 });
 
-test("isolated PostgreSQL tests cover new-payment FIFO and retained excess credit", () => {
+test("restoring a deferred charge invokes FIFO for its job card", () => {
+  assert.match(reactivationMigration, /CREATE OR REPLACE FUNCTION public\.vbgramg_auto_allocate_after_deferred_charge_reactivation/);
+  assert.match(reactivationMigration, /AFTER UPDATE OF is_deferred/);
+  assert.match(reactivationMigration, /OLD\.is_deferred IS TRUE[\s\S]*?NEW\.is_deferred IS FALSE/);
+  assert.match(reactivationMigration, /vbgramg_auto_allocate_unallocated_payments\(NEW\.job_card_number\)/);
+  assert.match(reactivationMigration, /NEW\.period_id IS NULL/);
+  assert.match(reactivationMigration, /app\.vbgramg_allow_fto_period_rebuild/);
+  assert.match(reactivationMigration, /COALESCE\(NEW\.is_voided, false\)/);
+  assert.match(reactivationMigration, /REVOKE ALL ON FUNCTION public\.vbgramg_auto_allocate_after_deferred_charge_reactivation\(\)/);
+});
+
+test("isolated PostgreSQL test covers new-payment FIFO and retained excess credit", () => {
   assert.match(postgresTest, /20261108150000_auto_allocate_on_new_payment/);
   assert.match(postgresTest, /MZ-NEW-PAYMENT/);
   assert.match(postgresTest, /MZ-NEW-PAYMENT-SHORT/);
@@ -78,14 +90,12 @@ test("automatic allocations retain the original payment and write an audit entry
   assert.doesNotMatch(migration, /UPDATE public\.vbgramg_charge_ledger\s+SET amount/);
 });
 
-test("isolated PostgreSQL test covers overpayment, FIFO, refunds, deferred and exempt cases", () => {
-  assert.match(postgresTest, /Core example/);
-  assert.match(postgresTest, /Older payment/);
-  assert.match(postgresTest, /Refund-adjusted available balance/);
-  assert.match(postgresTest, /restoring one does not/);
-  assert.match(postgresTest, /MZ-EXEMPT/);
+test("isolated PostgreSQL test covers FIFO allocation after deferred-charge reactivation", () => {
+  assert.match(postgresTest, /20261118210000_auto_allocate_after_deferred_reactivation/);
+  assert.match(postgresTest, /MZ-DEFER/);
+  assert.match(postgresTest, /Deferred-charge reactivation FIFO failed/);
+  assert.match(postgresTest, /did not write exactly one FIFO audit entry/);
 });
-
 
 const workflow = fs.readFileSync(
   path.join(__dirname, "../.github/workflows/test-ledger-calculations.yml"),

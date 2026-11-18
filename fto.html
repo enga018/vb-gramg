@@ -1246,23 +1246,39 @@ supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){
  const modal=document.getElementById('pending-imports-modal'),frame=document.getElementById('pending-imports-frame');
  const open=document.getElementById('open-pending-imports'),close=document.getElementById('close-pending-imports');
  if(!modal||!frame||!open||!close)return;
+ let resultReady=false,checking=false;
+ function showPendingModal(){if(typeof modal.showModal==='function'&&!modal.open)modal.showModal();else if(typeof modal.showModal!=='function')modal.setAttribute('open','');}
  function closePendingImports(){if(modal.open)modal.close();else modal.removeAttribute('open');}
+ function resetPendingButton(label,disabled=false){open.textContent=label;open.disabled=disabled;}
  open.addEventListener('click',()=>{
-  frame.src='about:blank';
-  if(typeof modal.showModal==='function'&&!modal.open)modal.showModal();else if(typeof modal.showModal!=='function')modal.setAttribute('open','');
-  requestAnimationFrame(()=>{frame.src='./pending-imports.html?modal=1';});
+  if(checking)return;
+  if(resultReady){showPendingModal();return;}
+  checking=true;resetPendingButton('Checking…',true);
+  frame.src='./pending-imports.html?modal=1';
  });
  close.addEventListener('click',closePendingImports);
  modal.addEventListener('click',event=>{if(event.target===modal)closePendingImports();});
- modal.addEventListener('close',()=>{frame.src='about:blank';});
  window.addEventListener('message',event=>{
   if(event.origin!==location.origin||event.source!==frame.contentWindow||!event.data)return;
-  if(event.data.type==='vbgramg-pending-imports-empty')closePendingImports();
+  if(event.data.type==='vbgramg-pending-imports-result'){
+   checking=false;resultReady=event.data.status!=='error';
+   if(event.data.status==='error'){
+    resetPendingButton('Retry Pending Imports');
+   }else if(Number(event.data.count||0)>0){
+    resetPendingButton('View Results');
+   }else{
+    resetPendingButton('No Pending FTOs');
+   }
+   showPendingModal();
+  }
   if(event.data.type==='vbgramg-pending-fto-imported'){
-   closePendingImports();
+   closePendingImports();resultReady=false;checking=false;resetPendingButton('Pending Imports');
+   frame.src='about:blank';
    if(typeof loadFtoHistory==='function')loadFtoHistory({afterSync:true});
   }
  });
+ modal.addEventListener('close',()=>{});
+
 })();
 </script>
 </body></html>

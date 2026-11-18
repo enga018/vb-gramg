@@ -63,6 +63,13 @@ on:
       - "supabase/migrations/20261113190000_extend_fto_revision_snapshot.sql"
       - "supabase/migrations/20261114130000_fix_fto_revision_snapshot_allocation_joins.sql"
       - "tests/fto-revision-fifo-rebuild-postgres.sql"
+      - "tests/fto-revision-source-aware-fifo-postgres.sql"
+      - "tests/charge-level-payment-allocations-postgres.sql"
+      - "tests/charge-level-fifo-simulator-postgres.sql"
+      - "supabase/migrations/20261119100000_add_source_aware_fifo_simulator.sql"
+      - "supabase/migrations/20261119110000_allow_source_specific_charge_allocations.sql"
+      - "supabase/migrations/20261119115000_add_charge_level_fifo_simulator.sql"
+      - "supabase/migrations/20261119120000_rebuild_charge_level_fifo_on_co_revision.sql"
       - "tests/fto-revision-snapshot-postgres.sql"
       - "supabase/migrations/20261111120000_track_contribution_exemption_intervals.sql"
       - "tests/fto-exemption-period-eligibility-postgres.sql"
@@ -274,6 +281,18 @@ jobs:
         run: |
           createdb vbgramg_fto_fifo_rebuild_test
           PGDATABASE=vbgramg_fto_fifo_rebuild_test psql -v ON_ERROR_STOP=1 -f tests/fto-revision-fifo-rebuild-postgres.sql
+      - name: Run source-aware FTO FIFO PostgreSQL tests
+        run: |
+          createdb vbgramg_fto_fifo_source_aware_test
+          PGDATABASE=vbgramg_fto_fifo_source_aware_test psql -v ON_ERROR_STOP=1 -f tests/fto-revision-source-aware-fifo-postgres.sql
+      - name: Run charge-level allocation source PostgreSQL tests
+        run: |
+          createdb vbgramg_charge_allocation_sources_test
+          PGDATABASE=vbgramg_charge_allocation_sources_test psql -v ON_ERROR_STOP=1 -f tests/charge-level-payment-allocations-postgres.sql
+      - name: Run charge-level FIFO simulator PostgreSQL tests
+        run: |
+          createdb vbgramg_charge_fifo_simulator_test
+          PGDATABASE=vbgramg_charge_fifo_simulator_test psql -v ON_ERROR_STOP=1 -f tests/charge-level-fifo-simulator-postgres.sql
       - name: Run FTO revision snapshot PostgreSQL tests
         run: |
           createdb vbgramg_fto_revision_snapshot_test

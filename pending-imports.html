@@ -39,6 +39,7 @@ if(modalMode)document.body.classList.add("modal-mode");
 const $=id=>document.getElementById(id),client=window.vbgramgSupabase;
 let authSequence=0,currentApplicantMatches=new Map(),currentFtoNumber="",currentTransactions=[],currentCalculations=[],sharedPeriods=[],reconciliationPreview=null,manualChargeDecisions=new Map(),manualAmountConfirmations=new Set(),finalReviewReady=false;
 function status(id,message,type){const el=$(id);el.textContent=message;el.className="status"+(type?" "+type:"");}
+function notifyParent(result){if(modalMode&&window.parent!==window)window.parent.postMessage({type:"vbgramg-pending-imports-result",...result},location.origin);}
 function cell(row,value){const td=row.insertCell();td.textContent=value==null?"":String(value);return td;}
 function dateLabel(value){if(!value)return "—";const d=new Date(value);return Number.isNaN(d.getTime())?String(value):d.toLocaleString("en-IN");}
 async function loadPending(){
@@ -47,7 +48,9 @@ async function loadPending(){
  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"list-pending-ftos"},timeoutMs:60000});
  if(error||!data||data.approved!==true){
   if(modalMode)$("app-panel").classList.remove("hidden");
-  status("list-status",data?.error||error?.message||"Could not load Pending Imports.","error");
+  const message=data?.error||error?.message||"Could not load Pending Imports.";
+  status("list-status",message,"error");
+  notifyParent({status:"error",message});
   return;
  }
  const pending=Array.isArray(data.pending)?data.pending:[];
@@ -69,9 +72,11 @@ async function loadPending(){
   status("list-status",modalMode
    ?"No eligible FTOs found. The saved inspections were checked against the latest Active MIS."
    :"There are no FTOs waiting in Pending Imports.","success");
+  notifyParent({status:"success",count:0});
   return;
  }
  status("list-status",pending.length+" FTO(s) ready to continue. No Government detail fetch was performed.","success");
+ notifyParent({status:"success",count:pending.length});
 }
 function selectedContributionPeriod(){return sharedPeriods.find(period=>period.id===$("contribution-period").value)||null;}
 async function loadContributionPeriods(){

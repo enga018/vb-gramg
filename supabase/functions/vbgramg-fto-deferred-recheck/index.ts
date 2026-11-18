@@ -251,7 +251,7 @@ Deno.serve(async (req: Request) => {
 
     if(auditPersistenceError) {
       return reply({success:false,error:"One or more FTO failure records could not be saved. The audit run was left open for investigation.",
-        runId,updatedCount,stillDeferredCount,failedChecks,auditError:auditPersistenceError,databaseChanged:updatedCount>0},500);
+        runId,updatedCount,stillDeferredCount,failedChecks,auditError:auditPersistenceError,databaseChanged},500);
     }
     const runStatus=successfulFtOs===eligible.length?"completed":successfulFtOs>0&&failedFtOs>0?"partial":"failed";
     const {data:completed,error:completeError}=await admin.rpc("vbgramg_complete_fto_recheck_run",{
@@ -260,7 +260,7 @@ Deno.serve(async (req: Request) => {
     });
     if(completeError) {
       return reply({success:false,error:"FTO checks finished, but the audit run could not be finalized.",
-        runId,updatedCount,stillDeferredCount,failedChecks,auditError:completeError.message||"Audit finalization failed.",databaseChanged:updatedCount>0},500);
+        runId,updatedCount,stillDeferredCount,failedChecks,auditError:completeError.message||"Audit finalization failed.",databaseChanged},500);
     }
     return reply({success:true,ftoCount:eligible.length,deferredTransactionCount,updatedCount,stillDeferredCount,
       failedCheckCount:failedChecks.length,failedChecks,results,runId,runStatus:completed?.status||runStatus,

@@ -92,7 +92,7 @@ function renderRows(targetId,items,emptyText){
 
 async function runDetailBatches(numbers){
  const panel=$("details-panel"),progress=$("details-progress"),bar=$("details-progressbar"),target=$("details-results");
- panel.hidden=false;
+ panel.hidden=true;
  const total=numbers.length;let pending=[...numbers],done=0;
  const validation=$("details-validation");
  const render=()=>{
@@ -219,7 +219,7 @@ async function runGovernmentFetch(){
   $("results").hidden=false;
   $("fetch-status").hidden=true;
   if(detailQueue.length){
-   $("details-panel").hidden=false;
+   $("details-panel").hidden=true;
    detailResults=[];misSnapshot=null;importedFtoNumbers=new Set();
    $("import-button").hidden=true;
    $("import-button").disabled=true;

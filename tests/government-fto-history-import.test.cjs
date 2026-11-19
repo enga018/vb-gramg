@@ -106,6 +106,9 @@ test("FTO Import uses one entry point and embeds Government refresh in the saved
   assert.match(history, /open\.textContent='Preparing…'/);
   assert.match(history, /vbgramg-pending-imports-result/);
   assert.match(pending, /notifyParent\(\{status:"success",count:pending\.length\}\)/);
+  assert.match(pending, /id="pending-table-wrap"/);
+  assert.match(pending, /\$\("pending-table-wrap"\)\.hidden=true/);
+  assert.match(pending, /\$\("list-status"\)\.hidden=true/);
   assert.match(pending, /notifyParent\(\{status:"error",message\}\)/);
   assert.match(pending, /id="refresh-government"/);
   assert.match(pending, /id="government-refresh-frame"/);
@@ -115,6 +118,8 @@ test("FTO Import uses one entry point and embeds Government refresh in the saved
   assert.match(government, /queueMicrotask\(runGovernmentFetch\)/);
   assert.match(government, /async function runGovernmentFetch\(\)/);
   assert.match(government, /id="details-panel" hidden aria-hidden="true"/);
+  assert.match(government, /panel\.hidden=true/);
+  assert.doesNotMatch(government, /details-panel"\.hidden=false/);
   assert.doesNotMatch(government, /<h2>Transaction preview<\/h2>/);
   assert.doesNotMatch(government, /Read-only comparison|Refresh Government listing|fetch-button/);
   assert.match(government, /fetch-status.*hidden/);

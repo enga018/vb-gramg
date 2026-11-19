@@ -1217,17 +1217,38 @@ supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){
  const modal=document.getElementById('fto-import-modal'),frame=document.getElementById('fto-import-frame');
  const open=document.getElementById('open-fto-import'),close=document.getElementById('close-fto-import');
  if(!modal||!frame||!open||!close)return;
- function showImport(){
+ let preparing=false;
+ const defaultLabel=open.textContent;
+ function displayModal(){
   if(typeof modal.showModal==='function'&&!modal.open)modal.showModal();
   else if(typeof modal.showModal!=='function')modal.setAttribute('open','');
+ }
+ function showImport(){
+  if(preparing||modal.open)return;
+  preparing=true;
+  open.disabled=true;
+  open.textContent='Preparing…';
+  open.setAttribute('aria-busy','true');
+  // Load, authenticate, and prepare the saved queue before showing the modal.
   frame.src='./pending-imports.html?modal=1';
  }
  open.addEventListener('click',showImport);
  close.addEventListener('click',()=>modal.close());
  modal.addEventListener('click',event=>{if(event.target===modal)modal.close();});
- modal.addEventListener('close',()=>{frame.src='about:blank';});
+ modal.addEventListener('close',()=>{
+  frame.src='about:blank';
+  preparing=false;
+  open.disabled=false;
+  open.textContent=defaultLabel;
+  open.removeAttribute('aria-busy');
+ });
  window.addEventListener('message',event=>{
   if(event.origin!==location.origin||event.source!==frame.contentWindow||!event.data)return;
+  if(event.data.type==='vbgramg-pending-imports-result'){
+   // The child sends this only after authentication and queue preparation finish.
+   preparing=false;
+   displayModal();
+  }
   if(event.data.type==='vbgramg-pending-fto-imported'&&typeof loadFtoHistory==='function'){
    loadFtoHistory({afterSync:true});
   }

@@ -221,7 +221,6 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
       document.getElementById('diff-unchanged-count').textContent=Number(result.unchanged||0).toLocaleString();
       document.getElementById('diff-intro').textContent='The official Government MIS is now active. '+Number(result.newCount||result.parsedApplicantCount||0).toLocaleString()+' applicant record(s) are active. Figures below compare it with the previous MIS.';
       renderDiff(result);document.getElementById('diff-panel').classList.remove('hidden');
-      if(window.parent!==window)window.parent.postMessage({type:'vbgramg-mis-import-complete'},window.location.origin);
     }
     fetchButton.disabled=true;
     fetchButton.addEventListener('click',async()=>{

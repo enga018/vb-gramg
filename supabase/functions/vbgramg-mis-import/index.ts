@@ -355,7 +355,18 @@ Deno.serve(async (req: Request) => {
         signal: AbortSignal.timeout(30000),
       });
       if (!response.ok) {
-        return reply({ error: "Government MIS returned HTTP " + response.status + ". No data changed." }, 502);
+        const diagnostics = {
+          status: response.status,
+          finalUrl: response.url,
+          contentType: response.headers.get("content-type") || "",
+          server: response.headers.get("server") || "",
+          date: response.headers.get("date") || "",
+        };
+        console.error("Government MIS HTTP response diagnostics:", JSON.stringify(diagnostics));
+        return reply({
+          error: "Government MIS returned HTTP " + response.status + ". No data changed.",
+          diagnostics,
+        }, 502);
       }
 
       const built = await buildOfficialRows(await response.text(), admin);

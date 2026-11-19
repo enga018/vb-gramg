@@ -91,8 +91,8 @@ VALUES
   ('00000000-0000-4000-8000-000000000001','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',NULL,'REF001','processed','2026-10-01',NULL),
   ('00000000-0000-4000-8000-000000000002','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','eeeeeeee-eeee-4eee-8eee-eeeeeeee0002','REF002','blank',NULL,NULL),
   ('00000000-0000-4000-8000-000000000003','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','eeeeeeee-eeee-4eee-8eee-eeeeeeee0003','REF003','blank',NULL,NULL),
-  ('00000000-0000-4000-8000-000000000004','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','REF004','rejected',NULL,'Rejected by DDO'),
-  ('00000000-0000-4000-8000-000000000005','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','REF005','blank',NULL,NULL);
+  ('00000000-0000-4000-8000-000000000004','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',NULL,'REF004','rejected',NULL,'Rejected by DDO'),
+  ('00000000-0000-4000-8000-000000000005','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',NULL,'REF005','blank',NULL,NULL);
 
 SET ROLE service_role;
 

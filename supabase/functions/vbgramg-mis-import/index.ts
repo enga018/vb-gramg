@@ -55,7 +55,7 @@ async function fetchOfficialReport() {
       }
       const html = await response.text();
       const htmlBytes = new TextEncoder().encode(html).length;
-      if (!html.trim() || !/<html[\\s>]/i.test(html) || !/<table[\\s>]/i.test(html)) {
+      if (!html.trim() || !/<html[\s>]/i.test(html) || !/<table[\s>]/i.test(html)) {
         attempts.push({ ...diagnostic, error: "Response did not contain a non-empty HTML report with a table (" + htmlBytes + " bytes)." });
         return { html: null as string | null, attempts, error: "Government MIS response was not a valid HTML register. No data changed." };
       }

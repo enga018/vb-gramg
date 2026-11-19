@@ -117,7 +117,7 @@ Deno.serve(async (req: Request) => {
       let chargeLevelPeriodAllocations: Record<string, unknown>[] = [];
       if (chargeIds.length) {
         for (let base = 0; base < chargeIds.length; base += 100) {
-          const ids = chargeIds.slice(base, base + 100;
+          const ids = chargeIds.slice(base, base + 100);
           const { data: rows, error } = await admin
             .from("vbgramg_charge_payment_allocations")
             .select("id,payment_id,charge_id,amount,confidence")
@@ -137,7 +137,7 @@ Deno.serve(async (req: Request) => {
       let refundRows: Record<string, unknown>[] = [];
       if (paymentIds.length) {
         for (let base = 0; base < paymentIds.length; base += 100) {
-          const ids = paymentIds.slice(base, base + 100;
+          const ids = paymentIds.slice(base, base + 100);
           const [payments, legacy, chargeLevel, refunds] = await Promise.all([
             admin.from("vbgramg_charge_ledger").select("id,amount,is_voided,entry_type").in("id", ids),
             admin.from("vbgramg_payment_allocations").select("id,transaction_id,period_id,job_card_number,amount,confidence").in("transaction_id", ids),
@@ -156,7 +156,7 @@ Deno.serve(async (req: Request) => {
       if (refundIds.length) {
         for (let base = 0; base < refundIds.length; base += 100) {
           const { data: rows, error } = await admin.from("vbgramg_charge_ledger")
-            .select("id,is_voided,entry_type").in("id", refundIds.slice(base, base + 100);
+            .select("id,is_voided,entry_type").in("id", refundIds.slice(base, base + 100));
           if (error) throw error;
           for (const row of rows || []) if (row.entry_type === "refund" && row.is_voided !== true) activeRefundIds.add(String(row.id));
         }
@@ -221,7 +221,7 @@ Deno.serve(async (req: Request) => {
       if (waiverIds.length) {
         for (let base = 0; base < waiverIds.length; base += 100) {
           const { data: rows, error } = await admin.from("vbgramg_charge_ledger")
-            .select("id,is_voided,entry_type").in("id", waiverIds.slice(base, base + 100);
+            .select("id,is_voided,entry_type").in("id", waiverIds.slice(base, base + 100));
           if (error) throw error;
           for (const row of rows || []) if (["charge_waiver", "forgive"].includes(String(row.entry_type)) && row.is_voided !== true) activeWaiverIds.add(String(row.id));
         }

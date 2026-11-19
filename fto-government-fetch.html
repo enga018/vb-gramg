@@ -249,6 +249,9 @@ $("fetch-button").addEventListener("click",async()=>{
    status("import-status","Automatic detail checks are running. Eligible FTOs will be available in Pending Imports.");
    await runDetailBatches(detailQueue);
   }
+  // Keep the saved Pending Imports queue reachable even when this listing has
+  // no new FTOs, or when an individual detail check needs a later retry.
+  $("continue-to-fto-import").hidden=false;
  }catch(error){status("fetch-status",error.message||"Government fetch failed.","error");}
  finally{
   button.disabled=false;button.textContent="Refresh Government listing";

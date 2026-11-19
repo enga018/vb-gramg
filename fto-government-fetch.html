@@ -51,6 +51,7 @@ body.modal-mode .panel{margin:8px 0}
 <div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Listing details</th></tr></thead><tbody id="imported-rows"></tbody></table></div></section>
 <section id="unrecognized-section" hidden><h2>Needs review</h2><p class="section-note">The Government listing has a missing or repeated FTO number. These entries are not treated as new or already imported.</p>
 <div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Listing details</th></tr></thead><tbody id="unrecognized-rows"></tbody></table></div></section>
+<div class="actions"><button id="continue-to-fto-import" type="button" hidden>Continue to FTO Import</button></div>
 </div>
 </section>
 </main>
@@ -122,6 +123,7 @@ async function runDetailBatches(numbers){
   const detailComplete=detailResults.length===detailQueue.length && failed.length===0;
   const eligibleFtos=successful.filter(item=>Number(item.matchingJobCardCount)>0);
   const canImport=detailComplete && !!misSnapshot && warningCount===0 && eligibleFtos.length>0;
+  $("continue-to-fto-import").hidden=!canImport;
   $("import-button").hidden=!canImport;
   $("import-button").disabled=!canImport;
   $("import-button").textContent=canImport?"Import new FTOs ("+eligibleFtos.length+")":"Import new FTOs";
@@ -184,6 +186,12 @@ function buildImportChunks(items){
  if(current.length)chunks.push(current);
  return chunks;
 }
+// Continue only when detail validation confirms at least one Active-MIS-matching FTO.
+$("continue-to-fto-import").addEventListener("click",()=>{
+ if($("continue-to-fto-import").hidden||!modalMode||window.parent===window)return;
+ window.parent.postMessage({type:"vbgramg-government-continue-to-fto-import"},location.origin);
+});
+
 // Import is completed from Pending Imports, not from the inspection screen.
 $("import-button").hidden=true;
 $("import-button").disabled=true;

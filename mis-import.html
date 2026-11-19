@@ -187,9 +187,15 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
     }
     async function updateAuthUI(user){
       currentUser=null;currentRole=null;
-      if(!user){setStatus('Administrator access is required. Redirecting to the main app…','error');window.location.replace('./');return;}
+      if(!user){
+        const message='Administrator session could not be verified. Return to the MIS page, sign in again if needed, and retry.';
+        setStatus(message,'error');showFailure(message);return;
+      }
       const {data:access,error}=await supabaseClient.functions.invoke('vbgramg-app-access',{body:{}});
-      if(error||!access||access.approved!==true||access.role!=='admin'){setStatus('Administrator access is required. Returning to the main app…','error');window.location.replace('./');return;}
+      if(error||!access||access.approved!==true||access.role!=='admin'){
+        const message='Administrator access could not be verified for the MIS import. No import was started. '+(error?.message||'');
+        setStatus(message,'error');showFailure(message);return;
+      }
       currentUser=user;currentRole=access.role;fetchButton.disabled=false;setStatus('Administrator access verified. Ready to fetch the official MIS.');if(startRequested){startRequested=false;fetchButton.click();}
     }
     const label=item=>[item.jobCardNumber&&'Job card '+item.jobCardNumber,item.household&&'Household '+item.household,item.applicantName,item.applicantNo&&'Applicant No. '+item.applicantNo,item.uniqueId&&'ID '+item.uniqueId].filter(Boolean).join(' · ')||'Applicant record';

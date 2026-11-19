@@ -342,22 +342,139 @@ Deno.serve(async (req: Request) => {
 
 
     if (action === "official-fetch") {
-      const response = await fetch(OFFICIAL_REPORT_URL, { method:"GET", redirect:"follow", headers:{"User-Agent":"VBGRAMG-MIS-Reader/1.0","Accept":"text/html,application/xhtml+xml","Accept-Encoding":"identity","Cache-Control":"no-cache","Pragma":"no-cache"}, signal:AbortSignal.timeout(30000) });
-      if (!response.ok) return reply({error:"Government MIS returned HTTP "+response.status+". No data changed."},502);
+      const response = await fetch(OFFICIAL_REPORT_URL, {
+        method: "GET",
+        redirect: "follow",
+        headers: {
+          "User-Agent": "VBGRAMG-MIS-Reader/1.0",
+          "Accept": "text/html,application/xhtml+xml",
+          "Accept-Encoding": "identity",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+        },
+        signal: AbortSignal.timeout(30000),
+      });
+      if (!response.ok) {
+        return reply({ error: "Government MIS returned HTTP " + response.status + ". No data changed." }, 502);
+      }
+
       const built = await buildOfficialRows(await response.text(), admin);
       const filename = "Official Registration Application Register — New Serchhip North";
-      const {data:record,error:insertError}=await admin.from("vbgramg_mis_imports").insert({source_filename:filename,source_sheet:"MIS",imported_by:authData.user.id,row_count:built.output.length,status:"staging"}).select("id").single();
-      if(insertError)throw insertError;
+      const { data: record, error: insertError } = await admin.from("vbgramg_mis_imports")
+        .insert({
+          source_filename: filename,
+          source_sheet: "MIS",
+          imported_by: authData.user.id,
+          row_count: built.output.length,
+          status: "staging",
+        })
+        .select("id")
+        .single();
+      if (insertError) throw insertError;
+
       try {
-        for(let offset=0;offset<built.output.length;offset+=250){
-          const payload=built.output.slice(offset,offset+250).map((row,index)=>({import_id:record.id,row_number:offset+index+1,row_data:row}));
-          const {error}=await admin.from("vbgramg_mis_rows").insert(payload);if(error)throw error;
+        // Stage the complete official register before comparing or activating it.
+        for (let offset = 0; offset < built.output.length; offset += 250) {
+          const payload = built.output.slice(offset, offset + 250).map((row, index) => ({
+            import_id: record.id,
+            row_number: offset + index + 1,
+            row_data: row,
+          }));
+          const { error } = await admin.from("vbgramg_mis_rows").insert(payload);
+          if (error) throw error;
         }
-        const staged=await readImportRows(admin,record.id),oldRows=await readImportRows(admin,built.activeImportId),diff=compareRows(oldRows,staged);
-        return reply({success:true,importId:record.id,expectedActiveImportId:built.activeImportId,sourceFilename:filename,sourceRowCount:built.sourceRows,parsedApplicantCount:built.output.length-1,...diff});
-      } catch(error) {
-        await admin.from("vbgramg_mis_rows").delete().eq("import_id",record.id);
-        await admin.from("vbgramg_mis_imports").delete().eq("id",record.id);
+
+        const [stagedRows, oldRows] = await Promise.all([
+          readImportRows(admin, record.id),
+          readImportRows(admin, built.activeImportId),
+        ]);
+        const diff = compareRows(oldRows, stagedRows);
+
+        // Calculate selection candidates before the active pointer is changed.
+        // Existing user selections must never be overwritten by an import.
+        const selectionCandidates = newJobCardSelections(oldRows, stagedRows);
+        const candidatesByCard = new Map<string, { job_card_number: string; applicant_key: string }>();
+        for (const item of [
+          ...selectionCandidates.newJobCardSelections,
+          ...selectionCandidates.existingCardNewApplicantSelections,
+        ]) {
+          if (!candidatesByCard.has(item.job_card_number)) candidatesByCard.set(item.job_card_number, item);
+        }
+
+        // This RPC is the only activation commit point. It verifies the baseline
+        // is still current and validates every staged row inside the DB transaction.
+        const { data: activation, error: activationError } = await admin.rpc("vbgramg_activate_mis_import", {
+          p_import_id: record.id,
+          p_actor_id: authData.user.id,
+          p_expected_active_import_id: built.activeImportId,
+          p_expected_row_count: built.output.length,
+        });
+        if (activationError) throw activationError;
+        if (!activation?.success) throw new Error("MIS activation did not confirm success.");
+
+        let autoSelectedNewJobCards = 0;
+        let autoSelectedNewApplicants = 0;
+        let selectionWarning: string | null = null;
+        try {
+          const candidates = [...candidatesByCard.values()];
+          for (let offset = 0; offset < candidates.length; offset += 400) {
+            const batch = candidates.slice(offset, offset + 400);
+            const { data: savedSelections, error: savedSelectionError } = await admin
+              .from("vbgramg_mis_selections")
+              .select("job_card_number")
+              .in("job_card_number", batch.map(item => item.job_card_number));
+            if (savedSelectionError) throw savedSelectionError;
+
+            const alreadyMarked = new Set((savedSelections || []).map(item => item.job_card_number));
+            const selectionsToAdd = batch.filter(item => !alreadyMarked.has(item.job_card_number));
+            if (!selectionsToAdd.length) continue;
+
+            const payload = selectionsToAdd.map(item => ({
+              ...item,
+              updated_by: "system:auto-mis-import",
+              updated_at: new Date().toISOString(),
+            }));
+            const { error: selectionError } = await admin.from("vbgramg_mis_selections")
+              .upsert(payload, { onConflict: "job_card_number", ignoreDuplicates: true });
+            if (selectionError) throw selectionError;
+
+            for (const item of selectionsToAdd) {
+              if (selectionCandidates.newJobCardSelections.some(candidate => candidate.job_card_number === item.job_card_number)) {
+                autoSelectedNewJobCards++;
+              } else {
+                autoSelectedNewApplicants++;
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Could not initialise MIS applicant selections:", error);
+          selectionWarning = "The new MIS is active, but automatic applicant selection could not be completed for some job cards.";
+        }
+
+        return reply({
+          success: true,
+          activated: true,
+          importId: record.id,
+          expectedActiveImportId: built.activeImportId,
+          sourceFilename: filename,
+          sourceRowCount: built.sourceRows,
+          parsedApplicantCount: built.output.length - 1,
+          rowCount: built.output.length,
+          syncedAt: activation.activated_at || new Date().toISOString(),
+          autoSelectedNewJobCards,
+          autoSelectedNewApplicants,
+          selectionWarning,
+          ...diff,
+        });
+      } catch (error) {
+        // If activation failed, the RPC transaction guarantees the previous MIS
+        // remains active. Remove only this user's incomplete staging attempt.
+        const { data: stagedRecord } = await admin.from("vbgramg_mis_imports")
+          .select("status,imported_by").eq("id", record.id).maybeSingle();
+        if (stagedRecord?.status === "staging" && stagedRecord.imported_by === authData.user.id) {
+          await admin.from("vbgramg_mis_rows").delete().eq("import_id", record.id);
+          await admin.from("vbgramg_mis_imports").delete().eq("id", record.id);
+        }
         throw error;
       }
     }

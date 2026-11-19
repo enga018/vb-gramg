@@ -71,11 +71,14 @@ test("Only imported and Out of Scope FTOs are terminal during Government refresh
   assert.match(details, /classification === "OUT_OF_SCOPE"/);
   assert.doesNotMatch(details, /classification === "ELIGIBLE"\)\s*\{\s*throw new Error/);
   assert.match(fetcher, /const isOutOfScope = \(item: \{ ftoNumber: string \}\)/);
-  assert.match(fetcher, /inspectionByNumber\.get\(item\.ftoNumber\.trim\(\)\.toUpperCase\(\)\) === "OUT_OF_SCOPE"/);
+  assert.match(fetcher, /const classificationFor = \(item: \{ ftoNumber: string \}\)/);
+  assert.match(fetcher, /classificationFor\(item\) === "OUT_OF_SCOPE"/);
   assert.match(fetcher, /const skippedInspectedFtos = newFtos\.filter\(isOutOfScope\)/);
-  assert.match(fetcher, /const eligibleNewFtos = newFtos\.filter\(item => !isOutOfScope\(item\)\)/);
+  assert.match(fetcher, /const alreadyCheckedEligibleFtos = newFtos\.filter\(item => classificationFor\(item\) === "ELIGIBLE"\)/);
+  assert.match(fetcher, /const readyToImportFtos = newFtos\.filter\(item => !isOutOfScope\(item\) && classificationFor\(item\) !== "ELIGIBLE"\)/);
+  assert.match(fetcher, /alreadyCheckedEligibleFtos/);
   assert.match(fetcher, /alreadyImported/);
-  assert.match(fetcher, /ELIGIBLE FTOs are unfinished/);
+  assert.match(fetcher, /previously checked eligible FTOs remain available in Pending Imports/);
   assert.doesNotMatch(fetcher, /Every previously inspected FTO is excluded/);
 });test("Frontend inspects Government details in small batches and delegates import to Pending Imports", () => {
   assert.match(page, /pending\.splice\(0,5\)/);
@@ -96,7 +99,9 @@ test("FTO Import uses one entry point and embeds Government refresh in the saved
   assert.match(history, /id="open-fto-import"[^>]*>FTO Import</);
   assert.doesNotMatch(history, /id="open-pending-imports"/);
   assert.doesNotMatch(history, /id="pending-imports-modal"/);
-  assert.match(history, /frame\.src='\.\/pending-imports\.html\?modal=1'/);
+  assert.match(history, /governmentFrame\.src='\.\/fto-government-fetch\.html\?modal=1'/);
+  assert.match(history, /governmentFrame\.src='\.\/pending-imports\.html\?modal=1'/);
+  assert.match(history, /startPendingImportInCurrentModal/);
   assert.match(history, /open\.disabled=true/);
   assert.match(history, /open\.textContent='Preparing…'/);
   assert.match(history, /vbgramg-pending-imports-result/);
@@ -107,9 +112,19 @@ test("FTO Import uses one entry point and embeds Government refresh in the saved
   assert.match(pending, /action:"list-pending-ftos"/);
   assert.match(pending, /vbgramg-government-refresh-complete/);
   assert.match(government, /modalMode/);
+  assert.match(government, /queueMicrotask\(runGovernmentFetch\)/);
+  assert.match(government, /async function runGovernmentFetch\(\)/);
+  assert.match(government, /id="details-panel" hidden aria-hidden="true"/);
+  assert.doesNotMatch(government, /<h2>Transaction preview<\/h2>/);
+  assert.doesNotMatch(government, /Read-only comparison|Refresh Government listing|fetch-button/);
+  assert.match(government, /fetch-status.*hidden/);
+  assert.match(government, /catch\(error\).*fetch-status.*error/s);
   assert.match(government, /vbgramg-government-refresh-complete/);
   assert.match(government, /id="new-count"/);
-  assert.match(government, /Eligible \/ refreshable FTOs/);
+  assert.match(government, /Ready to import/);
+  assert.match(government, /Already checked — eligible, not imported/);
+  assert.match(government, /No FTOs are ready to import\./);
+  assert.doesNotMatch(government, /Eligible \/ refreshable FTOs|Needs review|Total listed|Fetched at/);
 });
 
 test("Inline scripts in the unified FTO workflow parse cleanly", () => {

@@ -30,21 +30,19 @@ body.modal-mode .panel{margin:8px 0}
 <header><h1>Government FTO Fetch</h1><p>Secure, read-only connection to the Government FTO listing for VBGRAMG administrators.</p></header>
 <section class="panel" id="access-panel"><h2>Administrator access</h2><p>Sign in with an approved VBGRAMG administrator account.</p><div id="access-status" class="status">Checking your session…</div></section>
 <section class="panel" id="app-panel" hidden>
-<div class="notice"><strong>Read-only comparison.</strong> This fetches the Government listing and compares it with imported history and saved inspection results. Imported FTOs and FTOs classified Out of Scope are permanently skipped. No Contribution periods or charges are created.</div>
-<div class="actions"><button id="fetch-button" type="button">Refresh Government listing</button></div>
-<div id="details-panel" class="panel" hidden><h2>Transaction preview</h2><p class="section-note">Successful inspections save only the FTO inspection classification. FTO transaction history and Contribution records are not changed.</p><p id="details-progress" class="section-note">Ready.</p><div class="notice" style="margin:10px 0">Import records Government transaction history only. It does not calculate Contribution charges or assign a Contribution period.</div><button id="import-button" hidden type="button" disabled>Import new FTO history</button><div id="import-status" class="status">Complete the detail preview before importing.</div><progress id="details-progressbar" max="1" value="0" style="width:100%;height:18px"></progress><div id="details-validation" class="stats" hidden></div><div id="details-results" class="table-wrap"></div></div>
-<div id="fetch-status" class="status" aria-live="polite">Opening the Government listing…</div>
+<div id="details-panel" hidden aria-hidden="true"><p id="details-progress"></p><button id="import-button" hidden type="button" disabled></button><div id="import-status"></div><progress id="details-progressbar" max="1" value="0"></progress><div id="details-validation" hidden></div><div id="details-results"></div></div><button id="import-button" hidden type="button" disabled>Import new FTO history</button><div id="import-status" class="status">Complete the detail preview before importing.</div><progress id="details-progressbar" max="1" value="0" style="width:100%;height:18px"></progress><div id="details-validation" class="stats" hidden></div><div id="details-results" class="table-wrap"></div></div>
+<div id="fetch-status" class="status" aria-live="polite" hidden></div>
 <div id="results" hidden>
-<div class="stats">
-<div class="stat"><small>Eligible / refreshable FTOs</small><strong id="new-count">—</strong></div>
-<div class="stat"><small>Needs review</small><strong id="review-count">—</strong></div>
-<div class="stat"><small>Total listed</small><strong id="count">—</strong></div>
-<div class="stat"><small>Fetched at</small><strong id="fetched-at">—</strong></div>
-</div>
-<h2>Eligible / refreshable FTOs</h2><p class="section-note">These FTOs are checked against the latest Active MIS and are available for Pending Imports.</p>
+<section class="result-section">
+<h2>Ready to import <span id="new-count">—</span></h2>
+<p class="section-note">These FTOs need a fresh eligibility check against the latest Active MIS.</p>
 <div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Listing details</th></tr></thead><tbody id="new-rows"></tbody></table></div>
-<section id="unrecognized-section" hidden><h2>Needs review</h2><p class="section-note">These entries have a missing or repeated FTO number and need manual review.</p>
-<div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Listing details</th></tr></thead><tbody id="unrecognized-rows"></tbody></table></div></section>
+</section>
+<section id="already-checked-section" class="result-section" hidden>
+<h2>Already checked — eligible, not imported <span id="already-checked-count">—</span></h2>
+<p class="section-note">These FTOs have already passed eligibility checks and remain available in Pending Imports.</p>
+<div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Listing details</th></tr></thead><tbody id="already-checked-rows"></tbody></table></div>
+</section>
 <div class="actions"><button id="continue-to-fto-import" type="button" hidden>Continue</button></div>
 </div>
 </section>
@@ -70,7 +68,7 @@ async function verifyAccess(user){
   return;
  }
  $("access-panel").hidden=true;$("app-panel").hidden=false;
- if(!listingStarted){listingStarted=true;queueMicrotask(()=>$("fetch-button").click());}
+ if(!listingStarted){listingStarted=true;queueMicrotask(runGovernmentFetch);}
 }
 client.auth.onAuthStateChange((event,session)=>{
  if(event==="SIGNED_OUT"){authSequence++;window.location.replace("./");}
@@ -186,17 +184,18 @@ $("import-button").hidden=true;
 $("import-button").disabled=true;
 $("import-button").addEventListener("click",()=>status("import-status","Open this FTO from Pending Imports to complete applicant matching and import.","error"));
 
-$("fetch-button").addEventListener("click",async()=>{
- const button=$("fetch-button");button.disabled=true;button.textContent="Fetching…";$("results").hidden=true;$("details-panel").hidden=true;
- status("fetch-status","Connecting to the Government FTO listing and checking imported history…");
+async function runGovernmentFetch(){
+ $("results").hidden=true;$("details-panel").hidden=true;
+ $("fetch-status").hidden=true;
  try{
   const {data,error}=await window.VBGRAMGData.invoke("vbgramg-fto-government-fetch",{body:{},timeoutMs:30000});
   if(error||!data||data.success!==true)throw new Error(data?.error||error?.message||"Government fetch failed.");
   const validList=key=>Array.isArray(data[key]);
-  if(data.databaseChanged!==false||!validList("newFtos")||!validList("alreadyImported")||!validList("unrecognized")||!validList("skippedInspectedFtos")||
-     data.newFtos.length!==Number(data.newCount)||data.alreadyImported.length!==Number(data.alreadyImportedCount)||
+  if(data.databaseChanged!==false||!validList("newFtos")||!validList("alreadyCheckedEligibleFtos")||!validList("alreadyImported")||!validList("unrecognized")||!validList("skippedInspectedFtos")||
+     data.newFtos.length!==Number(data.newCount)||data.alreadyCheckedEligibleFtos.length!==Number(data.alreadyCheckedEligibleCount)||
+     data.alreadyImported.length!==Number(data.alreadyImportedCount)||
      data.unrecognized.length!==Number(data.unrecognizedCount)||data.skippedInspectedFtos.length!==Number(data.skippedInspectedCount)||
-     data.newFtos.length+data.alreadyImported.length+data.unrecognized.length+data.skippedInspectedFtos.length!==Number(data.listingCandidateCount))
+     data.newFtos.length+data.alreadyCheckedEligibleFtos.length+data.alreadyImported.length+data.unrecognized.length+data.skippedInspectedFtos.length!==Number(data.listingCandidateCount))
     throw new Error("The server returned an incomplete or unexpected comparison response.");
   manifestToken=String(data.manifestToken||"");
   if(!manifestToken)throw new Error("The server did not return the secure detail manifest.");
@@ -213,14 +212,12 @@ $("fetch-button").addEventListener("click",async()=>{
   $("details-validation").hidden=true;
   $("details-progress").textContent=detailQueue.length?"Starting automatic detail checks…":"No eligible new FTOs require detail checks.";
   $("new-count").textContent=Number(data.newCount).toLocaleString("en-IN");
-  $("review-count").textContent=Number(data.unrecognizedCount).toLocaleString("en-IN");
-  $("count").textContent=Number(data.listingCandidateCount).toLocaleString("en-IN");
-  $("fetched-at").textContent=new Date(data.fetchedAt).toLocaleString();
-  renderRows("new-rows",data.newFtos,"No new FTOs were found.");
-  renderRows("unrecognized-rows",data.unrecognized,"No FTO numbers need review.");
-  $("unrecognized-section").hidden=data.unrecognized.length===0;
+  $("already-checked-count").textContent=Number(data.alreadyCheckedEligibleCount).toLocaleString("en-IN");
+  renderRows("new-rows",data.newFtos,"No FTOs are ready to import.");
+  renderRows("already-checked-rows",data.alreadyCheckedEligibleFtos,"No previously checked eligible FTOs.");
+  $("already-checked-section").hidden=data.alreadyCheckedEligibleFtos.length===0;
   $("results").hidden=false;
-  status("fetch-status",data.message+" Starting automatic detail checks for "+detailQueue.length+" eligible FTO(s). Imported and out-of-scope FTOs are never rechecked. Listing fingerprint: "+data.listingFingerprint,"success");
+  $("fetch-status").hidden=true;
   if(detailQueue.length){
    $("details-panel").hidden=false;
    detailResults=[];misSnapshot=null;importedFtoNumbers=new Set();
@@ -233,12 +230,11 @@ $("fetch-button").addEventListener("click",async()=>{
   // Keep the saved Pending Imports queue reachable even when this listing has
   // no new FTOs, or when an individual detail check needs a later retry.
   $("continue-to-fto-import").hidden=false;
- }catch(error){status("fetch-status",error.message||"Government fetch failed.","error");}
+ }catch(error){$("fetch-status").hidden=false;status("fetch-status",error.message||"Government fetch failed.","error");}
  finally{
-  button.disabled=false;button.textContent="Refresh Government listing";
   if(modalMode&&window.parent!==window)window.parent.postMessage({type:"vbgramg-government-refresh-complete",status:$("fetch-status").classList.contains("error")?"error":"success"},location.origin);
  }
-});
+}
 })();
 </script>
 <script src="./navigation.js?v=20261117a"></script>

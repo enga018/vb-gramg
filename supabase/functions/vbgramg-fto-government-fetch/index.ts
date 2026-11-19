@@ -170,10 +170,12 @@ Deno.serve(async (req: Request) => {
     const inspectionByNumber = new Map((inspectionRows || []).map((row: any) => [
       String(row.fto_number_normalized || "").trim().toUpperCase(), String(row.classification || "")
     ]));
-    const isOutOfScope = (item: { ftoNumber: string }) =>
-      inspectionByNumber.get(item.ftoNumber.trim().toUpperCase()) === "OUT_OF_SCOPE";
+    const classificationFor = (item: { ftoNumber: string }) =>
+      inspectionByNumber.get(item.ftoNumber.trim().toUpperCase()) || "";
+    const isOutOfScope = (item: { ftoNumber: string }) => classificationFor(item) === "OUT_OF_SCOPE";
     const skippedInspectedFtos = newFtos.filter(isOutOfScope);
-    const eligibleNewFtos = newFtos.filter(item => !isOutOfScope(item));
+    const alreadyCheckedEligibleFtos = newFtos.filter(item => classificationFor(item) === "ELIGIBLE");
+    const readyToImportFtos = newFtos.filter(item => !isOutOfScope(item) && classificationFor(item) !== "ELIGIBLE");
     const manifestToken = await makeManifestToken(serviceKey, candidates.map(({ detailUrl, ftoNumber, listingRow, listingHeaders }) => ({ detailUrl, ftoNumber, listingRow, listingHeaders })));
     const fingerprintBytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(candidates.map(item => item.detailUrl).join("\n")));
     const listingFingerprint = [...new Uint8Array(fingerprintBytes)].map(value => value.toString(16).padStart(2, "0")).join("");
@@ -183,7 +185,9 @@ Deno.serve(async (req: Request) => {
       source: "government",
       fetchedAt: new Date().toISOString(),
       listingCandidateCount: candidates.length,
-      newCount: eligibleNewFtos.length,
+      newCount: readyToImportFtos.length,
+      alreadyCheckedEligibleCount: alreadyCheckedEligibleFtos.length,
+      alreadyCheckedEligibleFtos,
       skippedInspectedCount: skippedInspectedFtos.length,
       skippedInspectedFtos,
       alreadyImportedCount: alreadyImported.length,
@@ -191,10 +195,10 @@ Deno.serve(async (req: Request) => {
       listingFingerprint,
       manifestToken,
       manifestExpiresInSeconds: 2700,
-      newFtos: eligibleNewFtos,
+      newFtos: readyToImportFtos,
       alreadyImported,
       unrecognized,
-      message: "Government listing fetched and compared with imported and terminal inspection history. New and unfinished FTOs are available for detail refresh; imported and Out of Scope FTOs remain excluded.",
+      message: "Government listing fetched and compared with imported and terminal inspection history. FTOs without a completed eligibility inspection are ready for a fresh check; previously checked eligible FTOs remain available in Pending Imports; imported and Out of Scope FTOs remain excluded.",
     });
   } catch (error) {
     return reply({ error: error instanceof Error ? error.message : "Government listing fetch failed.", databaseChanged: false }, 502);

@@ -52,6 +52,7 @@ function notifyParent(result){if(modalMode&&window.parent!==window)window.parent
 function cell(row,value){const td=row.insertCell();td.textContent=value==null?"":String(value);return td;}
 function dateLabel(value){if(!value)return "—";const d=new Date(value);return Number.isNaN(d.getTime())?String(value):d.toLocaleString("en-IN");}
 async function loadPending(){
+ $("list-status").hidden=false;$("pending-table-wrap").hidden=false;
  status("list-status","Revalidating saved inspections against the latest Active MIS…");
  $("pending-rows").replaceChildren();$("empty").classList.add("hidden");
  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-contribution-data",{body:{action:"list-pending-ftos"},timeoutMs:60000});
@@ -74,16 +75,17 @@ async function loadPending(){
   $("pending-rows").append(tr);
  }
  if(!pending.length){
+  $("pending-table-wrap").hidden=true;
+  $("list-status").hidden=true;
   $("empty").classList.remove("hidden");
   $("empty").textContent=modalMode
    ?"No eligible FTOs found. No inspected FTO currently has eligible, unimported transactions matching the latest Active MIS."
    :"There are no FTOs waiting in Pending Imports.";
-  status("list-status",modalMode
-   ?"No eligible FTOs found. The saved inspections were checked against the latest Active MIS."
-   :"There are no FTOs waiting in Pending Imports.","success");
   notifyParent({status:"success",count:0});
   return;
  }
+ $("pending-table-wrap").hidden=false;
+ $("list-status").hidden=false;
  status("list-status",pending.length+" FTO(s) ready to continue. No Government detail fetch was performed.","success");
  notifyParent({status:"success",count:pending.length});
 }

@@ -173,8 +173,6 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./js/mis-import.js?v=20261104a"></script>
-  
   <script>
     const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
     const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
@@ -221,6 +219,9 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
       document.getElementById('diff-unchanged-count').textContent=Number(result.unchanged||0).toLocaleString();
       document.getElementById('diff-intro').textContent='The official Government MIS is now active. '+Number(result.newCount||result.parsedApplicantCount||0).toLocaleString()+' applicant record(s) are active. Figures below compare it with the previous MIS.';
       renderDiff(result);document.getElementById('diff-panel').classList.remove('hidden');
+      // Refresh the parent MIS immediately after confirmed activation, even if
+      // the administrator closes the dialog without pressing Okay.
+      if(window.parent!==window)window.parent.postMessage({type:'vbgramg-mis-import-complete'},window.location.origin);
     }
     fetchButton.disabled=true;
     fetchButton.addEventListener('click',async()=>{
@@ -229,12 +230,18 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
       try{const result=await invokeImport({action:'official-fetch'});if(!result||result.success!==true||result.activated!==true)throw new Error('The server did not confirm successful MIS activation.');
         fetchStatus.textContent='Official Government MIS fetched and activated successfully.';setStatus('Official MIS update completed successfully.','success');showResult(result);
       }catch(error){const message=error&&error.message?error.message:String(error);fetchStatus.textContent='Fetch failed: '+message;setStatus('Official MIS update failed. The previous active MIS has been preserved. '+message,'error');}
-      finally{fetchButton.disabled=false;}
+      finally{
+        // Keep the fetch action locked while the successful result awaits acknowledgement.
+        if(document.getElementById('diff-panel').classList.contains('hidden'))fetchButton.disabled=false;
+      }
     });
     window.addEventListener('message',event=>{if(event.origin===location.origin&&event.data&&event.data.type==='vbgramg-start-official-mis-fetch'&&!fetchButton.disabled)fetchButton.click();});
     document.getElementById('diff-prev').addEventListener('click',()=>{diffPage=Math.max(0,diffPage-1);if(latestDiff)renderDiff(latestDiff);});
     document.getElementById('diff-next').addEventListener('click',()=>{diffPage++;if(latestDiff)renderDiff(latestDiff);});
-    document.getElementById('diff-okay-button').addEventListener('click',()=>{document.getElementById('diff-panel').classList.add('hidden');if(window.parent!==window)window.parent.postMessage({type:'vbgramg-mis-import-complete'},window.location.origin);});
+    document.getElementById('diff-okay-button').addEventListener('click',()=>{
+      document.getElementById('diff-panel').classList.add('hidden');
+      fetchButton.disabled=!(currentUser&&currentRole==='admin');
+    });
     setStatus('Checking your sign-in session…');
     (async()=>{try{const {data,error}=await supabaseClient.auth.getSession();if(error)throw error;setStatus('Verifying administrator permissions…');await updateAuthUI(data.session?data.session.user:null);}catch(error){setStatus('Could not verify administrator access: '+(error.message||String(error))+'. Reload the page or sign in again.','error');}})();
     supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_IN'||event==='SIGNED_OUT')updateAuthUI(session?session.user:null);});

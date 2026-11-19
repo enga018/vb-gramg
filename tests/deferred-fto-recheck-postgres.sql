@@ -24,9 +24,16 @@ CREATE TABLE public.vbgramg_fto_batches (
   fto_number text UNIQUE NOT NULL,
   last_checked_at timestamptz
 );
+CREATE TABLE public.vbgramg_charge_ledger (
+  id uuid PRIMARY KEY,
+  entry_type text NOT NULL,
+  is_deferred boolean NOT NULL DEFAULT false,
+  is_voided boolean NOT NULL DEFAULT false
+);
 CREATE TABLE public.vbgramg_fto_transactions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   batch_id uuid NOT NULL REFERENCES public.vbgramg_fto_batches(id),
+  ledger_entry_id uuid REFERENCES public.vbgramg_charge_ledger(id),
   reference_no text NOT NULL,
   status text,
   processed_date date,
@@ -55,6 +62,7 @@ GRANT SELECT ON auth.users TO service_role;
 GRANT SELECT ON public.vbgramg_approved_users TO service_role;
 GRANT SELECT, UPDATE ON public.vbgramg_fto_batches TO service_role;
 GRANT SELECT, UPDATE ON public.vbgramg_fto_transactions TO service_role;
+GRANT SELECT, UPDATE ON public.vbgramg_charge_ledger TO service_role;
 GRANT SELECT, INSERT ON public.vbgramg_fto_status_history TO service_role;
 
 \ir ../supabase/migrations/20261118170000_add_atomic_deferred_fto_recheck.sql
@@ -62,6 +70,7 @@ GRANT SELECT, INSERT ON public.vbgramg_fto_status_history TO service_role;
 \ir ../supabase/migrations/20261118193000_add_deferred_fto_recheck_run_rpcs.sql
 \ir ../supabase/migrations/20261118200000_add_deferred_fto_recheck_recovery.sql
 \ir ../supabase/migrations/20261118220000_enforce_single_active_fto_recheck.sql
+\ir ../supabase/migrations/20261119110000_activate_deferred_fto_charge_on_processed.sql
 
 INSERT INTO auth.users(id,email)
 VALUES ('11111111-1111-4111-8111-111111111111','admin@example.test');
@@ -71,14 +80,19 @@ VALUES ('admin@example.test','admin');
 INSERT INTO public.vbgramg_fto_batches(id,fto_number)
 VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','TEST-DEFERRED-001');
 
-INSERT INTO public.vbgramg_fto_transactions
-  (id,batch_id,reference_no,status,processed_date,rejection_reason)
+INSERT INTO public.vbgramg_charge_ledger(id,entry_type,is_deferred,is_voided)
 VALUES
-  ('00000000-0000-4000-8000-000000000001','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','REF001','processed','2026-10-01',NULL),
-  ('00000000-0000-4000-8000-000000000002','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','REF002','blank',NULL,NULL),
-  ('00000000-0000-4000-8000-000000000003','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','REF003','blank',NULL,NULL),
-  ('00000000-0000-4000-8000-000000000004','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','REF004','rejected',NULL,'Rejected by DDO'),
-  ('00000000-0000-4000-8000-000000000005','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','REF005','blank',NULL,NULL);
+  ('eeeeeeee-eeee-4eee-8eee-eeeeeeee0002','charge',true,false),
+  ('eeeeeeee-eeee-4eee-8eee-eeeeeeee0003','charge',true,false);
+
+INSERT INTO public.vbgramg_fto_transactions
+  (id,batch_id,ledger_entry_id,reference_no,status,processed_date,rejection_reason)
+VALUES
+  ('00000000-0000-4000-8000-000000000001','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',NULL,'REF001','processed','2026-10-01',NULL),
+  ('00000000-0000-4000-8000-000000000002','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','eeeeeeee-eeee-4eee-8eee-eeeeeeee0002','REF002','blank',NULL,NULL),
+  ('00000000-0000-4000-8000-000000000003','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','eeeeeeee-eeee-4eee-8eee-eeeeeeee0003','REF003','blank',NULL,NULL),
+  ('00000000-0000-4000-8000-000000000004','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',NULL,'REF004','rejected',NULL,'Rejected by DDO'),
+  ('00000000-0000-4000-8000-000000000005','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',NULL,'REF005','blank',NULL,NULL);
 
 SET ROLE service_role;
 
@@ -118,6 +132,12 @@ BEGIN
 
   SELECT status INTO v_status FROM public.vbgramg_fto_transactions WHERE reference_no='REF002';
   IF v_status <> 'processed' THEN RAISE EXCEPTION 'REF002 was not updated to Processed'; END IF;
+  IF (SELECT is_deferred FROM public.vbgramg_charge_ledger WHERE id='eeeeeeee-eeee-4eee-8eee-eeeeeeee0002') IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'REF002 linked contribution charge was not activated when Deferred changed to Processed';
+  END IF;
+  IF (SELECT is_deferred FROM public.vbgramg_charge_ledger WHERE id='eeeeeeee-eeee-4eee-8eee-eeeeeeee0003') IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'REF003 linked contribution charge was activated even though it remains Deferred';
+  END IF;
   SELECT status INTO v_status FROM public.vbgramg_fto_transactions WHERE reference_no='REF005';
   SELECT rejection_reason INTO v_reason FROM public.vbgramg_fto_transactions WHERE reference_no='REF005';
   IF v_status <> 'rejected' OR v_reason <> 'Rejected by DDO' THEN

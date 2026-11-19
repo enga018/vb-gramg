@@ -37,21 +37,13 @@ body.modal-mode .panel{margin:8px 0}
 <div id="results" hidden>
 <div class="stats">
 <div class="stat"><small>Eligible / refreshable FTOs</small><strong id="new-count">—</strong></div>
-<div class="stat"><small>Already imported</small><strong id="imported-count">—</strong></div>
 <div class="stat"><small>Needs review</small><strong id="review-count">—</strong></div>
-<div class="stat"><small>Out of scope (permanently skipped)</small><strong id="skipped-count">—</strong></div>
 <div class="stat"><small>Total listed</small><strong id="count">—</strong></div>
 <div class="stat"><small>Fetched at</small><strong id="fetched-at">—</strong></div>
-<div class="stat"><small>Database changes</small><strong>No</strong></div>
 </div>
-<h2>Eligible / refreshable FTOs</h2><p class="section-note">New and unfinished FTOs appear here for fresh Active MIS validation. Imported and Out of Scope FTOs remain excluded.</p>
+<h2>Eligible / refreshable FTOs</h2><p class="section-note">These FTOs are checked against the latest Active MIS and are available for Pending Imports.</p>
 <div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Listing details</th></tr></thead><tbody id="new-rows"></tbody></table></div>
-<button class="details-toggle" id="toggle-imported" type="button" aria-expanded="false" aria-controls="imported-section">Show already-imported FTOs</button>
-<section id="imported-section" hidden><h2>Already imported</h2><p class="section-note">These FTO numbers already exist in VBGRAMG FTO History and are permanently excluded from automatic fetching.</p>
-<div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Listing details</th></tr></thead><tbody id="imported-rows"></tbody></table></div></section>
-<section id="out-of-scope-section" hidden><h2>Out of Scope</h2><p class="section-note">These FTOs were previously confirmed as outside the Active MIS and are permanently excluded from automatic rechecking.</p>
-<div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Listing details</th></tr></thead><tbody id="out-of-scope-rows"></tbody></table></div></section>
-<section id="unrecognized-section" hidden><h2>Needs review</h2><p class="section-note">The Government listing has a missing or repeated FTO number. These entries are not treated as new or already imported.</p>
+<section id="unrecognized-section" hidden><h2>Needs review</h2><p class="section-note">These entries have a missing or repeated FTO number and need manual review.</p>
 <div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Listing details</th></tr></thead><tbody id="unrecognized-rows"></tbody></table></div></section>
 <div class="actions"><button id="continue-to-fto-import" type="button" hidden>Continue</button></div>
 </div>
@@ -98,12 +90,7 @@ function renderRows(targetId,items,emptyText){
   tr.append(number,details);tbody.append(tr);
  }
 }
-$("toggle-imported").addEventListener("click",()=>{
- const section=$("imported-section"),show=section.hidden;
- section.hidden=!show;
- $("toggle-imported").textContent=show?"Hide already-imported FTOs":"Show already-imported FTOs";
- $("toggle-imported").setAttribute("aria-expanded",String(show));
-});
+
 
 async function runDetailBatches(numbers){
  const panel=$("details-panel"),progress=$("details-progress"),bar=$("details-progressbar"),target=$("details-results");
@@ -226,17 +213,11 @@ $("fetch-button").addEventListener("click",async()=>{
   $("details-validation").hidden=true;
   $("details-progress").textContent=detailQueue.length?"Starting automatic detail checks…":"No eligible new FTOs require detail checks.";
   $("new-count").textContent=Number(data.newCount).toLocaleString("en-IN");
-  $("imported-count").textContent=Number(data.alreadyImportedCount).toLocaleString("en-IN");
   $("review-count").textContent=Number(data.unrecognizedCount).toLocaleString("en-IN");
-  $("skipped-count").textContent=Number(data.skippedInspectedCount).toLocaleString("en-IN");
   $("count").textContent=Number(data.listingCandidateCount).toLocaleString("en-IN");
   $("fetched-at").textContent=new Date(data.fetchedAt).toLocaleString();
   renderRows("new-rows",data.newFtos,"No new FTOs were found.");
-  renderRows("imported-rows",data.alreadyImported,"No previously imported FTOs were found.");
-  renderRows("out-of-scope-rows",data.skippedInspectedFtos,"No Out of Scope FTOs were found.");
   renderRows("unrecognized-rows",data.unrecognized,"No FTO numbers need review.");
-  $("imported-section").hidden=true;$("toggle-imported").textContent="Show already-imported FTOs";$("toggle-imported").setAttribute("aria-expanded","false");
-  $("out-of-scope-section").hidden=data.skippedInspectedFtos.length===0;
   $("unrecognized-section").hidden=data.unrecognized.length===0;
   $("results").hidden=false;
   status("fetch-status",data.message+" Starting automatic detail checks for "+detailQueue.length+" eligible FTO(s). Imported and out-of-scope FTOs are never rechecked. Listing fingerprint: "+data.listingFingerprint,"success");

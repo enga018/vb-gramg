@@ -229,7 +229,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
       fetchButton.disabled=true;fetchStatus.textContent='Fetching, validating, comparing and activating the official Government MIS…';setStatus('Official MIS update in progress. Keep this page open.');document.getElementById('diff-panel').classList.add('hidden');
       try{const result=await invokeImport({action:'official-fetch'});if(!result||result.success!==true||result.activated!==true)throw new Error('The server did not confirm successful MIS activation.');
         fetchStatus.textContent='Official Government MIS fetched and activated successfully.';setStatus('Official MIS update completed successfully.','success');showResult(result);
-      }catch(error){const message=error&&error.message?error.message:String(error);fetchStatus.textContent='Fetch failed: '+message;setStatus('Official MIS update failed. The previous active MIS has been preserved. '+message,'error');}
+      }catch(error){const message=error&&error.message?error.message:String(error);fetchStatus.textContent='Fetch failed: '+message;const uncertain=message.toLowerCase().includes('activation status could not be verified');setStatus(uncertain?'Import outcome is uncertain. Do not retry yet; refresh the MIS page and verify which import is active. '+message:'Official MIS update failed. The previous active MIS has been preserved. '+message,'error');}
       finally{
         // Keep the fetch action locked while the successful result awaits acknowledgement.
         if(document.getElementById('diff-panel').classList.contains('hidden'))fetchButton.disabled=false;

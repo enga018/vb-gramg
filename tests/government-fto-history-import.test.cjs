@@ -112,6 +112,11 @@ test("FTO Import uses one entry point and embeds Government refresh in the saved
   assert.match(pending, /action:"list-pending-ftos"/);
   assert.match(pending, /vbgramg-government-refresh-complete/);
   assert.match(government, /modalMode/);
+  assert.match(government, /queueMicrotask\(runGovernmentFetch\)/);
+  assert.match(government, /async function runGovernmentFetch\(\)/);
+  assert.doesNotMatch(government, /Read-only comparison|Refresh Government listing|fetch-button/);
+  assert.match(government, /fetch-status.*hidden/);
+  assert.match(government, /catch\(error\).*fetch-status.*error/s);
   assert.match(government, /vbgramg-government-refresh-complete/);
   assert.match(government, /id="new-count"/);
   assert.match(government, /Ready to import/);

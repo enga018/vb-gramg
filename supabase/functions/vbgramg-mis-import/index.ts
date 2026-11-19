@@ -403,53 +403,19 @@ Deno.serve(async (req: Request) => {
 
         // This RPC is the only activation commit point. It verifies the baseline
         // is still current and validates every staged row inside the DB transaction.
+        const selectionPayload = [...candidatesByCard.values()];
+
+        // Activation and missing-selection initialisation share one database
+        // transaction. A failure cannot leave a partially activated MIS.
         const { data: activation, error: activationError } = await admin.rpc("vbgramg_activate_mis_import", {
           p_import_id: record.id,
           p_actor_id: authData.user.id,
           p_expected_active_import_id: built.activeImportId,
           p_expected_row_count: built.output.length,
+          p_selections: selectionPayload,
         });
         if (activationError) throw activationError;
         if (!activation?.success) throw new Error("MIS activation did not confirm success.");
-
-        let autoSelectedNewJobCards = 0;
-        let autoSelectedNewApplicants = 0;
-        let selectionWarning: string | null = null;
-        try {
-          const candidates = [...candidatesByCard.values()];
-          for (let offset = 0; offset < candidates.length; offset += 400) {
-            const batch = candidates.slice(offset, offset + 400);
-            const { data: savedSelections, error: savedSelectionError } = await admin
-              .from("vbgramg_mis_selections")
-              .select("job_card_number")
-              .in("job_card_number", batch.map(item => item.job_card_number));
-            if (savedSelectionError) throw savedSelectionError;
-
-            const alreadyMarked = new Set((savedSelections || []).map(item => item.job_card_number));
-            const selectionsToAdd = batch.filter(item => !alreadyMarked.has(item.job_card_number));
-            if (!selectionsToAdd.length) continue;
-
-            const payload = selectionsToAdd.map(item => ({
-              ...item,
-              updated_by: "system:auto-mis-import",
-              updated_at: new Date().toISOString(),
-            }));
-            const { error: selectionError } = await admin.from("vbgramg_mis_selections")
-              .upsert(payload, { onConflict: "job_card_number", ignoreDuplicates: true });
-            if (selectionError) throw selectionError;
-
-            for (const item of selectionsToAdd) {
-              if (selectionCandidates.newJobCardSelections.some(candidate => candidate.job_card_number === item.job_card_number)) {
-                autoSelectedNewJobCards++;
-              } else {
-                autoSelectedNewApplicants++;
-              }
-            }
-          }
-        } catch (error) {
-          console.error("Could not initialise MIS applicant selections:", error);
-          selectionWarning = "The new MIS is active, but automatic applicant selection could not be completed for some job cards.";
-        }
 
         return reply({
           success: true,
@@ -461,9 +427,7 @@ Deno.serve(async (req: Request) => {
           parsedApplicantCount: built.output.length - 1,
           rowCount: built.output.length,
           syncedAt: activation.activated_at || new Date().toISOString(),
-          autoSelectedNewJobCards,
-          autoSelectedNewApplicants,
-          selectionWarning,
+          initializedSelectionCount: Number(activation.initialized_selection_count || 0),
           ...diff,
         });
       } catch (error) {

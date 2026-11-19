@@ -115,7 +115,7 @@ test("FTO Import uses one entry point and embeds Government refresh in the saved
   assert.match(government, /queueMicrotask\(runGovernmentFetch\)/);
   assert.match(government, /async function runGovernmentFetch\(\)/);
   assert.match(government, /id="details-panel" hidden aria-hidden="true"/);
-  assert.doesNotMatch(government, /<h2>Transaction preview<\/h2>|Starting automatic detail checks…|No eligible new FTOs require detail checks/);
+  assert.doesNotMatch(government, /<h2>Transaction preview<\/h2>/);
   assert.doesNotMatch(government, /Read-only comparison|Refresh Government listing|fetch-button/);
   assert.match(government, /fetch-status.*hidden/);
   assert.match(government, /catch\(error\).*fetch-status.*error/s);

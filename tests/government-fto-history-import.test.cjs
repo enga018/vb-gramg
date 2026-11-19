@@ -88,3 +88,34 @@ test("Only imported and Out of Scope FTOs are terminal during Government refresh
 });test("Government FTO preview is independent of Contribution exemptions", () => {
   assert.doesNotMatch(details, /vbgramg_contribution_exemptions|exemptCards|contributionExempt/);
 });
+
+test("FTO Import uses one entry point and embeds Government refresh in the saved queue", () => {
+  const history = read("fto.html");
+  const pending = read("pending-imports.html");
+  const government = read("fto-government-fetch.html");
+  assert.match(history, /id="open-fto-import"[^>]*>FTO Import</);
+  assert.doesNotMatch(history, /id="open-pending-imports"/);
+  assert.doesNotMatch(history, /id="pending-imports-modal"/);
+  assert.match(history, /frame\.src='\.\/pending-imports\.html\?modal=1'/);
+  assert.match(pending, /id="refresh-government"/);
+  assert.match(pending, /id="government-refresh-frame"/);
+  assert.match(pending, /action:"list-pending-ftos"/);
+  assert.match(pending, /vbgramg-government-refresh-complete/);
+  assert.match(government, /modalMode/);
+  assert.match(government, /vbgramg-government-refresh-complete/);
+  assert.match(government, /id="new-count"/);
+  assert.match(government, /Eligible \/ refreshable FTOs/);
+});
+
+test("Inline scripts in the unified FTO workflow parse cleanly", () => {
+  const vm = require("node:vm");
+  for (const file of ["fto.html", "pending-imports.html", "fto-government-fetch.html"]) {
+    const html = read(file);
+    const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)]
+      .map(match => match[1]).filter(source => source.trim());
+    assert.ok(scripts.length, file + " should contain inline workflow code");
+    for (const [index, source] of scripts.entries()) {
+      assert.doesNotThrow(() => new vm.Script(source, { filename: file + " inline script " + index }));
+    }
+  }
+});

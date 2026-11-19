@@ -628,7 +628,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 <div id="app-panel" class="hidden">
 <section class="panel">
 <div id="fto-history" class="history-section">
- <div class="section-head"><div></div><div class="actions"><button id="fto-recheck-deferred" type="button" class="fto-recheck-button" disabled>Recheck All Deferred FTOs</button><button id="open-pending-imports" type="button" class="secondary">Pending Imports</button><button id="open-fto-import" type="button" class="secondary">New FTO Import</button></div></div>
+ <div class="section-head"><div></div><div class="actions"><button id="fto-recheck-deferred" type="button" class="fto-recheck-button" disabled>Recheck All Deferred FTOs</button><button id="open-fto-import" type="button" class="secondary">FTO Import</button></div></div>
  <div class="fto-history-kpis" aria-label="FTO history summary">
   <div class="fto-history-kpi"><span>Imported FTOs</span><strong id="fto-kpi-batches">—</strong></div>
   <div class="fto-history-kpi"><span>Total transactions</span><strong id="fto-kpi-transactions">—</strong></div>
@@ -658,19 +658,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 
 <dialog id="fto-import-modal" class="fto-import-modal" aria-labelledby="fto-import-modal-title"><div class="fto-import-modal-head"><h2 id="fto-import-modal-title">Import FTO</h2><button id="close-fto-import" type="button" class="secondary" aria-label="Close FTO import">×</button></div><iframe id="fto-import-frame" title="FTO import form" src="about:blank"></iframe></dialog>
 </main>
-<dialog id="pending-imports-modal" class="pending-imports-modal" aria-label="Pending FTO imports">
- <div class="pending-imports-modal-head"><strong>Pending Imports</strong><button id="close-pending-imports" type="button" class="secondary" aria-label="Close Pending Imports">×</button></div>
- <iframe id="pending-imports-frame" title="Pending FTO imports" src="about:blank"></iframe>
-</dialog>
-<style>
-.pending-imports-modal{width:min(1180px,96vw);height:min(860px,94vh);max-width:none;max-height:none;padding:0;border:1px solid #dfe5ee;border-radius:16px;box-shadow:0 24px 80px rgb(15 23 42 / 28%);overflow:hidden}
-.pending-imports-modal::backdrop{background:rgb(15 23 42 / 58%);backdrop-filter:blur(3px)}
-.pending-imports-modal-head{height:54px;display:flex;align-items:center;justify-content:space-between;padding:8px 14px 8px 18px;border-bottom:1px solid #e3e8f0;background:#fff}
-.pending-imports-modal-head strong{font-size:1rem;color:#172033}
-.pending-imports-modal-head button{min-width:40px;min-height:38px;padding:5px 12px}
-#pending-imports-frame{display:block;width:100%;height:calc(100% - 54px);border:0;background:#f3f6fb}
-@media(max-width:700px){.pending-imports-modal{width:100vw;height:100dvh;max-width:none;max-height:none;border:0;border-radius:0}.pending-imports-modal-head{height:50px}#pending-imports-frame{height:calc(100% - 50px)}}
-</style>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./js/supabase-client.js?v=20261104b"></script>
 <script src="./js/data-loader.js?v=20261104b"></script>
@@ -1229,56 +1217,21 @@ supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){
  const modal=document.getElementById('fto-import-modal'),frame=document.getElementById('fto-import-frame');
  const open=document.getElementById('open-fto-import'),close=document.getElementById('close-fto-import');
  if(!modal||!frame||!open||!close)return;
- function showImport(url){frame.src='about:blank';if(typeof modal.showModal==='function'&&!modal.open)modal.showModal();else if(typeof modal.showModal!=='function')modal.setAttribute('open','');requestAnimationFrame(function(){frame.src=url;});}
- open.addEventListener('click',()=>{window.location.href='./fto-government-fetch.html?autostart=1';});
- close.addEventListener('click',()=>modal.close());
- modal.addEventListener('click',event=>{if(event.target===modal)modal.close()});
- modal.addEventListener('close',()=>{frame.src='about:blank'});
- window.addEventListener('message',event=>{
-  if(event.origin!==location.origin||!event.data||event.data.type!=='vbgramg-fto-import-complete')return;
-  modal.close();
-  if(typeof loadFtoHistory==='function')loadFtoHistory({afterSync:true});
- });
-})();
-</script>
-<script>
-(function(){
- const modal=document.getElementById('pending-imports-modal'),frame=document.getElementById('pending-imports-frame');
- const open=document.getElementById('open-pending-imports'),close=document.getElementById('close-pending-imports');
- if(!modal||!frame||!open||!close)return;
- let resultReady=false,checking=false;
- function showPendingModal(){if(typeof modal.showModal==='function'&&!modal.open)modal.showModal();else if(typeof modal.showModal!=='function')modal.setAttribute('open','');}
- function closePendingImports(){if(modal.open)modal.close();else modal.removeAttribute('open');}
- function resetPendingButton(label,disabled=false){open.textContent=label;open.disabled=disabled;}
- open.addEventListener('click',()=>{
-  if(checking)return;
-  if(resultReady){showPendingModal();return;}
-  checking=true;resetPendingButton('Checking…',true);
+ function showImport(){
+  if(typeof modal.showModal==='function'&&!modal.open)modal.showModal();
+  else if(typeof modal.showModal!=='function')modal.setAttribute('open','');
   frame.src='./pending-imports.html?modal=1';
- });
- close.addEventListener('click',closePendingImports);
- modal.addEventListener('click',event=>{if(event.target===modal)closePendingImports();});
+ }
+ open.addEventListener('click',showImport);
+ close.addEventListener('click',()=>modal.close());
+ modal.addEventListener('click',event=>{if(event.target===modal)modal.close();});
+ modal.addEventListener('close',()=>{frame.src='about:blank';});
  window.addEventListener('message',event=>{
   if(event.origin!==location.origin||event.source!==frame.contentWindow||!event.data)return;
-  if(event.data.type==='vbgramg-pending-imports-result'){
-   checking=false;resultReady=event.data.status!=='error';
-   if(event.data.status==='error'){
-    resetPendingButton('Retry Pending Imports');
-   }else if(Number(event.data.count||0)>0){
-    resetPendingButton('View Results');
-   }else{
-    resetPendingButton('No Pending FTOs');
-   }
-   showPendingModal();
-  }
-  if(event.data.type==='vbgramg-pending-fto-imported'){
-   closePendingImports();resultReady=false;checking=false;resetPendingButton('Pending Imports');
-   frame.src='about:blank';
-   if(typeof loadFtoHistory==='function')loadFtoHistory({afterSync:true});
+  if(event.data.type==='vbgramg-pending-fto-imported'&&typeof loadFtoHistory==='function'){
+   loadFtoHistory({afterSync:true});
   }
  });
- modal.addEventListener('close',()=>{});
-
 })();
 </script>
 </body></html>

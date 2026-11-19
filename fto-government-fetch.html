@@ -18,6 +18,12 @@ button{font:inherit;font-weight:650;border:1px solid transparent;border-radius:1
 .notice{padding:12px 14px;border:1px solid #d6e4fa;background:#f5f9ff;border-radius:11px;font-size:.9rem;line-height:1.5}
 .details-toggle{margin:14px 0 8px;background:#fff;color:var(--ink);border-color:var(--line)}.section-note{font-size:.82rem;margin:4px 0 10px}.empty{color:var(--muted);font-style:italic;padding:12px 8px}
 @media(max-width:650px){body{padding:10px}header,.panel{padding:15px}.stats{grid-template-columns:1fr 1fr}.actions button{width:100%}}
+body.modal-mode{padding:10px;background:#f3f6fb}
+body.modal-mode>main{width:100%;max-width:none;margin:0}
+body.modal-mode>main>header{display:none}
+body.modal-mode #access-panel{display:none}
+body.modal-mode #app-panel{margin:0;box-shadow:none;border-radius:12px}
+body.modal-mode .panel{margin:8px 0}
 </style>
 </head>
 <body><main>
@@ -54,6 +60,7 @@ button{font:inherit;font-weight:650;border:1px solid transparent;border-radius:1
 <script>
 (function(){
 "use strict";
+const modalMode=new URLSearchParams(location.search).get("modal")==="1";if(modalMode)document.body.classList.add("modal-mode");
 const $=id=>document.getElementById(id),client=window.vbgramgSupabase;
 let authSequence=0, manifestToken="", detailQueue=[], detailResults=[], misSnapshot=null, importedFtoNumbers=new Set(), listingStarted=false;
 function status(id,message,type){const el=$(id);el.textContent=message;el.className="status"+(type?" "+type:"");}
@@ -231,7 +238,10 @@ $("fetch-button").addEventListener("click",async()=>{
    await runDetailBatches(detailQueue);
   }
  }catch(error){status("fetch-status",error.message||"Government fetch failed.","error");}
- finally{button.disabled=false;button.textContent="Refresh Government listing";}
+ finally{
+  button.disabled=false;button.textContent="Refresh Government listing";
+  if(modalMode&&window.parent!==window)window.parent.postMessage({type:"vbgramg-government-refresh-complete",status:$("fetch-status").classList.contains("error")?"error":"success"},location.origin);
+ }
 });
 })();
 </script>

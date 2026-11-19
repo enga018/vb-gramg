@@ -628,7 +628,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 <div id="app-panel" class="hidden">
 <section class="panel">
 <div id="fto-history" class="history-section">
- <div class="section-head"><div></div><div class="actions"><button id="fto-recheck-deferred" type="button" class="fto-recheck-button" disabled>Recheck All Deferred FTOs</button><button id="open-fto-import" type="button" class="secondary">FTO Import</button></div></div>
+ <div class="section-head"><div></div><div class="actions"><button id="fto-recheck-deferred" type="button" class="fto-recheck-button" disabled>Recheck All Deferred FTOs</button><button id="fetch-official-fto" type="button" class="secondary">Fetch Official FTO</button><button id="open-fto-import" type="button" class="secondary">FTO Import</button></div></div>
  <div class="fto-history-kpis" aria-label="FTO history summary">
   <div class="fto-history-kpi"><span>Imported FTOs</span><strong id="fto-kpi-batches">—</strong></div>
   <div class="fto-history-kpi"><span>Total transactions</span><strong id="fto-kpi-transactions">—</strong></div>
@@ -657,6 +657,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 </div>
 
 <dialog id="fto-import-modal" class="fto-import-modal" aria-labelledby="fto-import-modal-title"><div class="fto-import-modal-head"><h2 id="fto-import-modal-title">Import FTO</h2><button id="close-fto-import" type="button" class="secondary" aria-label="Close FTO import">×</button></div><iframe id="fto-import-frame" title="FTO import form" src="about:blank"></iframe></dialog>
+<dialog id="fto-government-modal" class="fto-import-modal" aria-labelledby="fto-government-modal-title"><div class="fto-import-modal-head"><h2 id="fto-government-modal-title">Official Government FTO Listing</h2><button id="close-fto-government" type="button" class="secondary" aria-label="Close Government FTO results">×</button></div><iframe id="fto-government-frame" title="Official Government FTO fetch results" src="about:blank"></iframe></dialog>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1251,6 +1252,50 @@ supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){
   }
   if(event.data.type==='vbgramg-pending-fto-imported'&&typeof loadFtoHistory==='function'){
    loadFtoHistory({afterSync:true});
+  }
+ });
+})();
+</script>
+<script>
+(function(){
+ const modal=document.getElementById('fto-government-modal'),frame=document.getElementById('fto-government-frame');
+ const open=document.getElementById('fetch-official-fto'),close=document.getElementById('close-fto-government');
+ if(!modal||!frame||!open||!close)return;
+ let fetching=false;
+ const defaultLabel=open.textContent;
+ function displayModal(){
+  if(typeof modal.showModal==='function'&&!modal.open)modal.showModal();
+  else if(typeof modal.showModal!=='function')modal.setAttribute('open','');
+ }
+ function startFetch(){
+  if(fetching||modal.open)return;
+  fetching=true;
+  open.disabled=true;
+  open.textContent='Fetching…';
+  open.setAttribute('aria-busy','true');
+  // The child authenticates, fetches the official listing, inspects FTO details,
+  // and reports completion. Show the modal only when the result is ready.
+  frame.src='./fto-government-fetch.html?modal=1';
+ }
+ function reset(){
+  frame.src='about:blank';
+  fetching=false;
+  open.disabled=false;
+  open.textContent=defaultLabel;
+  open.removeAttribute('aria-busy');
+ }
+ open.addEventListener('click',startFetch);
+ close.addEventListener('click',()=>modal.close());
+ modal.addEventListener('click',event=>{if(event.target===modal)modal.close();});
+ modal.addEventListener('close',reset);
+ window.addEventListener('message',event=>{
+  if(event.origin!==location.origin||event.source!==frame.contentWindow||!event.data)return;
+  if(event.data.type==='vbgramg-government-refresh-complete'){
+   fetching=false;
+   open.textContent=defaultLabel;
+   open.removeAttribute('aria-busy');
+   displayModal();
+   if(typeof loadFtoHistory==='function')loadFtoHistory();
   }
  });
 })();

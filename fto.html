@@ -657,6 +657,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 </div>
 
 <dialog id="fto-import-modal" class="fto-import-modal" aria-labelledby="fto-import-modal-title"><div class="fto-import-modal-head"><h2 id="fto-import-modal-title">Import FTO</h2><button id="close-fto-import" type="button" class="secondary" aria-label="Close FTO import">×</button></div><iframe id="fto-import-frame" title="FTO import form" src="about:blank"></iframe></dialog>
+<dialog id="fto-government-modal" class="fto-import-modal" aria-labelledby="fto-government-modal-title"><div class="fto-import-modal-head"><h2 id="fto-government-modal-title">Official Government FTO Listing</h2><button id="close-fto-government" type="button" class="secondary" aria-label="Close Government FTO results">×</button></div><iframe id="fto-government-frame" title="Official Government FTO fetch results" src="about:blank"></iframe></dialog>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1214,40 +1215,57 @@ supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){
 </script>
 <script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261118-theme-toggle"></script><script>
 (function(){
- const modal=document.getElementById('fto-import-modal'),frame=document.getElementById('fto-import-frame');
- const open=document.getElementById('open-fto-import'),close=document.getElementById('close-fto-import');
- if(!modal||!frame||!open||!close)return;
- let preparing=false;
+ const importModal=document.getElementById('fto-import-modal'),importFrame=document.getElementById('fto-import-frame');
+ const governmentModal=document.getElementById('fto-government-modal'),governmentFrame=document.getElementById('fto-government-frame');
+ const open=document.getElementById('open-fto-import'),closeImport=document.getElementById('close-fto-import'),closeGovernment=document.getElementById('close-fto-government');
+ if(!importModal||!importFrame||!governmentModal||!governmentFrame||!open||!closeImport||!closeGovernment)return;
+ let fetching=false,preparing=false,continueToImport=false;
  const defaultLabel=open.textContent;
- function displayModal(){
+ function display(modal){
   if(typeof modal.showModal==='function'&&!modal.open)modal.showModal();
   else if(typeof modal.showModal!=='function')modal.setAttribute('open','');
  }
- function showImport(){
-  if(preparing||modal.open)return;
-  preparing=true;
-  open.disabled=true;
-  open.textContent='Preparing…';
-  open.setAttribute('aria-busy','true');
-  // Load, authenticate, and prepare the saved queue before showing the modal.
-  frame.src='./pending-imports.html?modal=1';
+ function resetButton(){
+  open.disabled=false;open.textContent=defaultLabel;open.removeAttribute('aria-busy');
  }
- open.addEventListener('click',showImport);
- close.addEventListener('click',()=>modal.close());
- modal.addEventListener('click',event=>{if(event.target===modal)modal.close();});
- modal.addEventListener('close',()=>{
-  frame.src='about:blank';
-  preparing=false;
-  open.disabled=false;
-  open.textContent=defaultLabel;
-  open.removeAttribute('aria-busy');
+ function startGovernmentFetch(){
+  if(fetching||preparing||governmentModal.open||importModal.open)return;
+  fetching=true;open.disabled=true;open.textContent='Fetching…';open.setAttribute('aria-busy','true');
+  governmentFrame.src='./fto-government-fetch.html?modal=1';
+ }
+ function startPendingImport(){
+  if(preparing||importModal.open)return;
+  preparing=true;open.disabled=true;open.textContent='Preparing…';open.setAttribute('aria-busy','true');
+  importFrame.src='./pending-imports.html?modal=1';
+ }
+ open.addEventListener('click',startGovernmentFetch);
+ closeGovernment.addEventListener('click',()=>governmentModal.close());
+ governmentModal.addEventListener('click',event=>{if(event.target===governmentModal)governmentModal.close();});
+ governmentModal.addEventListener('close',()=>{
+  governmentFrame.src='about:blank';fetching=false;
+  if(continueToImport){continueToImport=false;startPendingImport();}
+  else resetButton();
+ });
+ closeImport.addEventListener('click',()=>importModal.close());
+ importModal.addEventListener('click',event=>{if(event.target===importModal)importModal.close();});
+ importModal.addEventListener('close',()=>{
+  importFrame.src='about:blank';preparing=false;resetButton();
  });
  window.addEventListener('message',event=>{
-  if(event.origin!==location.origin||event.source!==frame.contentWindow||!event.data)return;
+  if(event.origin!==location.origin||event.source!==governmentFrame.contentWindow||!event.data)return;
+  if(event.data.type==='vbgramg-government-continue-to-fto-import'){
+   if(!governmentModal.open||fetching)return;
+   continueToImport=true;governmentModal.close();return;
+  }
+  if(event.data.type==='vbgramg-government-refresh-complete'){
+   fetching=false;resetButton();display(governmentModal);
+   if(typeof loadFtoHistory==='function')loadFtoHistory();
+  }
+ });
+ window.addEventListener('message',event=>{
+  if(event.origin!==location.origin||event.source!==importFrame.contentWindow||!event.data)return;
   if(event.data.type==='vbgramg-pending-imports-result'){
-   // The child sends this only after authentication and queue preparation finish.
-   preparing=false;
-   displayModal();
+   preparing=false;display(importModal);
   }
   if(event.data.type==='vbgramg-pending-fto-imported'&&typeof loadFtoHistory==='function'){
    loadFtoHistory({afterSync:true});

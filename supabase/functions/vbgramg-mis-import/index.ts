@@ -431,13 +431,50 @@ Deno.serve(async (req: Request) => {
           ...diff,
         });
       } catch (error) {
-        // If activation failed, the RPC transaction guarantees the previous MIS
-        // remains active. Remove only this user's incomplete staging attempt.
-        const { data: stagedRecord } = await admin.from("vbgramg_mis_imports")
-          .select("status,imported_by").eq("id", record.id).maybeSingle();
-        if (stagedRecord?.status === "staging" && stagedRecord.imported_by === authData.user.id) {
-          await admin.from("vbgramg_mis_rows").delete().eq("import_id", record.id);
-          await admin.from("vbgramg_mis_imports").delete().eq("id", record.id);
+        // A lost RPC response can make a committed transaction look like a failure.
+        // Read the authoritative pointer before deciding whether cleanup is safe.
+        const [{ data: currentState, error: stateCheckError }, { data: currentRecord, error: recordCheckError }] = await Promise.all([
+          admin.from("vbgramg_mis_state").select("active_import_id").eq("singleton", true).maybeSingle(),
+          admin.from("vbgramg_mis_imports").select("status,imported_by,completed_at").eq("id", record.id).maybeSingle(),
+        ]);
+
+        if (!stateCheckError && !recordCheckError &&
+            currentState?.active_import_id === record.id &&
+            currentRecord?.status === "complete") {
+          console.warn("MIS activation committed; recovering lost acknowledgement:", record.id);
+          return reply({
+            success: true,
+            activated: true,
+            importId: record.id,
+            expectedActiveImportId: built.activeImportId,
+            sourceFilename: filename,
+            sourceRowCount: built.sourceRows,
+            parsedApplicantCount: built.output.length - 1,
+            rowCount: built.output.length,
+            syncedAt: currentRecord.completed_at || new Date().toISOString(),
+            acknowledgementRecovered: true,
+            ...diff,
+          });
+        }
+
+        if (stateCheckError || recordCheckError) {
+          console.error("Could not verify MIS activation outcome:", stateCheckError || recordCheckError);
+          return reply({
+            error: "The activation status could not be verified. Do not retry yet; refresh the MIS page and check which import is active.",
+            activationStatus: "unknown",
+            importId: record.id,
+          }, 503);
+        }
+
+        // Only delete this attempt after confirming it did not become active.
+        if (currentRecord?.status === "staging" &&
+            currentRecord.imported_by === authData.user.id &&
+            currentState?.active_import_id !== record.id) {
+          const { error: rowCleanupError } = await admin.from("vbgramg_mis_rows").delete().eq("import_id", record.id);
+          const { error: importCleanupError } = await admin.from("vbgramg_mis_imports").delete().eq("id", record.id);
+          if (rowCleanupError || importCleanupError) {
+            console.error("Failed to clean rejected MIS staging attempt:", rowCleanupError || importCleanupError);
+          }
         }
         throw error;
       }

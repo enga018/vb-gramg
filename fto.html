@@ -623,6 +623,61 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
 <link rel="stylesheet" href="./theme.css?v=20261118-theme-toggle">
 <link rel="stylesheet" href="./button-system.css?v=20261113-buttons">
 <style>
+/* CO calculation modal: isolate its surfaces from global dark-theme overrides. */
+#fto-co-modal-backdrop .fto-view-modal,
+#fto-co-modal-backdrop .fto-view-modal-header,
+#fto-co-modal-backdrop .fto-view-modal-content{
+ color:#172033!important;background:#fff!important;
+}
+#fto-co-modal-backdrop .fto-view-modal-header{
+ min-height:76px;position:relative;padding-right:72px;
+}
+#fto-co-modal-backdrop .fto-view-modal-header h2{color:#172033!important}
+#fto-co-modal-backdrop .fto-view-modal-header p,
+#fto-co-modal-backdrop .fto-view-modal-content p.muted{color:#596579!important}
+#fto-co-modal-close{
+ position:absolute!important;right:16px!important;top:50%!important;transform:translateY(-50%)!important;
+ display:inline-flex!important;align-items:center!important;justify-content:center!important;
+ width:42px!important;min-width:42px!important;max-width:42px!important;
+ height:42px!important;min-height:42px!important;padding:0!important;
+ border:1px solid #dfe5ee!important;border-radius:10px!important;
+ color:#344054!important;background:#f3f6fa!important;font-size:22px!important;line-height:1!important;
+}
+#fto-co-modal-backdrop .co-revision-fields label,
+#fto-co-modal-backdrop #fto-co-reason{color:#344054!important}
+#fto-co-modal-backdrop .co-revision-fields input,
+#fto-co-modal-backdrop #fto-co-reason{
+ color:#172033!important;background:#fff!important;border-color:#cfd7e4!important;
+}
+#fto-co-modal-backdrop .co-revision-stat{
+ color:#172033!important;background:#f8fafc!important;border-color:#dfe5ee!important;
+}
+#fto-co-modal-backdrop .co-revision-stat span{color:#596579!important}
+#fto-co-modal-backdrop .co-revision-stat strong{color:#172033!important;opacity:1!important}
+#fto-co-modal-backdrop .co-revision-check{
+ color:#17663a!important;background:#f0faf3!important;border-color:#cfe8d7!important;
+}
+#fto-co-modal-backdrop .co-revision-check strong{color:#17663a!important;opacity:1!important}
+#fto-co-modal-backdrop .co-revision-check span{color:#465568!important;opacity:1!important}
+#fto-co-modal-backdrop .co-revision-check.failed{color:#8c2d1c!important;background:#fff6f3!important;border-color:#f3c7bd!important}
+#fto-co-modal-backdrop .co-revision-check.failed strong{color:#8c2d1c!important}
+#fto-co-modal-backdrop .co-revision-check.failed span{color:#67443e!important}
+#fto-co-modal-backdrop #fto-co-preview-status{color:#344054!important;background:#f3f6fa!important}
+#fto-co-modal-backdrop #fto-co-preview-status.error{color:#9b2c20!important;background:#fff0ed!important}
+#fto-co-modal-backdrop #fto-co-preview-status.success{color:#17663a!important;background:#eaf8ef!important}
+#fto-co-modal-backdrop .co-revision-blocked{color:#8c2d1c!important;background:#fff6f3!important}
+#fto-co-modal-backdrop .co-revision-table{color:#172033!important}
+#fto-co-modal-backdrop .co-revision-table th{color:#344054!important;background:#f3f6fa!important}
+#fto-co-modal-backdrop .co-revision-table td{color:#172033!important;background:#fff!important}
+#fto-co-modal-backdrop .co-revision-actions button{min-height:44px}
+@media(max-width:600px){
+ #fto-co-modal-backdrop .fto-view-modal-header{padding:14px 66px 14px 16px}
+ #fto-co-modal-backdrop .fto-view-modal-content{padding:14px 16px 18px}
+ #fto-co-modal-backdrop .co-revision-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #fto-co-modal-backdrop .co-revision-checks{grid-template-columns:minmax(0,1fr)}
+}
+</style>
+<style>
 /* Deferred FTO recheck results: keep this dialog readable in both app themes. */
 dialog.fto-recheck-result-modal{color:#172033!important;background:#fff!important}
 dialog.fto-recheck-result-modal .fto-recheck-result-head{display:block;color:#172033!important;background:#fff!important}

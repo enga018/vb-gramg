@@ -1233,18 +1233,21 @@ supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){
   fetching=true;open.disabled=true;open.textContent='Fetching…';open.setAttribute('aria-busy','true');
   governmentFrame.src='./fto-government-fetch.html?modal=1';
  }
- function startPendingImport(){
-  if(preparing||importModal.open)return;
+ function startPendingImportInCurrentModal(){
+  if(preparing||!governmentModal.open)return;
   preparing=true;open.disabled=true;open.textContent='Preparing…';open.setAttribute('aria-busy','true');
-  importFrame.src='./pending-imports.html?modal=1';
+  document.getElementById('fto-government-modal-title').textContent='Pending FTO Imports';
+  governmentFrame.title='Pending FTO imports';
+  governmentFrame.src='./pending-imports.html?modal=1';
  }
  open.addEventListener('click',startGovernmentFetch);
  closeGovernment.addEventListener('click',()=>governmentModal.close());
  governmentModal.addEventListener('click',event=>{if(event.target===governmentModal)governmentModal.close();});
  governmentModal.addEventListener('close',()=>{
-  governmentFrame.src='about:blank';fetching=false;
-  if(continueToImport){continueToImport=false;startPendingImport();}
-  else resetButton();
+  governmentFrame.src='about:blank';fetching=false;preparing=false;
+  document.getElementById('fto-government-modal-title').textContent='Official Government FTO Listing';
+  governmentFrame.title='Official Government FTO fetch results';
+  resetButton();
  });
  closeImport.addEventListener('click',()=>importModal.close());
  importModal.addEventListener('click',event=>{if(event.target===importModal)importModal.close();});
@@ -1254,8 +1257,14 @@ supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){
  window.addEventListener('message',event=>{
   if(event.origin!==location.origin||event.source!==governmentFrame.contentWindow||!event.data)return;
   if(event.data.type==='vbgramg-government-continue-to-fto-import'){
-   if(!governmentModal.open||fetching)return;
-   continueToImport=true;governmentModal.close();return;
+   if(!governmentModal.open||fetching||preparing)return;
+   startPendingImportInCurrentModal();return;
+  }
+  if(event.data.type==='vbgramg-pending-imports-result'){
+   preparing=false;resetButton();
+  }
+  if(event.data.type==='vbgramg-pending-fto-imported'&&typeof loadFtoHistory==='function'){
+   loadFtoHistory({afterSync:true});
   }
   if(event.data.type==='vbgramg-government-refresh-complete'){
    fetching=false;resetButton();display(governmentModal);

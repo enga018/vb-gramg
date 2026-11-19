@@ -378,6 +378,11 @@ header .account > button:hover,header .app-header-actions > a:hover,header .app-
  .toolbar{margin:14px 0 10px}
 }
 
+
+/* Official MIS fetch button loading state */
+#desktop-fetch-button.is-fetching{gap:9px;opacity:1;cursor:wait}
+#desktop-fetch-button .fetch-spinner{width:15px;height:15px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;animation:mis-fetch-spin .7s linear infinite}
+@keyframes mis-fetch-spin{to{transform:rotate(360deg)}}
 </style>
   <link rel="stylesheet" href="./responsive.css?v=20261118-theme-toggle">
 <link rel="stylesheet" href="./theme.css?v=20261118-theme-toggle">
@@ -507,19 +512,41 @@ document.addEventListener("keydown",event=>{
  }
 });
 window.addEventListener("message",event=>{
- if(event.origin!==window.location.origin||!event.data||event.data.type!=="vbgramg-mis-import-complete")return;
- if(window.VBGRAMGCache){window.VBGRAMGCache.invalidate('mis:data:v1');window.VBGRAMGCache.invalidate('mis:selections:v1');}
- loadData();
+ if(event.origin!==window.location.origin||!event.data)return;
+ if(event.data.type==="vbgramg-mis-import-complete"){
+  if(window.VBGRAMGCache){window.VBGRAMGCache.invalidate('mis:data:v1');window.VBGRAMGCache.invalidate('mis:selections:v1');}
+  loadData();return;
+ }
+ if(event.data.type==="vbgramg-mis-import-result-ready"){
+  officialMisFetchInProgress=false;setOfficialFetchButtonLoading(false);
+  openMisImportModal();
+  requestAnimationFrame(()=>{try{$("mis-import-frame").contentDocument.getElementById("diff-okay-button").focus({preventScroll:true})}catch(_){}});
+  return;
+ }
+ if(event.data.type==="vbgramg-close-mis-import-modal"){closeMisImportModal();}
 });
+let officialMisFetchInProgress=false;
+function setOfficialFetchButtonLoading(loading){
+ const button=$("desktop-fetch-button");
+ button.disabled=loading;
+ button.classList.toggle("is-fetching",loading);
+ button.innerHTML=loading?'<span class="fetch-spinner" aria-hidden="true"></span><span>Fetching…</span>':'Fetch Official MIS';
+ button.setAttribute("aria-busy",loading?"true":"false");
+}
 function startOfficialFetchInImportFrame(){
  const frame=$("mis-import-frame");
  const send=()=>frame.contentWindow.postMessage({type:"vbgramg-start-official-mis-fetch"},window.location.origin);
- if(frame.contentDocument&&frame.contentDocument.readyState==="complete"&&frame.contentDocument.getElementById("fetch-official-mis-button"))send();
+ if(frame.getAttribute("src")==="about:blank"||!frame.getAttribute("src")){
+  frame.addEventListener("load",send,{once:true});
+  frame.src="./mis-import.html";
+ }else if(frame.contentDocument&&frame.contentDocument.readyState==="complete"&&frame.contentDocument.getElementById("fetch-official-mis-button"))send();
  else frame.addEventListener("load",send,{once:true});
 }
 $('desktop-fetch-button').addEventListener('click',()=>{
  if(currentRole!=='admin'){status($('data-status'),'Administrator access is required to fetch official MIS.','error');return}
- openMisImportModal();
+ if(officialMisFetchInProgress)return;
+ officialMisFetchInProgress=true;
+ setOfficialFetchButtonLoading(true);
  startOfficialFetchInImportFrame();
 });
 $('close-desktop-fetch').addEventListener('click',()=>{$('desktop-fetch-panel').classList.add('hidden');$('mis-payload-url').value='';});

@@ -21,6 +21,7 @@ declare
   v_min_row_number integer;
   v_max_row_number integer;
   v_deleted_row_count integer := 0;
+  v_deleted_cache_count integer := 0;
 begin
   if p_import_id is null
      or p_actor_id is null
@@ -85,8 +86,13 @@ begin
       updated_at = now()
   where singleton = true;
 
-  -- Retain import metadata for the audit trail, but remove payload rows from every
-  -- older completed import. Applicant selections are deliberately not modified.
+  -- Retain import metadata for the audit trail, but remove cached and row payloads
+  -- from every older completed import. Applicant selections are deliberately untouched.
+  delete from public.vbgramg_mis_contribution_lookup
+  where import_id <> p_import_id;
+
+  get diagnostics v_deleted_cache_count = row_count;
+
   delete from public.vbgramg_mis_rows r
   using public.vbgramg_mis_imports i
   where r.import_id = i.id
@@ -101,6 +107,7 @@ begin
     'previous_active_import_id', v_state.active_import_id,
     'row_count', p_expected_row_count,
     'deleted_old_row_count', v_deleted_row_count,
+    'deleted_old_cache_count', v_deleted_cache_count,
     'activated_at', now()
   );
 end;

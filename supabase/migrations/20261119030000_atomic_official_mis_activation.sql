@@ -5,7 +5,7 @@
 
 drop function if exists public.vbgramg_activate_mis_import(uuid, uuid, uuid, integer);
 
-create function public.vbgramg_activate_mis_import(
+create or replace function public.vbgramg_activate_mis_import(
   p_import_id uuid,
   p_actor_id uuid,
   p_expected_active_import_id uuid,
@@ -82,10 +82,12 @@ begin
 
   -- Initialise only missing selections in the same transaction. Existing user
   -- selections are never overwritten; any failure rolls back the activation too.
-  insert into public.vbgramg_mis_selections (job_card_number, applicant_key)
+  insert into public.vbgramg_mis_selections (job_card_number, applicant_key, updated_by, updated_at)
   select distinct on (candidate.job_card_number)
          candidate.job_card_number,
-         candidate.applicant_key
+         candidate.applicant_key,
+         'system:auto-mis-import',
+         now()
   from jsonb_to_recordset(p_selections) as candidate(
     job_card_number text,
     applicant_key text

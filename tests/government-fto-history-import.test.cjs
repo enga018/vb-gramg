@@ -99,7 +99,9 @@ test("FTO Import uses one entry point and embeds Government refresh in the saved
   assert.match(history, /id="open-fto-import"[^>]*>FTO Import</);
   assert.doesNotMatch(history, /id="open-pending-imports"/);
   assert.doesNotMatch(history, /id="pending-imports-modal"/);
-  assert.match(history, /frame\.src='\.\/pending-imports\.html\?modal=1'/);
+  assert.match(history, /governmentFrame\.src='\.\/fto-government-fetch\.html\?modal=1'/);
+  assert.match(history, /governmentFrame\.src='\.\/pending-imports\.html\?modal=1'/);
+  assert.match(history, /startPendingImportInCurrentModal/);
   assert.match(history, /open\.disabled=true/);
   assert.match(history, /open\.textContent='Preparing…'/);
   assert.match(history, /vbgramg-pending-imports-result/);

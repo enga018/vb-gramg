@@ -65,15 +65,18 @@ test("SQL independently validates normalized Active MIS matching and duplicate p
   assert.match(migration, /if not v_fto_has_active_mis_match then/i);
 });
 
-test("Inspection uses ELIGIBLE rather than COMPLETE and excludes previously inspected FTOs", () => {
+test("Only imported and Out of Scope FTOs are terminal during Government refresh", () => {
   assert.match(details, /matchingCards\.size === 0 \? "OUT_OF_SCOPE" : "ELIGIBLE"/);
   assert.doesNotMatch(details, /COMPLETE/);
-  assert.match(fetcher, /Every previously inspected FTO is excluded from another Government detail fetch/);
-  assert.match(fetcher, /inspectionByNumber\.has\(item\.ftoNumber\.trim\(\)\.toUpperCase\(\)\)/);
-  assert.match(fetcher, /const skippedInspectedFtos = newFtos\.filter\(isPreviouslyInspected\)/);
-  assert.match(fetcher, /const eligibleNewFtos = newFtos\.filter\(item => !isPreviouslyInspected\(item\)\)/);
+  assert.match(details, /classification === "OUT_OF_SCOPE"/);
+  assert.doesNotMatch(details, /classification === "ELIGIBLE"\)\s*\{\s*throw new Error/);
+  assert.match(fetcher, /const isOutOfScope = \(item: \{ ftoNumber: string \}\)/);
+  assert.match(fetcher, /inspectionByNumber\.get\(item\.ftoNumber\.trim\(\)\.toUpperCase\(\)\) === "OUT_OF_SCOPE"/);
+  assert.match(fetcher, /const skippedInspectedFtos = newFtos\.filter\(isOutOfScope\)/);
+  assert.match(fetcher, /const eligibleNewFtos = newFtos\.filter\(item => !isOutOfScope\(item\)\)/);
   assert.match(fetcher, /alreadyImported/);
-  assert.doesNotMatch(fetcher, /RECHECK_REQUIRED|deferredNumbers|deferredFtos/);
+  assert.match(fetcher, /ELIGIBLE FTOs are unfinished/);
+  assert.doesNotMatch(fetcher, /Every previously inspected FTO is excluded/);
 });test("Frontend inspects Government details in small batches and delegates import to Pending Imports", () => {
   assert.match(page, /pending\.splice\(0,5\)/);
   assert.match(page, /vbgramg-fto-government-details/);

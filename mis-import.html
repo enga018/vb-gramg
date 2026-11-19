@@ -187,9 +187,15 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
     }
     async function updateAuthUI(user){
       currentUser=null;currentRole=null;
-      if(!user){setStatus('Administrator access is required. Redirecting to the main app…','error');window.location.replace('./');return;}
+      if(!user){
+        const message='Administrator session could not be verified. Return to the MIS page, sign in again if needed, and retry.';
+        setStatus(message,'error');showFailure(message);return;
+      }
       const {data:access,error}=await supabaseClient.functions.invoke('vbgramg-app-access',{body:{}});
-      if(error||!access||access.approved!==true||access.role!=='admin'){setStatus('Administrator access is required. Returning to the main app…','error');window.location.replace('./');return;}
+      if(error||!access||access.approved!==true||access.role!=='admin'){
+        const message='Administrator access could not be verified for the MIS import. No import was started. '+(error?.message||'');
+        setStatus(message,'error');showFailure(message);return;
+      }
       currentUser=user;currentRole=access.role;fetchButton.disabled=false;setStatus('Administrator access verified. Ready to fetch the official MIS.');if(startRequested){startRequested=false;fetchButton.click();}
     }
     const label=item=>[item.jobCardNumber&&'Job card '+item.jobCardNumber,item.household&&'Household '+item.household,item.applicantName,item.applicantNo&&'Applicant No. '+item.applicantNo,item.uniqueId&&'ID '+item.uniqueId].filter(Boolean).join(' · ')||'Applicant record';
@@ -212,14 +218,30 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
     }
     function showResult(result){
       latestDiff=result;diffPage=0;
+      document.getElementById('diff-title').textContent='Official MIS update complete';
+      document.querySelector('.diff-summary').classList.remove('hidden');
+      document.querySelector('.diff-table-wrap').classList.remove('hidden');
+      document.querySelector('.diff-table-wrap').previousElementSibling.classList.remove('hidden');
+      document.getElementById('diff-pager').classList.remove('hidden');
       document.getElementById('diff-added-count').textContent=Number(result.added?.length||0).toLocaleString();
       document.getElementById('diff-deleted-count').textContent=Number(result.deleted?.length||0).toLocaleString();
       document.getElementById('diff-updated-count').textContent=Number(result.updated?.length||0).toLocaleString();
       document.getElementById('diff-unchanged-count').textContent=Number(result.unchanged||0).toLocaleString();
       renderDiff(result);document.getElementById('diff-panel').classList.remove('hidden');
-      // Refresh the parent MIS immediately after confirmed activation, even if
-      // the administrator closes the dialog without pressing Okay.
-      if(window.parent!==window)window.parent.postMessage({type:'vbgramg-mis-import-complete'},window.location.origin);
+      if(window.parent!==window){
+        window.parent.postMessage({type:'vbgramg-mis-import-complete'},window.location.origin);
+        window.parent.postMessage({type:'vbgramg-mis-import-result-ready',success:true},window.location.origin);
+      }
+    }
+    function showFailure(message){
+      latestDiff=null;
+      document.getElementById('diff-title').textContent='Official MIS update failed';
+      document.querySelector('.diff-summary').classList.add('hidden');
+      document.querySelector('.diff-table-wrap').classList.add('hidden');
+      document.querySelector('.diff-table-wrap').previousElementSibling.classList.add('hidden');
+      document.getElementById('diff-pager').classList.add('hidden');
+      document.getElementById('diff-panel').classList.remove('hidden');
+      if(window.parent!==window)window.parent.postMessage({type:'vbgramg-mis-import-result-ready',success:false,message},window.location.origin);
     }
     fetchButton.disabled=true;
     fetchButton.addEventListener('click',async()=>{
@@ -227,10 +249,9 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
       fetchButton.disabled=true;fetchStatus.textContent='Fetching, validating, comparing and activating the official Government MIS…';setStatus('Official MIS update in progress. Keep this page open.');document.getElementById('diff-panel').classList.add('hidden');
       try{const result=await invokeImport({action:'official-fetch'});if(!result||result.success!==true||result.activated!==true)throw new Error('The server did not confirm successful MIS activation.');
         fetchStatus.textContent='Official Government MIS fetched and activated successfully.';setStatus('Official MIS update completed successfully.','success');showResult(result);
-      }catch(error){const message=error&&error.message?error.message:String(error);fetchStatus.textContent='Fetch failed: '+message;const uncertain=message.toLowerCase().includes('activation status could not be verified');setStatus(uncertain?'Import outcome is uncertain. Do not retry yet; refresh the MIS page and verify which import is active. '+message:'Official MIS update failed. The previous active MIS has been preserved. '+message,'error');}
+      }catch(error){const message=error&&error.message?error.message:String(error);fetchStatus.textContent='Fetch failed: '+message;const uncertain=message.toLowerCase().includes('activation status could not be verified');setStatus(uncertain?'Import outcome is uncertain. Do not retry yet; refresh the MIS page and verify which import is active. '+message:'Official MIS update failed. The previous active MIS has been preserved. '+message,'error');showFailure(message);}
       finally{
-        // Keep the fetch action locked while the successful result awaits acknowledgement.
-        if(document.getElementById('diff-panel').classList.contains('hidden'))fetchButton.disabled=false;
+        fetchButton.disabled=true;
       }
     });
     window.addEventListener('message',event=>{if(event.origin===location.origin&&event.data&&event.data.type==='vbgramg-start-official-mis-fetch'){startRequested=true;if(currentUser&&currentRole==='admin'&&!fetchButton.disabled){startRequested=false;fetchButton.click();}}});
@@ -239,9 +260,10 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
     document.getElementById('diff-okay-button').addEventListener('click',()=>{
       document.getElementById('diff-panel').classList.add('hidden');
       fetchButton.disabled=!(currentUser&&currentRole==='admin');
+      if(window.parent!==window)window.parent.postMessage({type:'vbgramg-close-mis-import-modal'},window.location.origin);
     });
     setStatus('Checking your sign-in session…');
-    (async()=>{try{const {data,error}=await supabaseClient.auth.getSession();if(error)throw error;setStatus('Verifying administrator permissions…');await updateAuthUI(data.session?data.session.user:null);}catch(error){setStatus('Could not verify administrator access: '+(error.message||String(error))+'. Reload the page or sign in again.','error');}})();
+    (async()=>{try{const {data,error}=await supabaseClient.auth.getSession();if(error)throw error;setStatus('Verifying administrator permissions…');await updateAuthUI(data.session?data.session.user:null);}catch(error){const message='Could not verify administrator access: '+(error.message||String(error))+'. No import was started. Return to the MIS page, sign in again if needed, and retry.';setStatus(message,'error');showFailure(message);}})();
     supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_IN'||event==='SIGNED_OUT')updateAuthUI(session?session.user:null);});
   </script>
 <script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261118-theme-toggle"></script>

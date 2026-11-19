@@ -12,6 +12,69 @@ function reply(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: corsHeaders });
 }
 function norm(v: unknown) { return String(v ?? "").trim(); }
+type OfficialFetchAttempt = {
+  attempt: number; timestamp: string; status: number | null; contentType: string;
+  finalUrl: string; server: string; date: string; error?: string;
+};
+function isRetryableStatus(status: number) {
+  return status === 404 || status === 408 || status === 425 || status === 429 || status >= 500;
+}
+async function fetchOfficialReport() {
+  const attempts: OfficialFetchAttempt[] = [];
+  const delays = [500, 1200];
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const timestamp = new Date().toISOString();
+    try {
+      const response = await fetch(OFFICIAL_REPORT_URL, {
+        method: "GET", redirect: "follow",
+        headers: {
+          "User-Agent": "VBGRAMG-MIS-Reader/1.0",
+          "Accept": "text/html,application/xhtml+xml",
+          "Accept-Encoding": "identity", "Cache-Control": "no-cache", "Pragma": "no-cache",
+        },
+        signal: AbortSignal.timeout(30000),
+      });
+      const contentType = response.headers.get("content-type") || "";
+      const diagnostic: OfficialFetchAttempt = {
+        attempt, timestamp, status: response.status, contentType, finalUrl: response.url,
+        server: response.headers.get("server") || "", date: response.headers.get("date") || "",
+      };
+      if (!response.ok) {
+        attempts.push(diagnostic);
+        console.warn("Government MIS fetch attempt failed:", JSON.stringify(diagnostic));
+        if (attempt < 3 && isRetryableStatus(response.status)) {
+          await response.body?.cancel().catch(() => {});
+          await new Promise(resolve => setTimeout(resolve, delays[attempt - 1]));
+          continue;
+        }
+        return { html: null as string | null, attempts, error: "Government MIS returned HTTP " + response.status + "." };
+      }
+      if (!/(text\/html|application\/xhtml\+xml)/i.test(contentType)) {
+        attempts.push({ ...diagnostic, error: "Unexpected content type; expected HTML." });
+        return { html: null as string | null, attempts, error: "Government MIS returned an unexpected content type (" + (contentType || "missing") + ")." };
+      }
+      const html = await response.text();
+      const htmlBytes = new TextEncoder().encode(html).length;
+      if (!html.trim() || !/<html[\s>]/i.test(html) || !/<table[\s>]/i.test(html)) {
+        attempts.push({ ...diagnostic, error: "Response did not contain a non-empty HTML report with a table (" + htmlBytes + " bytes)." });
+        return { html: null as string | null, attempts, error: "Government MIS response was not a valid HTML register. No data changed." };
+      }
+      attempts.push(diagnostic);
+      return { html, attempts, error: null as string | null };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      attempts.push({ attempt, timestamp, status: null, contentType: "", finalUrl: OFFICIAL_REPORT_URL, server: "", date: "", error: message });
+      console.warn("Government MIS network attempt failed:", JSON.stringify(attempts[attempts.length - 1]));
+      if (attempt < 3) {
+        await new Promise(resolve => setTimeout(resolve, delays[attempt - 1]));
+        continue;
+      }
+      return { html: null as string | null, attempts, error: "Could not fetch the Government MIS after 3 attempts: " + message };
+    }
+  }
+  return { html: null as string | null, attempts, error: "Government MIS fetch failed after 3 attempts." };
+}
+
 function sameRow(a: unknown[], b: unknown[], headerA: unknown[], headerB: unknown[]) {
   const fieldsA = new Map<string, string>();
   const fieldsB = new Map<string, string>();
@@ -342,34 +405,17 @@ Deno.serve(async (req: Request) => {
 
 
     if (action === "official-fetch") {
-      const response = await fetch(OFFICIAL_REPORT_URL, {
-        method: "GET",
-        redirect: "follow",
-        headers: {
-          "User-Agent": "VBGRAMG-MIS-Reader/1.0",
-          "Accept": "text/html,application/xhtml+xml",
-          "Accept-Encoding": "identity",
-          "Cache-Control": "no-cache",
-          "Pragma": "no-cache",
-        },
-        signal: AbortSignal.timeout(30000),
-      });
-      if (!response.ok) {
-        const diagnostics = {
-          status: response.status,
-          finalUrl: response.url,
-          contentType: response.headers.get("content-type") || "",
-          server: response.headers.get("server") || "",
-          date: response.headers.get("date") || "",
-        };
-        console.error("Government MIS HTTP response diagnostics:", JSON.stringify(diagnostics));
+      const fetched = await fetchOfficialReport();
+      if (!fetched.html) {
+        console.error("Government MIS fetch attempts exhausted or response rejected:", JSON.stringify(fetched.attempts));
         return reply({
-          error: "Government MIS returned HTTP " + response.status + ". No data changed.",
-          diagnostics,
+          error: (fetched.error || "Government MIS fetch failed.") + " No data changed.",
+          attempts: fetched.attempts,
         }, 502);
       }
-
-      const built = await buildOfficialRows(await response.text(), admin);
+      // A valid HTTP response with an unexpected report structure is a parsing
+      // failure, not a transport failure, so it is deliberately not retried.
+      const built = await buildOfficialRows(fetched.html, admin);
       const filename = "Official Registration Application Register — New Serchhip North";
       const { data: record, error: insertError } = await admin.from("vbgramg_mis_imports")
         .insert({

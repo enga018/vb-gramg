@@ -111,7 +111,7 @@ test("Inline scripts in the unified FTO workflow parse cleanly", () => {
   const vm = require("node:vm");
   for (const file of ["fto.html", "pending-imports.html", "fto-government-fetch.html"]) {
     const html = read(file);
-    const scripts = [...html.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/g)]
+    const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)]
       .map(match => match[1]).filter(source => source.trim());
     assert.ok(scripts.length, file + " should contain inline workflow code");
     for (const [index, source] of scripts.entries()) {

@@ -263,7 +263,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
       if(window.parent!==window)window.parent.postMessage({type:'vbgramg-close-mis-import-modal'},window.location.origin);
     });
     setStatus('Checking your sign-in session…');
-    (async()=>{try{const {data,error}=await supabaseClient.auth.getSession();if(error)throw error;setStatus('Verifying administrator permissions…');await updateAuthUI(data.session?data.session.user:null);}catch(error){setStatus('Could not verify administrator access: '+(error.message||String(error))+'. Reload the page or sign in again.','error');}})();
+    (async()=>{try{const {data,error}=await supabaseClient.auth.getSession();if(error)throw error;setStatus('Verifying administrator permissions…');await updateAuthUI(data.session?data.session.user:null);}catch(error){const message='Could not verify administrator access: '+(error.message||String(error))+'. No import was started. Return to the MIS page, sign in again if needed, and retry.';setStatus(message,'error');showFailure(message);}})();
     supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_IN'||event==='SIGNED_OUT')updateAuthUI(session?session.user:null);});
   </script>
 <script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261118-theme-toggle"></script>

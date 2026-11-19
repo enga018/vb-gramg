@@ -20,13 +20,23 @@ body.modal-mode #access-panel{display:none}
 body.modal-mode #app-panel{margin:0;box-shadow:none;border-radius:12px}
 body.modal-mode #detail-panel{margin-top:12px;box-shadow:none}
 body.modal-mode .table-wrap{max-height:44vh}
+.government-refresh-modal{width:min(1120px,96vw);height:min(900px,94vh);max-width:none;max-height:none;padding:0;border:1px solid #dfe5ee;border-radius:16px;box-shadow:0 24px 80px rgb(15 23 42 / 28%);overflow:hidden}
+.government-refresh-modal::backdrop{background:rgb(15 23 42 / 58%)}
+.government-refresh-head{height:54px;display:flex;align-items:center;justify-content:space-between;padding:8px 14px 8px 18px;border-bottom:1px solid #e3e8f0;background:#fff}
+.government-refresh-head strong{font-size:1rem;color:#172033}
+.government-refresh-modal iframe{display:block;width:100%;height:calc(100% - 54px);border:0;background:#f3f6fb}
+@media(max-width:700px){.government-refresh-modal{width:100vw;height:100dvh;max-width:none;max-height:none;border:0;border-radius:0}.government-refresh-head{height:50px}.government-refresh-modal iframe{height:calc(100% - 50px)}}
 </style>
 </head>
 <body><main>
-<header><div><h1>Pending Imports</h1><p>Continue FTOs from their saved inspection. Government details are not fetched again.</p></div><div class="actions"><a class="link secondary" href="./fto.html">FTO History</a><a class="link secondary" href="./fto-government-fetch.html">New FTO Import</a><button id="refresh" type="button">Refresh</button></div></header>
+<header><div><h1>FTO Import</h1><p>Resume saved FTOs or refresh the official Government listing.</p></div><div class="actions"><button id="refresh-government" type="button">Refresh Government listing</button><button id="refresh" class="secondary" type="button">Refresh queue</button></div></header>
 <section class="panel" id="access-panel"><h2>Administrator access</h2><p>Sign in with an approved VBGRAMG administrator account.</p><div id="access-status" class="status">Checking your session…</div></section>
-<section class="panel hidden" id="app-panel"><h2>Pending Import Results</h2><p>Saved inspections are revalidated against the latest Active MIS. Only eligible, unimported FTOs are listed below.</p><div id="list-status" class="status">Loading Pending Imports…</div><div class="table-wrap"><table><thead><tr><th>FTO Number</th><th>Government Rows</th><th>Eligible Rows</th><th>Unmatched</th><th>Inspected On</th><th></th></tr></thead><tbody id="pending-rows"></tbody></table><div id="empty" class="empty hidden">There are no FTOs waiting in Pending Imports.</div></div></section>
+<section class="panel hidden" id="app-panel"><div class="section-head"><div><h2>Ready / Pending Import</h2><p>Saved unfinished FTOs are revalidated against the latest Active MIS. Open an FTO to continue applicant matching and review.</p></div></div><div id="list-status" class="status">Loading Pending Imports…</div><div class="table-wrap"><table><thead><tr><th>FTO Number</th><th>Government Rows</th><th>Eligible Rows</th><th>Unmatched</th><th>Inspected On</th><th></th></tr></thead><tbody id="pending-rows"></tbody></table><div id="empty" class="empty hidden">There are no FTOs waiting in Pending Imports.</div></div></section>
 <section class="panel hidden" id="detail-panel"><div class="detail-head"><div><h2 id="detail-title">FTO details</h2><p id="detail-summary"></p></div><div><button id="save-mappings" type="button">Save applicant matches</button> <button id="close-detail" class="secondary" type="button">Back to list</button></div></div><div id="detail-status" class="status">Loading saved inspection…</div><div class="review-controls"><div><label for="contribution-period">Contribution Period</label><select id="contribution-period" disabled><option value="">Loading periods…</option></select></div><div><label for="co-divisor">CO Divisor</label><input id="co-divisor" type="number" min="1" step="1" value="300"></div><div><label for="co-multiplier">CO Multiplier</label><input id="co-multiplier" type="number" min="1" step="1" value="100"></div></div><div class="review-summary" id="calculation-summary">Select an open Contribution Period and calculate CO to preview charges.</div><section class="review-summary hidden" id="reconciliation-panel"><h3>Existing contribution charge review</h3><p>Review existing manual charges before import. These decisions are not saved or applied yet.</p><div id="reconciliation-content"></div></section><div class="actions"><button id="calculate-co" type="button">Calculate CO</button> <button id="open-final-review" class="secondary" type="button">Final review</button> <button id="import-fto" type="button" disabled>Import FTO</button></div><section id="final-review" class="review-summary hidden" aria-live="polite"><h3>Final Review</h3><div id="final-review-content"></div><label style="display:block;margin-top:12px"><input id="final-review-confirm" type="checkbox" style="width:auto;min-height:0;margin-right:8px">I have checked the applicant selections, Contribution Period, and CO amounts.</label><p id="final-review-status">Complete all checks before proceeding.</p></section><div class="table-wrap detail-table"><table><thead><tr><th>Job Card</th><th>Government Applicant</th><th>Active MIS Applicant</th><th>Reference No.</th><th>Credit Amount</th><th>Calculated CO</th><th>Status</th><th>Transaction Date</th></tr></thead><tbody id="detail-rows"></tbody></table></div><p>These are saved Government rows revalidated against the latest Active MIS. Applicant matching, Contribution period selection, CO calculation, and final import controls are the next workflow step.</p></section>
+<dialog id="government-refresh-modal" class="government-refresh-modal" aria-label="Government FTO refresh">
+ <div class="government-refresh-head"><strong>Government listing refresh</strong><button id="close-government-refresh" class="secondary" type="button">Done</button></div>
+ <iframe id="government-refresh-frame" title="Government FTO listing refresh" src="about:blank"></iframe>
+</dialog>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./js/supabase-client.js?v=20261117a"></script>
@@ -319,6 +329,27 @@ async function verifyAccess(user){
 }
 client.auth.onAuthStateChange((event,session)=>{if(event==="SIGNED_OUT"){authSequence++;window.location.replace("./");}else if(event==="TOKEN_REFRESHED"&&session)Promise.resolve().then(()=>verifyAccess(session.user));});
 client.auth.getSession().then(({data,error})=>{if(error||!data.session){window.location.replace("./");return;}verifyAccess(data.session.user);});
+const refreshModal=$("government-refresh-modal"),refreshFrame=$("government-refresh-frame");
+function openGovernmentRefresh(){
+ if(!refreshModal||!refreshFrame)return;
+ if(typeof refreshModal.showModal==="function"&&!refreshModal.open)refreshModal.showModal();
+ else if(typeof refreshModal.showModal!=="function")refreshModal.setAttribute("open","");
+ refreshFrame.src="./fto-government-fetch.html?modal=1";
+}
+function closeGovernmentRefresh(){
+ if(refreshModal?.open)refreshModal.close();
+ else refreshModal?.removeAttribute("open");
+}
+$("refresh-government").addEventListener("click",openGovernmentRefresh);
+$("close-government-refresh").addEventListener("click",closeGovernmentRefresh);
+refreshModal.addEventListener("click",event=>{if(event.target===refreshModal)closeGovernmentRefresh();});
+refreshModal.addEventListener("close",()=>{refreshFrame.src="about:blank";});
+window.addEventListener("message",event=>{
+ if(event.origin!==location.origin||event.source!==refreshFrame.contentWindow||!event.data)return;
+ if(event.data.type==="vbgramg-government-refresh-complete"){
+  loadPending();
+ }
+});
 $("refresh").addEventListener("click",loadPending);$("open-final-review").addEventListener("click",openFinalReview);$("final-review-confirm").addEventListener("change",()=>{finalReviewReady=$("final-review-confirm").checked;$("import-fto").disabled=!finalReviewReady;$("final-review-status").textContent=finalReviewReady?"Final review confirmed. You can now import this FTO.":"Final review confirmation cleared.";});$("import-fto").addEventListener("click",importPendingFto);$("calculate-co").addEventListener("click",calculatePendingCO);$("contribution-period").addEventListener("change",()=>{currentCalculations=[];reconciliationPreview=null;renderReconciliation();invalidateFinalReview();$("calculation-summary").textContent="Period changed. Recalculate CO to refresh the preview.";renderPendingTransactions();});$("co-divisor").addEventListener("input",()=>{currentCalculations=[];reconciliationPreview=null;renderReconciliation();invalidateFinalReview();$("calculation-summary").textContent="Formula changed. Recalculate CO to refresh the preview.";renderPendingTransactions();});$("co-multiplier").addEventListener("input",()=>{currentCalculations=[];reconciliationPreview=null;renderReconciliation();invalidateFinalReview();$("calculation-summary").textContent="Formula changed. Recalculate CO to refresh the preview.";renderPendingTransactions();});$("save-mappings").addEventListener("click",saveApplicantMappings);$("close-detail").addEventListener("click",()=>{$("detail-panel").classList.add("hidden");});
 })();
 </script>

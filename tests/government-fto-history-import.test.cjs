@@ -97,6 +97,11 @@ test("FTO Import uses one entry point and embeds Government refresh in the saved
   assert.doesNotMatch(history, /id="open-pending-imports"/);
   assert.doesNotMatch(history, /id="pending-imports-modal"/);
   assert.match(history, /frame\.src='\.\/pending-imports\.html\?modal=1'/);
+  assert.match(history, /open\.disabled=true/);
+  assert.match(history, /open\.textContent='Preparing…'/);
+  assert.match(history, /vbgramg-pending-imports-result/);
+  assert.match(pending, /notifyParent\(\{status:"success",count:pending\.length\}\)/);
+  assert.match(pending, /notifyParent\(\{status:"error",message\}\)/);
   assert.match(pending, /id="refresh-government"/);
   assert.match(pending, /id="government-refresh-frame"/);
   assert.match(pending, /action:"list-pending-ftos"/);

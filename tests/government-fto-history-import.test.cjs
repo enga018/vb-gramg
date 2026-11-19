@@ -71,11 +71,14 @@ test("Only imported and Out of Scope FTOs are terminal during Government refresh
   assert.match(details, /classification === "OUT_OF_SCOPE"/);
   assert.doesNotMatch(details, /classification === "ELIGIBLE"\)\s*\{\s*throw new Error/);
   assert.match(fetcher, /const isOutOfScope = \(item: \{ ftoNumber: string \}\)/);
-  assert.match(fetcher, /inspectionByNumber\.get\(item\.ftoNumber\.trim\(\)\.toUpperCase\(\)\) === "OUT_OF_SCOPE"/);
+  assert.match(fetcher, /const classificationFor = \(item: \{ ftoNumber: string \}\)/);
+  assert.match(fetcher, /classificationFor\(item\) === "OUT_OF_SCOPE"/);
   assert.match(fetcher, /const skippedInspectedFtos = newFtos\.filter\(isOutOfScope\)/);
-  assert.match(fetcher, /const eligibleNewFtos = newFtos\.filter\(item => !isOutOfScope\(item\)\)/);
+  assert.match(fetcher, /const alreadyCheckedEligibleFtos = newFtos\.filter\(item => classificationFor\(item\) === "ELIGIBLE"\)/);
+  assert.match(fetcher, /const readyToImportFtos = newFtos\.filter\(item => !isOutOfScope\(item\) && classificationFor\(item\) !== "ELIGIBLE"\)/);
+  assert.match(fetcher, /alreadyCheckedEligibleFtos/);
   assert.match(fetcher, /alreadyImported/);
-  assert.match(fetcher, /ELIGIBLE FTOs are unfinished/);
+  assert.match(fetcher, /previously checked eligible FTOs remain available in Pending Imports/);
   assert.doesNotMatch(fetcher, /Every previously inspected FTO is excluded/);
 });test("Frontend inspects Government details in small batches and delegates import to Pending Imports", () => {
   assert.match(page, /pending\.splice\(0,5\)/);

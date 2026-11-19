@@ -113,7 +113,7 @@ begin
   where singleton = true;
 
   -- Retain import metadata for the audit trail, but remove cached and row payloads
-  -- from every older completed import. Applicant selections are deliberately untouched.
+  -- from every older completed import. Existing applicant selections remain untouched.
   delete from public.vbgramg_mis_contribution_lookup
   where import_id <> p_import_id;
 

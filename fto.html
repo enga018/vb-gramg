@@ -622,6 +622,41 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
   <link rel="stylesheet" href="./responsive.css?v=20261118-theme-toggle">
 <link rel="stylesheet" href="./theme.css?v=20261118-theme-toggle">
 <link rel="stylesheet" href="./button-system.css?v=20261113-buttons">
+<style>
+/* Deferred FTO recheck results: keep this dialog readable in both app themes. */
+dialog.fto-recheck-result-modal{color:#172033!important;background:#fff!important}
+dialog.fto-recheck-result-modal .fto-recheck-result-head{display:block;color:#172033!important;background:#fff!important}
+dialog.fto-recheck-result-modal .vbgramg-dialog-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 3px}
+dialog.fto-recheck-result-modal h2{color:#172033!important}
+dialog.fto-recheck-result-modal .fto-recheck-result-head p{color:#667085!important}
+dialog.fto-recheck-result-modal .fto-recheck-result-content{color:#172033!important}
+dialog.fto-recheck-result-modal .fto-recheck-result-stat{background:#fff!important;border-color:#dfe5ee!important}
+dialog.fto-recheck-result-modal .fto-recheck-result-stat span{color:#596579!important}
+dialog.fto-recheck-result-modal .fto-recheck-result-stat strong{color:#172033!important}
+dialog.fto-recheck-result-modal .fto-recheck-result-secondary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px;color:#596579!important;background:#f7f9fc!important;border-color:#e3e8f0!important}
+dialog.fto-recheck-result-modal .fto-recheck-result-secondary strong{color:#172033!important}
+dialog.fto-recheck-result-modal .fto-recheck-result-section h3{color:#172033!important}
+dialog.fto-recheck-result-modal .fto-recheck-result-list li{color:#344054!important;background:#fff!important;border-color:#dfe5ee!important}
+dialog.fto-recheck-result-modal .fto-recheck-result-list strong{color:#172033!important}
+dialog.fto-recheck-result-modal .fto-recheck-result-footer{background:#fff!important;border-color:#e3e8f0!important}
+dialog.fto-recheck-result-modal .vbgramg-dialog-close{flex:0 0 42px;width:42px;min-width:42px;height:42px;min-height:42px;color:#344054!important;background:#f0f3f8!important;border-color:#e0e6ef!important}
+@media(max-width:700px){
+ dialog.fto-recheck-result-modal .fto-recheck-result-secondary{grid-template-columns:repeat(2,minmax(0,1fr))}
+ dialog.fto-recheck-result-modal .fto-recheck-result-head{padding:12px 14px}
+}
+html.theme-dark dialog.fto-recheck-result-modal{color:#172033!important;background:#fff!important}
+html.theme-dark dialog.fto-recheck-result-modal .fto-recheck-result-head,
+html.theme-dark dialog.fto-recheck-result-modal .fto-recheck-result-content,
+html.theme-dark dialog.fto-recheck-result-modal .fto-recheck-result-footer{color:#172033!important;background:#fff!important}
+html.theme-dark dialog.fto-recheck-result-modal .fto-recheck-result-stat,
+html.theme-dark dialog.fto-recheck-result-modal .fto-recheck-result-list li{color:#344054!important;background:#fff!important}
+html.theme-dark dialog.fto-recheck-result-modal .fto-recheck-result-stat span{color:#596579!important}
+html.theme-dark dialog.fto-recheck-result-modal .fto-recheck-result-stat strong,
+html.theme-dark dialog.fto-recheck-result-modal .fto-recheck-result-secondary strong,
+html.theme-dark dialog.fto-recheck-result-modal .fto-recheck-result-list strong,
+html.theme-dark dialog.fto-recheck-result-modal .fto-recheck-result-section h3{color:#172033!important}
+html.theme-dark dialog.fto-recheck-result-modal .fto-recheck-result-secondary{color:#596579!important;background:#f7f9fc!important}
+</style>
 </head>
 <body>
 <main>
@@ -644,7 +679,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
  <div class="history-list-foot"><span id="fto-history-count" class="muted"></span><div id="fto-history-pager" class="mobile-table-pager" hidden><button id="fto-history-prev" type="button" class="secondary">Previous</button><span id="fto-history-page-label"></span><button id="fto-history-next" type="button" class="secondary">Next</button></div></div>
 </section>
 </div>
-<dialog id="fto-recheck-result-modal" class="fto-recheck-result-modal" aria-labelledby="fto-recheck-result-title"><div class="fto-recheck-result-head"><div><h2 id="fto-recheck-result-title">Deferred FTO recheck results</h2><p id="fto-recheck-result-subtitle">Government status check summary</p></div><button id="fto-recheck-result-close" type="button" class="secondary" aria-label="Close recheck results">×</button></div><div id="fto-recheck-result-content" class="fto-recheck-result-content"></div><div class="fto-recheck-result-footer"><button id="fto-recheck-result-done" type="button">Done</button></div></dialog>
+<dialog id="fto-recheck-result-modal" class="fto-recheck-result-modal" aria-labelledby="fto-recheck-result-title"><div class="fto-recheck-result-head"><div><h2 id="fto-recheck-result-title">Deferred FTO recheck results</h2><p id="fto-recheck-result-subtitle">Government status check summary</p></div></div><div id="fto-recheck-result-content" class="fto-recheck-result-content"></div><div class="fto-recheck-result-footer"><button id="fto-recheck-result-done" type="button">Done</button></div></dialog>
 <div id="period-modal-backdrop" class="period-modal-backdrop hidden" role="presentation">
  <section class="period-modal" role="dialog" aria-modal="true" aria-labelledby="period-modal-title" aria-describedby="period-modal-description">
   <div class="period-modal-header"><h2 id="period-modal-title">Change contribution period</h2><button id="period-modal-close" type="button" class="secondary" aria-label="Close dialog">×</button></div>
@@ -1035,7 +1070,6 @@ async function runDeferredFtoRecheck(){
 }
 $("fto-recheck-deferred").addEventListener("click",runDeferredFtoRecheck);
 function closeFtoRecheckResults(){const modal=$("fto-recheck-result-modal");if(modal.open)modal.close();}
-$("fto-recheck-result-close").addEventListener("click",closeFtoRecheckResults);
 $("fto-recheck-result-done").addEventListener("click",closeFtoRecheckResults);
 $("fto-recheck-result-modal").addEventListener("click",event=>{if(event.target===$("fto-recheck-result-modal"))closeFtoRecheckResults();});
 

@@ -499,7 +499,16 @@ function bindMisImportFrameKeyboard(){
  }catch(_){}
 }
 $("mis-import-frame").addEventListener("load",bindMisImportFrameKeyboard);
+let officialMisFetchWatchdog=null,officialMisFetchAckWatchdog=null;
+function clearOfficialMisFetchWatchdogs(){clearTimeout(officialMisFetchWatchdog);clearTimeout(officialMisFetchAckWatchdog);officialMisFetchWatchdog=null;officialMisFetchAckWatchdog=null;}
+function showOfficialMisFetchFallback(message){
+ clearOfficialMisFetchWatchdogs();officialMisFetchInProgress=false;setOfficialFetchButtonLoading(false);
+ const fallback=$("mis-import-fallback");fallback.textContent=message;fallback.classList.remove("hidden");
+ $("mis-import-frame").classList.add("hidden");
+ $("mis-import-modal").classList.remove("hidden");document.body.classList.add("mis-import-open");
+}
 function closeMisImportModal(){
+ clearOfficialMisFetchWatchdogs();
  $("mis-import-modal").classList.add("hidden");document.body.classList.remove("mis-import-open");$("desktop-fetch-button").focus();
 }
 $("close-mis-import").addEventListener("click",closeMisImportModal);
@@ -520,7 +529,8 @@ window.addEventListener("message",event=>{
   loadData();return;
  }
  if(event.data.type==="vbgramg-mis-import-result-ready"){
-  officialMisFetchInProgress=false;setOfficialFetchButtonLoading(false);
+  clearOfficialMisFetchWatchdogs();officialMisFetchInProgress=false;setOfficialFetchButtonLoading(false);
+  $("mis-import-fallback").classList.add("hidden");$("mis-import-frame").classList.remove("hidden");
   openMisImportModal();
   requestAnimationFrame(()=>{try{$("mis-import-frame").contentDocument.getElementById("diff-okay-button").focus({preventScroll:true})}catch(_){}});
   return;
@@ -548,7 +558,10 @@ $('desktop-fetch-button').addEventListener('click',()=>{
  if(currentRole!=='admin'){status($('data-status'),'Administrator access is required to fetch official MIS.','error');return}
  if(officialMisFetchInProgress)return;
  officialMisFetchInProgress=true;
+ $("mis-import-fallback").classList.add("hidden");$("mis-import-frame").classList.remove("hidden");
  setOfficialFetchButtonLoading(true);
+ officialMisFetchAckWatchdog=setTimeout(()=>showOfficialMisFetchFallback("The import page did not acknowledge the start request. The fetch may not have started. Check the active MIS before retrying."),12000);
+ officialMisFetchWatchdog=setTimeout(()=>showOfficialMisFetchFallback("No completion result was received within 3 minutes. The import outcome could not be confirmed. Do not retry until the active MIS register has been checked."),180000);
  startOfficialFetchInImportFrame();
 });
 $('close-desktop-fetch').addEventListener('click',()=>{$('desktop-fetch-panel').classList.add('hidden');$('mis-payload-url').value='';});

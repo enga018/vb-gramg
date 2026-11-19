@@ -30,10 +30,8 @@ body.modal-mode .panel{margin:8px 0}
 <header><h1>Government FTO Fetch</h1><p>Secure, read-only connection to the Government FTO listing for VBGRAMG administrators.</p></header>
 <section class="panel" id="access-panel"><h2>Administrator access</h2><p>Sign in with an approved VBGRAMG administrator account.</p><div id="access-status" class="status">Checking your session…</div></section>
 <section class="panel" id="app-panel" hidden>
-<div class="notice"><strong>Read-only comparison.</strong> This fetches the Government listing and compares it with imported history and saved inspection results. Imported FTOs and FTOs classified Out of Scope are permanently skipped. No Contribution periods or charges are created.</div>
-<div class="actions"><button id="fetch-button" type="button">Refresh Government listing</button></div>
 <div id="details-panel" class="panel" hidden><h2>Transaction preview</h2><p class="section-note">Successful inspections save only the FTO inspection classification. FTO transaction history and Contribution records are not changed.</p><p id="details-progress" class="section-note">Ready.</p><div class="notice" style="margin:10px 0">Import records Government transaction history only. It does not calculate Contribution charges or assign a Contribution period.</div><button id="import-button" hidden type="button" disabled>Import new FTO history</button><div id="import-status" class="status">Complete the detail preview before importing.</div><progress id="details-progressbar" max="1" value="0" style="width:100%;height:18px"></progress><div id="details-validation" class="stats" hidden></div><div id="details-results" class="table-wrap"></div></div>
-<div id="fetch-status" class="status" aria-live="polite">Opening the Government listing…</div>
+<div id="fetch-status" class="status" aria-live="polite" hidden></div>
 <div id="results" hidden>
 <section class="result-section">
 <h2>Ready to import <span id="new-count">—</span></h2>
@@ -70,7 +68,7 @@ async function verifyAccess(user){
   return;
  }
  $("access-panel").hidden=true;$("app-panel").hidden=false;
- if(!listingStarted){listingStarted=true;queueMicrotask(()=>$("fetch-button").click());}
+ if(!listingStarted){listingStarted=true;queueMicrotask(runGovernmentFetch);}
 }
 client.auth.onAuthStateChange((event,session)=>{
  if(event==="SIGNED_OUT"){authSequence++;window.location.replace("./");}
@@ -186,9 +184,9 @@ $("import-button").hidden=true;
 $("import-button").disabled=true;
 $("import-button").addEventListener("click",()=>status("import-status","Open this FTO from Pending Imports to complete applicant matching and import.","error"));
 
-$("fetch-button").addEventListener("click",async()=>{
- const button=$("fetch-button");button.disabled=true;button.textContent="Fetching…";$("results").hidden=true;$("details-panel").hidden=true;
- status("fetch-status","Connecting to the Government FTO listing and checking imported history…");
+async function runGovernmentFetch(){
+ $("results").hidden=true;$("details-panel").hidden=true;
+ $("fetch-status").hidden=true;
  try{
   const {data,error}=await window.VBGRAMGData.invoke("vbgramg-fto-government-fetch",{body:{},timeoutMs:30000});
   if(error||!data||data.success!==true)throw new Error(data?.error||error?.message||"Government fetch failed.");
@@ -219,7 +217,7 @@ $("fetch-button").addEventListener("click",async()=>{
   renderRows("already-checked-rows",data.alreadyCheckedEligibleFtos,"No previously checked eligible FTOs.");
   $("already-checked-section").hidden=data.alreadyCheckedEligibleFtos.length===0;
   $("results").hidden=false;
-  status("fetch-status","Government listing checked. Review the FTOs below.","success");
+  $("fetch-status").hidden=true;
   if(detailQueue.length){
    $("details-panel").hidden=false;
    detailResults=[];misSnapshot=null;importedFtoNumbers=new Set();
@@ -232,12 +230,11 @@ $("fetch-button").addEventListener("click",async()=>{
   // Keep the saved Pending Imports queue reachable even when this listing has
   // no new FTOs, or when an individual detail check needs a later retry.
   $("continue-to-fto-import").hidden=false;
- }catch(error){status("fetch-status",error.message||"Government fetch failed.","error");}
+ }catch(error){$("fetch-status").hidden=false;status("fetch-status",error.message||"Government fetch failed.","error");}
  finally{
-  button.disabled=false;button.textContent="Refresh Government listing";
   if(modalMode&&window.parent!==window)window.parent.postMessage({type:"vbgramg-government-refresh-complete",status:$("fetch-status").classList.contains("error")?"error":"success"},location.origin);
  }
-});
+}
 })();
 </script>
 <script src="./navigation.js?v=20261117a"></script>

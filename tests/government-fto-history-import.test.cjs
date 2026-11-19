@@ -112,7 +112,10 @@ test("FTO Import uses one entry point and embeds Government refresh in the saved
   assert.match(government, /modalMode/);
   assert.match(government, /vbgramg-government-refresh-complete/);
   assert.match(government, /id="new-count"/);
-  assert.match(government, /Eligible \/ refreshable FTOs/);
+  assert.match(government, /Ready to import/);
+  assert.match(government, /Already checked — eligible, not imported/);
+  assert.match(government, /No FTOs are ready to import\./);
+  assert.doesNotMatch(government, /Eligible \/ refreshable FTOs|Needs review|Total listed|Fetched at/);
 });
 
 test("Inline scripts in the unified FTO workflow parse cleanly", () => {

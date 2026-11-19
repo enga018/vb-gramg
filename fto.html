@@ -1261,7 +1261,7 @@ supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){
  const modal=document.getElementById('fto-government-modal'),frame=document.getElementById('fto-government-frame');
  const open=document.getElementById('fetch-official-fto'),close=document.getElementById('close-fto-government');
  if(!modal||!frame||!open||!close)return;
- let fetching=false;
+ let fetching=false,continueToImport=false;
  const defaultLabel=open.textContent;
  function displayModal(){
   if(typeof modal.showModal==='function'&&!modal.open)modal.showModal();
@@ -1287,9 +1287,23 @@ supabaseClient.auth.getSession().then(({data,error})=>{if(error||!data.session){
  open.addEventListener('click',startFetch);
  close.addEventListener('click',()=>modal.close());
  modal.addEventListener('click',event=>{if(event.target===modal)modal.close();});
- modal.addEventListener('close',reset);
+ modal.addEventListener('close',()=>{
+  reset();
+  if(continueToImport){
+   continueToImport=false;
+   // Wait until the Government modal is closed and its iframe reset before opening FTO Import.
+   openImportAfterGovernmentClose();
+  }
+ });
+ function openImportAfterGovernmentClose(){document.getElementById('open-fto-import').click();}
  window.addEventListener('message',event=>{
   if(event.origin!==location.origin||event.source!==frame.contentWindow||!event.data)return;
+  if(event.data.type==='vbgramg-government-continue-to-fto-import'){
+   if(!modal.open)return;
+   continueToImport=true;
+   modal.close();
+   return;
+  }
   if(event.data.type==='vbgramg-government-refresh-complete'){
    fetching=false;
    open.textContent=defaultLabel;

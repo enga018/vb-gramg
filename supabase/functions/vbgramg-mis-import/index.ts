@@ -342,176 +342,142 @@ Deno.serve(async (req: Request) => {
 
 
     if (action === "official-fetch") {
-      const response = await fetch(OFFICIAL_REPORT_URL, { method:"GET", redirect:"follow", headers:{"User-Agent":"VBGRAMG-MIS-Reader/1.0","Accept":"text/html,application/xhtml+xml","Accept-Encoding":"identity","Cache-Control":"no-cache","Pragma":"no-cache"}, signal:AbortSignal.timeout(30000) });
-      if (!response.ok) return reply({error:"Government MIS returned HTTP "+response.status+". No data changed."},502);
+      const response = await fetch(OFFICIAL_REPORT_URL, {
+        method: "GET",
+        redirect: "follow",
+        headers: {
+          "User-Agent": "VBGRAMG-MIS-Reader/1.0",
+          "Accept": "text/html,application/xhtml+xml",
+          "Accept-Encoding": "identity",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+        },
+        signal: AbortSignal.timeout(30000),
+      });
+      if (!response.ok) {
+        return reply({ error: "Government MIS returned HTTP " + response.status + ". No data changed." }, 502);
+      }
+
       const built = await buildOfficialRows(await response.text(), admin);
       const filename = "Official Registration Application Register — New Serchhip North";
-      const {data:record,error:insertError}=await admin.from("vbgramg_mis_imports").insert({source_filename:filename,source_sheet:"MIS",imported_by:authData.user.id,row_count:built.output.length,status:"staging"}).select("id").single();
-      if(insertError)throw insertError;
+      const { data: record, error: insertError } = await admin.from("vbgramg_mis_imports")
+        .insert({
+          source_filename: filename,
+          source_sheet: "MIS",
+          imported_by: authData.user.id,
+          row_count: built.output.length,
+          status: "staging",
+        })
+        .select("id")
+        .single();
+      if (insertError) throw insertError;
+
       try {
-        for(let offset=0;offset<built.output.length;offset+=250){
-          const payload=built.output.slice(offset,offset+250).map((row,index)=>({import_id:record.id,row_number:offset+index+1,row_data:row}));
-          const {error}=await admin.from("vbgramg_mis_rows").insert(payload);if(error)throw error;
-        }
-        const staged=await readImportRows(admin,record.id),oldRows=await readImportRows(admin,built.activeImportId),diff=compareRows(oldRows,staged);
-        return reply({success:true,importId:record.id,expectedActiveImportId:built.activeImportId,sourceFilename:filename,sourceRowCount:built.sourceRows,parsedApplicantCount:built.output.length-1,...diff});
-      } catch(error) {
-        await admin.from("vbgramg_mis_rows").delete().eq("import_id",record.id);
-        await admin.from("vbgramg_mis_imports").delete().eq("id",record.id);
-        throw error;
-      }
-    }
-
-    if (action === "prepare") {
-      const { data: state, error: stateError } = await admin.from("vbgramg_mis_state").select("active_import_id").eq("singleton", true).maybeSingle();
-      if (stateError) throw stateError;
-      if (!state?.active_import_id) return reply({ error: "No active MIS is available for matching existing Unique IDs." }, 409);
-      const rows = await readImportRows(admin, state.active_import_id);
-      return reply({ activeRows: rows.map(item => item.row_data), activeRowCount: Math.max(0, rows.length - 1) });
-    }
-
-    if (action === "begin") {
-      const filename = typeof body.filename === "string" ? body.filename.slice(0, 255) : "";
-      const rowCount = body.rowCount;
-      if (!filename || !Number.isInteger(rowCount) || rowCount < 1 || rowCount > 100000) {
-        return reply({ error: "Invalid filename or row count (must be 1–100,000 rows). The existing data has not changed." }, 400);
-      }
-      const { data, error } = await admin.from("vbgramg_mis_imports")
-        .insert({ source_filename: filename, source_sheet: "MIS", imported_by: authData.user.id, row_count: rowCount, status: "staging" })
-        .select("id").single();
-      if (error) throw error;
-      return reply({ importId: data.id });
-    }
-
-    if (action === "append") {
-      const importId = body.importId, startRow = body.startRow, rows = body.rows;
-      if (typeof importId !== "string" || !Number.isInteger(startRow) || startRow < 1 ||
-          !Array.isArray(rows) || rows.length < 1 || rows.length > 250 ||
-          rows.some((row: unknown) => !Array.isArray(row))) return reply({ error: "Invalid row batch." }, 400);
-      const { data: record, error: recordError } = await admin.from("vbgramg_mis_imports")
-        .select("id,status,row_count,imported_by").eq("id", importId).maybeSingle();
-      if (recordError) throw recordError;
-      if (!record || record.status !== "staging" || record.imported_by !== authData.user.id) return reply({ error: "Import session not found or not writable." }, 404);
-      if (startRow + rows.length - 1 > record.row_count) return reply({ error: "Batch exceeds expected row count." }, 400);
-      const payload = rows.map((row: unknown[], index: number) => ({ import_id: importId, row_number: startRow + index, row_data: row }));
-      const { error } = await admin.from("vbgramg_mis_rows").insert(payload);
-      if (error) throw error;
-      return reply({ inserted: rows.length });
-    }
-
-    if (action === "compare" || action === "finalize") {
-      const importId = body.importId;
-      if (typeof importId !== "string") return reply({ error: "Invalid import ID." }, 400);
-      const { data: record, error: recordError } = await admin.from("vbgramg_mis_imports")
-        .select("id,source_filename,row_count,status,imported_by").eq("id", importId).maybeSingle();
-      if (recordError) throw recordError;
-      if (!record || record.status !== "staging" || record.imported_by !== authData.user.id) return reply({ error: "Import session not found or not writable." }, 404);
-      const { count, error: countError } = await admin.from("vbgramg_mis_rows")
-        .select("row_number", { count: "exact", head: true }).eq("import_id", importId);
-      if (countError) throw countError;
-      if (count !== record.row_count) return reply({ error: `Row count mismatch: expected ${record.row_count}, saved ${count ?? 0}. Existing active data was not changed.` }, 409);
-      const { data: state, error: stateError } = await admin.from("vbgramg_mis_state")
-        .select("active_import_id,source_filename,row_count").eq("singleton", true).maybeSingle();
-      if (stateError) throw stateError;
-      if (action === "finalize" && (body.expectedActiveImportId ?? null) !== (state?.active_import_id ?? null)) {
-        return reply({ error: "The active MIS changed after comparison. Please compare again. No changes were applied." }, 409);
-      }
-      const newRows = await readImportRows(admin, importId);
-      if (!state?.active_import_id) {
-        return reply({ error: "No existing active MIS is available to compare. Please contact the administrator to establish the initial baseline first." }, 409);
-      }
-      const oldRows = await readImportRows(admin, state.active_import_id);
-      const diff = compareRows(oldRows, newRows);
-      if (action === "compare") {
-        return reply({ success: true, importId, expectedActiveImportId: state.active_import_id, sourceFilename: record.source_filename, ...diff });
-      }
-
-      const { error: completeError } = await admin.from("vbgramg_mis_imports")
-        .update({ status: "complete", completed_at: new Date().toISOString() }).eq("id", importId);
-      if (completeError) throw completeError;
-      const syncedAt = new Date().toISOString();
-      const { error: stateUpdateError } = await admin.from("vbgramg_mis_state").update({
-        active_import_id: importId,
-        source_filename: record.source_filename,
-        row_count: record.row_count,
-        updated_at: syncedAt,
-      }).eq("singleton", true);
-      if (stateUpdateError) {
-        await admin.from("vbgramg_mis_imports").update({ status: "staging", completed_at: null }).eq("id", importId);
-        throw stateUpdateError;
-      }
-
-      // New job cards get their lowest-numbered applicant selected.
-      // Existing job cards are auto-selected only when a new applicant was added AND no selection
-      // exists already. Existing marked applicants are never replaced by an import.
-      let autoSelectedNewJobCards = 0;
-      let autoSelectedNewApplicants = 0;
-      let selectionWarning: string | null = null;
-      try {
-        const selectionCandidates = newJobCardSelections(oldRows, newRows);
-        const initialSelections = selectionCandidates.newJobCardSelections;
-        if (initialSelections.length) {
-          const payload = initialSelections.map(item => ({
-            ...item,
-            updated_by: "system:auto-new-job-card",
-            updated_at: new Date().toISOString(),
+        // Stage the complete official register before comparing or activating it.
+        for (let offset = 0; offset < built.output.length; offset += 250) {
+          const payload = built.output.slice(offset, offset + 250).map((row, index) => ({
+            import_id: record.id,
+            row_number: offset + index + 1,
+            row_data: row,
           }));
-          const { error: selectionError } = await admin.from("vbgramg_mis_selections")
-            .upsert(payload, { onConflict: "job_card_number" });
-          if (selectionError) throw selectionError;
-          autoSelectedNewJobCards = initialSelections.length;
+          const { error } = await admin.from("vbgramg_mis_rows").insert(payload);
+          if (error) throw error;
         }
 
-        const addedApplicantCandidates = selectionCandidates.existingCardNewApplicantSelections;
-        if (addedApplicantCandidates.length) {
-          const { data: savedSelections, error: savedSelectionError } = await admin.from("vbgramg_mis_selections")
-            .select("job_card_number")
-            .in("job_card_number", addedApplicantCandidates.map(item => item.job_card_number));
-          if (savedSelectionError) throw savedSelectionError;
-          const alreadyMarked = new Set((savedSelections || []).map(item => item.job_card_number));
-          const selectionsToAdd = addedApplicantCandidates.filter(item => !alreadyMarked.has(item.job_card_number));
-          if (selectionsToAdd.length) {
-            const payload = selectionsToAdd.map(item => ({
-              ...item,
-              updated_by: "system:auto-new-applicant",
-              updated_at: new Date().toISOString(),
-            }));
-            const { error: selectionError } = await admin.from("vbgramg_mis_selections")
-              .upsert(payload, { onConflict: "job_card_number" });
-            if (selectionError) throw selectionError;
-            autoSelectedNewApplicants = selectionsToAdd.length;
+        const [stagedRows, oldRows] = await Promise.all([
+          readImportRows(admin, record.id),
+          readImportRows(admin, built.activeImportId),
+        ]);
+        const diff = compareRows(oldRows, stagedRows);
+
+        // Calculate selection candidates before the active pointer is changed.
+        // Existing user selections must never be overwritten by an import.
+        const selectionCandidates = newJobCardSelections(oldRows, stagedRows);
+        const candidatesByCard = new Map<string, { job_card_number: string; applicant_key: string }>();
+        for (const item of [
+          ...selectionCandidates.newJobCardSelections,
+          ...selectionCandidates.existingCardNewApplicantSelections,
+        ]) {
+          if (!candidatesByCard.has(item.job_card_number)) candidatesByCard.set(item.job_card_number, item);
+        }
+
+        // This RPC is the only activation commit point. It verifies the baseline
+        // is still current and validates every staged row inside the DB transaction.
+        const selectionPayload = [...candidatesByCard.values()];
+
+        // Activation and missing-selection initialisation share one database
+        // transaction. A failure cannot leave a partially activated MIS.
+        const { data: activation, error: activationError } = await admin.rpc("vbgramg_activate_mis_import", {
+          p_import_id: record.id,
+          p_actor_id: authData.user.id,
+          p_expected_active_import_id: built.activeImportId,
+          p_expected_row_count: built.output.length,
+          p_selections: selectionPayload,
+        });
+        if (activationError) throw activationError;
+        if (!activation?.success) throw new Error("MIS activation did not confirm success.");
+
+        return reply({
+          success: true,
+          activated: true,
+          importId: record.id,
+          expectedActiveImportId: built.activeImportId,
+          sourceFilename: filename,
+          sourceRowCount: built.sourceRows,
+          parsedApplicantCount: built.output.length - 1,
+          rowCount: built.output.length,
+          syncedAt: activation.activated_at || new Date().toISOString(),
+          initializedSelectionCount: Number(activation.initialized_selection_count || 0),
+          ...diff,
+        });
+      } catch (error) {
+        // A lost RPC response can make a committed transaction look like a failure.
+        // Read the authoritative pointer before deciding whether cleanup is safe.
+        const [{ data: currentState, error: stateCheckError }, { data: currentRecord, error: recordCheckError }] = await Promise.all([
+          admin.from("vbgramg_mis_state").select("active_import_id").eq("singleton", true).maybeSingle(),
+          admin.from("vbgramg_mis_imports").select("status,imported_by,completed_at").eq("id", record.id).maybeSingle(),
+        ]);
+
+        if (!stateCheckError && !recordCheckError &&
+            currentState?.active_import_id === record.id &&
+            currentRecord?.status === "complete") {
+          console.warn("MIS activation committed; recovering lost acknowledgement:", record.id);
+          return reply({
+            success: true,
+            activated: true,
+            importId: record.id,
+            expectedActiveImportId: built.activeImportId,
+            sourceFilename: filename,
+            sourceRowCount: built.sourceRows,
+            parsedApplicantCount: built.output.length - 1,
+            rowCount: built.output.length,
+            syncedAt: currentRecord.completed_at || new Date().toISOString(),
+            acknowledgementRecovered: true,
+            ...diff,
+          });
+        }
+
+        if (stateCheckError || recordCheckError) {
+          console.error("Could not verify MIS activation outcome:", stateCheckError || recordCheckError);
+          return reply({
+            error: "The activation status could not be verified. Do not retry yet; refresh the MIS page and check which import is active.",
+            activationStatus: "unknown",
+            importId: record.id,
+          }, 503);
+        }
+
+        // Only delete this attempt after confirming it did not become active.
+        if (currentRecord?.status === "staging" &&
+            currentRecord.imported_by === authData.user.id &&
+            currentState?.active_import_id !== record.id) {
+          const { error: rowCleanupError } = await admin.from("vbgramg_mis_rows").delete().eq("import_id", record.id);
+          const { error: importCleanupError } = await admin.from("vbgramg_mis_imports").delete().eq("id", record.id);
+          if (rowCleanupError || importCleanupError) {
+            console.error("Failed to clean rejected MIS staging attempt:", rowCleanupError || importCleanupError);
           }
         }
-      } catch (error) {
-        console.error("Could not initialise MIS applicant selections:", error);
-        selectionWarning = "The new MIS is active, but automatic applicant selection could not be completed for some job cards.";
+        throw error;
       }
-
-      // The new import is now active. Remove old complete-import row payloads so the database retains
-      // only the current MIS records; keep import metadata for a minimal audit trail.
-      const { data: oldImports, error: oldImportsError } = await admin.from("vbgramg_mis_imports")
-        .select("id").eq("status", "complete").neq("id", importId);
-      if (oldImportsError) throw oldImportsError;
-      let cleanupWarning: string | null = null;
-      for (const oldImport of oldImports || []) {
-        const { error: deleteError } = await admin.from("vbgramg_mis_rows").delete().eq("import_id", oldImport.id);
-        if (deleteError) {
-          console.error("Old MIS row cleanup failed:", deleteError);
-          cleanupWarning = "The new MIS is active, but some previous row data could not be cleaned up.";
-          break;
-        }
-      }
-      return reply({ success: true, importId, rowCount: count, syncedAt, expectedActiveImportId: state.active_import_id, autoSelectedNewJobCards, autoSelectedNewApplicants, selectionWarning, cleanupWarning, ...diff });
-    }
-
-    if (action === "abort") {
-      const importId = body.importId;
-      if (typeof importId !== "string") return reply({ error: "Invalid import ID." }, 400);
-      const { data: record, error } = await admin.from("vbgramg_mis_imports")
-        .select("id,status,imported_by").eq("id", importId).maybeSingle();
-      if (error) throw error;
-      if (record?.status === "staging" && record.imported_by === authData.user.id) await admin.from("vbgramg_mis_imports").delete().eq("id", importId);
-      return reply({ success: true });
     }
 
     return reply({ error: "Unknown action." }, 400);

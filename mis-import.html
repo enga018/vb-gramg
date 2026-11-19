@@ -124,22 +124,6 @@ header .top-actions > button:hover {
 body>main{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:min(100%,var(--app-content-width));max-width:var(--app-content-width);margin-left:auto;margin-right:auto;box-sizing:border-box}
 
-/* Official fetch is primary; manual file import stays available as a collapsed fallback. */
-.manual-import{margin-top:16px;border-top:1px solid #334155;padding-top:14px}
-.manual-import summary{cursor:pointer;font-weight:650;color:inherit;list-style-position:inside}
-.manual-import-content{padding-top:14px}
-.manual-import-content #load-table-button{margin-top:12px}
-.manual-import-content textarea{display:block;width:100%;min-height:140px;max-height:42vh;resize:vertical;padding:12px;border:1px solid var(--color-border-strong);border-radius:9px;background:var(--color-bg-surface);color:var(--color-text-primary);font:inherit;line-height:1.45}
-
-/* Compact MIS import entry form */
-.paste-box{padding:14px;margin:0 0 14px}
-.paste-box .file-label{margin-bottom:7px}
-.paste-box .hint{margin:4px 0 8px;font-size:.82rem;line-height:1.35}
-.paste-box input[type=file]{display:block;max-width:100%;font:inherit;font-size:.88rem}
-.paste-box textarea{min-height:120px;max-height:42vh;resize:vertical}
-.paste-box #load-table-button{margin-top:10px}
-@media(max-width:700px){.paste-box{padding:12px;margin:0}.paste-box textarea{min-height:112px}}
-
 /* Responsive MIS comparison: table on desktop, readable change cards on mobile. */
 .diff-mobile-cards{display:grid;gap:10px;margin-top:12px}.diff-mobile-cards[hidden]{display:none}
 .diff-change-card{padding:13px;border:1px solid #334155;border-radius:12px;background:#1b232d;color:#e2e8f0}
@@ -166,19 +150,11 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
     <div class="paste-box">
       <button type="button" id="fetch-official-mis-button">Fetch Official MIS</button>
       <div id="official-fetch-status" class="hint" aria-live="polite"></div>
-      <details class="manual-import">
-        <summary>Manual Import (Fallback)</summary>
-        <div class="manual-import-content">
-          <label class="file-label" for="table-input">Paste MIS register</label>
-          <textarea id="table-input" rows="6" placeholder="Paste the copied Government MIS table here…"></textarea>
-          <button type="button" id="load-table-button">Analyze and compare</button>
-        </div>
-      </details>
     </div>
     <div id="status" class="status" aria-live="polite">Checking administrator access…</div>
     <section id="diff-panel" class="diff-panel hidden" aria-live="polite">
-      <h2 id="diff-title">Review MIS changes</h2>
-      <p id="diff-intro">Compare the uploaded file with the current active MIS before applying changes.</p>
+      <h2 id="diff-title">Official MIS update complete</h2>
+      <p id="diff-intro">The official Government MIS has been activated.</p>
       <div class="diff-summary">
         <div class="diff-count"><span>Added</span><strong id="diff-added-count">0</strong></div>
         <div class="diff-count"><span>Deleted</span><strong id="diff-deleted-count">0</strong></div>
@@ -186,19 +162,13 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
         <div class="diff-count"><span>Unchanged</span><strong id="diff-unchanged-count">0</strong></div>
       </div>
       <h3>Applicant changes</h3>
-      <div class="table-wrap diff-table-wrap">
-        <table class="diff-table">
-          <thead><tr><th>Change</th><th>Job Card No.</th><th>Head of Household</th><th>Applicant Name</th><th>Applicant No.</th><th>Previous details (updated only)</th></tr></thead>
-          <tbody id="diff-table-body"><tr><td colspan="6">No applicant changes detected.</td></tr></tbody>
-        </table>
-      </div>
+      <div class="table-wrap diff-table-wrap"><table class="diff-table">
+        <thead><tr><th>Change</th><th>Job Card No.</th><th>Head of Household</th><th>Applicant Name</th><th>Applicant No.</th><th>Previous details</th></tr></thead>
+        <tbody id="diff-table-body"><tr><td colspan="6">No applicant changes detected.</td></tr></tbody>
+      </table></div>
       <div id="diff-mobile-cards" class="diff-mobile-cards" hidden></div>
       <div id="diff-pager" class="mobile-table-pager" hidden><button id="diff-prev" class="secondary" type="button">Previous</button><span id="diff-page-label"></span><button id="diff-next" class="secondary" type="button">Next</button></div>
-      <div class="diff-actions">
-        <button id="apply-changes-button" type="button">Confirm and apply changes</button>
-        <button id="cancel-changes-button" type="button" class="secondary">Cancel upload</button>
-      </div>
-      <p class="hint">Confirming makes the uploaded MIS active and removes old MIS row data from the database. Import history metadata is retained.</p>
+      <div class="diff-actions"><button id="diff-okay-button" type="button">Okay</button></div>
     </section>
   </main>
 
@@ -206,492 +176,69 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
   <script src="./js/mis-import.js?v=20261104a"></script>
   
   <script>
-    const SUPABASE_URL = 'https://trtzhafgvqosjwrgckty.supabase.co';
-    const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
-    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-    const { parsePastedTable, normText, headerKey, findColumn, isDeletedRow, cleanName } = window.VBGRAMGMISImport;
-
-    const tableInput = document.getElementById('table-input');
-    const loadTableButton = document.getElementById('load-table-button');
-    const statusBox = document.getElementById('status');
-    let currentUser = null;
-    let currentRole = null;
-    let importedRows = [];
-    let pastedTableLoaded = false;
-    let importedFileName = 'Pasted MIS';
-    let pendingImportId = null;
-    let pendingComparison = null;
-
-    function setStatus(message, type) {
-      if ((type === 'error' || type === 'success') && window.showToast) {
-        window.showToast(message, type);
-        statusBox.textContent = '';
-        statusBox.classList.remove('error', 'success');
-        return;
-      }
-      statusBox.textContent = message;
-      statusBox.classList.remove('error', 'success');
+    const SUPABASE_URL='https://trtzhafgvqosjwrgckty.supabase.co';
+    const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
+    const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+    const statusBox=document.getElementById('status'),fetchButton=document.getElementById('fetch-official-mis-button'),fetchStatus=document.getElementById('official-fetch-status');
+    let currentUser=null,currentRole=null,latestDiff=null,diffPage=0;
+    const pageSize=10;
+    function setStatus(message,type){statusBox.textContent=message;statusBox.classList.remove('error','success');if(type)statusBox.classList.add(type);}
+    async function invokeImport(payload){
+      const {data,error}=await supabaseClient.functions.invoke('vbgramg-mis-import',{body:payload});
+      if(error){let message=error.message||'Supabase function request failed.';try{const r=error.context;if(r&&typeof r.json==='function'){const d=await r.json();if(d&&d.error)message=d.error;}}catch(_){}throw new Error(message);}
+      if(data&&data.error)throw new Error(data.error);return data;
     }
-
-    async function updateAuthUI(user) {
-      currentUser = null;
-      currentRole = null;
-      if (!user) {
-        setStatus('Administrator access is required. Redirecting to the main app…', 'error');
-        window.location.replace('./');
-        return;
-      }
-      const { data: access, error } = await supabaseClient.functions.invoke('vbgramg-app-access', { body: {} });
-      if (error || !access || access.approved !== true || access.role !== 'admin') {
-        setStatus('Administrator access is required. Returning to the main app…', 'error');
-        window.location.replace('./');
-        return;
-      }
-      currentUser = user;
-      currentRole = access.role;
+    async function updateAuthUI(user){
+      currentUser=null;currentRole=null;
+      if(!user){setStatus('Administrator access is required. Redirecting to the main app…','error');window.location.replace('./');return;}
+      const {data:access,error}=await supabaseClient.functions.invoke('vbgramg-app-access',{body:{}});
+      if(error||!access||access.approved!==true||access.role!=='admin'){setStatus('Administrator access is required. Returning to the main app…','error');window.location.replace('./');return;}
+      currentUser=user;currentRole=access.role;fetchButton.disabled=false;setStatus('Administrator access verified. Ready to fetch the official MIS.');
     }
-
-    function rowList(id, values, emptyText) {
-      const list=document.getElementById(id); list.replaceChildren();
-      const shown=values.length ? values.slice(0,1000) : [emptyText];
-      shown.forEach(value=>{const li=document.createElement('li');li.textContent=value;list.appendChild(li);});
-      if(values.length>1000){const li=document.createElement('li');li.textContent=(values.length-1000)+' more rows not displayed';list.appendChild(li);}
-    }
-    async function prepareGovernmentRegister(parsedRows) {
-      // Some government-register clipboard formats split wrapped headings across adjacent rows.
-      // Merge nearby header fragments by column position before deciding where applicants begin.
-      const label = value => headerKey(value).replace(/\bno\b/g, 'number');
-      const hasJobHeading = row => row.some(v => {
-        const k=label(v).replace(/\s+/g,' ');
-        return k.includes('job card number')||k.includes('jobcard number')||k==='job card'||k==='jc number'||k==='jc no';
+    const label=item=>[item.jobCardNumber&&'Job card '+item.jobCardNumber,item.household&&'Household '+item.household,item.applicantName,item.applicantNo&&'Applicant No. '+item.applicantNo,item.uniqueId&&'ID '+item.uniqueId].filter(Boolean).join(' · ')||'Applicant record';
+    function cell(row,value){const td=document.createElement('td');td.textContent=value==null||value===''?'—':String(value);row.appendChild(td);}
+    function renderDiff(diff){
+      const body=document.getElementById('diff-table-body'),cards=document.getElementById('diff-mobile-cards');body.replaceChildren();cards.replaceChildren();
+      const entries=[...diff.added.map(item=>({type:'Added',item})),...diff.deleted.map(item=>({type:'Deleted',item})),...diff.updated.map(change=>({type:'Updated',item:change.after||{},previous:change.before||{}}))];
+      const mobile=matchMedia('(max-width:700px)').matches,pages=Math.max(1,Math.ceil(entries.length/pageSize));
+      document.querySelector('.diff-table-wrap').hidden=mobile||!entries.length;cards.hidden=!mobile||!entries.length;
+      if(!entries.length){const tr=document.createElement('tr');const td=document.createElement('td');td.colSpan=6;td.textContent='No applicant changes detected.';tr.appendChild(td);body.appendChild(tr);}
+      diffPage=Math.min(diffPage,pages-1);
+      const shown=mobile?entries.slice(diffPage*pageSize,(diffPage+1)*pageSize):entries;
+      shown.forEach(({type,item,previous})=>{
+        const tr=document.createElement('tr');[type,item.jobCardNumber,item.household,item.applicantName,item.applicantNo,previous?label(previous):'—'].forEach(v=>cell(tr,v));body.appendChild(tr);
+        if(mobile){const card=document.createElement('article');card.className='diff-change-card diff-'+type.toLowerCase();const h=document.createElement('div');h.className='diff-card-heading';const strong=document.createElement('strong');strong.textContent=type;h.appendChild(strong);card.appendChild(h);const job=document.createElement('div');job.className='diff-card-job';job.textContent=item.jobCardNumber||'Job card not available';card.appendChild(job);
+          [['Head of household',item.household],['Applicant name',item.applicantName],['Applicant no.',item.applicantNo]].forEach(([k,v])=>{const line=document.createElement('div');line.className='diff-card-field';const a=document.createElement('span');a.textContent=k;const b=document.createElement('strong');b.textContent=v==null||v===''?'—':String(v);line.append(a,b);card.appendChild(line);});
+          if(previous){const p=document.createElement('div');p.className='diff-card-previous';const a=document.createElement('span');a.textContent='Previous details';const b=document.createElement('p');b.textContent=label(previous);p.append(a,b);card.appendChild(p);}cards.appendChild(card);}
       });
-      const hasNameHeading = row => row.some(v => {
-        const k=label(v).replace(/\s+/g,' ');
-        return k.includes('name of applicant')||k.includes('applicant name')||k==='name applicant';
-      });
-      let headerAt=-1, sourceHeader=[];
-      for(let i=0;i<parsedRows.length&&headerAt<0;i++){
-        for(let span=1;span<=4&&i+span<=parsedRows.length;span++){
-          const windowRows=parsedRows.slice(i,i+span);
-          const width=Math.max(...windowRows.map(row=>row.length));
-          const merged=Array.from({length:width},(_,col)=>{
-            for(const row of windowRows){const value=normText(row[col]);if(value && !/^\d+$/.test(value)) return value;}
-            return '';
-          });
-          if(hasJobHeading(merged)&&hasNameHeading(merged)){
-            sourceHeader=merged;
-            headerAt=i+span-1;
-            break;
-          }
-        }
-      }
-      if(headerAt<0) {
-        // The report schema was supplied by the user. If the clipboard contains only
-        // applicant rows (without column headings), use the known 15-column register layout.
-        const dataAt=parsedRows.findIndex(row => {
-          const values=row.map(normText);
-          return values.some(v=>/^MZ-[A-Z0-9-]+\/\d+$/i.test(v)) &&
-            values.some(v=>/^[MF]$/i.test(v)) && values.some(v=>/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(v));
-        });
-        if(dataAt>=0 && parsedRows[dataAt].length>=9) {
-          sourceHeader=['S.No.','Head of HouseHold','Caste','Name of Applicant','Father/Husband Name','Gender','Age','Date of receipt of application/Request for Registration','Job card number','Job-card issue date','Reasons, if Job Card NOT issued & any other remarks','Disabled','Minority','Job Card Verified on Date'];
-          headerAt=dataAt-1;
-        } else {
-          const preview=parsedRows.slice(0,24).map((row,i)=>'['+(i+1)+'] '+row.map(normText).filter(Boolean).join(' | ')).filter(Boolean).join(' / ').slice(0,700);
-          throw new Error('Could not identify applicant rows. Paste the applicant table as rows and columns (tab-separated clipboard or CSV); the report title and other introductory headings are optional. Parsed start: '+(preview||'(no readable rows)'));
-        }
-      }
-      // Government reports sometimes put a second row of column numbers (1, 2, 3...) under the labels.
-      if(parsedRows[headerAt+1] && parsedRows[headerAt+1].filter(v=>normText(v)).length>=5 &&
-        parsedRows[headerAt+1].filter(v=>/^\d{1,2}$/.test(normText(v))).length===parsedRows[headerAt+1].filter(v=>normText(v)).length) headerAt++;
-      const si={
-        serial:findColumn(sourceHeader,['s no','s no.','s no','serial no','serial number']),
-        household:findColumn(sourceHeader,['head of household','head of household name']),
-        caste:findColumn(sourceHeader,['caste']),
-        name:findColumn(sourceHeader,['name of applicant','applicant name']),
-        father:findColumn(sourceHeader,['father husband name','father name','husband name']),
-        gender:findColumn(sourceHeader,['gender']),
-        age:findColumn(sourceHeader,['age']),
-        receipt:findColumn(sourceHeader,['date of receipt of application request for registration','date of receipt of application']),
-        job:findColumn(sourceHeader,['job card number','jobcard number']),
-        issue:findColumn(sourceHeader,['job card issue date']),
-        remarks:findColumn(sourceHeader,['reasons if job card not issued any other remarks','reasons if job card not issued','remarks']),
-        disabled:findColumn(sourceHeader,['disabled']),
-        minority:findColumn(sourceHeader,['minority']),
-        verified:findColumn(sourceHeader,['job card verified on date'])
-      };
-      const active=await invokeImport({action:'prepare'});
-      const activeRows=Array.isArray(active.activeRows)?active.activeRows:[];
-      if(!activeRows.length || !activeRows[0].length) throw new Error('The active MIS header could not be read for matching existing IDs.');
-      const originalHeader=activeRows[0].map(v=>normText(v));
-      const serialIndex=originalHeader.findIndex(v=>/^sl\.?\s*no\.?$|^s\.?\s*no\.?$/i.test(v));
-      const targetHeader=originalHeader.filter((_,index)=>index!==serialIndex);
-      const normalizedActiveRows=activeRows.map(row=>row.filter((_,index)=>index!==serialIndex));
-      const ti={
-        job:findColumn(targetHeader,['job card number','jobcard number']),
-        jcNo:findColumn(targetHeader,['jc no','jc number']),
-        household:findColumn(targetHeader,['head of household','head of household name']),
-        name:findColumn(targetHeader,['name of applicant','applicant name']),
-        applicantNo:findColumn(targetHeader,['applicant no','applicant no.']),
-        uniqueId:findColumn(targetHeader,['unique id'])
-      };
-      if([ti.job,ti.household,ti.name,ti.applicantNo,ti.uniqueId].some(i=>i<0)) throw new Error('Active MIS must contain Job Card Number, Head of HouseHold, Name of Applicant, Applicant No., and Unique ID columns.');
-      const existingByMatch=new Map(), existingByCard=new Map(), nextNoByCard=new Map();
-      normalizedActiveRows.slice(1).forEach((row,index)=>{
-        const card=normText(row[ti.job]), name=cleanName(row[ti.name]), no=normText(row[ti.applicantNo]), uid=normText(row[ti.uniqueId]);
-        if(!card) return;
-        const entry={no,uid,row,index};
-        if(name){const key=card.toLowerCase()+'|'+name;const q=existingByMatch.get(key)||[];q.push(entry);existingByMatch.set(key,q);}
-        const all=existingByCard.get(card)||[];all.push(entry);existingByCard.set(card,all);
-        const numeric=Number(no);if(no && Number.isFinite(numeric))nextNoByCard.set(card,Math.max(nextNoByCard.get(card)||0,numeric));
-      });
-      const removed=parsedRows.slice(0,headerAt).map(row=>'Report heading/metadata before applicant table: '+row.map(normText).filter(Boolean).join(' · ')).filter(v=>v.trim().length>0), review=[], output=[targetHeader], usedIds=new Set(), nextApplicantNo=new Map(); let matchedCount=0, generatedIdCount=0;
-      let previousCard='', previousHousehold='';
-      for(let i=headerAt+1;i<parsedRows.length;i++){
-        const row=parsedRows[i], text=row.map(normText).filter(Boolean).join(' · ');
-        if(!text){continue;}
-        if(/^(villages?\b|no\. of registrants\b|total no\. of registered applicants\b|total\b|report completed\b|# end of report\b)/i.test(text)){
-          removed.push('Report heading/total: '+text);continue;
-        }
-        const card=normText(row[si.job]), name=normText(row[si.name]);
-        const plausible=card.startsWith('MZ-') && card.includes('/') && !!name;
-        if(!plausible){
-          if(!card && !name && /^(s\.?\s*no\.?|head of household|caste|name of applicant|father\/husband name|gender|age|job card number)/i.test(text)){removed.push('Repeated report heading: '+text);continue;}
-          if(!card && !name){removed.push('Non-applicant/report row: '+text);continue;}
-          review.push('Row '+(i+1)+' — '+(!card?'missing job card number; ':'')+(!name?'missing applicant name; ':'')+text);continue;
-        }
-        // Carry forward the household head within this job card before filtering deleted rows.
-        // This preserves the household context when the head's own row is marked deleted.
-        if(card!==previousCard){previousCard=card;previousHousehold='';}
-        const rawHousehold=normText(row[si.household]);
-        if(rawHousehold) previousHousehold=rawHousehold.replace(/\*/g,'').trim();
-        const household=rawHousehold ? rawHousehold.replace(/\*/g,'').trim() : previousHousehold;
-        if(isDeletedRow(row,si)){removed.push('Marked deleted: '+card+' · '+name);continue;}
-        if(!household){review.push('Row '+(i+1)+' — no household head available within job card '+card+': '+name);continue;}
-        const matchKey=card.toLowerCase()+'|'+cleanName(name);
-        const matches=existingByMatch.get(matchKey)||[];
-        let match=matches.shift();
-        if(match && !match.uid){review.push('Row '+(i+1)+' — matched an existing applicant but that record has no Unique ID: '+card+' · '+name);continue;}
-        if(match && match.uid) matchedCount++;
-        let applicantNo=match?.no||'';
-        if(!applicantNo){
-          const next=(nextNoByCard.get(card)||0)+(nextApplicantNo.get(card)||0)+1;
-          applicantNo=String(next);nextApplicantNo.set(card,(nextApplicantNo.get(card)||0)+1);
-        }
-        let uniqueId=match?.uid||'';
-        if(uniqueId && usedIds.has(uniqueId)) { review.push('Row '+(i+1)+' — duplicate existing Unique ID matched: '+uniqueId+' ('+card+' · '+name+')'); continue; }
-        if(!uniqueId) { uniqueId=crypto.randomUUID(); generatedIdCount++; }
-        usedIds.add(uniqueId);
-        const targetRow=targetHeader.map(()=> '');
-        targetRow[ti.job]=card;
-        if(ti.jcNo>=0) targetRow[ti.jcNo]=card.split('/').pop();
-        targetRow[ti.household]=household;
-        targetRow[ti.name]=name.replace(/\*/g,'').trim();
-        targetRow[ti.applicantNo]=applicantNo;
-        targetRow[ti.uniqueId]=uniqueId;
-        output.push(targetRow);
-      }
-      const uniqueReview=[...new Set(review)];
-      return {output,removed,review:uniqueReview,activeCount:active.activeRowCount||activeRows.length-1,matchedCount,generatedIdCount};
+      document.getElementById('diff-pager').hidden=!mobile||entries.length<=pageSize;document.getElementById('diff-page-label').textContent='Page '+(diffPage+1)+' of '+pages;document.getElementById('diff-prev').disabled=diffPage<=0;document.getElementById('diff-next').disabled=diffPage>=pages-1;
     }
-
-
-    function decodeSavedRegisterFile(rawText) {
-      // Brave saves MHT as a MIME multipart document. Extract its text/html part without
-      // fetching the source URL or relying on browser cookies/session state.
-      let html = '';
-      if (/^From:\s*<Saved by Blink>/im.test(rawText) || /Content-Type:\s*multipart\/related/i.test(rawText.slice(0, 5000))) {
-        const boundaryMatch = rawText.match(/boundary\s*=\s*"?([^"\r\n;]+)"?/i);
-        if (!boundaryMatch) throw new Error('This MHT file has no readable MIME boundary.');
-        const boundary = boundaryMatch[1];
-        const parts = rawText.split('--' + boundary);
-        for (const part of parts) {
-          if (!/Content-Type:\s*text\/html/i.test(part.slice(0, 1200))) continue;
-          const splitAt = part.search(/\r?\n\r?\n/);
-          if (splitAt >= 0) { html = part.slice(splitAt).trim(); break; }
-        }
-      } else {
-        html = rawText;
-      }
-      if (!html || !/<html[\s>]/i.test(html)) throw new Error('Could not find the saved HTML report inside this file. Try saving the register page again from Brave.');
-      return html;
+    function showResult(result){
+      latestDiff=result;diffPage=0;
+      document.getElementById('diff-added-count').textContent=Number(result.added?.length||0).toLocaleString();
+      document.getElementById('diff-deleted-count').textContent=Number(result.deleted?.length||0).toLocaleString();
+      document.getElementById('diff-updated-count').textContent=Number(result.updated?.length||0).toLocaleString();
+      document.getElementById('diff-unchanged-count').textContent=Number(result.unchanged||0).toLocaleString();
+      document.getElementById('diff-intro').textContent='The official Government MIS is now active. '+Number(result.newCount||result.parsedApplicantCount||0).toLocaleString()+' applicant record(s) are active. Figures below compare it with the previous MIS.';
+      renderDiff(result);document.getElementById('diff-panel').classList.remove('hidden');
+      if(window.parent!==window)window.parent.postMessage({type:'vbgramg-mis-import-complete'},window.location.origin);
     }
-
-    function extractRegisterTableFromHtml(html) {
-      const doc = new DOMParser().parseFromString(html, 'text/html');
-      const tables = Array.from(doc.querySelectorAll('table'));
-      if (!tables.length) throw new Error('No HTML tables were found in the saved report.');
-      const cellText = cell => (cell.innerText || cell.textContent || '').replace(/[\u00a0\u200b]/g, ' ').replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
-      const looksLikeRegister = table => {
-        const text = (table.innerText || table.textContent || '').toLowerCase().replace(/\s+/g, ' ');
-        return text.includes('job card number') && (text.includes('name of applicant') || text.includes('applicant name'));
-      };
-      // This government report normally places the applicant register at table index 4.
-      // Prefer a table identified by its actual column headings, falling back to index 4 only
-      // when it has a substantial number of rows.
-      let table = tables.find(looksLikeRegister);
-      if (!table && tables[4] && tables[4].rows.length > 10) table = tables[4];
-      if (!table) throw new Error('Could not identify the applicant register table in the saved report.');
-      const rows = Array.from(table.rows).map(row => Array.from(row.cells).map(cellText)).filter(row => row.some(Boolean));
-      if (rows.length < 2) throw new Error('The extracted register table has too few rows.');
-      const tsv = rows.map(row => row.map(value => value.replace(/\t/g, ' ').replace(/\r?\n/g, ' ')).join('\t')).join('\n');
-      return { tsv, rowCount: rows.length, cellCount: Math.max(...rows.map(row => row.length)), title: doc.title || 'Saved register' };
-    }
-
-    document.getElementById('fetch-official-mis-button').addEventListener('click', async function () {
-      if (!currentUser || currentRole !== 'admin') { setStatus('Administrator access is required.', 'error'); return; }
-      if (pendingImportId) { setStatus('Update or cancel the pending MIS preview first.', 'error'); return; }
-      const button = this;
-      const fetchStatus = document.getElementById('official-fetch-status');
-      button.disabled = true;
-      fetchStatus.textContent = 'Fetching and processing the official Government MIS on the server…';
-      try {
-        const result = await invokeImport({ action: 'official-fetch' });
-        if (!result || result.success !== true || !result.importId) throw new Error('The server did not prepare an MIS update.');
-        importedFileName = result.sourceFilename || 'Official Government MIS';
-        pendingImportId = result.importId;
-        pendingComparison = result;
-        showComparison(result, true);
-        fetchStatus.textContent = 'Government report processed on the server. ' + Number(result.parsedApplicantCount || 0).toLocaleString() + ' active applicant record(s) prepared. The browser did not parse or receive the raw HTML.';
-        setStatus('Official MIS processed. Review the changes summary, then select Update MIS. The active database has not changed yet.', 'success');
-      } catch (error) {
-        fetchStatus.textContent = 'Fetch failed: ' + (error && error.message ? error.message : String(error));
-        setStatus('Official MIS sync preparation failed. The active MIS has not been changed.', 'error');
-      } finally {
-        button.disabled = false;
-      }
+    fetchButton.disabled=true;
+    fetchButton.addEventListener('click',async()=>{
+      if(!currentUser||currentRole!=='admin'){setStatus('Administrator access is required.','error');return;}
+      fetchButton.disabled=true;fetchStatus.textContent='Fetching, validating, comparing and activating the official Government MIS…';setStatus('Official MIS update in progress. Keep this page open.');document.getElementById('diff-panel').classList.add('hidden');
+      try{const result=await invokeImport({action:'official-fetch'});if(!result||result.success!==true||result.activated!==true)throw new Error('The server did not confirm successful MIS activation.');
+        fetchStatus.textContent='Official Government MIS fetched and activated successfully.';setStatus('Official MIS update completed successfully.','success');showResult(result);
+      }catch(error){const message=error&&error.message?error.message:String(error);fetchStatus.textContent='Fetch failed: '+message;setStatus('Official MIS update failed. The previous active MIS has been preserved. '+message,'error');}
+      finally{fetchButton.disabled=false;}
     });
-
-    window.addEventListener('message', function (event) {
-      if (event.origin !== window.location.origin || !event.data || event.data.type !== 'vbgramg-start-official-mis-fetch') return;
-      const button = document.getElementById('fetch-official-mis-button');
-      if (button && !button.disabled) button.click();
-    });
-
-    loadTableButton.addEventListener('click', async function () {
-      if (!currentUser || currentRole !== 'admin') { setStatus('Administrator access is required.', 'error'); return; }
-      if (pendingImportId) { setStatus('A comparison is already waiting for confirmation. Confirm or cancel it first.', 'error'); return; }
-      loadTableButton.disabled = true;
-      pastedTableLoaded = false; importedRows = [];
-      document.getElementById('diff-panel').classList.add('hidden');
-      pendingComparison = null;
-      const parsedRows = parsePastedTable(tableInput.value);
-      if (!parsedRows.length) { setStatus('Paste the Government MIS register first.', 'error'); loadTableButton.disabled = false; return; }
-      if (parsedRows.length > 100000) { setStatus('The MIS register exceeds the 100,000-row limit.', 'error'); loadTableButton.disabled = false; return; }
-      let importId = null;
-      try {
-        setStatus('Filtering locally and matching applicants against the active MIS…', '');
-        const prepared = await prepareGovernmentRegister(parsedRows);
-        importedRows = prepared.output;
-        pastedTableLoaded = true;
-        window.misReviewCount = prepared.review.length;
-        if (prepared.review.length > 0) {
-          setStatus('Comparison paused: ' + prepared.review.length + ' uncertain row(s) need manual review. They are listed above and have not been compared. This pause prevents existing applicants from being incorrectly marked deleted because a source row could not be matched. Correct the source/paste and run Analyze and compare again. The active MIS has not changed.', 'error');
-          return;
-        }
-        if (importedRows.length < 2) throw new Error('Filtering produced no applicant rows to compare.');
-        setStatus('Filtering complete. Sending rows to temporary staging; active MIS remains unchanged…', '');
-        const started = await invokeImport({ action: 'begin', filename: importedFileName, rowCount: importedRows.length });
-        importId = started.importId;
-        for (let offset = 0; offset < importedRows.length; offset += 250) {
-          const batch = importedRows.slice(offset, offset + 250);
-          await invokeImport({ action: 'append', importId, startRow: offset + 1, rows: batch });
-          setStatus('Staging prepared MIS rows: ' + Math.min(offset + batch.length, importedRows.length) + ' / ' + importedRows.length, '');
-        }
-        setStatus('Comparing prepared applicants with the current active MIS…', '');
-        const comparison = await invokeImport({ action: 'compare', importId });
-        const hasChanges = comparison.added.length > 0 || comparison.deleted.length > 0 || comparison.updated.length > 0;
-        showComparison(comparison);
-        if (hasChanges) {
-          pendingImportId = importId;
-          setStatus('Comparison complete. Review the counts and applicant details below. The active MIS has not changed; confirm or cancel.', 'success');
-        } else {
-          try { await invokeImport({ action: 'abort', importId }); } catch (_) {}
-          pendingImportId = null;
-          setStatus('Comparison complete. No changes detected. The active MIS is already up to date; no import or cancellation is needed.', 'success');
-        }
-      } catch (error) {
-        if (importId) { try { await invokeImport({ action: 'abort', importId }); } catch (_) {} }
-        pendingImportId = null; pendingComparison = null;
-        setStatus('Analysis/comparison failed: ' + (error && error.message ? error.message : String(error)) + '\nThe existing active MIS has not been changed.', 'error');
-      } finally {
-        tableInput.disabled = !!pendingImportId;
-        loadTableButton.disabled = !!pendingImportId || !currentUser || currentRole !== 'admin';
-      }
-    });
-    tableInput.addEventListener('input', function () {
-      pastedTableLoaded = false; importedRows = [];
-      document.getElementById('diff-panel').classList.add('hidden');
-    });
-
-    async function invokeImport(payload) {
-      const { data, error } = await supabaseClient.functions.invoke('vbgramg-mis-import', { body: payload });
-      if (error) {
-        let message = error.message || 'Supabase function request failed.';
-        try {
-          const response = error.context;
-          if (response && typeof response.json === 'function') {
-            const detail = await response.json();
-            if (detail && detail.error) message = detail.error;
-          }
-        } catch (_) {}
-        throw new Error(message);
-      }
-      if (data && data.error) throw new Error(data.error);
-      return data;
-    }
-
-    function applicantLabel(item) {
-      const parts = [item.jobCardNumber && 'Job card ' + item.jobCardNumber, item.household && 'Household ' + item.household, item.applicantName && item.applicantName, item.applicantNo && 'Applicant No. ' + item.applicantNo, item.uniqueId && 'ID ' + item.uniqueId].filter(Boolean);
-      return parts.join(' · ') || 'Applicant record';
-    }
-    function addDiffCell(row, value) {
-      const cell=document.createElement('td');
-      cell.textContent=value==null||value===''?'—':String(value);
-      row.appendChild(cell);
-    }
-    let diffPage=0;const diffPageSize=10;
-    function renderDiffTable(diff) {
-      const body=document.getElementById('diff-table-body');
-      const cards=document.getElementById('diff-mobile-cards');
-      body.replaceChildren();cards.replaceChildren();
-      const entries=[
-        ...diff.added.map(item=>({type:'Added',item,previous:null})),
-        ...diff.deleted.map(item=>({type:'Deleted',item,previous:null})),
-        ...diff.updated.map(change=>({type:'Updated',item:change.after||{},previous:change.before||{}}))
-      ];
-      const isMobile=window.matchMedia('(max-width: 700px)').matches;
-      document.querySelector('.diff-table-wrap').hidden=isMobile||!entries.length;
-      cards.hidden=!isMobile||!entries.length;
-      if(!entries.length){
-        document.getElementById('diff-pager').hidden=true;
-        const row=document.createElement('tr'),cell=document.createElement('td');
-        cell.colSpan=6;cell.textContent='No applicant changes detected.';row.appendChild(cell);body.appendChild(row);
-        return;
-      }
-      const totalPages=Math.max(1,Math.ceil(entries.length/diffPageSize));
-      diffPage=Math.min(diffPage,totalPages-1);
-      const start=isMobile?diffPage*diffPageSize:0;
-      const visibleEntries=isMobile?entries.slice(start,start+diffPageSize):entries;
-      visibleEntries.forEach(entry=>{
-        const item=entry.item||{};
-        const row=document.createElement('tr');
-        addDiffCell(row,entry.type);addDiffCell(row,item.jobCardNumber);
-        addDiffCell(row,item.household);addDiffCell(row,item.applicantName);
-        addDiffCell(row,item.applicantNo);
-        addDiffCell(row,entry.previous?applicantLabel(entry.previous):'—');
-        body.appendChild(row);
-        if(isMobile){
-          const card=document.createElement('article');
-          card.className='diff-change-card diff-'+entry.type.toLowerCase();
-          const heading=document.createElement('div');heading.className='diff-card-heading';
-          const status=document.createElement('strong');status.textContent=entry.type;
-          heading.appendChild(status);card.appendChild(heading);
-          const job=document.createElement('div');job.className='diff-card-job';job.textContent=item.jobCardNumber||'Job card not available';card.appendChild(job);
-          const addField=(label,value)=>{
-            const line=document.createElement('div');line.className='diff-card-field';
-            const name=document.createElement('span');name.textContent=label;
-            const val=document.createElement('strong');val.textContent=value==null||value===''?'—':String(value);
-            line.append(name,val);card.appendChild(line);
-          };
-          addField('Head of household',item.household);
-          addField('Applicant name',item.applicantName);
-          addField('Applicant no.',item.applicantNo);
-          if(entry.previous){
-            const previous=document.createElement('div');previous.className='diff-card-previous';
-            const label=document.createElement('span');label.textContent='Previous details';
-            const value=document.createElement('p');value.textContent=applicantLabel(entry.previous);
-            previous.append(label,value);card.appendChild(previous);
-          }
-          cards.appendChild(card);
-        }
-      });
-      document.getElementById('diff-pager').hidden=!isMobile||entries.length<=diffPageSize;
-      document.getElementById('diff-page-label').textContent='Page '+(diffPage+1)+' of '+totalPages;
-      document.getElementById('diff-prev').disabled=diffPage<=0;
-      document.getElementById('diff-next').disabled=diffPage>=totalPages-1;
-    }
-    function showComparison(diff, allowNoChangeSync) {
-      diffPage=0;
-      pendingComparison = diff;
-      document.getElementById('diff-added-count').textContent = diff.added.length;
-      document.getElementById('diff-deleted-count').textContent = diff.deleted.length;
-      document.getElementById('diff-updated-count').textContent = diff.updated.length;
-      document.getElementById('diff-unchanged-count').textContent = diff.unchanged;
-      document.getElementById('diff-intro').textContent = 'Current applicants: ' + diff.oldCount + '. Uploaded applicants: ' + diff.newCount + '. Check the changes below before applying.';
-      renderDiffTable(diff);
-      document.getElementById('diff-panel').classList.remove('hidden');
-      const hasChanges = diff.added.length > 0 || diff.deleted.length > 0 || diff.updated.length > 0;
-      const canApply = hasChanges || allowNoChangeSync === true;
-      document.querySelector('.diff-actions').classList.toggle('hidden', !canApply);
-      document.getElementById('apply-changes-button').disabled = !canApply;
-      document.getElementById('apply-changes-button').textContent = hasChanges
-        ? (allowNoChangeSync ? 'Update MIS' : 'Confirm and apply changes')
-        : 'Update Sync Time';
-      document.getElementById('cancel-changes-button').disabled = !canApply;
-      document.getElementById('diff-intro').textContent = hasChanges
-        ? (allowNoChangeSync ? 'Government MIS is the source of truth. Review the detected changes, then update the active database.' : 'Current applicants: ' + diff.oldCount + '. Prepared applicants: ' + diff.newCount + '. Review the changes below before applying.')
-        : (allowNoChangeSync ? 'No data changes detected. Select Update Sync Time to record a successful sync without changing applicant data.' : 'No changes detected. The active MIS is already up to date; no import is needed.');
-    }
-
-    document.getElementById('apply-changes-button').addEventListener('click', async function () {
-      if (!pendingImportId || !pendingComparison || !currentUser || currentRole !== 'admin') {
-        setStatus('No comparison is waiting for confirmation. Load and compare the pasted MIS again.', 'error'); return;
-      }
-      const button = document.getElementById('apply-changes-button');
-      button.disabled = true; document.getElementById('cancel-changes-button').disabled = true; tableInput.disabled = true; loadTableButton.disabled = true;
-      try {
-        setStatus('Applying the reviewed changes…', '');
-        const result = await invokeImport({ action: 'finalize', importId: pendingImportId, expectedActiveImportId: pendingComparison.expectedActiveImportId });
-        if (!result || !result.success) throw new Error('Supabase did not confirm that the changes were applied.');
-        const filename = importedFileName;
-        setStatus('MIS update successful.\nSource: ' + filename + '\nAdded applicants: ' + result.added.length + '\nDeleted applicants: ' + result.deleted.length + '\nUpdated applicants: ' + result.updated.length + '\nUnchanged applicants: ' + result.unchanged + '\nCurrent applicants: ' + result.newCount + '\nThe updated MIS is active. Old MIS row data has been removed; import metadata remains for history.' + (result.cleanupWarning ? '\nWARNING: ' + result.cleanupWarning : ''), 'success');
-        document.getElementById('diff-title').textContent = 'MIS changes applied';
-        document.getElementById('diff-intro').textContent = 'These are the changes that were applied to the active MIS.';
-        if (window.parent !== window) window.parent.postMessage({ type: 'vbgramg-mis-import-complete' }, window.location.origin);
-        document.querySelector('.diff-actions').classList.add('hidden');
-        pendingImportId = null; pendingComparison = null;
-      } catch (error) {
-        setStatus('Could not apply changes: ' + (error && error.message ? error.message : String(error)) + '\nPlease compare again before retrying.', 'error');
-      } finally {
-        button.disabled = false; document.getElementById('cancel-changes-button').disabled = false; tableInput.disabled = false;
-        loadTableButton.disabled = !!pendingImportId || !currentUser || currentRole !== 'admin';
-      }
-    });
-
-    document.getElementById('diff-prev').addEventListener('click',()=>{diffPage=Math.max(0,diffPage-1);if(pendingComparison)renderDiffTable(pendingComparison)});
-    document.getElementById('diff-next').addEventListener('click',()=>{diffPage++;if(pendingComparison)renderDiffTable(pendingComparison)});
-    document.getElementById('cancel-changes-button').addEventListener('click', async function () {
-      const id = pendingImportId;
-      document.getElementById('diff-panel').classList.add('hidden');
-      document.getElementById('diff-title').textContent = 'Review MIS changes';
-      document.querySelector('.diff-actions').classList.remove('hidden');
-      pendingImportId = null; pendingComparison = null;
-      if (id) { try { await invokeImport({ action: 'abort', importId: id }); } catch (_) {} }
-      tableInput.disabled = false; loadTableButton.disabled = false;
-      setStatus('MIS comparison cancelled. The existing active MIS was not changed.', '');
-      loadTableButton.disabled = !currentUser || currentRole !== 'admin';
-    });
-
-    // Resolve the existing session immediately, then refresh access on sign-in/sign-out.
-    // The MIS page remains protected by the server-side admin access check.
-    setStatus('Checking your sign-in session…', '');
-    (async function initializeAdminAccess() {
-      try {
-        const { data, error } = await supabaseClient.auth.getSession();
-        if (error) throw error;
-        setStatus('Verifying administrator permissions…', '');
-        await updateAuthUI(data.session ? data.session.user : null);
-      } catch (error) {
-        setStatus('Could not verify administrator access: ' + (error.message || String(error)) + '. Reload the page or sign in again.', 'error');
-      }
-    })();
-    supabaseClient.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-        updateAuthUI(session ? session.user : null);
-      }
-    });
-
+    window.addEventListener('message',event=>{if(event.origin===location.origin&&event.data&&event.data.type==='vbgramg-start-official-mis-fetch'&&!fetchButton.disabled)fetchButton.click();});
+    document.getElementById('diff-prev').addEventListener('click',()=>{diffPage=Math.max(0,diffPage-1);if(latestDiff)renderDiff(latestDiff);});
+    document.getElementById('diff-next').addEventListener('click',()=>{diffPage++;if(latestDiff)renderDiff(latestDiff);});
+    document.getElementById('diff-okay-button').addEventListener('click',()=>{document.getElementById('diff-panel').classList.add('hidden');if(window.parent!==window)window.parent.postMessage({type:'vbgramg-mis-import-complete'},window.location.origin);});
+    setStatus('Checking your sign-in session…');
+    (async()=>{try{const {data,error}=await supabaseClient.auth.getSession();if(error)throw error;setStatus('Verifying administrator permissions…');await updateAuthUI(data.session?data.session.user:null);}catch(error){setStatus('Could not verify administrator access: '+(error.message||String(error))+'. Reload the page or sign in again.','error');}})();
+    supabaseClient.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_IN'||event==='SIGNED_OUT')updateAuthUI(session?session.user:null);});
   </script>
 <script src="./toast.js?v=20261103"></script><script src="./navigation.js?v=20261118-theme-toggle"></script>
 </body>

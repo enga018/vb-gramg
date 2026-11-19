@@ -3,11 +3,14 @@
 -- This RPC is the single commit point: the active pointer, import status and old-row
 -- cleanup either all succeed or all roll back together.
 
-create or replace function public.vbgramg_activate_mis_import(
+drop function if exists public.vbgramg_activate_mis_import(uuid, uuid, uuid, integer);
+
+create function public.vbgramg_activate_mis_import(
   p_import_id uuid,
   p_actor_id uuid,
   p_expected_active_import_id uuid,
-  p_expected_row_count integer
+  p_expected_row_count integer,
+  p_selections jsonb default '[]'::jsonb
 )
 returns jsonb
 language plpgsql
@@ -22,11 +25,15 @@ declare
   v_max_row_number integer;
   v_deleted_row_count integer := 0;
   v_deleted_cache_count integer := 0;
+  v_initialized_selection_count integer := 0;
 begin
   if p_import_id is null
      or p_actor_id is null
      or p_expected_row_count is null
-     or p_expected_row_count < 2 then
+     or p_expected_row_count < 2
+     or p_selections is null
+     or jsonb_typeof(p_selections) <> 'array'
+     or jsonb_array_length(p_selections) > p_expected_row_count then
     raise exception 'Invalid MIS activation request';
   end if;
 
@@ -73,6 +80,23 @@ begin
     raise exception 'The staged MIS rows are incomplete or contain a row-number gap. The active MIS was not changed.';
   end if;
 
+  -- Initialise only missing selections in the same transaction. Existing user
+  -- selections are never overwritten; any failure rolls back the activation too.
+  insert into public.vbgramg_mis_selections (job_card_number, applicant_key)
+  select distinct on (candidate.job_card_number)
+         candidate.job_card_number,
+         candidate.applicant_key
+  from jsonb_to_recordset(p_selections) as candidate(
+    job_card_number text,
+    applicant_key text
+  )
+  where nullif(btrim(candidate.job_card_number), '') is not null
+    and nullif(btrim(candidate.applicant_key), '') is not null
+  order by candidate.job_card_number
+  on conflict (job_card_number) do nothing;
+
+  get diagnostics v_initialized_selection_count = row_count;
+
   -- Mark the new import complete and switch the active pointer in this transaction.
   update public.vbgramg_mis_imports
   set status = 'complete',
@@ -108,13 +132,14 @@ begin
     'row_count', p_expected_row_count,
     'deleted_old_row_count', v_deleted_row_count,
     'deleted_old_cache_count', v_deleted_cache_count,
+    'initialized_selection_count', v_initialized_selection_count,
     'activated_at', now()
   );
 end;
 $function$;
 
 -- This privileged RPC is called only by the Edge Function's service-role client.
-revoke all on function public.vbgramg_activate_mis_import(uuid, uuid, uuid, integer)
+revoke all on function public.vbgramg_activate_mis_import(uuid, uuid, uuid, integer, jsonb)
   from public, anon, authenticated;
-grant execute on function public.vbgramg_activate_mis_import(uuid, uuid, uuid, integer)
+grant execute on function public.vbgramg_activate_mis_import(uuid, uuid, uuid, integer, jsonb)
   to service_role;

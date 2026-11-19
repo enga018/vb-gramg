@@ -377,6 +377,21 @@
   html.theme-dark #period-body .period-mobile-meta{
     color: #aab5c2 !important;
   }
+  html.theme-dark #period-body tr:not(:has(.empty)) td,
+  html.theme-dark #period-body tr:not(:has(.empty)) td[data-label="Period"],
+  html.theme-dark #period-body tr:not(:has(.empty)) td[data-label="Actions"]{
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  html.theme-dark #period-body tr:not(:has(.empty)) .period-mobile-meta{
+    background: transparent !important;
+  }
+  html.theme-dark #period-body tr:not(:has(.empty)){
+    background: #1d252e !important;
+  }
+  html.theme-dark #period-body tr:not(:has(.empty)):nth-child(even){
+    background: #202a34 !important;
+  }
   html.theme-dark #period-body tr:not(:has(.empty)) .row-actions button[data-action="delete"]{
     color: #dce5ee !important;
     background: #252f39 !important;

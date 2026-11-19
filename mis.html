@@ -413,6 +413,7 @@ header .account > button:hover,header .app-header-actions > a:hover,header .app-
 <div id="mis-import-modal" class="mis-import-backdrop hidden" role="presentation">
  <section class="mis-import-dialog" role="dialog" aria-modal="true" aria-labelledby="mis-import-modal-title">
   <header class="mis-import-dialog-head"><strong id="mis-import-modal-title">Import MIS</strong><button id="close-mis-import" class="secondary" type="button" aria-label="Close MIS import">×</button></header>
+  <div id="mis-import-fallback" class="status error hidden" role="alert" style="margin:14px">The import page did not return a result. The fetch outcome could not be confirmed. Do not retry until the active MIS register has been checked.</div>
   <iframe id="mis-import-frame" class="mis-import-frame" title="MIS import form" src="about:blank"></iframe>
  </section>
 </div>
@@ -498,7 +499,16 @@ function bindMisImportFrameKeyboard(){
  }catch(_){}
 }
 $("mis-import-frame").addEventListener("load",bindMisImportFrameKeyboard);
+let officialMisFetchWatchdog=null,officialMisFetchAckWatchdog=null;
+function clearOfficialMisFetchWatchdogs(){clearTimeout(officialMisFetchWatchdog);clearTimeout(officialMisFetchAckWatchdog);officialMisFetchWatchdog=null;officialMisFetchAckWatchdog=null;}
+function showOfficialMisFetchFallback(message){
+ clearOfficialMisFetchWatchdogs();officialMisFetchInProgress=false;setOfficialFetchButtonLoading(false);
+ const fallback=$("mis-import-fallback");fallback.textContent=message;fallback.classList.remove("hidden");
+ $("mis-import-frame").classList.add("hidden");
+ $("mis-import-modal").classList.remove("hidden");document.body.classList.add("mis-import-open");
+}
 function closeMisImportModal(){
+ clearOfficialMisFetchWatchdogs();
  $("mis-import-modal").classList.add("hidden");document.body.classList.remove("mis-import-open");$("desktop-fetch-button").focus();
 }
 $("close-mis-import").addEventListener("click",closeMisImportModal);
@@ -513,12 +523,14 @@ document.addEventListener("keydown",event=>{
 });
 window.addEventListener("message",event=>{
  if(event.origin!==window.location.origin||!event.data)return;
+ if(event.data.type==="vbgramg-mis-import-start-ack"){clearTimeout(officialMisFetchAckWatchdog);officialMisFetchAckWatchdog=null;return;}
  if(event.data.type==="vbgramg-mis-import-complete"){
   if(window.VBGRAMGCache){window.VBGRAMGCache.invalidate('mis:data:v1');window.VBGRAMGCache.invalidate('mis:selections:v1');}
   loadData();return;
  }
  if(event.data.type==="vbgramg-mis-import-result-ready"){
-  officialMisFetchInProgress=false;setOfficialFetchButtonLoading(false);
+  clearOfficialMisFetchWatchdogs();officialMisFetchInProgress=false;setOfficialFetchButtonLoading(false);
+  $("mis-import-fallback").classList.add("hidden");$("mis-import-frame").classList.remove("hidden");
   openMisImportModal();
   requestAnimationFrame(()=>{try{$("mis-import-frame").contentDocument.getElementById("diff-okay-button").focus({preventScroll:true})}catch(_){}});
   return;
@@ -546,7 +558,10 @@ $('desktop-fetch-button').addEventListener('click',()=>{
  if(currentRole!=='admin'){status($('data-status'),'Administrator access is required to fetch official MIS.','error');return}
  if(officialMisFetchInProgress)return;
  officialMisFetchInProgress=true;
+ $("mis-import-fallback").classList.add("hidden");$("mis-import-frame").classList.remove("hidden");
  setOfficialFetchButtonLoading(true);
+ officialMisFetchAckWatchdog=setTimeout(()=>showOfficialMisFetchFallback("The import page did not acknowledge the start request. The fetch may not have started. Check the active MIS before retrying."),12000);
+ officialMisFetchWatchdog=setTimeout(()=>showOfficialMisFetchFallback("No completion result was received within 3 minutes. The import outcome could not be confirmed. Do not retry until the active MIS register has been checked."),180000);
  startOfficialFetchInImportFrame();
 });
 $('close-desktop-fetch').addEventListener('click',()=>{$('desktop-fetch-panel').classList.add('hidden');$('mis-payload-url').value='';});

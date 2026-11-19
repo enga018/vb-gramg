@@ -158,9 +158,11 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Every previously inspected FTO is excluded from another Government detail fetch.
-    // ELIGIBLE FTOs resume from saved inspection data in Pending Imports.
-    // OUT_OF_SCOPE FTOs remain permanently excluded; imported FTOs are excluded above.
+    // Imported FTOs are excluded above. OUT_OF_SCOPE is the only terminal
+    // inspection classification: it must never be reconsidered by a normal refresh.
+    // ELIGIBLE FTOs are unfinished until the Contribution import commits, so they
+    // remain refreshable. FTOs with no inspection row (including interrupted or
+    // failed detail requests) are also refreshable.
     const { data: inspectionRows, error: inspectionError } = await admin
       .from("vbgramg_fto_inspection_state")
       .select("fto_number_normalized,classification,last_inspected_at");
@@ -168,10 +170,10 @@ Deno.serve(async (req: Request) => {
     const inspectionByNumber = new Map((inspectionRows || []).map((row: any) => [
       String(row.fto_number_normalized || "").trim().toUpperCase(), String(row.classification || "")
     ]));
-    const isPreviouslyInspected = (item: { ftoNumber: string }) =>
-      inspectionByNumber.has(item.ftoNumber.trim().toUpperCase());
-    const skippedInspectedFtos = newFtos.filter(isPreviouslyInspected);
-    const eligibleNewFtos = newFtos.filter(item => !isPreviouslyInspected(item));
+    const isOutOfScope = (item: { ftoNumber: string }) =>
+      inspectionByNumber.get(item.ftoNumber.trim().toUpperCase()) === "OUT_OF_SCOPE";
+    const skippedInspectedFtos = newFtos.filter(isOutOfScope);
+    const eligibleNewFtos = newFtos.filter(item => !isOutOfScope(item));
     const manifestToken = await makeManifestToken(serviceKey, candidates.map(({ detailUrl, ftoNumber, listingRow, listingHeaders }) => ({ detailUrl, ftoNumber, listingRow, listingHeaders })));
     const fingerprintBytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(candidates.map(item => item.detailUrl).join("\n")));
     const listingFingerprint = [...new Uint8Array(fingerprintBytes)].map(value => value.toString(16).padStart(2, "0")).join("");
@@ -192,7 +194,7 @@ Deno.serve(async (req: Request) => {
       newFtos: eligibleNewFtos,
       alreadyImported,
       unrecognized,
-      message: "Government listing fetched and compared with imported and inspected history. Previously inspected FTOs resume from Pending Imports; only never-inspected FTOs are ready for detail inspection.",
+      message: "Government listing fetched and compared with imported and terminal inspection history. New and unfinished FTOs are available for detail refresh; imported and Out of Scope FTOs remain excluded.",
     });
   } catch (error) {
     return reply({ error: error instanceof Error ? error.message : "Government listing fetch failed.", databaseChanged: false }, 502);

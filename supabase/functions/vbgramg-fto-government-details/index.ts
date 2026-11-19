@@ -280,9 +280,8 @@ Deno.serve(async (req: Request) => {
       if (classification === "OUT_OF_SCOPE") {
         throw new Error("This FTO was inspected and has no transactions matching an Active MIS Job Card. It is permanently excluded.");
       }
-      if (classification === "ELIGIBLE") {
-        throw new Error("This FTO has already been inspected. Continue from Pending Imports using the saved inspection; Government details must not be fetched again.");
-      }
+      // ELIGIBLE is not terminal: an unfinished FTO may be refreshed so its
+      // saved Government transactions can be revalidated against the latest MIS.
     }
     const misIndex = await loadActiveMisJobCards(admin);
     const results: Record<string, unknown>[] = [];

@@ -154,7 +154,6 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
     <div id="status" class="status" aria-live="polite">Checking administrator access…</div>
     <section id="diff-panel" class="diff-panel hidden" aria-live="polite">
       <h2 id="diff-title">Official MIS update complete</h2>
-      <p id="diff-intro">The official Government MIS has been activated.</p>
       <div class="diff-summary">
         <div class="diff-count"><span>Added</span><strong id="diff-added-count">0</strong></div>
         <div class="diff-count"><span>Deleted</span><strong id="diff-deleted-count">0</strong></div>
@@ -178,7 +177,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
     const SUPABASE_PUBLISHABLE_KEY='sb_publishable_IzELPnGRMeGamS8jQva55w_hJaL44rb';
     const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
     const statusBox=document.getElementById('status'),fetchButton=document.getElementById('fetch-official-mis-button'),fetchStatus=document.getElementById('official-fetch-status');
-    let currentUser=null,currentRole=null,latestDiff=null,diffPage=0;
+    let currentUser=null,currentRole=null,latestDiff=null,diffPage=0,startRequested=false;
     const pageSize=10;
     function setStatus(message,type){statusBox.textContent=message;statusBox.classList.remove('error','success');if(type)statusBox.classList.add(type);}
     async function invokeImport(payload){
@@ -191,7 +190,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
       if(!user){setStatus('Administrator access is required. Redirecting to the main app…','error');window.location.replace('./');return;}
       const {data:access,error}=await supabaseClient.functions.invoke('vbgramg-app-access',{body:{}});
       if(error||!access||access.approved!==true||access.role!=='admin'){setStatus('Administrator access is required. Returning to the main app…','error');window.location.replace('./');return;}
-      currentUser=user;currentRole=access.role;fetchButton.disabled=false;setStatus('Administrator access verified. Ready to fetch the official MIS.');
+      currentUser=user;currentRole=access.role;fetchButton.disabled=false;setStatus('Administrator access verified. Ready to fetch the official MIS.');if(startRequested){startRequested=false;fetchButton.click();}
     }
     const label=item=>[item.jobCardNumber&&'Job card '+item.jobCardNumber,item.household&&'Household '+item.household,item.applicantName,item.applicantNo&&'Applicant No. '+item.applicantNo,item.uniqueId&&'ID '+item.uniqueId].filter(Boolean).join(' · ')||'Applicant record';
     function cell(row,value){const td=document.createElement('td');td.textContent=value==null||value===''?'—':String(value);row.appendChild(td);}
@@ -217,7 +216,6 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
       document.getElementById('diff-deleted-count').textContent=Number(result.deleted?.length||0).toLocaleString();
       document.getElementById('diff-updated-count').textContent=Number(result.updated?.length||0).toLocaleString();
       document.getElementById('diff-unchanged-count').textContent=Number(result.unchanged||0).toLocaleString();
-      document.getElementById('diff-intro').textContent='The official Government MIS is now active. '+Number(result.newCount||result.parsedApplicantCount||0).toLocaleString()+' applicant record(s) are active. Figures below compare it with the previous MIS.';
       renderDiff(result);document.getElementById('diff-panel').classList.remove('hidden');
       // Refresh the parent MIS immediately after confirmed activation, even if
       // the administrator closes the dialog without pressing Okay.
@@ -235,7 +233,7 @@ body>header.topbar,body>.topbar,body>.page-actions-bar,body>.top-actions{width:m
         if(document.getElementById('diff-panel').classList.contains('hidden'))fetchButton.disabled=false;
       }
     });
-    window.addEventListener('message',event=>{if(event.origin===location.origin&&event.data&&event.data.type==='vbgramg-start-official-mis-fetch'&&!fetchButton.disabled)fetchButton.click();});
+    window.addEventListener('message',event=>{if(event.origin===location.origin&&event.data&&event.data.type==='vbgramg-start-official-mis-fetch'){startRequested=true;if(currentUser&&currentRole==='admin'&&!fetchButton.disabled){startRequested=false;fetchButton.click();}}});
     document.getElementById('diff-prev').addEventListener('click',()=>{diffPage=Math.max(0,diffPage-1);if(latestDiff)renderDiff(latestDiff);});
     document.getElementById('diff-next').addEventListener('click',()=>{diffPage++;if(latestDiff)renderDiff(latestDiff);});
     document.getElementById('diff-okay-button').addEventListener('click',()=>{

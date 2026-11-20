@@ -115,10 +115,10 @@ begin
         raise exception 'FTO % has an unsupported status for reference %.', v_fto_number, v_reference;
       end if;
 
-      if v_reference = any(v_seen_refs) then
-        raise exception 'FTO % contains duplicate reference %.', v_fto_number, v_reference;
+      if upper(v_reference) = any(v_seen_refs) then
+        raise exception 'FTO % contains duplicate reference % (case-insensitive).', v_fto_number, v_reference;
       end if;
-      v_seen_refs := array_append(v_seen_refs, v_reference);
+      v_seen_refs := array_append(v_seen_refs, upper(v_reference));
 
       if jsonb_typeof(v_row->'sourceRow') is distinct from 'array'
          or jsonb_array_length(v_row->'sourceRow') = 0 then
@@ -150,15 +150,6 @@ begin
           v_card, v_fto_number;
       end if;
 
-      -- Prevent a Government reference already recorded in another FTO batch
-      -- from being duplicated under a different batch.
-      if exists (
-        select 1
-        from public.vbgramg_fto_transactions t
-        where upper(btrim(t.reference_no)) = upper(v_reference)
-      ) then
-        raise exception 'Reference % already exists in FTO history.', v_reference;
-      end if;
     end loop;
 
     -- Explicit NULL prevents the village_scope default from assigning a

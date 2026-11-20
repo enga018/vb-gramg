@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f3f6fb"><title>Historical FTO Check — VBGRAMG</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#172033;background:#f3f6fb;--line:#e3e8f0;--muted:#667085}
+*{box-sizing:border-box}body{margin:0;padding:16px}main{max-width:1100px;margin:auto}
+header,.panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px}
+h1{font-size:1.35rem;margin:0 0 6px}h2{font-size:1.05rem;margin:0 0 8px}p{color:var(--muted);line-height:1.5;margin:6px 0}
+button{font:inherit;font-weight:650;border:1px solid #172033;border-radius:9px;min-height:40px;padding:8px 14px;background:#172033;color:#fff;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}
+.status{padding:11px;border:1px solid var(--line);border-radius:9px;background:#f7f9fc;margin-top:12px;white-space:pre-wrap}.error{color:#a12b20;background:#fff4f2;border-color:#ffd8d2}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:14px 0}.stat{border:1px solid var(--line);border-radius:10px;padding:12px}.stat small{display:block;color:var(--muted)}.stat strong{font-size:1.15rem}
+table{width:100%;border-collapse:collapse;font-size:.88rem}th,td{text-align:left;padding:9px 7px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--muted)}.table-wrap{overflow:auto}
+details{margin:5px 0}summary{cursor:pointer;font-weight:650}.muted{color:var(--muted)}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}
+.notice{padding:11px 13px;border:1px solid #d6e4fa;background:#f5f9ff;border-radius:10px;font-size:.9rem}
+@media(max-width:650px){body{padding:9px}.stats{grid-template-columns:1fr 1fr}header,.panel{padding:13px}}
+</style></head>
+<body><main>
+<header><h1>Historical Government FTO Check</h1><p>One-time, read-only matching of Government FTO transactions against Job Cards with charges in JAN26–JUN26.</p>
+<div class="notice"><strong>Separate from normal FTO import.</strong> This page does not import FTOs, update inspection state, create charges, record payments, or allocate payments.</div></header>
+<section class="panel" id="access"><h2>Administrator access</h2><div id="access-status" class="status">Checking session…</div></section>
+<section class="panel" id="app" hidden>
+<p id="scope" class="muted">Charge Ledger periods: JAN26, FEB26, MAR26, APR26, MAY26, MAY26 (2), JUN26. Only non-voided charge entries are considered.</p>
+<div class="actions"><button id="start">Fetch listing and check all 975 FTOs</button><button id="csv" disabled>Export matching transactions CSV</button></div>
+<div id="status" class="status" aria-live="polite">Ready. Nothing has been fetched yet.</div>
+<div id="progress" hidden><progress id="bar" max="975" value="0" style="width:100%;height:14px;margin-top:12px"></progress></div>
+<div id="summary" hidden><div class="stats">
+<div class="stat"><small>FTOs checked</small><strong id="checked">0</strong></div>
+<div class="stat"><small>FTOs with matches</small><strong id="matched">0</strong></div>
+<div class="stat"><small>Matching transactions</small><strong id="transactions">0</strong></div>
+<div class="stat"><small>Unique charged Job Cards</small><strong id="cards">0</strong></div></div>
+<div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Listing date</th><th>Transactions</th><th>Matching</th><th>Job Cards</th></tr></thead><tbody id="results"></tbody></table></div></div>
+</section></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./js/supabase-client.js?v=20261117a"></script><script src="./js/data-loader.js?v=20261117a"></script>
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id),client=window.vbgramgSupabase;
+let busy=false,allMatches=[],checked=0,matched=0,chargeCards=0;
+function status(message,error=false){$("status").textContent=message;$("status").className="status"+(error?" error":"");}
+async function access(user){
+ if(!user){location.replace("./");return;}
+ const {data,error}=await window.VBGRAMGData.invoke("vbgramg-app-access",{body:{}});
+ if(error||!data?.approved||data.role!=="admin"){$("access-status").textContent="An approved VBGRAMG administrator account is required.";return;}
+ $("access").hidden=true;$("app").hidden=false;
+}
+client.auth.onAuthStateChange((event,session)=>{if(event==="SIGNED_OUT")location.replace("./");else if(event==="TOKEN_REFRESHED"&&session)access(session.user);});
+client.auth.getSession().then(({data,error})=>{if(error||!data.session)location.replace("./");else access(data.session.user);});
+function listingDate(row){return row?.[5]||row?.[4]||"";}
+function render(items){
+ const body=$("results");body.replaceChildren();
+ const sorted=[...items].sort((a,b)=>Number(a.listingIndex)-Number(b.listingIndex));
+ for(const item of sorted){
+  const tr=document.createElement("tr"),cell=document.createElement("td");cell.textContent=item.ftoNumber;tr.append(cell);
+  const date=document.createElement("td");date.textContent=listingDate(item.listingRow);tr.append(date);
+  const count=document.createElement("td");count.textContent=String(item.governmentTransactionCount);tr.append(count);
+  const matches=document.createElement("td");matches.textContent=String(item.matchingTransactionCount);tr.append(matches);
+  const cards=document.createElement("td");cards.textContent=String(item.matchingJobCardCount);tr.append(cards);body.append(tr);
+  const detail=document.createElement("tr"),wrap=document.createElement("td");wrap.colSpan=5;
+  const disclosure=document.createElement("details"),summary=document.createElement("summary");summary.textContent="View "+item.matches.length+" matching transactions";
+  disclosure.append(summary);
+  const nested=document.createElement("div");nested.className="table-wrap";
+  const table=document.createElement("table"),head=document.createElement("thead"),hr=document.createElement("tr");
+  ["Job Card Number","Applicant","Reference Number","Status","Transaction Date","Credit Amount","Charge Period(s)"].forEach(v=>{const th=document.createElement("th");th.textContent=v;hr.append(th);});
+  head.append(hr);table.append(head);const tb=document.createElement("tbody");
+  for(const tx of item.matches){const row=document.createElement("tr");
+   [tx.jobCardNumber,tx.applicantName,tx.referenceNumber,tx.governmentStatus,tx.transactionDate,tx.creditAmount==null?"":String(tx.creditAmount),(tx.chargePeriods||[]).join(", ")].forEach(v=>{const td=document.createElement("td");td.textContent=String(v??"");row.append(td);});
+   tb.append(row);
+  }
+  table.append(tb);nested.append(table);disclosure.append(nested);wrap.append(disclosure);detail.append(wrap);body.append(detail);
+ }
+}
+function csvEscape(v){return '"'+String(v??"").replace(/"/g,'""')+'"';}
+$("csv").addEventListener("click",()=>{
+ const rows=[["FTO Number","Job Card Number","Applicant","Reference Number","Status","Transaction Date","Processed Date","Credit Amount","Amount To Be Credited","Charge Periods"]];
+ for(const item of allMatches)for(const tx of item.matches)rows.push([item.ftoNumber,tx.jobCardNumber,tx.applicantName,tx.referenceNumber,tx.governmentStatus,tx.transactionDate,tx.processedDate,tx.creditAmount,tx.amountToBeCredited,(tx.chargePeriods||[]).join("; ")]);
+ const blob=new Blob(["\ufeff"+rows.map(r=>r.map(csvEscape).join(",")).join("\r\n")],{type:"text/csv;charset=utf-8"});
+ const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="historical-fto-charge-ledger-matches.csv";a.click();URL.revokeObjectURL(url);
+});
+$("start").addEventListener("click",async()=>{
+ if(busy)return;busy=true;$("start").disabled=true;$("csv").disabled=true;$("summary").hidden=true;$("progress").hidden=false;allMatches=[];checked=0;matched=0;
+ try{
+  status("Fetching the official historical FTO listing…");
+  const {data:listing,error:listError}=await window.VBGRAMGData.invoke("vbgramg-historical-fto-list",{body:{}});
+  if(listError||!listing?.success||!listing.manifestToken)throw new Error(listError?.message||listing?.error||"Could not load the Government listing.");
+  const candidates=listing.candidates||[];
+  if(candidates.length!==975)throw new Error("Expected 975 FTO entries; received "+candidates.length+".");
+  const numbers=candidates.map(x=>x.ftoNumber);
+  const batches=[];for(let i=0;i<numbers.length;i+=5)batches.push(numbers.slice(i,i+5));
+  $("summary").hidden=false;$("cards").textContent="Loading";
+  for(let i=0;i<batches.length;i++){
+   status("Checking batch "+(i+1)+" of "+batches.length+" · "+checked+" of 975 FTOs checked…");
+   const {data,error}=await window.VBGRAMGData.invoke("vbgramg-historical-fto-details",{body:{manifestToken:listing.manifestToken,ftoNumbers:batches[i]}});
+   if(error||!data?.success){checked+=batches[i].length;status("Batch "+(i+1)+" failed: "+(error?.message||data?.error||"Unknown error")+". Continuing with the next batch.",true);}
+   else{
+    chargeCards=Number(data.chargeJobCardCount||0);
+    for(const item of data.results||[]){checked++;if(item.matchingTransactionCount>0){matched++;allMatches.push(item);}}
+    $("cards").textContent=String(chargeCards);render(allMatches);
+   }
+   $("bar").value=checked;$("checked").textContent=String(checked);$("matched").textContent=String(matched);
+   $("transactions").textContent=String(allMatches.reduce((n,x)=>n+x.matchingTransactionCount,0));
+  }
+  render(allMatches);$("csv").disabled=!allMatches.length;
+  status("Completed read-only scan. "+checked+" FTOs processed; "+matched+" contain at least one Job Card with a JAN26–JUN26 charge. No production records were changed.");
+ }catch(e){status(e?.message||"Historical check failed.",true);}
+ finally{busy=false;$("start").disabled=false;}
+});
+})();
+</script></body></html>

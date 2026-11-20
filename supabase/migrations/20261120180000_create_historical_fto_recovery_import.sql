@@ -26,6 +26,7 @@ declare
   v_transaction_date date;
   v_processed_date date;
   v_row_count integer;
+  v_unmatched_count integer;
   v_seen_ftos text[] := array[]::text[];
   v_seen_refs text[];
   v_batch_count integer := 0;
@@ -147,21 +148,21 @@ begin
         raise exception 'Negative Government amount for reference %.', v_reference;
       end if;
 
-      -- Historical scope is the JAN26-JUN26 Charge Ledger, not Active MIS.
-      if not exists (
-        select 1
-        from public.vbgramg_charge_ledger l
-        where upper(btrim(l.job_card_number)) = v_card
-          and l.entry_type = 'charge'
-          and coalesce(l.is_voided, false) = false
-          and l.charge_period >= date '2026-01-01'
-          and l.charge_period <= date '2026-06-01'
-      ) then
-        raise exception 'Job Card % has no non-voided JAN26-JUN26 Charge Ledger entry. FTO % was not imported.',
-          v_card, v_fto_number;
-      end if;
+      -- Missing historical charges are preserved as unlinked FTO audit rows.\n    end loop;
 
-    end loop;
+    -- Count Government rows without a surviving JAN26-JUN26 charge.
+    -- These remain in FTO history, but are never linked by this import.
+    select count(*)::integer into v_unmatched_count
+    from jsonb_array_elements(v_fto->'rows') as e(value)
+    where not exists (
+      select 1
+      from public.vbgramg_charge_ledger l
+      where upper(btrim(l.job_card_number)) = upper(btrim(e.value->>'jobCardNo'))
+        and l.entry_type = 'charge'
+        and coalesce(l.is_voided, false) = false
+        and l.charge_period >= date '2026-01-01'
+        and l.charge_period <= date '2026-06-01'
+    );
 
     -- Explicit NULL prevents the village_scope default from assigning a
     -- misleading current-village scope to historical source records.
@@ -186,7 +187,7 @@ begin
       null,
       1,
       v_row_count,
-      0
+      v_unmatched_count
     ) returning id into v_batch_id;
 
     for v_row in

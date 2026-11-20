@@ -162,12 +162,16 @@ Deno.serve(async (req: Request) => {
       const matches = transactions.filter(tx=>chargesByCard.has(normalizeCard(tx.jobCardNumber))).map(tx=>({
         ...tx, chargePeriods:[...(chargesByCard.get(normalizeCard(tx.jobCardNumber))||[])],
       }));
+      const unmatchedTransactions = transactions.filter(tx=>!chargesByCard.has(normalizeCard(tx.jobCardNumber))).map(tx=>({
+        ...tx, unmatchedReason:"No non-voided Charge Ledger entry for this Job Card in JAN26–JUN26.",
+      }));
       return {
         ftoNumber:candidate.ftoNumber, listingIndex:candidate.listingIndex,
         listingRow:candidate.listingRow, listingHeaders:candidate.listingHeaders,
         governmentTransactionCount:transactions.length, matchingTransactionCount:matches.length,
+        unmatchedTransactionCount:unmatchedTransactions.length,
         matchingJobCardCount:new Set(matches.map(tx=>tx.jobCardNumber)).size,
-        matches,
+        matches, unmatchedTransactions,
       };
     }));
     return reply({

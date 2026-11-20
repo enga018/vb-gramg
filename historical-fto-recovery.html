@@ -74,12 +74,12 @@ td input{width:17px;height:17px}.muted{color:var(--muted)}.step{display:flex;gap
 <div class="stat"><small>Matching transactions</small><strong id="result-transactions">0</strong></div>
 <div class="stat"><small>Unique charged Job Cards</small><strong id="result-cards">0</strong></div>
 </div>
-<div class="table-wrap"><table><thead><tr><th>Import</th><th>FTO number</th><th>Listing date</th><th>Government transactions</th><th>Matched transactions</th><th>Matched Job Cards</th></tr></thead><tbody id="result-rows"></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>Import</th><th>FTO number</th><th>Listing date</th><th>Government transactions</th><th>Matched transactions</th><th>Matched Job Cards</th><th>Unmatched</th></tr></thead><tbody id="result-rows"></tbody></table></div>
 </section>
 
 <section class="panel" id="review-panel" hidden>
 <div class="step"><span class="step-no">3</span><div><h2>Import and charge-link review</h2><p>Reserved for the isolated historical import and read-only charge-link preview stages.</p></div></div>
-<div class="notice">Only successfully inspected FTOs with historical Charge Ledger matches can be selected. Import re-fetches Government details and rejects the entire batch if any transaction is outside the recoverable JAN26–JUN26 scope. No charges, payments, allocations, or charge links are created.</div>
+<div class="notice">Only successfully inspected FTOs with a complete Government transaction snapshot can be selected. Transactions without a surviving JAN26–JUN26 charge are preserved as unlinked FTO history. No charges, payments, allocations, or charge links are created.</div>
 <div class="actions"><button id="import-selected" type="button" disabled>Import selected FTOs</button><button class="secondary" id="clear-import-selection" type="button">Clear import selection</button></div>
 <div class="status" id="import-status" aria-live="polite">No FTOs imported in this session.</div><p class="muted">Select no more than five FTOs per import.</p>
 </section>
@@ -116,11 +116,11 @@ function renderResults(){
  const body=$("result-rows");body.replaceChildren();
  for(const item of [...results].sort((a,b)=>a.listingIndex-b.listingIndex)){
   const tr=document.createElement("tr");
-  const selectCell=document.createElement("td"),check=document.createElement("input");check.type="checkbox";check.checked=importSelected.has(item.ftoNumber);check.disabled=imported.has(item.ftoNumber)||busy||item.matchingTransactionCount!==item.governmentTransactionCount;check.setAttribute("aria-label","Select "+item.ftoNumber+" for import");check.addEventListener("change",()=>{if(check.checked)importSelected.add(item.ftoNumber);else importSelected.delete(item.ftoNumber);updateImportControls();});selectCell.append(check);tr.append(selectCell);
-  for(const value of [item.ftoNumber,listingDate(item.listingRow),item.governmentTransactionCount,item.matchingTransactionCount,item.matchingJobCardCount]){
+  const selectCell=document.createElement("td"),check=document.createElement("input");check.type="checkbox";check.checked=importSelected.has(item.ftoNumber);check.disabled=imported.has(item.ftoNumber)||busy||((item.matches?.length||0)+(item.unmatchedTransactions?.length||0)!==item.governmentTransactionCount);check.setAttribute("aria-label","Select "+item.ftoNumber+" for import");check.addEventListener("change",()=>{if(check.checked)importSelected.add(item.ftoNumber);else importSelected.delete(item.ftoNumber);updateImportControls();});selectCell.append(check);tr.append(selectCell);
+  for(const value of [item.ftoNumber,listingDate(item.listingRow),item.governmentTransactionCount,item.matchingTransactionCount,item.matchingJobCardCount,item.unmatchedTransactionCount??(item.unmatchedTransactions||[]).length]){
    const td=document.createElement("td");td.textContent=String(value??"");tr.append(td);
   }body.append(tr);
-  const detail=document.createElement("tr"),cell=document.createElement("td");cell.colSpan=6;
+  const detail=document.createElement("tr"),cell=document.createElement("td");cell.colSpan=7;
   const disclosure=document.createElement("details"),summary=document.createElement("summary");summary.textContent="View "+item.matches.length+" matching transactions";disclosure.append(summary);
   const wrap=document.createElement("div");wrap.className="table-wrap";const table=document.createElement("table"),head=document.createElement("thead"),hr=document.createElement("tr");
   ["Job Card","Applicant","Reference","Government status","Transaction date","Processed date","Credit amount","Amount to be credited","Charge period candidates"].forEach(v=>{const th=document.createElement("th");th.textContent=v;hr.append(th);});head.append(hr);table.append(head);
@@ -208,7 +208,7 @@ $("import-selected").addEventListener("click",()=>{
  if(busy||!manifestToken||!importSelected.size||importSelected.size>5)return;
  const names=[...importSelected];
  $("operation-title").textContent="Confirm historical FTO import";
- $("operation-message").textContent="Import "+names.length+" Government FTO(s):\n\n"+names.join("\n")+"\n\nGovernment details will be re-fetched. Every transaction must pass historical Charge Ledger validation. This writes FTO history only; no charges, payments, allocations, or charge links will be created.";
+ $("operation-message").textContent="Import "+names.length+" Government FTO(s):\n\n"+names.join("\n")+"\n\nGovernment details will be re-fetched and all source transactions must be captured. Rows without a surviving JAN26–JUN26 charge will be preserved as unlinked FTO history. This writes FTO history only; no charges, payments, allocations, or charge links will be created.";
  $("dialog-cancel").hidden=false;$("dialog-confirm").hidden=false;$("dialog-close").hidden=true;$("operation-dialog").showModal();
 });
 $("dialog-cancel").addEventListener("click",()=> $("operation-dialog").close());

@@ -93,23 +93,26 @@ Deno.serve(async (req: Request) => {
     for (const result of inspection.results) {
       const ftoNumber = String(result.ftoNumber || "").trim().toUpperCase();
       const matches = Array.isArray(result.matches) ? result.matches : [];
+      const unmatched = Array.isArray(result.unmatchedTransactions) ? result.unmatchedTransactions : [];
       const governmentCount = Number(result.governmentTransactionCount);
 
-      // Fail closed: never create a partial FTO snapshot. All source rows must
-      // be represented in the historical Charge Ledger scope for this RPC.
+      // Fail closed on incomplete source capture, but preserve verified
+      // Government rows that have no surviving historical charge as unlinked
+      // FTO audit records.
       if (!requested.includes(ftoNumber) || !Number.isInteger(governmentCount) ||
-          governmentCount < 1 || matches.length !== governmentCount) {
+          governmentCount < 1 || matches.length + unmatched.length !== governmentCount) {
         return reply({
           error: "FTO " + (ftoNumber || "(unknown)") +
-            " has Government transactions outside the recoverable JAN26-JUN26 Charge Ledger scope. No FTOs were imported.",
+            " does not have a complete Government transaction snapshot. No FTOs were imported.",
           databaseChanged: false,
           ftoNumber,
           governmentTransactionCount: governmentCount,
           matchedTransactionCount: matches.length,
+          unmatchedTransactionCount: unmatched.length,
         }, 409);
       }
 
-      const rows = matches.map((tx: any) => ({
+      const rows = [...matches, ...unmatched].map((tx: any) => ({
         ftoNumber: String(tx.ftoNumber || ftoNumber).trim().toUpperCase(),
         jobCardNo: String(tx.jobCardNumber || "").trim(),
         referenceNo: String(tx.referenceNumber || "").trim(),

@@ -103,7 +103,7 @@ async function loadChargeCards(admin: any) {
     const { data, error } = await admin.from("vbgramg_charge_ledger")
       .select("job_card_number,period_id,charge_period")
       .eq("entry_type","charge").eq("is_voided",false).in("period_id", periods.map((p:any)=>p.id))
-      .order("job_card_number",{ascending:true}).range(offset,offset+999);
+      .order("job_card_number",{ascending:true}).order("id",{ascending:true}).range(offset,offset+999);
     if (error) throw new Error("Could not read the historical Charge Ledger.");
     for (const row of data || []) {
       const card = normalizeCard(row.job_card_number);

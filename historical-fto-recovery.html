@@ -74,13 +74,16 @@ td input{width:17px;height:17px}.muted{color:var(--muted)}.step{display:flex;gap
 <div class="stat"><small>Matching transactions</small><strong id="result-transactions">0</strong></div>
 <div class="stat"><small>Unique charged Job Cards</small><strong id="result-cards">0</strong></div>
 </div>
-<div class="table-wrap"><table><thead><tr><th>FTO number</th><th>Listing date</th><th>Government transactions</th><th>Matched transactions</th><th>Matched Job Cards</th></tr></thead><tbody id="result-rows"></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>Import</th><th>FTO number</th><th>Listing date</th><th>Government transactions</th><th>Matched transactions</th><th>Matched Job Cards</th></tr></thead><tbody id="result-rows"></tbody></table></div>
 </section>
 
 <section class="panel" id="review-panel" hidden>
 <div class="step"><span class="step-no">3</span><div><h2>Import and charge-link review</h2><p>Reserved for the isolated historical import and read-only charge-link preview stages.</p></div></div>
-<div class="notice">The historical import operation and its confirmation controls are not enabled yet. Inspection results above are not imported records and cannot be linked. This prevents an inspection-only result from being mistaken for a completed recovery.</div>
+<div class="notice">Only successfully inspected FTOs with historical Charge Ledger matches can be selected. Import re-fetches Government details and rejects the entire batch if any transaction is outside the recoverable JAN26–JUN26 scope. No charges, payments, allocations, or charge links are created.</div>
+<div class="actions"><button id="import-selected" type="button" disabled>Import selected FTOs</button><button class="secondary" id="clear-import-selection" type="button">Clear import selection</button></div>
+<div class="status" id="import-status" aria-live="polite">No FTOs imported in this session.</div><p class="muted">Select no more than five FTOs per import.</p>
 </section>
+<dialog id="operation-dialog"><h2 id="operation-title">Confirm historical import</h2><p id="operation-message"></p><div class="actions"><button class="secondary" id="dialog-cancel" type="button">Cancel</button><button id="dialog-confirm" type="button">Confirm import</button><button class="secondary" id="dialog-close" type="button" hidden>Close</button></div></dialog>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./js/supabase-client.js?v=20261117a"></script>
@@ -89,7 +92,7 @@ td input{width:17px;height:17px}.muted{color:var(--muted)}.step{display:flex;gap
 (function(){
 "use strict";
 const $=id=>document.getElementById(id),client=window.vbgramgSupabase;
-let busy=false,manifestToken="",candidates=[],selected=new Set(),page=1,results=[],inspected=0,matched=0,chargeCards=0;
+let busy=false,manifestToken="",candidates=[],selected=new Set(),importSelected=new Set(),imported=new Set(),page=1,results=[],inspected=0,matched=0,chargeCards=0;
 function setStatus(id,message,type=""){const el=$(id);el.textContent=message;el.className="status"+(type?" "+type:"");}
 function escapeCsv(v){return '"'+String(v??"").replace(/"/g,'""')+'"';}
 function listingDate(row){return row?.[5]||row?.[4]||"";}
@@ -113,6 +116,7 @@ function renderResults(){
  const body=$("result-rows");body.replaceChildren();
  for(const item of [...results].sort((a,b)=>a.listingIndex-b.listingIndex)){
   const tr=document.createElement("tr");
+  const selectCell=document.createElement("td"),check=document.createElement("input");check.type="checkbox";check.checked=importSelected.has(item.ftoNumber);check.disabled=imported.has(item.ftoNumber)||busy;check.setAttribute("aria-label","Select "+item.ftoNumber+" for import");check.addEventListener("change",()=>{if(check.checked)importSelected.add(item.ftoNumber);else importSelected.delete(item.ftoNumber);updateImportControls();});selectCell.append(check);tr.append(selectCell);
   for(const value of [item.ftoNumber,listingDate(item.listingRow),item.governmentTransactionCount,item.matchingTransactionCount,item.matchingJobCardCount]){
    const td=document.createElement("td");td.textContent=String(value??"");tr.append(td);
   }body.append(tr);
@@ -130,6 +134,13 @@ function renderResults(){
  $("result-cards").textContent=String(chargeCards);
  $("checked-ftos").textContent=String(inspected);$("matched-ftos").textContent=String(matched);
  $("export-csv").disabled=!results.length;
+ updateImportControls();
+}
+function updateImportControls(){
+ const eligible=new Set(results.map(x=>x.ftoNumber));
+ for(const n of [...importSelected])if(!eligible.has(n)||imported.has(n))importSelected.delete(n);
+ $("import-selected").disabled=busy||importSelected.size===0||importSelected.size>5;
+ $("import-selected").textContent="Import selected FTOs ("+importSelected.size+"/5)";
 }
 async function verifyAccess(user){
  if(!user){location.replace("./");return;}
@@ -146,7 +157,7 @@ $("load-listing").addEventListener("click",async()=>{
   const {data,error}=await window.VBGRAMGData.invoke("vbgramg-historical-fto-list",{body:{}});
   if(error||!data?.success||!data.manifestToken)throw new Error(error?.message||data?.error||"Could not load the Government listing.");
   if(data.listingCount!==975||data.uniqueFtoCount!==975||data.candidates?.length!==975)throw new Error("The live listing did not match the verified 975-entry structure.");
-  manifestToken=data.manifestToken;candidates=data.candidates;selected.clear();page=1;results=[];inspected=0;matched=0;chargeCards=0;
+  manifestToken=data.manifestToken;candidates=data.candidates;selected.clear();importSelected.clear();imported.clear();page=1;results=[];inspected=0;matched=0;chargeCards=0;
   $("listing-stats").hidden=false;$("selection-panel").hidden=false;$("results-panel").hidden=true;$("review-panel").hidden=false;
   $("total-ftos").textContent=String(candidates.length);$("selected-ftos").textContent="0";
   setStatus("listing-status","Verified Government listing loaded · "+new Date(data.fetchedAt).toLocaleString()+" · token expires in 60 minutes.","success");
@@ -182,6 +193,31 @@ $("inspect-selected").addEventListener("click",async()=>{
  }catch(e){setStatus("inspection-status",e?.message||"Inspection failed.","error");}
  finally{busy=false;updateCounts();}
 });
+$("import-selected").addEventListener("click",()=>{
+ if(busy||!manifestToken||!importSelected.size||importSelected.size>5)return;
+ const names=[...importSelected];
+ $("operation-title").textContent="Confirm historical FTO import";
+ $("operation-message").textContent="Import "+names.length+" Government FTO(s):\n\n"+names.join("\n")+"\n\nGovernment details will be re-fetched. Every transaction must pass historical Charge Ledger validation. This writes FTO history only; no charges, payments, allocations, or charge links will be created.";
+ $("dialog-cancel").hidden=false;$("dialog-confirm").hidden=false;$("dialog-close").hidden=true;$("operation-dialog").showModal();
+});
+$("dialog-cancel").addEventListener("click",()=> $("operation-dialog").close());
+$("dialog-close").addEventListener("click",()=> $("operation-dialog").close());
+$("dialog-confirm").addEventListener("click",async()=>{
+ if(busy)return;
+ const names=[...importSelected];$("operation-dialog").close();busy=true;updateImportControls();
+ setStatus("import-status","Re-fetching Government details and importing "+names.length+" FTO(s)…");
+ try{
+  const {data,error}=await window.VBGRAMGData.invoke("vbgramg-historical-fto-import",{body:{manifestToken,ftoNumbers:names}});
+  if(error||!data?.success||data?.databaseChanged!==true)throw new Error(error?.message||data?.error||"Server did not confirm import.");
+  for(const n of names){imported.add(n);importSelected.delete(n);}
+  const c=data.imported||{};
+  setStatus("import-status","Import successful.\nFTO batches: "+(c.batch_count??names.length)+"\nTransactions: "+(c.transaction_count??"—")+"\nStatus-history rows: "+(c.status_history_count??"—")+"\nCharge rows created: 0\nPayments created: 0\nAllocations created: 0\nCharge links created: 0","success");
+  $("operation-title").textContent="Historical import completed";$("operation-message").textContent="Imported "+names.length+" FTO(s). No contribution charges, payments, allocations, or charge links were created.";
+  $("dialog-cancel").hidden=true;$("dialog-confirm").hidden=true;$("dialog-close").hidden=false;$("operation-dialog").showModal();
+ }catch(e){setStatus("import-status",(e?.message||"Historical import failed.")+"\nNo import is assumed unless the server confirms success. Verify FTO history before retrying after an interrupted response.","error");}
+ finally{busy=false;renderResults();}
+});
+$("clear-import-selection").addEventListener("click",()=>{importSelected.clear();renderResults();});
 $("export-csv").addEventListener("click",()=>{
  const rows=[["FTO Number","Job Card Number","Applicant","Reference Number","Status","Transaction Date","Processed Date","Credit Amount","Amount To Be Credited","Charge Periods"]];
  for(const item of results)for(const tx of item.matches)rows.push([item.ftoNumber,tx.jobCardNumber,tx.applicantName,tx.referenceNumber,tx.governmentStatus,tx.transactionDate,tx.processedDate,tx.creditAmount,tx.amountToBeCredited,(tx.chargePeriods||[]).join("; ")]);

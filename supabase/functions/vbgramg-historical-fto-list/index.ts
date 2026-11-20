@@ -97,7 +97,7 @@ Deno.serve(async (req: Request) => {
     const manifestToken = await makeToken(serviceKey, candidates);
     return reply({
       success: true, databaseChanged: false, listingCount: candidates.length,
-      uniqueFtoCount: new Set(numbers).size, source: LISTING_URL.split("?")[0],
+      uniqueFtoCount: new Set(numbers).size, source: LISTING_URL.split("?")[0],\n      candidates: candidates.map(({ ftoNumber, listingRow, listingIndex }) => ({ ftoNumber, listingRow, listingIndex })),
       fetchedAt: new Date().toISOString(), manifestToken, manifestExpiresInSeconds: 3600,
       message: "Historical FTO listing loaded. No production records or inspection state were changed.",
     });

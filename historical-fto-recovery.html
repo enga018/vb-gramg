@@ -116,11 +116,11 @@ function renderResults(){
  const body=$("result-rows");body.replaceChildren();
  for(const item of [...results].sort((a,b)=>a.listingIndex-b.listingIndex)){
   const tr=document.createElement("tr");
-  const selectCell=document.createElement("td"),check=document.createElement("input");check.type="checkbox";check.checked=importSelected.has(item.ftoNumber);check.disabled=imported.has(item.ftoNumber)||busy;check.setAttribute("aria-label","Select "+item.ftoNumber+" for import");check.addEventListener("change",()=>{if(check.checked)importSelected.add(item.ftoNumber);else importSelected.delete(item.ftoNumber);updateImportControls();});selectCell.append(check);tr.append(selectCell);
+  const selectCell=document.createElement("td"),check=document.createElement("input");check.type="checkbox";check.checked=importSelected.has(item.ftoNumber);check.disabled=imported.has(item.ftoNumber)||busy||item.matchingTransactionCount!==item.governmentTransactionCount;check.setAttribute("aria-label","Select "+item.ftoNumber+" for import");check.addEventListener("change",()=>{if(check.checked)importSelected.add(item.ftoNumber);else importSelected.delete(item.ftoNumber);updateImportControls();});selectCell.append(check);tr.append(selectCell);
   for(const value of [item.ftoNumber,listingDate(item.listingRow),item.governmentTransactionCount,item.matchingTransactionCount,item.matchingJobCardCount]){
    const td=document.createElement("td");td.textContent=String(value??"");tr.append(td);
   }body.append(tr);
-  const detail=document.createElement("tr"),cell=document.createElement("td");cell.colSpan=5;
+  const detail=document.createElement("tr"),cell=document.createElement("td");cell.colSpan=6;
   const disclosure=document.createElement("details"),summary=document.createElement("summary");summary.textContent="View "+item.matches.length+" matching transactions";disclosure.append(summary);
   const wrap=document.createElement("div");wrap.className="table-wrap";const table=document.createElement("table"),head=document.createElement("thead"),hr=document.createElement("tr");
   ["Job Card","Applicant","Reference","Government status","Transaction date","Processed date","Credit amount","Amount to be credited","Charge period candidates"].forEach(v=>{const th=document.createElement("th");th.textContent=v;hr.append(th);});head.append(hr);table.append(head);

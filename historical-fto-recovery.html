@@ -127,7 +127,18 @@ function renderResults(){
   const tb=document.createElement("tbody");
   for(const tx of item.matches){const row=document.createElement("tr");
    [tx.jobCardNumber,tx.applicantName,tx.referenceNumber,tx.governmentStatus,tx.transactionDate,tx.processedDate,tx.creditAmount,tx.amountToBeCredited,(tx.chargePeriods||[]).join(", ")].forEach(v=>{const td=document.createElement("td");td.textContent=String(v??"");row.append(td);});tb.append(row);}
-  table.append(tb);wrap.append(table);disclosure.append(wrap);cell.append(disclosure);detail.append(cell);body.append(detail);
+  table.append(tb);wrap.append(table);disclosure.append(wrap);
+  const unmatched=item.unmatchedTransactions||[];
+  if(unmatched.length){
+   const label=document.createElement("p");label.textContent="Unmatched Government transactions: "+unmatched.length+" — excluded from import eligibility until reviewed.";label.style.fontWeight="700";label.style.marginTop="14px";disclosure.append(label);
+   const uwrap=document.createElement("div");uwrap.className="table-wrap";const ut=document.createElement("table"),uh=document.createElement("thead"),ur=document.createElement("tr");
+   ["Job Card","Applicant","Reference","Government status","Transaction date","Credit amount","Amount to be credited","Why unmatched"].forEach(v=>{const th=document.createElement("th");th.textContent=v;ur.append(th);});uh.append(ur);ut.append(uh);
+   const ub=document.createElement("tbody");
+   for(const tx of unmatched){const row=document.createElement("tr");
+    [tx.jobCardNumber,tx.applicantName,tx.referenceNumber,tx.governmentStatus,tx.transactionDate,tx.creditAmount,tx.amountToBeCredited,tx.unmatchedReason].forEach(v=>{const td=document.createElement("td");td.textContent=String(v??"");row.append(td);});ub.append(row);}
+   ut.append(ub);uwrap.append(ut);disclosure.append(uwrap);
+  }
+  cell.append(disclosure);detail.append(cell);body.append(detail);
  }
  $("result-checked").textContent=String(inspected);$("result-matched").textContent=String(matched);
  $("result-transactions").textContent=String(results.reduce((n,x)=>n+x.matchingTransactionCount,0));

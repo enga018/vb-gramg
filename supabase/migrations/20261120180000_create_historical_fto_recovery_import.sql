@@ -148,7 +148,8 @@ begin
         raise exception 'Negative Government amount for reference %.', v_reference;
       end if;
 
-      -- Missing historical charges are preserved as unlinked FTO audit rows.\n    end loop;
+      -- Missing historical charges are preserved as unlinked FTO audit rows.
+    end loop;
 
     -- Count Government rows without a surviving JAN26-JUN26 charge.
     -- These remain in FTO history, but are never linked by this import.

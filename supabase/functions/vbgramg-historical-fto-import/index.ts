@@ -26,7 +26,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return reply({ error: "Method not allowed." }, 405);
 
-  const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\\s+/i, "");
+  const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
   if (!bearer) return reply({ error: "Sign in required." }, 401);
 
   const url = Deno.env.get("SUPABASE_URL");

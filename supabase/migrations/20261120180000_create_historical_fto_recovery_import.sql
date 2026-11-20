@@ -34,11 +34,16 @@ declare
   v_results jsonb := '[]'::jsonb;
   v_now timestamptz := now();
 begin
-  if p_payload is null
-     or jsonb_typeof(p_payload) <> 'object'
-     or jsonb_typeof(p_payload->'ftos') is distinct from 'array'
-     or jsonb_array_length(p_payload->'ftos') = 0 then
-    raise exception 'Historical FTO import requires a non-empty ftos array.';
+  if p_payload is null or jsonb_typeof(p_payload) is distinct from 'object' then
+    raise exception 'Historical FTO import requires an object payload.';
+  end if;
+
+  if jsonb_typeof(p_payload->'ftos') is distinct from 'array' then
+    raise exception 'Historical FTO import requires an ftos array.';
+  end if;
+
+  if jsonb_array_length(p_payload->'ftos') = 0 then
+    raise exception 'Historical FTO import requires at least one FTO.';
   end if;
 
   if p_actor is null then
@@ -85,8 +90,11 @@ begin
       raise exception 'FTO % already exists in FTO history. Nothing was imported.', v_fto_number;
     end if;
 
-    if jsonb_typeof(v_fto->'rows') is distinct from 'array'
-       or jsonb_array_length(v_fto->'rows') = 0 then
+    if jsonb_typeof(v_fto->'rows') is distinct from 'array' then
+      raise exception 'FTO % rows must be an array.', v_fto_number;
+    end if;
+
+    if jsonb_array_length(v_fto->'rows') = 0 then
       raise exception 'FTO % has no transaction rows.', v_fto_number;
     end if;
 
@@ -120,9 +128,12 @@ begin
       end if;
       v_seen_refs := array_append(v_seen_refs, upper(v_reference));
 
-      if jsonb_typeof(v_row->'sourceRow') is distinct from 'array'
-         or jsonb_array_length(v_row->'sourceRow') = 0 then
-        raise exception 'Government source row is missing for reference %.', v_reference;
+      if jsonb_typeof(v_row->'sourceRow') is distinct from 'array' then
+        raise exception 'Government source row must be an array for reference %.', v_reference;
+      end if;
+
+      if jsonb_array_length(v_row->'sourceRow') = 0 then
+        raise exception 'Government source row is empty for reference %.', v_reference;
       end if;
 
       if coalesce(v_row->>'amountToBeCredited', '') !~ '^[0-9]+([.][0-9]+)?$'

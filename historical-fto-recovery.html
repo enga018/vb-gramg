@@ -202,7 +202,7 @@ $("inspect-selected").addEventListener("click",async()=>{
    setStatus("inspection-status","Inspection incomplete: "+inspected+" of "+nums.length+" FTOs successfully inspected; "+failedCount+" failed. Failed batches were not counted as inspected. Retry those FTOs after checking the error details.\n"+failures.map(x=>x.ftos.join(", ")+": "+x.error).join("\n"),"error");
   }else setStatus("inspection-status","Inspection completed: "+inspected+" selected FTOs successfully checked. This is not an import; no production records were changed.","success");
  }catch(e){setStatus("inspection-status",e?.message||"Inspection failed.","error");}
- finally{busy=false;updateCounts();}
+ finally{busy=false;renderResults();updateCounts();}
 });
 $("import-selected").addEventListener("click",()=>{
  if(busy||!manifestToken||!importSelected.size||importSelected.size>5)return;

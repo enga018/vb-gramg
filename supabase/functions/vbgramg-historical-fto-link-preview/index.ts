@@ -103,6 +103,16 @@ Deno.serve(async (req: Request) => {
       .order("job_card_number").order("entry_date");
     if (chargeError) throw new Error("Could not load historical Charge Ledger entries.");
 
+    const { data: linkedRows, error: linkedError } = await admin.from("vbgramg_fto_transactions")
+      .select("id,ledger_entry_id").not("ledger_entry_id", "is", null).range(0, 4999);
+    if (linkedError) throw new Error("Could not verify existing FTO-to-charge links.");
+    const linkedByCharge = new Map<string, string[]>();
+    for (const linked of linkedRows || []) {
+      const chargeId = String(linked.ledger_entry_id);
+      if (!linkedByCharge.has(chargeId)) linkedByCharge.set(chargeId, []);
+      linkedByCharge.get(chargeId)!.push(String(linked.id));
+    }
+
     const cards = [...new Set((txRows || []).map((t: any) => normalizeCard(t.job_card_number)).filter(Boolean))];
     const { data: currentExemptions, error: currentExemptionError } = await admin.from("vbgramg_contribution_exemptions")
       .select("job_card_number,note").in("job_card_number", cards);
@@ -145,11 +155,14 @@ Deno.serve(async (req: Request) => {
       const history = historyByCard.get(card) || [];
       if (currentExemptByCard.has(card)) warnings.push("Currently exempt; current status does not prove historical exemption.");
       if (history.length) warnings.push("Exemption history exists; verify whether it overlaps the historical period.");
+      const availableCandidates = candidates.filter((c: any) =>
+        !(linkedByCharge.get(String(c.id)) || []).some((transactionId: string) => transactionId !== String(tx.id)));
       if (tx.status === "processed" && tx.is_in_scope && !alreadyLinked && calculatedCharge !== null) {
-        if (candidates.length === 1) {
+        if (availableCandidates.length === 1 && candidates.length === 1) {
           proposedAction = "propose_link";
-          proposedChargeId = candidates[0].id;
+          proposedChargeId = availableCandidates[0].id;
         } else if (candidates.length === 0) warnings.push("No exact amount-matching charge found in JAN26–JUN26.");
+        else if (availableCandidates.length === 0) warnings.push("Matching charge is already linked to another FTO transaction.");
         else warnings.push("Multiple exact amount-matching charges; period is ambiguous.");
       }
       return {
